@@ -1,11 +1,41 @@
-import { app, BrowserWindow, ipcMain, Menu, safeStorage } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, safeStorage, screen } from 'electron'
 import { join } from 'path'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { autoUpdater } from 'electron-updater'
 import { LichManager, LichConnection } from './lich-manager'
 import { GameConnection } from './game-connection'
 import { SettingsStore } from './settings-store'
 import { sgeAuth } from './sge-auth'
 import type { SGELaunchKey } from './sge-auth'
+
+// ── Window state persistence ──────────────────────────────────────────────────
+interface WindowState { x: number; y: number; width: number; height: number; maximized: boolean }
+
+function winStatePath() { return join(app.getPath('userData'), 'window-state.json') }
+
+function loadWindowState(): WindowState | null {
+  try {
+    const p = winStatePath()
+    if (!existsSync(p)) return null
+    return JSON.parse(readFileSync(p, 'utf8')) as WindowState
+  } catch { return null }
+}
+
+function saveWindowState(win: BrowserWindow): void {
+  try {
+    const maximized = win.isMaximized()
+    const bounds    = maximized ? win.getNormalBounds() : win.getBounds()
+    writeFileSync(winStatePath(), JSON.stringify({ ...bounds, maximized }), 'utf8')
+  } catch {}
+}
+
+function isOnScreen(s: WindowState): boolean {
+  return screen.getAllDisplays().some(d => {
+    const a = d.workArea
+    return s.x < a.x + a.width && s.x + s.width > a.x &&
+           s.y < a.y + a.height && s.y + s.height > a.y
+  })
+}
 
 let mainWindow: BrowserWindow | null = null
 const lichManager = new LichManager()
@@ -31,8 +61,13 @@ let pendingSelectInstance:  ((code: string) => Promise<unknown>) | null = null
 let pendingSelectCharacter: ((id: string)   => Promise<SGELaunchKey>) | null = null
 
 function createWindow(): void {
+  const saved  = loadWindowState()
+  const bounds = saved && isOnScreen(saved)
+    ? { x: saved.x, y: saved.y, width: saved.width, height: saved.height }
+    : { width: 1400, height: 900 }
+
   mainWindow = new BrowserWindow({
-    width: 1400, height: 900, minWidth: 800, minHeight: 600,
+    ...bounds, minWidth: 800, minHeight: 600,
     backgroundColor: '#04080f',
     icon: join(app.getAppPath(), 'resources', 'icon.png'),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
@@ -41,6 +76,7 @@ function createWindow(): void {
       sandbox: false, contextIsolation: true, nodeIntegration: false
     }
   })
+  if (saved?.maximized) mainWindow.maximize()
   if (process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -50,6 +86,7 @@ function createWindow(): void {
     if (input.type === 'keyDown' && input.key === 'F12')
       mainWindow?.webContents.toggleDevTools()
   })
+  mainWindow.on('close',      () => saveWindowState(mainWindow!))
   mainWindow.on('maximize',   () => send('window:maximize-change', true))
   mainWindow.on('unmaximize', () => send('window:maximize-change', false))
 
