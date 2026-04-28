@@ -4,6 +4,7 @@ import { handsAtom } from '../../store/game'
 export type { ConnectionStatus } from '../../store/game'
 import type { ConnectionStatus } from '../../store/game'
 import { IconCog, IconSparkles, IconChevron, IconWinMinimize, IconWinMaximize, IconWinRestore, IconWinClose } from '../ui/Icons'
+import { Tooltip } from '../ui/Tooltip'
 
 // ── CommandInput ──────────────────────────────────────────────────────────────
 export function CommandInput({ onSend, onEcho }: {
@@ -87,15 +88,21 @@ export function WindowControls() {
 
   return (
     <div className="window-controls">
-      <button className="wc-btn" title="Minimize" onClick={() => window.dr.window.minimize()}>
-        <IconWinMinimize />
-      </button>
-      <button className="wc-btn" title={maximized ? 'Restore' : 'Maximize'} onClick={() => window.dr.window.toggleMaximize()}>
-        {maximized ? <IconWinRestore /> : <IconWinMaximize />}
-      </button>
-      <button className="wc-btn wc-close" title="Close" onClick={() => window.dr.window.close()}>
-        <IconWinClose />
-      </button>
+      <Tooltip text="Minimize">
+        <button className="wc-btn" onClick={() => window.dr.window.minimize()}>
+          <IconWinMinimize />
+        </button>
+      </Tooltip>
+      <Tooltip text={maximized ? 'Restore' : 'Maximize'}>
+        <button className="wc-btn" onClick={() => window.dr.window.toggleMaximize()}>
+          {maximized ? <IconWinRestore /> : <IconWinMaximize />}
+        </button>
+      </Tooltip>
+      <Tooltip text="Close">
+        <button className="wc-btn wc-close" onClick={() => window.dr.window.close()}>
+          <IconWinClose />
+        </button>
+      </Tooltip>
     </div>
   )
 }
@@ -124,52 +131,48 @@ export function StatusBar({
       <img src="./icon.svg" className="app-icon" alt="" aria-hidden />
       <span className="app-title">Meridian</span>
       <span className={`connection-status status-${status}`}>{status}</span>
+      <button className="btn-connect" onClick={onDisconnect}>Disconnect</button>
 
       {status === 'connected' && (
         <span className="lich-status-indicator">
-          <span className={`lich-status-dot lich-status-dot-${lichStatus}`} />
-          {lichStatus === 'stopped' || lichStatus === 'error'
-            ? <button className="btn-connect" onClick={onStartLich}>
-                {lichStatus === 'error' ? 'Retry Lich' : 'Start Lich'}
-              </button>
-            : <span className="lich-status-label">
-                {lichStatus === 'starting' ? 'Lich starting…' : 'Lich active'}
-              </span>
-          }
-          <button
-            className="lich-log-toggle-btn"
-            onClick={onToggleLichLog}
-            title={showLichLog ? 'Hide log' : `Show log (${lichLog.length} lines)`}
-          >
-            <IconChevron size={11} open={showLichLog} />
-            <span>log</span>
-            {lichLog.length > 0 && <span className="lich-log-count">{lichLog.length}</span>}
-          </button>
+          <Tooltip text={showLichLog ? 'Hide Lich log' : `Show Lich log (${lichLog.length} lines)`}>
+            <button className="lich-log-toggle-btn" onClick={onToggleLichLog}>
+              <IconChevron size={11} open={showLichLog} />
+              <span>lich log</span>
+              {lichLog.length > 0 && <span className="lich-log-count">{lichLog.length}</span>}
+            </button>
+          </Tooltip>
         </span>
       )}
 
       {status !== 'connected' && lichLog.length > 0 && (
-        <button className="lich-log-toggle-btn" onClick={onToggleLichLog}>
-          <IconChevron size={11} open={showLichLog} />
-          <span>log</span>
-          <span className="lich-log-count">{lichLog.length}</span>
-        </button>
+        <Tooltip text={showLichLog ? 'Hide log' : 'Show log'}>
+          <button className="lich-log-toggle-btn" onClick={onToggleLichLog}>
+            <IconChevron size={11} open={showLichLog} />
+            <span>log</span>
+            <span className="lich-log-count">{lichLog.length}</span>
+          </button>
+        </Tooltip>
       )}
 
       {status === 'connected' && <HandDisplay />}
       <div className="status-bar-spacer" />
+
       {status === 'connected' && (
         <>
           {charName && <span className="status-char-name">{charName}</span>}
-          <button className="btn-connect" onClick={onDisconnect}>Disconnect</button>
         </>
       )}
-      <button className="btn-settings" onClick={onHighlights} title="Highlights">
-        <IconSparkles size={14} />Highlights
-      </button>
-      <button className="btn-settings" onClick={onSettings} title="Settings">
-        <IconCog size={14} />Settings
-      </button>
+      <Tooltip text="Highlights">
+        <button className="btn-settings" onClick={onHighlights}>
+          <IconSparkles size={16} />
+        </button>
+      </Tooltip>
+      <Tooltip text="Settings">
+        <button className="btn-settings" onClick={onSettings}>
+          <IconCog size={16} />
+        </button>
+      </Tooltip>
       {updateSlot}
       <WindowControls />
     </div>

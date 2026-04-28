@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { Tooltip } from '../ui/Tooltip'
 
 export type PanelId = 'room' | 'vitals' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths'
 
@@ -123,10 +124,14 @@ function Panel({
       >
         <span className="panel-title">{config.label}</span>
         <div className="panel-header-actions">
-          <button className="panel-collapse-btn" onClick={() => setCollapsed(c => !c)}>
-            {collapsed ? '▸' : '▾'}
-          </button>
-          <button className="panel-collapse-btn" onClick={onToggle} style={{ opacity: 0.5 }} title="Hide">×</button>
+          <Tooltip text={collapsed ? 'Expand' : 'Collapse'}>
+            <button className="panel-collapse-btn" onClick={() => setCollapsed(c => !c)}>
+              {collapsed ? '▸' : '▾'}
+            </button>
+          </Tooltip>
+          <Tooltip text="Hide panel">
+            <button className="panel-collapse-btn" onClick={onToggle} style={{ opacity: 0.5 }}>×</button>
+          </Tooltip>
         </div>
       </div>
       {ctxMenu && (
