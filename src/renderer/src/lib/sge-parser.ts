@@ -486,6 +486,20 @@ export function parseLine(raw: string): GameEvent[] {
         break
       }
 
+      // ── Inline inventory tags (<clearContainer/> + <inv>) ────────────────
+      case 'clearcontainer':
+        flush()
+        events.push({ type: 'text', text: '__clear_inv__', styles: [], stream: 'inv' })
+        break
+      case 'inv':
+        flush()
+        _stream = 'inv'
+        break
+      case '/inv':
+        flush()
+        _stream = 'main'
+        break
+
       // ── Stream switching ──────────────────────────────────────────────────
       case 'clearstream':
         flush()
@@ -632,24 +646,22 @@ export function parseLine(raw: string): GameEvent[] {
       case 'popbold':
       case '/pushbold': flush(); styles = []; break
 
-      // ── Login-phase inventory dump — suppress bag container and inv stream ────
+      // ── Container inventory dump — suppress from main output always ──────────
       case 'exposecontainer': {
-        // <exposeContainer> always precedes the bag dump at login
         flush()
-        if (_preXmlPhase) _inInitialInventory = true
+        _inInitialInventory = true
         break
       }
       case 'container': {
         flush()
-        if (_preXmlPhase) _inInitialInventory = true
+        _inInitialInventory = true
         break
       }
       case '/container': {
-        // Discard buffered text; keep _inInitialInventory true so plain-text
-        // lines after the container (Empty, Obvious paths:) stay suppressed
-        // until the --- separator clears it.
         buf = ''
         styles = []
+        // During login, stay suppressed until <prompt>; during gameplay, clear now
+        if (!_preXmlPhase) _inInitialInventory = false
         break
       }
 

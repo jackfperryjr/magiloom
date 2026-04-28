@@ -127,14 +127,24 @@ export const dispatchGameEventAtom = atom(
             set(atmoLinesAtom, [...get(atmoLinesAtom).slice(-199), line])
             // Don't echo atmo to main output — it clutters it
             break
-          case 'speech':
-            set(convLinesAtom, appendDedup(get(convLinesAtom), line, 200))
+          case 'speech': {
+            const isSpeech = line.styles.some(s => ['speech','whisper'].includes(s.preset ?? ''))
+            const isScript = /^\S+:\s/.test(line.text)
+            if (isSpeech && !isScript) {
+              set(convLinesAtom, appendDedup(get(convLinesAtom), line, 200))
+            } else {
+              set(outputLinesAtom, appendDedup(get(outputLinesAtom), line, 5000))
+            }
             break
+          }
           default: {
-            set(outputLinesAtom, appendDedup(get(outputLinesAtom), line, 5000))
-            const DEATH_RE = /\*\s+.+?\s+(was struck down|was slain|was killed|died|perished|succumbed|fell lifeless)|you have died|you are dead/i
-            if (DEATH_RE.test(event.text)) {
-              set(deathsAtom, [...get(deathsAtom).slice(-199), line])
+            const isHandUpdate = event.styles.some(s => s.preset === 'left' || s.preset === 'right')
+            if (!isHandUpdate) {
+              set(outputLinesAtom, appendDedup(get(outputLinesAtom), line, 5000))
+              const DEATH_RE = /\*\s+.+?\s+(was struck down|was slain|was killed|died|perished|succumbed|fell lifeless)|you have died|you are dead/i
+              if (DEATH_RE.test(event.text)) {
+                set(deathsAtom, [...get(deathsAtom).slice(-199), line])
+              }
             }
             break
           }
@@ -145,7 +155,7 @@ export const dispatchGameEventAtom = atom(
         // Also route main-stream speech/whisper/thought to conv panel.
         // appendDedup handles the case where speech arrives in both the pushStream
         // and the main stream, so only the first copy is kept.
-        if (event.styles.some(s => ['speech','whisper','thought'].includes(s.preset ?? ''))) {
+        if (event.styles.some(s => ['speech','whisper'].includes(s.preset ?? '')) && !/^\S+:\s/.test(event.text)) {
           set(convLinesAtom, appendDedup(get(convLinesAtom), line, 200))
         }
         break
