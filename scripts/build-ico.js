@@ -6,7 +6,7 @@ const Jimp = require('jimp')
 const fs   = require('fs')
 const path = require('path')
 
-const SIZES = [512, 256, 64, 48, 32, 16]
+const SIZES = [256, 128, 64, 48, 32, 24, 16]
 const SRC   = path.join(__dirname, '..', 'resources', 'icon.png')
 const OUT   = path.join(__dirname, '..', 'build', 'icon.ico')
 
