@@ -1312,6 +1312,54 @@ body[data-platform="darwin"] .status-bar {
 }
 
 /* ── Panel right-click context menu ─────────────────────────────────────── */
+/* ── Custom tooltip ──────────────────────────────────────────────────────── */
+.tooltip-custom {
+  position: fixed;
+  z-index: 99999;
+  pointer-events: none;
+  background: var(--bg-panel);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 7px 13px;
+  font-size: 13px;
+  font-family: var(--font-ui);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.8), 0 0 0 1px rgba(192,208,255,0.04);
+  animation: tooltip-in 0.12s ease;
+}
+@keyframes tooltip-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Arrow shared */
+.tooltip-custom::before,
+.tooltip-custom::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* ── Arrow up, left corner (br: tooltip below-right of cursor) ── */
+.tooltip-custom[data-pos="br"]::before { border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 7px solid var(--border);  top: -7px; left: 4px; }
+.tooltip-custom[data-pos="br"]::after  { border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 6px solid var(--bg-panel); top: -6px; left: 5px; }
+
+/* ── Arrow up, right corner (bl: tooltip below-left of cursor) ── */
+.tooltip-custom[data-pos="bl"]::before { border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 7px solid var(--border);  top: -7px; right: 4px; }
+.tooltip-custom[data-pos="bl"]::after  { border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 6px solid var(--bg-panel); top: -6px; right: 5px; }
+
+/* ── Arrow down, left corner (ar: tooltip above-right of cursor) ── */
+.tooltip-custom[data-pos="ar"]::before { border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 7px solid var(--border);     bottom: -7px; left: 4px; }
+.tooltip-custom[data-pos="ar"]::after  { border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid var(--bg-panel);    bottom: -6px; left: 5px; }
+
+/* ── Arrow down, right corner (al: tooltip above-left of cursor) ── */
+.tooltip-custom[data-pos="al"]::before { border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 7px solid var(--border);     bottom: -7px; right: 4px; }
+.tooltip-custom[data-pos="al"]::after  { border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid var(--bg-panel);    bottom: -6px; right: 5px; }
+
 .panel-ctx-backdrop {
   position: fixed; inset: 0; z-index: 900;
 }

@@ -129,7 +129,7 @@ export const dispatchGameEventAtom = atom(
             break
           case 'speech': {
             const isSpeech = line.styles.some(s => ['speech','whisper'].includes(s.preset ?? ''))
-            const isScript = /^\S+:\s/.test(line.text)
+            const isScript = /^\S+:\s/.test(line.text) || /\.lic\b/.test(line.text)
             if (isSpeech && !isScript) {
               set(convLinesAtom, appendDedup(get(convLinesAtom), line, 200))
             } else {
@@ -155,7 +155,7 @@ export const dispatchGameEventAtom = atom(
         // Also route main-stream speech/whisper/thought to conv panel.
         // appendDedup handles the case where speech arrives in both the pushStream
         // and the main stream, so only the first copy is kept.
-        if (event.styles.some(s => ['speech','whisper'].includes(s.preset ?? '')) && !/^\S+:\s/.test(event.text)) {
+        if (event.styles.some(s => ['speech','whisper'].includes(s.preset ?? '')) && !/^\S+:\s/.test(event.text) && !/\.lic\b/.test(event.text)) {
           set(convLinesAtom, appendDedup(get(convLinesAtom), line, 200))
         }
         break
