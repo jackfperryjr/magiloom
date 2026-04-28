@@ -4,7 +4,7 @@ import {
   vitalsAtom, roomAtom, activeSpellAtom, roundtimeSecondsAtom,
   indicatorsAtom, inventoryLinesAtom,
   expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom,
-  type OutputLine, type ExpSkill,
+  type OutputLine,
 } from '../../store/game'
 
 // ── Auto-scroll helper ─────────────────────────────────────────────────────────
@@ -106,29 +106,11 @@ function mindColor(word?: string): string {
   return MIND_COLORS[word.toLowerCase()] ?? 'var(--text-main)'
 }
 
-function ExpSkillCell({ s }: { s: ExpSkill }) {
-  return (
-    <>
-      <td className="exp-skill">{s.name}</td>
-      <td className="exp-rank">{s.rank}</td>
-      <td className="exp-pct">{s.pct}%</td>
-      <td className="exp-mind" style={{ color: mindColor(s.mindWord) }}>
-        {s.mindWord ?? s.mind}
-      </td>
-    </>
-  )
-}
-
 export function ExperiencePanel() {
   const exp = useAtomValue(expAtom)
 
   if (exp.skills.length === 0) {
     return <div className="panel-empty">Type EXP to load experience data</div>
-  }
-
-  const pairs: [ExpSkill, ExpSkill | null][] = []
-  for (let i = 0; i < exp.skills.length; i += 2) {
-    pairs.push([exp.skills[i], exp.skills[i + 1] ?? null])
   }
 
   return (
@@ -141,14 +123,14 @@ export function ExperiencePanel() {
       )}
       <table className="exp-table">
         <tbody>
-          {pairs.map(([a, b], i) => (
-            <tr key={i} className="exp-row">
-              <ExpSkillCell s={a} />
-              <td className="exp-col-sep" />
-              {b
-                ? <ExpSkillCell s={b} />
-                : <td colSpan={4} />
-              }
+          {exp.skills.map(s => (
+            <tr key={s.name} className="exp-row">
+              <td className="exp-skill">{s.name}</td>
+              <td className="exp-rank">{s.rank}</td>
+              <td className="exp-pct">{s.pct}%</td>
+              <td className="exp-mind" style={{ color: mindColor(s.mindWord) }}>
+                {s.mindWord ?? s.mind}
+              </td>
             </tr>
           ))}
         </tbody>

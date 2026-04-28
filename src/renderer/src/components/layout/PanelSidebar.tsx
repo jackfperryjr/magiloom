@@ -12,10 +12,10 @@ const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'room',         label: 'Room',          visible: true  },
   { id: 'vitals',       label: 'Vitals',        visible: true  },
   { id: 'experience',   label: 'Experience',    visible: true  },
-  { id: 'spells',       label: 'Active Spells', visible: true  },
-  { id: 'combat',       label: 'Combat',        visible: false },
+  { id: 'spells',       label: 'Active Spells', visible: false  },
+  { id: 'combat',       label: 'Combat',        visible: true },
   { id: 'atmo',         label: 'Atmosphere',    visible: false },
-  { id: 'conversation', label: 'Conversation',  visible: false },
+  { id: 'conversation', label: 'Conversation',  visible: true },
   { id: 'inventory',    label: 'Inventory',     visible: false },
   { id: 'deaths',       label: 'Deaths',        visible: false },
 ]
@@ -60,11 +60,10 @@ function Panel({
   onResizeBottom:  (h: number) => void
   onResizeTop?:    (delta: number) => void
 }) {
-  const [collapsed,   setCollapsed]   = useState(false)
-  const [ctxMenu,     setCtxMenu]     = useState<{ x: number; y: number } | null>(null)
+  const [collapsed, setCollapsed] = useState(false)
+  const [ctxMenu,   setCtxMenu]   = useState<{ x: number; y: number } | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
 
-  // Use refs so the single shared event handler always sees fresh values
   const dragMode   = useRef<'top' | 'bottom' | null>(null)
   const startY     = useRef(0)
   const startH     = useRef(0)
@@ -89,7 +88,6 @@ function Panel({
         const newH = Math.max(48, startH.current + (e.clientY - startY.current))
         onBottomCb.current(newH)
       } else {
-        // top handle: incremental delta — positive delta = dragging down = prev panel grows
         const delta = e.clientY - startY.current
         startY.current = e.clientY
         onTopCb.current?.(delta)
@@ -144,7 +142,7 @@ function Panel({
           <div
             ref={bodyRef}
             className="panel-content panel-content-scroll"
-            style={height !== null ? { height, overflow: 'auto' } : {}}
+            style={height !== null ? { height, maxHeight: 'none', overflow: 'auto' } : {}}
           >
             {children}
           </div>
@@ -201,7 +199,7 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth }: {
   const [showManager, setShowManager] = useState(false)
   const managerBtnRef = useRef<HTMLButtonElement>(null)
 
-  useEffect(() => { savePanels(panels)  }, [panels])
+  useEffect(() => { savePanels(panels)   }, [panels])
   useEffect(() => { saveHeights(heights) }, [heights])
 
   const togglePanel = useCallback((id: PanelId) => {
@@ -232,7 +230,7 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth }: {
               const prevId = visible[i - 1].id
               setHeights(prev => ({
                 ...prev,
-                [prevId]: Math.max(48, (prev[prevId] ?? 120) + delta)
+                [prevId]: Math.max(48, (prev[prevId] ?? 220) + delta)
               }))
             } : undefined}
             onToggle={() => togglePanel(panel.id)}

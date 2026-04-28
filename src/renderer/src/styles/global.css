@@ -1075,7 +1075,7 @@ body[data-platform="darwin"] .status-bar {
 .panel-empty { font-size: 14px; color: var(--text-dim); font-style: italic; padding: 4px 0; font-family: var(--font-game); }
 
 /* Scrollable panel body */
-.panel-content-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--scrollbar) transparent; }
+.panel-content-scroll { overflow-y: auto; max-height: 220px; scrollbar-width: thin; scrollbar-color: var(--scrollbar) transparent; }
 .panel-content-scroll::-webkit-scrollbar { width: 4px; }
 .panel-content-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar); }
 
