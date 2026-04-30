@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="resources/meridian-512x512.png" width="96" height="96" alt="Meridian" />
+  <img src="resources/icon.png" width="96" height="96" alt="Meridian" />
 </p>
 
 # Meridian — Player Guide
