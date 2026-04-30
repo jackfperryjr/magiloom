@@ -17,7 +17,7 @@ interface SavedAccount  { name: string; lastCharacter?: string }
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="login-screen">
-      <img src="./icon.svg" className="login-watermark" aria-hidden="true" />
+      <img src="./meridian-512x512.png" className="login-watermark" aria-hidden="true" />
       <div className="login-card">
         <div className="login-logo">Meridian</div>
         <div className="login-logo-sub">DragonRealms Client</div>
