@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="resources/meridian-512x512.png" width="128" height="128" alt="Meridian" />
+  <img src="resources/icon.png" width="128" height="128" alt="Meridian" />
 </p>
 
 <h1 align="center">Meridian</h1>
