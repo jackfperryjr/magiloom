@@ -128,7 +128,7 @@ export function StatusBar({
 }) {
   return (
     <div className="status-bar">
-      <img src="./meridian-512x512.png" className="app-icon" alt="" aria-hidden />
+      <img src="./icon.png" className="app-icon" alt="" aria-hidden />
       <span className="app-title">Meridian</span>
       <span className={`connection-status status-${status}`}>{status}</span>
       <button className="btn-connect" onClick={onDisconnect}>Disconnect</button>
