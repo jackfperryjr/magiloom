@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1280">
+  <title>Meridian Social Preview</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 1280px;
+      height: 640px;
+      overflow: hidden;
+      background: #070c1a;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: #dde4f5;
+      position: relative;
+    }
+
+    /* Radial ambient glow matching the app's login screen */
+    .bg {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 60% at 38% 50%, #0d1e40 0%, transparent 70%),
+        radial-gradient(ellipse 40% 80% at 75% 50%, #0a1530 0%, transparent 65%),
+        #070c1a;
+    }
+
+    /* Subtle grid lines for depth */
+    .grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(80, 130, 220, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(80, 130, 220, 0.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+
+    /* Left accent bar */
+    .accent-bar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: linear-gradient(to bottom, transparent 5%, #3a6fd8 30%, #6fb3ff 50%, #3a6fd8 70%, transparent 95%);
+    }
+
+    .content {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      height: 100%;
+      padding: 0 80px;
+      gap: 72px;
+    }
+
+    /* ── Left: icon + name ───────────────────────── */
+    .brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+      gap: 28px;
+    }
+
+    .icon-wrap {
+      width: 180px;
+      height: 180px;
+      position: relative;
+    }
+
+    .icon-wrap img {
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      display: block;
+    }
+
+    /* Soft halo around icon */
+    .icon-halo {
+      position: absolute;
+      inset: -12px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(70, 130, 255, 0.18) 0%, transparent 70%);
+    }
+
+    .app-name {
+      font-size: 68px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      color: #eef2ff;
+      line-height: 1;
+      text-align: center;
+      text-shadow: 0 0 40px rgba(100, 160, 255, 0.35);
+    }
+
+    .tagline {
+      font-size: 17px;
+      color: #7a9acc;
+      letter-spacing: 0.04em;
+      text-align: center;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    /* ── Divider ─────────────────────────────────── */
+    .divider {
+      width: 1px;
+      height: 340px;
+      background: linear-gradient(to bottom, transparent, rgba(80, 130, 220, 0.3) 30%, rgba(80, 130, 220, 0.3) 70%, transparent);
+      flex-shrink: 0;
+    }
+
+    /* ── Right: feature list ─────────────────────── */
+    .features {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .feature {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .feature-icon {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4a8adf;
+      flex-shrink: 0;
+      margin-top: 8px;
+      box-shadow: 0 0 8px rgba(74, 138, 223, 0.6);
+    }
+
+    .feature-text h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #ccd8f0;
+      margin-bottom: 3px;
+      letter-spacing: 0.01em;
+    }
+
+    .feature-text p {
+      font-size: 13.5px;
+      color: #5a7aaa;
+      line-height: 1.5;
+    }
+
+    /* ── Bottom strip ────────────────────────────── */
+    .bottom-strip {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      background: rgba(10, 18, 38, 0.85);
+      border-top: 1px solid rgba(60, 100, 180, 0.18);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 12px;
+      z-index: 20;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      border: 1px solid;
+    }
+
+    .pill-electron {
+      color: #8fbfff;
+      border-color: rgba(80, 140, 255, 0.3);
+      background: rgba(40, 80, 180, 0.12);
+    }
+
+    .pill-react {
+      color: #7dd9f5;
+      border-color: rgba(80, 200, 240, 0.3);
+      background: rgba(20, 120, 180, 0.10);
+    }
+
+    .pill-ts {
+      color: #88aaee;
+      border-color: rgba(80, 120, 220, 0.3);
+      background: rgba(40, 70, 160, 0.12);
+    }
+
+    .pill-dr {
+      color: #b0aadd;
+      border-color: rgba(140, 120, 220, 0.3);
+      background: rgba(80, 60, 160, 0.12);
+    }
+
+    .strip-right {
+      margin-left: auto;
+      font-size: 12.5px;
+      color: #3a5888;
+      letter-spacing: 0.03em;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="grid"></div>
+  <div class="accent-bar"></div>
+
+  <div class="content">
+    <div class="brand">
+      <div class="icon-wrap">
+        <div class="icon-halo"></div>
+        <img src="../resources/meridian-512x512.png" alt="Meridian">
+      </div>
+      <div class="app-name">Meridian</div>
+      <div class="tagline">DragonRealms Client</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon"></div>
+        <div class="feature-text">
+          <h3>Rich Game Output</h3>
+          <p>Colorized text streams with highlighted combat, speech, and atmosphere — all routed to dedicated panels.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon"></div>
+        <div class="feature-text">
+          <h3>Live Vitals &amp; Experience</h3>
+          <p>Real-time health, mana, stamina, and spirit bars alongside a full skill experience tracker.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon"></div>
+        <div class="feature-text">
+          <h3>Lich Script Support</h3>
+          <p>Run Lich macros and scripts directly — output routed separately so it never clutters your gameplay.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon"></div>
+        <div class="feature-text">
+          <h3>Customizable Panels</h3>
+          <p>Resizable, reorderable sidebar panels for room info, inventory, conversation, combat, and more.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-strip">
+    <span class="pill pill-electron">⚛ Electron</span>
+    <span class="pill pill-react">⚛ React</span>
+    <span class="pill pill-ts">TS TypeScript</span>
+    <span class="pill pill-dr">DragonRealms</span>
+    <span class="strip-right">github.com/jackfperryjr/meridian</span>
+  </div>
+</body>
+</html>

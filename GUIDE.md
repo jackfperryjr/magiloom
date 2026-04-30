@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="resources/meridian-512x512.png" width="96" height="96" alt="Meridian" />
+</p>
+
 # Meridian — Player Guide
 
 Meridian is a DragonRealms game client for Windows, Mac, and Linux. It connects directly to the DragonRealms servers and gives you a clean, modern window for playing — with live vitals, room info, experience tracking, highlights, and optional Lich scripting support.
