@@ -816,13 +816,19 @@ body[data-platform="darwin"] .status-bar {
   text-transform: uppercase; font-family: var(--font-ui);
 }
 .login-account-arrow { color: var(--text-dim); }
+.login-account-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  margin-right: 6px;
+}
 .login-account-forget {
   font-size: 12px;
   opacity: 0;
   transition: opacity .15s;
   padding: 2px 4px;
   border-radius: 3px;
-  margin-left: auto;
 }
 .login-account-btn:hover .login-account-forget { opacity: 0.45; }
 .login-account-forget:hover { opacity: 1 !important; background: var(--accent-dim); }

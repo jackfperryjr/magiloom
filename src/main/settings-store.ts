@@ -62,6 +62,15 @@ export class SettingsStore {
     this.save()
   }
 
+  forgetAccount(account: string): void {
+    this.data.accounts = this.data.accounts.filter(
+      a => a.name.toLowerCase() !== account.toLowerCase()
+    )
+    const { [account]: _, ...rest } = this.data.passwords ?? {}
+    this.data.passwords = rest
+    this.save()
+  }
+
   saveAccount(name: string, lastCharacter?: string): void {
     const idx = this.data.accounts.findIndex(
       a => a.name.toLowerCase() === name.toLowerCase()

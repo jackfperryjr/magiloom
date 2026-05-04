@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Tooltip } from './Tooltip'
 
 interface LoginFlowProps { onEnterGame: (characterName: string) => void; onOpenSettings: () => void }
 
@@ -32,12 +33,13 @@ function Back({ onClick }: { onClick: () => void }) {
 }
 
 // ─── Screen 1: Saved accounts ─────────────────────────────────────────────────
-function AccountListScreen({ accounts, onSelect, onForget, onAddNew, onSettings }: {
-  accounts:   SavedAccount[]
-  onSelect:   (a: SavedAccount) => void
-  onForget:   (name: string) => void
-  onAddNew:   () => void
-  onSettings: () => void
+function AccountListScreen({ accounts, onSelect, onForget, onForgetAccount, onAddNew, onSettings }: {
+  accounts:        SavedAccount[]
+  onSelect:        (a: SavedAccount) => void
+  onForget:        (name: string) => void
+  onForgetAccount: (name: string) => void
+  onAddNew:        () => void
+  onSettings:      () => void
 }) {
   return <>
     <div className="login-screen-title">Welcome back</div>
@@ -48,11 +50,20 @@ function AccountListScreen({ accounts, onSelect, onForget, onAddNew, onSettings 
             <span className="login-account-name">{a.name}</span>
             {a.lastCharacter && <span className="login-account-last">Last: {a.lastCharacter}</span>}
           </div>
-          <span
-            className="login-account-forget"
-            title="Forget saved password"
-            onClick={e => { e.stopPropagation(); onForget(a.name) }}
-          >🔑</span>
+          <div className="login-account-actions">
+            <Tooltip text="Forget saved password">
+              <span
+                className="login-account-forget"
+                onClick={e => { e.stopPropagation(); onForget(a.name) }}
+              >🔑</span>
+            </Tooltip>
+            <Tooltip text="Remove account">
+              <span
+                className="login-account-forget"
+                onClick={e => { e.stopPropagation(); onForgetAccount(a.name) }}
+              >×</span>
+            </Tooltip>
+          </div>
           <span className="login-account-arrow">›</span>
         </button>
       ))}
@@ -303,6 +314,7 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
           accounts={savedAccounts}
           onSelect={a => { setActiveAccount(a.name); setLastCharId(a.lastCharacter); setError(''); setScreen('credentials') }}
           onForget={name => window.dr.auth.forgetPassword(name)}
+          onForgetAccount={async name => { await window.dr.auth.forgetAccount(name); await refreshSettings() }}
           onAddNew={() => { setActiveAccount(''); setError(''); setScreen('credentials') }}
           onSettings={onOpenSettings}
         />

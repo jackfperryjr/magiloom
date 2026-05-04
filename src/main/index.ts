@@ -198,6 +198,9 @@ function setupIpcHandlers(): void {
   ipcMain.handle('auth:forget-password', (_e, account: string) => {
     settings.forgetPassword(account)
   })
+  ipcMain.handle('auth:forget-account', (_e, account: string) => {
+    settings.forgetAccount(account)
+  })
 
   ipcMain.handle('auth:login', async (_e, account: string, password: string) => {
     const result = await sgeAuth(account, password, (l) => lichLog('[sge] ' + l))
