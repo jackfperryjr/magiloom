@@ -19,6 +19,7 @@ import {
 } from './store/game'
 import { applyTheme, DEFAULT_HIGHLIGHTS } from './lib/themes'
 import { IconArrowDownTray, IconArrowPath, IconExclamationTriangle } from './components/ui/Icons'
+import { Tooltip } from './components/ui/Tooltip'
 import './styles/global.css'
 
 document.body.dataset.platform = window.dr.app.platform
@@ -271,23 +272,28 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
 function UpdateIcon({ version, ready, error }: { version: string; ready: boolean; error: string }) {
   if (!ready && !error) return null
   if (error) return (
-    <button className="update-icon-btn update-error" title={`Update failed: ${error}`} disabled>
-      <IconExclamationTriangle size={15} />
-    </button>
+    <Tooltip text={`Update failed: ${error}`}>
+      <button className="update-icon-btn update-error" disabled>
+        <IconExclamationTriangle size={15} />
+      </button>
+    </Tooltip>
   )
   if (ready) return (
-    <button
-      className="update-icon-btn update-ready"
-      title={`v${version} ready — click to restart and install`}
-      onClick={() => window.dr.updater.install()}
-    >
-      <IconArrowDownTray size={15} />
-    </button>
+    <Tooltip text={`v${version} ready — click to restart and install`}>
+      <button
+        className="update-icon-btn update-ready"
+        onClick={() => window.dr.updater.install()}
+      >
+        <IconArrowDownTray size={15} />
+      </button>
+    </Tooltip>
   )
   return (
-    <button className="update-icon-btn update-downloading" title={`Downloading v${version}…`} disabled>
-      <IconArrowPath size={15} className="update-spin" />
-    </button>
+    <Tooltip text={`Downloading v${version}…`}>
+      <button className="update-icon-btn update-downloading" disabled>
+        <IconArrowPath size={15} className="update-spin" />
+      </button>
+    </Tooltip>
   )
 }
 

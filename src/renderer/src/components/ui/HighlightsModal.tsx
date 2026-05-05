@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { Highlight } from '../../lib/themes'
+import { Tooltip } from './Tooltip'
 export type { Highlight }
 
 
@@ -24,11 +25,12 @@ function ColorPicker({ value, onChange, label }: {
     <div className="hl-color-picker">
       <span className="hl-color-label">{label}</span>
       <div className="hl-swatches">
-        <div
-          className={'hl-swatch hl-swatch-none' + (!value ? ' active' : '')}
-          title="None"
-          onClick={() => onChange('')}
-        />
+        <Tooltip text="None">
+          <div
+            className={'hl-swatch hl-swatch-none' + (!value ? ' active' : '')}
+            onClick={() => onChange('')}
+          />
+        </Tooltip>
         {PRESET_COLORS.map(c => (
           <div
             key={c}
@@ -37,13 +39,14 @@ function ColorPicker({ value, onChange, label }: {
             onClick={() => onChange(c)}
           />
         ))}
-        <input
-          type="color"
-          className="hl-color-input"
-          value={value || '#ffffff'}
-          onChange={e => onChange(e.target.value)}
-          title="Custom"
-        />
+        <Tooltip text="Custom">
+          <input
+            type="color"
+            className="hl-color-input"
+            value={value || '#ffffff'}
+            onChange={e => onChange(e.target.value)}
+          />
+        </Tooltip>
       </div>
     </div>
   )
@@ -64,12 +67,13 @@ function HighlightRow({ hl, onChange, onDelete }: {
   return (
     <div className={'hl-row' + (!hl.enabled ? ' hl-row-disabled' : '')}>
       <div className="hl-row-main">
-        <input
-          type="checkbox"
-          checked={hl.enabled}
-          onChange={e => onChange({ ...hl, enabled: e.target.checked })}
-          title="Enable"
-        />
+        <Tooltip text="Enable">
+          <input
+            type="checkbox"
+            checked={hl.enabled}
+            onChange={e => onChange({ ...hl, enabled: e.target.checked })}
+          />
+        </Tooltip>
         <div className="hl-preview" style={previewStyle}>
           {hl.pattern || <span className="hl-empty">pattern…</span>}
         </div>
@@ -80,10 +84,14 @@ function HighlightRow({ hl, onChange, onDelete }: {
           placeholder="text or /regex/"
           spellCheck={false}
         />
-        <button className="hl-btn-icon" onClick={() => setExpanded(x => !x)} title="Options">
-          {expanded ? '▲' : '▼'}
-        </button>
-        <button className="hl-btn-icon hl-btn-delete" onClick={onDelete} title="Delete">×</button>
+        <Tooltip text="Options">
+          <button className="hl-btn-icon" onClick={() => setExpanded(x => !x)}>
+            {expanded ? '▲' : '▼'}
+          </button>
+        </Tooltip>
+        <Tooltip text="Delete">
+          <button className="hl-btn-icon hl-btn-delete" onClick={onDelete}>×</button>
+        </Tooltip>
       </div>
       {expanded && (
         <div className="hl-row-options">

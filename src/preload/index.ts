@@ -14,7 +14,8 @@ contextBridge.exposeInMainWorld('dr', {
       ipcRenderer.invoke('auth:select-character', characterId, characterName, accountName),
     savePassword:   (account: string, password: string) => ipcRenderer.invoke('auth:save-password', account, password),
     getPassword:    (account: string)                   => ipcRenderer.invoke('auth:get-password', account),
-    forgetPassword: (account: string)                   => ipcRenderer.invoke('auth:forget-password', account)
+    forgetPassword: (account: string)                   => ipcRenderer.invoke('auth:forget-password', account),
+    forgetAccount:  (account: string)                   => ipcRenderer.invoke('auth:forget-account', account)
   },
   lich: {
     detectPath: ()                  => ipcRenderer.invoke('lich:detect-path'),

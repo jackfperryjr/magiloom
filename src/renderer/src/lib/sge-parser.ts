@@ -169,6 +169,43 @@ export function parseLine(raw: string): GameEvent[] {
     if (_inExits)    { _roomExitBuf += ' ' + text; return }
     if (_inRoomObjs) { _roomObjsBuf += ' ' + text; return }
     if (_inRoomPlayers) { _roomPlayersBuf += ' ' + text; return }
+    // Buffer "Also here / You also see" content even when it arrives via the XML path
+    // (NPC names are often bold-tagged, so they come through flush() not the plain-text branch)
+    if (_inAlsoHere) {
+      const trimmed = text.trim()
+      _alsoHereBuf += trimmed.startsWith(',') ? trimmed : ' ' + trimmed
+      if (/\.$/.test(trimmed) || trimmed === '') {
+        const combined = _alsoHereBuf.replace(/[\r\n]+/g, ' ').replace(/  +/g, ' ').trim()
+        if (combined) {
+          events.push(looksLikeNpcList(combined)
+            ? { type: 'roomObjs', objs: combined }
+            : { type: 'roomPlayers', players: combined })
+          events.push({ type: 'text', text: combined, styles: [], stream: _stream })
+        } else {
+          events.push({ type: 'roomPlayers', players: '' })
+          events.push({ type: 'roomObjs', objs: '' })
+        }
+        _inAlsoHere = false
+        _alsoHereBuf = ''
+      }
+      return
+    }
+    const alsoFlushMatch = text.match(/^(You also see|Also here:)\s*(.*)$/i)
+    if (alsoFlushMatch) {
+      const normalized = text.replace(/[\r\n]+/g, ' ').replace(/  +/g, ' ').trim()
+      if (alsoFlushMatch[2].trim()) {
+        events.push(looksLikeNpcList(normalized)
+          ? { type: 'roomObjs', objs: normalized }
+          : { type: 'roomPlayers', players: normalized })
+        events.push({ type: 'text', text: normalized, styles: [], stream: _stream })
+      } else {
+        events.push({ type: 'roomPlayers', players: '' })
+        events.push({ type: 'roomObjs', objs: '' })
+        _inAlsoHere = true
+        _alsoHereBuf = normalized
+      }
+      return
+    }
     // Merge trailing text (e.g. ', "Hello."') onto the previous speech/whisper/thought event
     // so that "You say, "Hello."" appears as one line and is fully captured in conv panel.
     const last = events[events.length - 1]
@@ -207,14 +244,17 @@ export function parseLine(raw: string): GameEvent[] {
     }
 
     if (_inAlsoHere) {
-      _alsoHereBuf += ' ' + text
-      const complete = /[.,]$/.test(text) || !text.trim().endsWith(',') || text.trim() === ''
+      // Join without extra space when continuation starts with a comma
+      const trimmed = text.trim()
+      _alsoHereBuf += trimmed.startsWith(',') ? trimmed : ' ' + trimmed
+      const complete = /\.$/.test(trimmed) || trimmed === ''
       if (complete) {
-        const raw = _alsoHereBuf.replace(/[\r\n]+/g, ' ').replace(/  +/g, ' ').trim()
-        if (raw) {
-          events.push(looksLikeNpcList(raw)
-            ? { type: 'roomObjs', objs: raw }
-            : { type: 'roomPlayers', players: raw })
+        const combined = _alsoHereBuf.replace(/[\r\n]+/g, ' ').replace(/  +/g, ' ').trim()
+        if (combined) {
+          events.push(looksLikeNpcList(combined)
+            ? { type: 'roomObjs', objs: combined }
+            : { type: 'roomPlayers', players: combined })
+          events.push({ type: 'text', text: combined, styles: [], stream: _stream })
         } else {
           // Empty "Also here:" means no one here
           events.push({ type: 'roomPlayers', players: '' })
@@ -223,21 +263,24 @@ export function parseLine(raw: string): GameEvent[] {
         _inAlsoHere = false
         _alsoHereBuf = ''
       }
+      return events  // never emit continuation lines as individual text events
     } else {
       const alsoMatch = text.match(/^(You also see|Also here:)\s*(.*)$/i)
       if (alsoMatch) {
-        const raw = text.replace(/[\r\n]+/g, ' ').replace(/  +/g, ' ').trim()
+        const normalized = text.replace(/[\r\n]+/g, ' ').replace(/  +/g, ' ').trim()
         if (alsoMatch[2].trim()) {
-          events.push(looksLikeNpcList(raw)
-            ? { type: 'roomObjs', objs: raw }
-            : { type: 'roomPlayers', players: raw })
+          events.push(looksLikeNpcList(normalized)
+            ? { type: 'roomObjs', objs: normalized }
+            : { type: 'roomPlayers', players: normalized })
+          events.push({ type: 'text', text: normalized, styles: [], stream: _stream })
         } else {
           // Empty "Also here:" line means any previous visitor list is gone.
           events.push({ type: 'roomPlayers', players: '' })
           events.push({ type: 'roomObjs', objs: '' })
           _inAlsoHere = true
-          _alsoHereBuf = raw
+          _alsoHereBuf = normalized
         }
+        return events  // don't fall through to the generic text push below
       }
     }
     // Suppress duplicate plain-text exits (DR sends exits both as XML component and plain text)
