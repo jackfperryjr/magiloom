@@ -1,5 +1,5 @@
 import { useAtomValue } from 'jotai'
-import { useEffect, useRef, useLayoutEffect } from 'react'
+import { useEffect, useRef, useLayoutEffect, useCallback } from 'react'
 import { outputLinesAtom, type OutputLine } from '../../store/game'
 import type { Highlight } from '../ui/HighlightsModal'
 
@@ -128,7 +128,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
     if (isExits) {
       const dirs = line.links.map(l => expandCmd(l.cmd))
       return (
-        <div className={classList.join(' ')} style={style}>
+        <div className={classList.join(' ')} style={style} data-copy-text={line.text}>
           <span style={{ color: 'var(--text-dim)' }}>Obvious paths: </span>
           {dirs.map((dir, i) => (
             <span key={dir}>
@@ -161,7 +161,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
       remaining = remaining.slice(idx + link.text.length)
     }
     if (remaining) parts.push(<span key={key++}>{remaining}</span>)
-    return <div className={classList.join(' ')} style={style}>{parts}</div>
+    return <div className={classList.join(' ')} style={style} data-copy-text={line.text}>{parts}</div>
   }
 
   // Info attribute lines: parse Label: Value pairs into a 2-column grid
@@ -169,7 +169,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
     const pairs = parseInfoPairs(line.text)
     if (pairs.length > 0) {
       return (
-        <div className="game-line info-data-line">
+        <div className="game-line info-data-line" data-copy-text={line.text}>
           {_showTimestamps && <span className="game-timestamp">{fmtTime(line.timestamp)}</span>}
           <InfoPairHalf pair={pairs[0]} />
           {pairs[1] && (
@@ -188,7 +188,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
     const skills = parseExpSkills(line.text)
     if (skills.length > 0) {
       return (
-        <div className="game-line exp-data-line">
+        <div className="game-line exp-data-line" data-copy-text={line.text}>
           {_showTimestamps && <span className="game-timestamp">{fmtTime(line.timestamp)}</span>}
           <ExpSkillHalf s={skills[0]} />
           {skills[1] && (
@@ -203,7 +203,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
   }
 
   return (
-    <div className={classList.join(' ')} style={style}>
+    <div className={classList.join(' ')} style={style} data-copy-text={line.text}>
       {_showTimestamps && <span className="game-timestamp">{fmtTime(line.timestamp)}</span>}
       {line.text}
     </div>
@@ -271,8 +271,23 @@ export function GameOutput() {
     userScrolled.current = !atBottom
   }
 
+  const handleCopy = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
+    const selection = window.getSelection()
+    if (!selection || selection.isCollapsed || !containerRef.current) return
+    const range = selection.getRangeAt(0)
+    const parts: string[] = []
+    for (const el of containerRef.current.querySelectorAll<HTMLElement>('.game-line')) {
+      if (range.intersectsNode(el)) {
+        parts.push(el.dataset.copyText ?? el.textContent ?? '')
+      }
+    }
+    if (parts.length === 0) return
+    e.clipboardData.setData('text/plain', parts.join('\n'))
+    e.preventDefault()
+  }, [])
+
   return (
-    <div ref={containerRef} className="game-output" onScroll={handleScroll}>
+    <div ref={containerRef} className="game-output" onScroll={handleScroll} onCopy={handleCopy}>
       {lines.map(line => (
         <GameLine key={line.id} line={line} highlights={_highlights} />
       ))}
