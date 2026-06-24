@@ -1166,7 +1166,7 @@ body[data-platform="darwin"] .status-bar {
 .exp-data-half {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 38px 36px 96px;
+  grid-template-columns: max-content 38px 36px minmax(0, 1fr);
   gap: 0 8px;
   min-width: 0;
 }
@@ -1176,7 +1176,7 @@ body[data-platform="darwin"] .status-bar {
   margin: 0 12px;
   align-self: stretch;
 }
-.exp-data-name { color: var(--text-dim); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.exp-data-name { color: var(--text-dim); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
 .exp-data-rank { text-align: right; color: var(--text-main); white-space: nowrap; }
 .exp-data-pct  { text-align: right; color: var(--accent);    white-space: nowrap; }
 .exp-data-mind { color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
