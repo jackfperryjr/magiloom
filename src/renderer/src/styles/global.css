@@ -1166,7 +1166,7 @@ body[data-platform="darwin"] .status-bar {
 .exp-data-half {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 38px 36px 72px;
+  grid-template-columns: minmax(0, 1fr) 38px 36px 96px;
   gap: 0 8px;
   min-width: 0;
 }
@@ -1179,7 +1179,7 @@ body[data-platform="darwin"] .status-bar {
 .exp-data-name { color: var(--text-dim); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .exp-data-rank { text-align: right; color: var(--text-main); white-space: nowrap; }
 .exp-data-pct  { text-align: right; color: var(--accent);    white-space: nowrap; }
-.exp-data-mind { color: var(--text-dim); white-space: nowrap; }
+.exp-data-mind { color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── Info attribute lines in main output ─────────────────────────────────── */
 .info-data-line {

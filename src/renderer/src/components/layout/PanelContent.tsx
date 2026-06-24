@@ -8,13 +8,16 @@ import {
 } from '../../store/game'
 
 // ── Auto-scroll helper ─────────────────────────────────────────────────────────
+// The actual scrollable box is the parent .panel-content-scroll (which has the
+// real height cap); this wrapper itself can't be height-constrained via a %
+// height since its parent's height is intrinsic, so we scroll the parent instead.
 function ScrollPanel({ children, deps }: { children: React.ReactNode; deps: unknown[] }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    const el = ref.current
+    const el = ref.current?.parentElement
     if (el) el.scrollTop = el.scrollHeight
   }, [deps])  // eslint-disable-line react-hooks/exhaustive-deps
-  return <div ref={ref} style={{ overflow: 'auto', maxHeight: '100%' }}>{children}</div>
+  return <div ref={ref}>{children}</div>
 }
 
 export function RoomPanel() {
@@ -129,7 +132,7 @@ export function ExperiencePanel() {
               <td className="exp-rank">{s.rank}</td>
               <td className="exp-pct">{s.pct}%</td>
               <td className="exp-mind" style={{ color: mindColor(s.mindWord) }}>
-                {s.mindWord ?? s.mind}
+                {s.mindWord ? `${s.mindWord} (${s.mind})` : s.mind}
               </td>
             </tr>
           ))}
