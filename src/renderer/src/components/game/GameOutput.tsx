@@ -4,7 +4,7 @@ import { outputLinesAtom, type OutputLine } from '../../store/game'
 import type { Highlight } from '../ui/HighlightsModal'
 
 // ── Exp skill line helpers ────────────────────────────────────────────────────
-interface ParsedExpSkill { name: string; rank: string; pct: string; mind: string }
+interface ParsedExpSkill { name: string; rank: string; pct: string; mind: string; frac: string }
 interface ParsedInfoPair  { label: string; value: string }
 
 const MIND_COLORS_OUTPUT: Record<string, string> = {
@@ -20,7 +20,7 @@ function mindColorOutput(word: string): string {
   return MIND_COLORS_OUTPUT[word.toLowerCase()] ?? 'var(--text-main)'
 }
 
-const EXP_SKILL_RE  = /(\w[\w\s]*?):\s+(\d+)\s+(\d+)%\s+([a-zA-Z][a-zA-Z ]*?)\s+[\[\(]\d+\/\d+[\]\)]/g
+const EXP_SKILL_RE  = /(\w[\w\s]*?):\s+(\d+)\s+(\d+)%\s+(?:([a-zA-Z][a-zA-Z ]*?)\s+)?[\[\(](\d+\/\d+)[\]\)]/g
 const INFO_PAIR_RE  = /([A-Za-z][A-Za-z]*?)\s*:\s+(.+?)(?=\s{3,}[A-Za-z]|\s*$)/g
 
 function parseExpSkills(text: string): ParsedExpSkill[] {
@@ -28,7 +28,7 @@ function parseExpSkills(text: string): ParsedExpSkill[] {
   const skills: ParsedExpSkill[] = []
   let m: RegExpExecArray | null
   while ((m = EXP_SKILL_RE.exec(text)) !== null) {
-    skills.push({ name: m[1].trim(), rank: m[2], pct: m[3], mind: m[4].trim() })
+    skills.push({ name: m[1].trim(), rank: m[2], pct: m[3], mind: m[4]?.trim() ?? '', frac: m[5] })
   }
   return skills
 }
@@ -88,7 +88,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
   const isShopFooter = /\[type shop/i.test(line.text)
   const isShopDetail = /^(Short|Tap|Worn|Cost|Look|Read):/i.test(line.text.trim())
 
-  const isExpLine = /\w[\w\s]*?:\s+\d+\s+\d+%\s+[a-zA-Z][a-zA-Z ]*?\s+[\[\(]\d+\/\d+[\]\)]/.test(line.text)
+  const isExpLine = /\w[\w\s]*?:\s+\d+\s+\d+%\s+(?:[a-zA-Z][a-zA-Z ]*?\s+)?[\[\(]\d+\/\d+[\]\)]/.test(line.text)
   const isExpHeader = /Circle:|Showing all skills|SKILL:.*Rank|Total Ranks|Time Development|Overall state|EXP HELP/i.test(line.text)
   const isExpMeta = /Favors:|TDPs:|Deaths:|Departs:|Rested EXP|Cycle Refreshes/i.test(line.text)
 
@@ -216,7 +216,9 @@ function ExpSkillHalf({ s }: { s: ParsedExpSkill }) {
       <span className="exp-data-name">{s.name}</span>
       <span className="exp-data-rank">{s.rank}</span>
       <span className="exp-data-pct">{s.pct}%</span>
-      <span className="exp-data-mind" style={{ color: mindColorOutput(s.mind) }}>{s.mind}</span>
+      <span className="exp-data-mind" style={{ color: mindColorOutput(s.mind) }}>
+        {s.mind ? `${s.mind} (${s.frac})` : s.frac}
+      </span>
     </div>
   )
 }
@@ -277,8 +279,24 @@ export function GameOutput() {
     const range = selection.getRangeAt(0)
     const parts: string[] = []
     for (const el of containerRef.current.querySelectorAll<HTMLElement>('.game-line')) {
-      if (range.intersectsNode(el)) {
+      if (!range.intersectsNode(el)) continue
+      const elRange = document.createRange()
+      elRange.selectNodeContents(el)
+      const startsBefore = range.compareBoundaryPoints(Range.START_TO_START, elRange) <= 0
+      const endsAfter    = range.compareBoundaryPoints(Range.END_TO_END, elRange) >= 0
+      if (startsBefore && endsAfter) {
+        // Whole line is selected — use the canonical formatted text (grid-laid-out
+        // lines like exp/info rows lose their spacing if read from raw DOM text).
         parts.push(el.dataset.copyText ?? el.textContent ?? '')
+      } else {
+        // Only part of this line is selected — copy exactly that part, clamped
+        // to the line's bounds, instead of falling back to the whole line.
+        const clamped = document.createRange()
+        clamped.setStart(startsBefore ? elRange.startContainer : range.startContainer,
+                          startsBefore ? elRange.startOffset    : range.startOffset)
+        clamped.setEnd(endsAfter ? elRange.endContainer : range.endContainer,
+                        endsAfter ? elRange.endOffset    : range.endOffset)
+        parts.push(clamped.toString())
       }
     }
     if (parts.length === 0) return
