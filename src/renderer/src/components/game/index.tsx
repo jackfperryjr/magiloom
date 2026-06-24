@@ -64,11 +64,11 @@ function HandDisplay() {
   const empty = <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>empty</span>
   return (
     <div className="hand-display">
-      <span className="hand-label">R:</span>
-      <span className="hand-item">{hands.right ? hands.right : empty}</span>
-      <span className="hand-sep">|</span>
       <span className="hand-label">L:</span>
       <span className="hand-item">{hands.left ? hands.left : empty}</span>
+      <span className="hand-sep">|</span>
+      <span className="hand-label">R:</span>
+      <span className="hand-item">{hands.right ? hands.right : empty}</span>
     </div>
   )
 }
