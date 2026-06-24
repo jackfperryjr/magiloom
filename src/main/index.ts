@@ -82,10 +82,6 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
-  mainWindow.webContents.on('before-input-event', (_e, input) => {
-    if (input.type === 'keyDown' && input.key === 'F12')
-      mainWindow?.webContents.toggleDevTools()
-  })
   mainWindow.on('close',      () => saveWindowState(mainWindow!))
   mainWindow.on('maximize',   () => send('window:maximize-change', true))
   mainWindow.on('unmaximize', () => send('window:maximize-change', false))
