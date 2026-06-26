@@ -49,7 +49,7 @@
       "repo": "meridian"
     },
     "nsis": {
-      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "artifactName": "${productName}-Setup.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
@@ -57,10 +57,10 @@
       "shortcutName": "Meridian"
     },
     "dmg": {
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-${arch}.${ext}"
     },
     "appImage": {
-      "artifactName": "${productName}-${version}.${ext}"
+      "artifactName": "${productName}.${ext}"
     },
     "win": {
       "target": "nsis"

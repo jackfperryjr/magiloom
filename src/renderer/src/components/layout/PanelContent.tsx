@@ -111,9 +111,13 @@ function mindColor(word?: string): string {
 
 export function ExperiencePanel() {
   const exp = useAtomValue(expAtom)
+  const activeSkills = exp.skills.filter(s => s.pct > 0)
 
   if (exp.skills.length === 0) {
     return <div className="panel-empty">Type EXP to load experience data</div>
+  }
+  if (activeSkills.length === 0) {
+    return <div className="panel-empty">No skills have field experience</div>
   }
 
   return (
@@ -126,7 +130,7 @@ export function ExperiencePanel() {
       )}
       <table className="exp-table">
         <tbody>
-          {exp.skills.map(s => (
+          {activeSkills.map(s => (
             <tr key={s.name} className="exp-row">
               <td className="exp-skill">{s.name}</td>
               <td className="exp-rank">{s.rank}</td>
