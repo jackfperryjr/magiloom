@@ -1,5 +1,6 @@
 import { atom } from 'jotai'
 import type { GameEvent, LinkSpan, TextStyle, VitalField, StreamId } from '../lib/sge-parser'
+import { parseExpSkills } from '../lib/exp-parser'
 
 export type { StreamId }
 
@@ -81,6 +82,12 @@ export interface ExpSkill { name: string; rank: number; pct: number; mind: strin
 export interface ExpState  { skills: ExpSkill[]; tdps: number; favors: number }
 export const expAtom = atom<ExpState>({ skills: [], tdps: 0, favors: 0 })
 
+// Plain "exp" reports omit skills that have decayed back to 0 field experience
+// rather than printing them at 0% — so a skill silently dropping out of a fresh
+// report (vs. never having been mentioned at all) means it's now cleared.
+// Tracks the names seen in the run of exp-report lines currently being read.
+let _expBatchNames: Set<string> | null = null
+
 // ── Echo ──────────────────────────────────────────────────────────────────────
 export const echoCommandAtom = atom(
   null,
@@ -88,6 +95,10 @@ export const echoCommandAtom = atom(
     const preset = command.startsWith(';') ? 'echo-script' : 'echo'
     const line   = mkLine(command, [{ preset }], 'main')
     set(outputLinesAtom, [...get(outputLinesAtom).slice(-4999), line])
+    // Pre-open the exp batch on the command itself, not the first matching report
+    // line — a report with zero active skills never matches at all, so waiting
+    // for a match to start the batch meant it could never close (never clearing).
+    if (command.trim().toLowerCase() === 'exp') _expBatchNames = new Set()
   }
 )
 
@@ -145,6 +156,38 @@ export const dispatchGameEventAtom = atom(
               if (DEATH_RE.test(event.text)) {
                 set(deathsAtom, [...get(deathsAtom).slice(-199), line])
               }
+            }
+
+            // Keep the side-panel skill list in sync with the readable EXP report:
+            // a contiguous run of report lines is one snapshot, and any previously
+            // known skill that drops out of it has decayed back to 0% / clear.
+            const reportedSkills = parseExpSkills(event.text)
+            if (reportedSkills.length > 0) {
+              if (!_expBatchNames) _expBatchNames = new Set()
+              const exp = get(expAtom)
+              let skills = exp.skills
+              for (const r of reportedSkills) {
+                _expBatchNames.add(r.name)
+                const entry: ExpSkill = {
+                  name: r.name, rank: parseInt(r.rank, 10), pct: parseInt(r.pct, 10),
+                  mind: r.frac, mindWord: r.mind || undefined,
+                }
+                const idx = skills.findIndex(s => s.name === r.name)
+                skills = idx >= 0 ? skills.map((s, i) => i === idx ? entry : s) : [...skills, entry]
+              }
+              set(expAtom, { ...exp, skills })
+            } else if (_expBatchNames) {
+              const exp = get(expAtom)
+              const seen = _expBatchNames
+              set(expAtom, {
+                ...exp,
+                skills: exp.skills.map(s => {
+                  if (seen.has(s.name)) return s
+                  const cap = s.mind.split('/')[1]  // preserve known capacity, e.g. "0/900"
+                  return { ...s, pct: 0, mind: cap ? `0/${cap}` : '', mindWord: 'clear' }
+                }),
+              })
+              _expBatchNames = null
             }
             break
           }
