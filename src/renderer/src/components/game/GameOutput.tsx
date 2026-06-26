@@ -1,10 +1,10 @@
 import { useAtomValue } from 'jotai'
 import { useEffect, useRef, useLayoutEffect, useCallback } from 'react'
 import { outputLinesAtom, type OutputLine } from '../../store/game'
+import { parseExpSkills, type ParsedExpSkill } from '../../lib/exp-parser'
 import type { Highlight } from '../ui/HighlightsModal'
 
 // ── Exp skill line helpers ────────────────────────────────────────────────────
-interface ParsedExpSkill { name: string; rank: string; pct: string; mind: string; frac: string }
 interface ParsedInfoPair  { label: string; value: string }
 
 const MIND_COLORS_OUTPUT: Record<string, string> = {
@@ -20,18 +20,7 @@ function mindColorOutput(word: string): string {
   return MIND_COLORS_OUTPUT[word.toLowerCase()] ?? 'var(--text-main)'
 }
 
-const EXP_SKILL_RE  = /(\w[\w\s]*?):\s+(\d+)\s+(\d+)%\s+(?:([a-zA-Z][a-zA-Z ]*?)\s+)?[\[\(](\d+\/\d+)[\]\)]/g
 const INFO_PAIR_RE  = /([A-Za-z][A-Za-z]*?)\s*:\s+(.+?)(?=\s{3,}[A-Za-z]|\s*$)/g
-
-function parseExpSkills(text: string): ParsedExpSkill[] {
-  EXP_SKILL_RE.lastIndex = 0
-  const skills: ParsedExpSkill[] = []
-  let m: RegExpExecArray | null
-  while ((m = EXP_SKILL_RE.exec(text)) !== null) {
-    skills.push({ name: m[1].trim(), rank: m[2], pct: m[3], mind: m[4]?.trim() ?? '', frac: m[5] })
-  }
-  return skills
-}
 
 function parseInfoPairs(text: string): ParsedInfoPair[] {
   INFO_PAIR_RE.lastIndex = 0
