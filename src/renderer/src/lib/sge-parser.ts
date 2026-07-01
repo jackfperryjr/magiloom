@@ -133,6 +133,12 @@ export function parseLine(raw: string): GameEvent[] {
   let linkBuf = ''
 
   const flush = (forcePreset?: string) => {
+    // Inside an exp component the buf must survive intermediate style tags
+    // (</preset>, </bold>, etc.) so /component can parse the full abbrev+data.
+    // The <d> link text has already been appended to buf via buf+=linkBuf in </d>,
+    // so we only need to discard the stale link ref.
+    if (_inExpSkill) { links = []; return }
+
     let text = buf.replace(/[\r\n]+/g, ' ').replace(/  +/g, ' ').trim()
     buf = ''
     if (!text || text === '>') return
@@ -162,7 +168,6 @@ export function parseLine(raw: string): GameEvent[] {
     }
 
     // Suppress output when inside special components
-    if (_inExpSkill)      return  // exp data — only expSkill event matters
     if (_suppressComp)    return  // room objs/players — swallowed
     if (_inInitialInventory || (_preXmlPhase && _stream === 'inv')) { buf = ''; return }
     if (_inRoomDesc) { _roomDescBuf += ' ' + text; return }
@@ -455,6 +460,7 @@ export function parseLine(raw: string): GameEvent[] {
           }
           _inExpSkill = ''
           styles = []
+          links  = []
         } else if (_suppressComp) {
           buf = ''
           _suppressComp = false
