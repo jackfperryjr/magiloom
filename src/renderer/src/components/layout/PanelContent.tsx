@@ -136,7 +136,7 @@ export function ExperiencePanel() {
               <td className="exp-rank">{s.rank}</td>
               <td className="exp-pct">{s.pct}%</td>
               <td className="exp-mind" style={{ color: mindColor(s.mindWord) }}>
-                {s.mindWord ? `${s.mindWord} (${s.mind})` : s.mind}
+                {s.mind}
               </td>
             </tr>
           ))}

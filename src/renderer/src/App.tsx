@@ -124,6 +124,16 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
     return () => window.clearInterval(id)
   }, [setTick])
 
+  // Silently refresh exp every 30 s to flush any skills that decayed to clear
+  // since their last live component push. Skips echoCommandAtom so nothing
+  // appears in the main game panel. The response routes to expLinesAtom only.
+  useEffect(() => {
+    if (status !== 'connected') return
+    const id = window.setInterval(() => send('exp'), 30_000)
+    return () => window.clearInterval(id)
+  }, [status, send])
+
+
   const [lichStatus,     setLichStatus]     = useState<'stopped'|'starting'|'ready'|'error'>('stopped')
   const [lichLog,        setLichLog]        = useState<string[]>([])
   const lichMsgs = useAtomValue(lichMsgAtom)
