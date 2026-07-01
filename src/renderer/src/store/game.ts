@@ -139,9 +139,9 @@ export const dispatchGameEventAtom = atom(
             // Don't echo atmo to main output — it clutters it
             break
           case 'speech': {
-            const isSpeech = line.styles.some(s => ['speech','whisper'].includes(s.preset ?? ''))
+            const isSpeech = line.styles.some(s => ['speech','whisper','thought'].includes(s.preset ?? ''))
             const isScript = /^\S+:\s/.test(line.text) || /\.lic\b/.test(line.text)
-            if (isSpeech && !isScript) {
+            if (isSpeech && /"/.test(line.text) && !isScript) {
               set(convLinesAtom, appendDedup(get(convLinesAtom), line, 200))
             } else {
               set(outputLinesAtom, appendDedup(get(outputLinesAtom), line, 5000))
@@ -198,7 +198,7 @@ export const dispatchGameEventAtom = atom(
         // Also route main-stream speech/whisper/thought to conv panel.
         // appendDedup handles the case where speech arrives in both the pushStream
         // and the main stream, so only the first copy is kept.
-        if (event.styles.some(s => ['speech','whisper'].includes(s.preset ?? '')) && !/^\S+:\s/.test(event.text) && !/\.lic\b/.test(event.text)) {
+        if (event.styles.some(s => ['speech','whisper','thought'].includes(s.preset ?? '')) && /"/.test(event.text) && !/^\S+:\s/.test(event.text) && !/\.lic\b/.test(event.text)) {
           set(convLinesAtom, appendDedup(get(convLinesAtom), line, 200))
         }
         break
