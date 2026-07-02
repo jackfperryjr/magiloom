@@ -112,8 +112,14 @@ export const echoCommandAtom = atom(
 // ── Silent exp poll ───────────────────────────────────────────────────────────
 // Called by the background poller before sending "exp". Marks the upcoming
 // batch as silent so the report text is suppressed from the main game panel.
+// We deliberately do NOT pre-open _expBatchNames here — doing so would cause
+// the batch to close immediately on the first non-skill text that arrives
+// during the network round-trip (the batch-close fires whenever _expBatchNames
+// is truthy and no skill lines matched), resetting _silentExpBatch = false
+// before the actual exp report is ever received.  The batch opens naturally on
+// the first skill line, and the prompt handler below is the fallback cleanup
+// for the zero-active-skills case where the batch never opens at all.
 export const beginSilentExpAtom = atom(null, () => {
-  _expBatchNames  = new Set()
   _silentExpBatch = true
 })
 
@@ -311,6 +317,17 @@ export const dispatchGameEventAtom = atom(
 
       case 'cast_time':
         set(castTimeAtom, event.expires)
+        break
+
+      case 'prompt':
+        // The server sends <prompt> at the end of every command response.
+        // If _silentExpBatch is still true here it means either no skills are
+        // active (the batch never opened) or the batch-close line never arrived
+        // — either way the poll is done, so clear the flag now.
+        if (_silentExpBatch) {
+          _expBatchNames  = null
+          _silentExpBatch = false
+        }
         break
     }
   }
