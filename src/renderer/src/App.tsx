@@ -24,6 +24,8 @@ import './styles/global.css'
 
 document.body.dataset.platform = window.dr.app.platform
 
+const EXP_POLL_ENABLED = false
+
 function renderPanel(id: PanelId) {
   switch (id) {
     case 'room':         return <RoomPanel />
@@ -128,8 +130,9 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
   // Silently refresh exp every 30 s to clear any skills that decayed since
   // their last live component push. beginSilentExp marks the upcoming batch
   // so its main-stream report text is suppressed from the game output panel.
+  // Paused: exp panel now updates correctly from live component pushes alone.
   useEffect(() => {
-    if (status !== 'connected') return
+    if (!EXP_POLL_ENABLED || status !== 'connected') return
     const id = window.setInterval(() => { beginSilentExp(); send('exp') }, 30_000)
     return () => window.clearInterval(id)
   }, [status, send, beginSilentExp])
