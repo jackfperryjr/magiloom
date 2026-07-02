@@ -393,6 +393,7 @@ body[data-platform="darwin"] .status-bar {
     0 6px 20px rgba(0, 0, 0, 0.7);
   overflow: hidden;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .panel-header {
