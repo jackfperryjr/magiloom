@@ -147,7 +147,9 @@ function Panel({
           <div
             ref={bodyRef}
             className="panel-content panel-content-scroll"
-            style={height !== null ? { height, maxHeight: 'none', overflow: 'auto' } : {}}
+            style={height !== null
+              ? { height, maxHeight: 'none', overflowY: 'auto' }
+              : { maxHeight: 220, overflowY: 'auto' }}
           >
             {children}
           </div>
