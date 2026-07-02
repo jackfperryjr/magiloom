@@ -14,7 +14,7 @@ import {
   CombatPanel, AtmoPanel, DeathsPanel,
 } from './components/layout/PanelContent'
 import {
-  echoCommandAtom, lichMsgAtom, tickAtom,
+  echoCommandAtom, beginSilentExpAtom, lichMsgAtom, tickAtom,
   combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom, inventoryLinesAtom,
 } from './store/game'
 import { applyTheme, DEFAULT_HIGHLIGHTS } from './lib/themes'
@@ -93,8 +93,9 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
   const { status, disconnect, send } = useGameConnection()
   // Register send fn for clickable links
   useEffect(() => { setSendFn(send) }, [send])
-  const echoCommand = useSetAtom(echoCommandAtom)
-  const setTick     = useSetAtom(tickAtom)
+  const echoCommand      = useSetAtom(echoCommandAtom)
+  const beginSilentExp   = useSetAtom(beginSilentExpAtom)
+  const setTick          = useSetAtom(tickAtom)
 
   const setCombat    = useSetAtom(combatLinesAtom)
   const setAtmo      = useSetAtom(atmoLinesAtom)
@@ -124,14 +125,14 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
     return () => window.clearInterval(id)
   }, [setTick])
 
-  // Silently refresh exp every 30 s to flush any skills that decayed to clear
-  // since their last live component push. Skips echoCommandAtom so nothing
-  // appears in the main game panel. The response routes to expLinesAtom only.
+  // Silently refresh exp every 30 s to clear any skills that decayed since
+  // their last live component push. beginSilentExp marks the upcoming batch
+  // so its main-stream report text is suppressed from the game output panel.
   useEffect(() => {
     if (status !== 'connected') return
-    const id = window.setInterval(() => send('exp'), 30_000)
+    const id = window.setInterval(() => { beginSilentExp(); send('exp') }, 30_000)
     return () => window.clearInterval(id)
-  }, [status, send])
+  }, [status, send, beginSilentExp])
 
 
   const [lichStatus,     setLichStatus]     = useState<'stopped'|'starting'|'ready'|'error'>('stopped')

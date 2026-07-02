@@ -1070,10 +1070,10 @@ body[data-platform="darwin"] .status-bar {
 .roundtime-badge {
   display: inline-block; margin-top: 5px;
   font-size: 14px;
-  color: #c0d0ff; 
-  background: rgba(192, 208, 255, 0.07);
-  border: 1px solid rgba(192, 208, 255, 0.25);
-  padding: 1px 5px; 
+  color: #ff6060;
+  background: rgba(255, 96, 96, 0.07);
+  border: 1px solid rgba(255, 96, 96, 0.35);
+  padding: 1px 5px;
   font-family: var(--font-ui);
 }
 

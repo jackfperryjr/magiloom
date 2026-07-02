@@ -87,6 +87,10 @@ export const expAtom = atom<ExpState>({ skills: [], tdps: 0, favors: 0 })
 // report (vs. never having been mentioned at all) means it's now cleared.
 // Tracks the names seen in the run of exp-report lines currently being read.
 let _expBatchNames: Set<string> | null = null
+// When true the current exp batch was triggered by the background poller, so
+// its main-stream report text should be suppressed from the game output panel.
+// Cleared when the batch closes or when the user manually sends exp.
+let _silentExpBatch = false
 
 // ── Echo ──────────────────────────────────────────────────────────────────────
 export const echoCommandAtom = atom(
@@ -98,9 +102,20 @@ export const echoCommandAtom = atom(
     // Pre-open the exp batch on the command itself, not the first matching report
     // line — a report with zero active skills never matches at all, so waiting
     // for a match to start the batch meant it could never close (never clearing).
-    if (command.trim().toLowerCase() === 'exp') _expBatchNames = new Set()
+    if (command.trim().toLowerCase() === 'exp') {
+      _expBatchNames  = new Set()
+      _silentExpBatch = false  // manual send wins over any pending background poll
+    }
   }
 )
+
+// ── Silent exp poll ───────────────────────────────────────────────────────────
+// Called by the background poller before sending "exp". Marks the upcoming
+// batch as silent so the report text is suppressed from the main game panel.
+export const beginSilentExpAtom = atom(null, () => {
+  _expBatchNames  = new Set()
+  _silentExpBatch = true
+})
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 export const dispatchGameEventAtom = atom(
@@ -150,7 +165,7 @@ export const dispatchGameEventAtom = atom(
           }
           default: {
             const isHandUpdate = event.styles.some(s => s.preset === 'left' || s.preset === 'right')
-            if (!isHandUpdate) {
+            if (!isHandUpdate && !_silentExpBatch) {
               set(outputLinesAtom, appendDedup(get(outputLinesAtom), line, 5000))
               const DEATH_RE = /\*\s+.+?\s+(was struck down|was slain|was killed|died|perished|succumbed|fell lifeless)|you have died|you are dead/i
               if (DEATH_RE.test(event.text)) {
@@ -187,7 +202,8 @@ export const dispatchGameEventAtom = atom(
                   return { ...s, pct: 0, mind: cap ? `0/${cap}` : '', mindWord: 'clear' }
                 }),
               })
-              _expBatchNames = null
+              _expBatchNames  = null
+              _silentExpBatch = false
             }
             break
           }
