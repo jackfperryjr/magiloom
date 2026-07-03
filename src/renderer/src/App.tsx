@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Provider, useSetAtom, useAtomValue } from 'jotai'
 import { useGameConnection }  from './hooks/useGameConnection'
 import { GameOutput, setHighlights, setSendFn, setShowTimestamps, setOutputBuffer } from './components/game/GameOutput'
-import { CommandInput, StatusBar, WindowControls } from './components/game'
+import { CommandInput, StatusBar, WindowControls, GameTopBar, CharacterBar } from './components/game'
 import { LoginFlow }          from './components/ui/LoginFlow'
 import { SettingsModal }      from './components/ui/SettingsModal'
 import { HighlightsModal }    from './components/ui/HighlightsModal'
@@ -91,7 +91,7 @@ function LichLogDrawer({ lines, onClose }: { lines: string[]; onClose: () => voi
 }
 
 // ── Game layout ───────────────────────────────────────────────────────────────
-function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: { charName: string; onReturnToLogin: () => void; onOpenSettings: () => void; updateSlot: React.ReactNode }) {
+function GameLayout({ charName, onOpenSettings, onRequestConnect, updateSlot }: { charName: string; onOpenSettings: () => void; onRequestConnect: () => void; updateSlot: React.ReactNode }) {
   const { status, disconnect, send } = useGameConnection()
   // Register send fn for clickable links
   useEffect(() => { setSendFn(send) }, [send])
@@ -115,12 +115,6 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
       default:             return undefined
     }
   }
-
-  useEffect(() => {
-    if (status !== 'disconnected') return
-    const timer = window.setTimeout(onReturnToLogin, 1000)
-    return () => window.clearTimeout(timer)
-  }, [status, onReturnToLogin])
 
   useEffect(() => {
     const id = window.setInterval(() => setTick(Date.now()), 1000)
@@ -218,15 +212,6 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
     })
   }
 
-  const handleStartLich = async () => {
-    const s = await window.dr.settings.getAll()
-    if (!s.lichPath) { onOpenSettings(); return }
-    const lastChar = s.accounts.find(a => a.name === s.lastAccount)?.lastCharacter
-    if (!lastChar) { alert('Could not determine character name.'); return }
-    setLichLog([])
-    window.dr.lich.launchSidecar(lastChar)
-  }
-
   const handleColDrag = useCallback((dx: number) => {
     const el = mainAreaRef.current
     if (!el) return
@@ -239,23 +224,17 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
 
   return (
     <div className="app-shell">
-      {status === 'disconnected' && <div className="app-titlebar-shell">{updateSlot}<WindowControls /></div>}
-      <StatusBar
-        status={status}
-        charName={charName}
-        onDisconnect={disconnect}
-        onStartLich={handleStartLich}
-        lichStatus={lichStatus}
-        lichLog={lichLog}
-        showLichLog={showLog}
-        onToggleLichLog={() => setShowLog(v => !v)}
-        onSettings={onOpenSettings}
-        onHighlights={() => setShowHighlights(true)}
-        updateSlot={updateSlot}
-      />
-      {showLog && <LichLogDrawer lines={lichLog} onClose={() => setShowLog(false)} />}
+      <StatusBar updateSlot={updateSlot} />
       <div className="main-area" ref={mainAreaRef}>
         <div className="game-col">
+          <GameTopBar
+            status={status}
+            lichStatus={lichStatus}
+            lichLog={lichLog}
+            showLichLog={showLog}
+            onToggleLichLog={() => setShowLog(v => !v)}
+          />
+          {showLog && <LichLogDrawer lines={lichLog} onClose={() => setShowLog(false)} />}
           <main className="game-output-wrap" onClick={() => {
             if (window.getSelection()?.toString()) return
             document.querySelector<HTMLInputElement>('.command-input')?.focus()
@@ -263,6 +242,14 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
             <GameOutput />
           </main>
           <footer className="bottom-bar">
+            <CharacterBar
+              charName={charName}
+              status={status}
+              onHighlights={() => setShowHighlights(true)}
+              onSettings={onOpenSettings}
+              onDisconnect={disconnect}
+              onConnect={onRequestConnect}
+            />
             <CommandInput onSend={send} onEcho={echoCommand} />
           </footer>
         </div>
@@ -270,14 +257,6 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
         <PanelSidebar renderPanel={renderPanel} getClearFn={getClearFn} sidebarWidth={sidebarWidth} />
       </div>
       {showHighlights && <HighlightsModal onClose={handleHighlightsClose} />}
-      {status === 'disconnected' && (
-        <div className="disconnect-overlay">
-          <div className="disconnect-box">
-            <div className="disconnect-title">Disconnected</div>
-            <p className="disconnect-msg">Connection lost. Returning to login...</p>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -313,6 +292,7 @@ function UpdateIcon({ version, ready, error }: { version: string; ready: boolean
 
 function AppInner() {
   const [inGame,        setInGame]        = useState(false)
+  const [showReconnect, setShowReconnect] = useState(false)
   const [charName,      setCharName]      = useState('')
   const [showSettings,  setShowSettings]  = useState(false)
   const [updateVersion, setUpdateVersion] = useState('')
@@ -330,13 +310,21 @@ function AppInner() {
 
   const updateSlot = <UpdateIcon version={updateVersion} ready={updateReady} error={updateError} />
 
+  const enterGame = (name: string) => { setCharName(name); setInGame(true); setShowReconnect(false) }
+
   return (
     <>
       {!inGame && <div className="app-titlebar-shell">{updateSlot}<WindowControls /></div>}
       {!inGame
-        ? <LoginFlow onEnterGame={name => { setCharName(name); setInGame(true) }} onOpenSettings={() => setShowSettings(true)} />
-        : <GameLayout charName={charName} onReturnToLogin={() => { setCharName(''); setInGame(false) }} onOpenSettings={() => setShowSettings(true)} updateSlot={updateSlot} />
+        ? <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} />
+        : <GameLayout charName={charName} onOpenSettings={() => setShowSettings(true)} onRequestConnect={() => setShowReconnect(true)} updateSlot={updateSlot} />
       }
+      {inGame && showReconnect && (
+        <div className="reconnect-overlay">
+          <button className="reconnect-close" onClick={() => setShowReconnect(false)} aria-label="Cancel">✕</button>
+          <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} />
+        </div>
+      )}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </>
   )

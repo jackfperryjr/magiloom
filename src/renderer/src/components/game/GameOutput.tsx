@@ -66,6 +66,9 @@ function fmtTime(ts: number): string {
 }
 
 function GameLine({ line, highlights }: { line: OutputLine; highlights: Highlight[] }) {
+  // Chunk separator — a blank line's worth of space between command responses
+  if (line.separator) return <div className="game-separator" aria-hidden />
+
   const hl = matchHighlight(line.text, highlights)
   const isShopLine = Boolean(
     line.links?.some(l => l.cmd.startsWith('shop')) ||

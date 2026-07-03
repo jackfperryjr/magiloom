@@ -15,7 +15,6 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [outputBufferSize, setOutputBufferSize] = useState(5000)
   const [functionKeys,    setFunctionKeys]    = useState<Record<string, string>>({})
   const [version,         setVersion]         = useState('')
-  const [saved,           setSaved]           = useState(false)
 
   const FK_KEYS = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12']
 
@@ -39,8 +38,6 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
     await window.dr.settings.patch({
       lichPath, fontSize, fontFamily, theme, timestamps, outputBufferSize, functionKeys
     })
-    setSaved(true)
-    setTimeout(() => setSaved(false), 1500)
     window.dispatchEvent(new CustomEvent('settings:saved'))
     const { applyTheme } = await import('../../lib/themes')
     applyTheme(theme)
@@ -48,6 +45,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
     document.documentElement.style.setProperty('--font-size-game', fontSize + 'px')
     setShowTimestamps(timestamps)
     setOutputBuffer(outputBufferSize)
+    onClose()
   }
 
   const versionLabel = !version || version === '0.0.0' ? 'dev' : `v${version}`
@@ -182,7 +180,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           <span className="settings-version">{versionLabel}</span>
           <button className="login-btn-secondary" onClick={onClose}>Cancel</button>
           <button className="login-btn" style={{ minWidth: 80 }} onClick={handleSave}>
-            {saved ? '✓ Saved' : 'Save'}
+            Save
           </button>
         </div>
       </div>

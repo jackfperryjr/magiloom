@@ -14,6 +14,7 @@ interface AppSettings {
   functionKeys:     Record<string, string>
   highlights:       unknown[]
   passwords:        Record<string, string>
+  avatars?:         Record<string, string>
 }
 
 interface DrAPI {

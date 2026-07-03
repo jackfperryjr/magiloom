@@ -10,17 +10,25 @@ export const connectionStatusAtom = atom<ConnectionStatus>('disconnected')
 
 // ── Output lines ──────────────────────────────────────────────────────────────
 export interface OutputLine {
-  id:        number
-  text:      string
-  styles:    TextStyle[]
-  stream:    StreamId
-  timestamp: number
-  links?:    LinkSpan[]
+  id:         number
+  text:       string
+  styles:     TextStyle[]
+  stream:     StreamId
+  timestamp:  number
+  links?:     LinkSpan[]
+  separator?: boolean
 }
 
 let lineId = 0
 const mkLine = (text: string, styles: OutputLine['styles'], stream: StreamId, links?: LinkSpan[]): OutputLine => ({
   id: lineId++, text, styles, stream, timestamp: Date.now(), links
+})
+
+// Set whenever new content lands in the main output; the next server prompt
+// (end of a command response) flushes a separator so each chunk is spaced out.
+let _outputDirty = false
+const mkSeparator = (): OutputLine => ({
+  id: lineId++, text: '', styles: [], stream: 'main', timestamp: Date.now(), separator: true
 })
 
 // Skip appending if the last line in the array is identical and was added within
@@ -178,6 +186,7 @@ export const dispatchGameEventAtom = atom(
           case 'combat':
             set(combatLinesAtom, [...get(combatLinesAtom).slice(-499), line])
             set(outputLinesAtom, [...get(outputLinesAtom).slice(-4999), line])
+            _outputDirty = true
             break
           case 'atmo':
             set(atmoLinesAtom, [...get(atmoLinesAtom).slice(-199), line])
@@ -190,6 +199,7 @@ export const dispatchGameEventAtom = atom(
               set(convLinesAtom, appendDedup(get(convLinesAtom), line, 200))
             } else {
               set(outputLinesAtom, appendDedup(get(outputLinesAtom), line, 5000))
+              _outputDirty = true
             }
             break
           }
@@ -197,6 +207,7 @@ export const dispatchGameEventAtom = atom(
             const isHandUpdate = event.styles.some(s => s.preset === 'left' || s.preset === 'right')
             if (!isHandUpdate && !_silentExpBatch) {
               set(outputLinesAtom, appendDedup(get(outputLinesAtom), line, 5000))
+              _outputDirty = true
               const DEATH_RE = /\*\s+.+?\s+(was struck down|was slain|was killed|died|perished|succumbed|fell lifeless)|you have died|you are dead/i
               if (DEATH_RE.test(event.text)) {
                 set(deathsAtom, [...get(deathsAtom).slice(-199), line])
@@ -347,6 +358,12 @@ export const dispatchGameEventAtom = atom(
         if (_silentExpBatch) {
           _expBatchNames  = null
           _silentExpBatch = false
+        }
+        // Space out consecutive command-response chunks: if new content landed in
+        // the main output since the last prompt, flush a separator (blank line).
+        if (_outputDirty) {
+          set(outputLinesAtom, [...get(outputLinesAtom).slice(-4999), mkSeparator()])
+          _outputDirty = false
         }
         break
     }
