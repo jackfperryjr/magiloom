@@ -92,6 +92,23 @@ let _expBatchNames: Set<string> | null = null
 // Cleared when the batch closes or when the user manually sends exp.
 let _silentExpBatch = false
 
+// Resets one skill's field experience to cleared, preserving its known capacity
+// (e.g. "340/900" -> "0/900"). Used both when an EXP report omits a decayed
+// skill and when a mass drain wipes every skill at once.
+function clearSkillExp(s: ExpSkill): ExpSkill {
+  const cap = s.mind.split('/')[1]
+  return { ...s, pct: 0, mind: cap ? `0/${cap}` : '', mindWord: 'clear' }
+}
+
+// Two events drain ALL field experience at once without pushing per-skill
+// component updates, so the panel would otherwise keep showing stale exp until
+// the next full EXP report:
+//   1. the log-on system's mass absorption a few seconds after login, and
+//   2. the player-initiated "boost" drain.
+// Match only the invariant phrasing — the "hours built up" count in #1 varies
+// per account.
+const EXP_DRAIN_RE = /Log-on system converted your character|drained your field experience/i
+
 // ── Echo ──────────────────────────────────────────────────────────────────────
 export const echoCommandAtom = atom(
   null,
@@ -131,6 +148,13 @@ export const dispatchGameEventAtom = atom(
 
       case 'text': {
         const line = mkLine(event.text, event.styles, event.stream, event.links)
+
+        // A logon or boost drain wipes all field experience at once; clear the
+        // panel to match. The message itself still routes to output below.
+        if (EXP_DRAIN_RE.test(event.text)) {
+          const exp = get(expAtom)
+          set(expAtom, { ...exp, skills: exp.skills.map(clearSkillExp) })
+        }
 
         // Route to stream-specific atoms
         switch (event.stream) {
@@ -202,11 +226,7 @@ export const dispatchGameEventAtom = atom(
               const seen = _expBatchNames
               set(expAtom, {
                 ...exp,
-                skills: exp.skills.map(s => {
-                  if (seen.has(s.name)) return s
-                  const cap = s.mind.split('/')[1]  // preserve known capacity, e.g. "0/900"
-                  return { ...s, pct: 0, mind: cap ? `0/${cap}` : '', mindWord: 'clear' }
-                }),
+                skills: exp.skills.map(s => seen.has(s.name) ? s : clearSkillExp(s)),
               })
               _expBatchNames  = null
               _silentExpBatch = false
