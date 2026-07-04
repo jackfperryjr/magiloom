@@ -1,8 +1,7 @@
 import { useAtomValue } from 'jotai'
 import { useEffect, useRef } from 'react'
 import {
-  vitalsAtom, roomAtom, activeSpellAtom, roundtimeSecondsAtom,
-  indicatorsAtom, inventoryLinesAtom,
+  roomAtom, activeSpellAtom, inventoryLinesAtom,
   expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom,
   type OutputLine,
 } from '../../store/game'
@@ -45,48 +44,6 @@ export function RoomPanel() {
               {i < room.exits.length - 1 && <span className="room-exits-sep">, </span>}
             </span>
           ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Vitals Panel ───────────────────────────────────────────────────────────────
-function VitalRow({ label, value, max, cls }: {
-  label: string; value: number; max: number; cls: string
-}) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0
-  return (
-    <div className="vital-row">
-      <span className="vital-label">{label}</span>
-      <div className="vital-track">
-        <div className={`vital-fill ${cls}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="vital-value">{pct}%</span>
-    </div>
-  )
-}
-
-export function VitalsPanel() {
-  const vitals     = useAtomValue(vitalsAtom)
-  const rt         = useAtomValue(roundtimeSecondsAtom)
-  const indicators = useAtomValue(indicatorsAtom)
-  const active     = Object.entries(indicators).filter(([, v]) => v)
-
-  return (
-    <div className="vitals-panel">
-      <VitalRow label="Health"  {...vitals.health}  cls="vital-health"  />
-      <VitalRow label="Mana"  {...vitals.mana}    cls="vital-mana"    />
-      <VitalRow label="Stamina"  {...vitals.stamina} cls="vital-stamina" />
-      <VitalRow label="Spirit"  {...vitals.spirit}  cls="vital-spirit"  />
-      {(rt > 0 || active.length > 0) && (
-        <div className="vitals-status-row">
-          {rt > 0 && <div className="roundtime-badge">RT: {rt}s</div>}
-          {active.length > 0 && (
-            <div className="indicators">
-              {active.map(([id]) => <span key={id} className="indicator-badge">{id}</span>)}
-            </div>
-          )}
         </div>
       )}
     </div>

@@ -10,10 +10,20 @@ interface AppSettings {
   fontFamily:       string
   theme:            string
   timestamps:       boolean
+  density:          'cozy' | 'compact'
   outputBufferSize: number
   functionKeys:     Record<string, string>
   highlights:       unknown[]
   passwords:        Record<string, string>
+  avatars?:         Record<string, string>
+  verbs?:           string[]
+  notifications?:   {
+    sound:      boolean
+    desktop:    boolean
+    mention:    boolean
+    whisper:    boolean
+    disconnect: boolean
+  }
 }
 
 interface DrAPI {

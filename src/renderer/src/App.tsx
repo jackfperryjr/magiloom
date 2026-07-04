@@ -1,21 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Provider, useSetAtom, useAtomValue } from 'jotai'
 import { useGameConnection }  from './hooks/useGameConnection'
-import { GameOutput, setHighlights, setSendFn, setShowTimestamps, setOutputBuffer } from './components/game/GameOutput'
-import { CommandInput, StatusBar, WindowControls } from './components/game'
+import { GameOutput, setHighlights, setSendFn, setShowTimestamps, setOutputBuffer, setPlayerName } from './components/game/GameOutput'
+import { CommandInput, StatusBar, WindowControls, GameTopBar, CharacterBar, VitalsBar } from './components/game'
 import { LoginFlow }          from './components/ui/LoginFlow'
 import { SettingsModal }      from './components/ui/SettingsModal'
 import { HighlightsModal }    from './components/ui/HighlightsModal'
+import { NotificationCenter }  from './components/ui/Notifications'
 import { PanelSidebar }       from './components/layout/PanelSidebar'
 import type { PanelId }       from './components/layout/PanelSidebar'
 import {
-  RoomPanel, VitalsPanel, SpellsPanel,
+  RoomPanel, SpellsPanel,
   ExperiencePanel, ConversationPanel, InventoryPanel,
   CombatPanel, AtmoPanel, DeathsPanel,
 } from './components/layout/PanelContent'
 import {
   echoCommandAtom, beginSilentExpAtom, lichMsgAtom, tickAtom,
   combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom, inventoryLinesAtom,
+  verbRawAtom, beginVerbCapture, endVerbCapture,
 } from './store/game'
 import { applyTheme, DEFAULT_HIGHLIGHTS } from './lib/themes'
 import { IconArrowDownTray, IconArrowPath, IconExclamationTriangle } from './components/ui/Icons'
@@ -29,7 +31,6 @@ const EXP_POLL_ENABLED = false
 function renderPanel(id: PanelId) {
   switch (id) {
     case 'room':         return <RoomPanel />
-    case 'vitals':       return <VitalsPanel />
     case 'spells':       return <SpellsPanel />
     case 'experience':   return <ExperiencePanel />
     case 'combat':       return <CombatPanel />
@@ -70,31 +71,62 @@ function ColResize({ onDrag }: { onDrag: (dx: number) => void }) {
   return <div className="col-resize-handle" onMouseDown={onMouseDown} />
 }
 
-// ── Lich log drawer ───────────────────────────────────────────────────────────
-function LichLogDrawer({ lines, onClose }: { lines: string[]; onClose: () => void }) {
+// ── Lich log side panel ───────────────────────────────────────────────────────
+type LichStatus = 'stopped' | 'starting' | 'ready' | 'error'
+
+function LichLogPanel({ lines, status }: { lines: string[]; status: LichStatus }) {
   const bottomRef = useRef<HTMLDivElement>(null)
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [lines])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ block: 'nearest' }) }, [lines])
   return (
-    <div className="lich-drawer">
-      <div className="lich-drawer-header">
-        <span>Lich Log</span>
-        <button className="lich-drawer-close" onClick={onClose}>✕</button>
+    <div className="lich-panel">
+      <div className="lich-panel-status">
+        <span className={`lich-status-dot lich-status-dot-${status}`} />
+        <span>{status}</span>
+        {lines.length > 0 && <span className="lich-log-count">{lines.length}</span>}
       </div>
-      <div className="lich-drawer-body">
-        {lines.map((l, i) => (
-          <div key={i} className={`lich-log-line${l.startsWith('[error]') ? ' lich-log-error' : ''}`}>{l}</div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
+      {lines.length === 0
+        ? <div className="lich-panel-empty">No Lich output yet.</div>
+        : lines.map((l, i) => (
+            <div key={i} className={`lich-log-line${l.startsWith('[error]') ? ' lich-log-error' : ''}`}>{l}</div>
+          ))}
+      <div ref={bottomRef} />
     </div>
   )
 }
 
 // ── Game layout ───────────────────────────────────────────────────────────────
-function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: { charName: string; onReturnToLogin: () => void; onOpenSettings: () => void; updateSlot: React.ReactNode }) {
+function GameLayout({ charName, onOpenSettings, onRequestConnect, updateSlot }: { charName: string; onOpenSettings: () => void; onRequestConnect: () => void; updateSlot: React.ReactNode }) {
   const { status, disconnect, send } = useGameConnection()
   // Register send fn for clickable links
   useEffect(() => { setSendFn(send) }, [send])
+  // Register player name so the output can flag @mentions of this character
+  useEffect(() => { setPlayerName(charName) }, [charName])
+
+  // Verb autocomplete: load cached verbs, or silently sweep `VERB LIST a..z` once.
+  const setVerbs   = useSetAtom(verbRawAtom)
+  const verbsVal   = useAtomValue(verbRawAtom)
+  const verbsRef   = useRef<string[]>([])
+  const verbSwept  = useRef(false)
+  useEffect(() => { verbsRef.current = verbsVal }, [verbsVal])
+  useEffect(() => {
+    if (status !== 'connected' || verbSwept.current) return
+    verbSwept.current = true
+    window.dr.settings.getAll().then(s => {
+      // Reuse the cache only if it's the newer raw format (marks "(info)" verbs);
+      // an older stripped cache re-sweeps to upgrade.
+      const cached = s.verbs ?? []
+      if (cached.length > 0 && cached.some(v => /\(info\)/i.test(v))) { setVerbs(cached); return }
+      beginVerbCapture()
+      const letters = 'abcdefghijklmnopqrstuvwxyz'.split('')
+      const settle  = 1200  // let the session settle before spamming commands
+      letters.forEach((l, i) => window.setTimeout(() => send(`verb list ${l}`), settle + i * 150))
+      window.setTimeout(() => {
+        endVerbCapture()
+        // Only cache a healthy sweep; a stunted one retries on the next connect.
+        if (verbsRef.current.length > 50) window.dr.settings.patch({ verbs: verbsRef.current })
+      }, settle + letters.length * 150 + 2500)
+    })
+  }, [status, send, setVerbs])
   const echoCommand      = useSetAtom(echoCommandAtom)
   const beginSilentExp   = useSetAtom(beginSilentExpAtom)
   const setTick          = useSetAtom(tickAtom)
@@ -112,15 +144,10 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
       case 'conversation': return () => setConv([])
       case 'deaths':       return () => setDeaths([])
       case 'inventory':    return () => setInventory([])
+      case 'lich':         return () => setLichLog([])
       default:             return undefined
     }
   }
-
-  useEffect(() => {
-    if (status !== 'disconnected') return
-    const timer = window.setTimeout(onReturnToLogin, 1000)
-    return () => window.clearTimeout(timer)
-  }, [status, onReturnToLogin])
 
   useEffect(() => {
     const id = window.setInterval(() => setTick(Date.now()), 1000)
@@ -138,10 +165,9 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
   }, [status, send, beginSilentExp])
 
 
-  const [lichStatus,     setLichStatus]     = useState<'stopped'|'starting'|'ready'|'error'>('stopped')
+  const [lichStatus,     setLichStatus]     = useState<LichStatus>('stopped')
   const [lichLog,        setLichLog]        = useState<string[]>([])
   const lichMsgs = useAtomValue(lichMsgAtom)
-  const [showLog,        setShowLog]        = useState(false)
   const [showHighlights, setShowHighlights] = useState(false)
   const [sidebarWidth,   setSidebarWidth]   = useState<number | null>(null)
   const [functionKeys,   setFunctionKeys]   = useState<Record<string, string>>({})
@@ -164,6 +190,7 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
       if (s.fontSize)   document.documentElement.style.setProperty('--font-size-game', `${s.fontSize}px`)
       if (s.fontFamily) document.documentElement.style.setProperty('--font-game', `'${s.fontFamily}', monospace`)
       if (s.theme)            applyTheme(s.theme)
+      document.documentElement.dataset.density = s.density === 'compact' ? 'compact' : 'cozy'
       if (s.timestamps)       setShowTimestamps(s.timestamps)
       if (s.outputBufferSize) setOutputBuffer(s.outputBufferSize)
       if (s.functionKeys)     setFunctionKeys(s.functionKeys)
@@ -179,8 +206,8 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
 
   useEffect(() => {
     const unsubs = [
-      window.dr.lich.onStatus((s: string) => setLichStatus(s as 'stopped'|'starting'|'ready'|'error')),
-      window.dr.lich.onError(() => { setLichStatus('error'); setShowLog(true) }),
+      window.dr.lich.onStatus((s: string) => setLichStatus(s as LichStatus)),
+      window.dr.lich.onError(() => setLichStatus('error')),
       window.dr.lich.onLog((line: string) => setLichLog(prev => [...prev.slice(-199), line.trimEnd()]))
     ]
     return () => unsubs.forEach(fn => fn())
@@ -218,14 +245,12 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
     })
   }
 
-  const handleStartLich = async () => {
-    const s = await window.dr.settings.getAll()
-    if (!s.lichPath) { onOpenSettings(); return }
-    const lastChar = s.accounts.find(a => a.name === s.lastAccount)?.lastCharacter
-    if (!lastChar) { alert('Could not determine character name.'); return }
-    setLichLog([])
-    window.dr.lich.launchSidecar(lastChar)
-  }
+  // Lich log is rendered as an optional side panel; inject it here so it can
+  // read this layout's live lich state while other panels use the shared renderer.
+  const renderPanelWithLich = useCallback((id: PanelId) => {
+    if (id === 'lich') return <LichLogPanel lines={lichLog} status={lichStatus} />
+    return renderPanel(id)
+  }, [lichLog, lichStatus])
 
   const handleColDrag = useCallback((dx: number) => {
     const el = mainAreaRef.current
@@ -239,23 +264,11 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
 
   return (
     <div className="app-shell">
-      {status === 'disconnected' && <div className="app-titlebar-shell">{updateSlot}<WindowControls /></div>}
-      <StatusBar
-        status={status}
-        charName={charName}
-        onDisconnect={disconnect}
-        onStartLich={handleStartLich}
-        lichStatus={lichStatus}
-        lichLog={lichLog}
-        showLichLog={showLog}
-        onToggleLichLog={() => setShowLog(v => !v)}
-        onSettings={onOpenSettings}
-        onHighlights={() => setShowHighlights(true)}
-        updateSlot={updateSlot}
-      />
-      {showLog && <LichLogDrawer lines={lichLog} onClose={() => setShowLog(false)} />}
+      <StatusBar updateSlot={updateSlot} />
       <div className="main-area" ref={mainAreaRef}>
         <div className="game-col">
+          <GameTopBar status={status} />
+          {status === 'connected' && <VitalsBar />}
           <main className="game-output-wrap" onClick={() => {
             if (window.getSelection()?.toString()) return
             document.querySelector<HTMLInputElement>('.command-input')?.focus()
@@ -263,21 +276,22 @@ function GameLayout({ charName, onReturnToLogin, onOpenSettings, updateSlot }: {
             <GameOutput />
           </main>
           <footer className="bottom-bar">
-            <CommandInput onSend={send} onEcho={echoCommand} />
+            <CharacterBar
+              charName={charName}
+              status={status}
+              onHighlights={() => setShowHighlights(true)}
+              onSettings={onOpenSettings}
+              onDisconnect={disconnect}
+              onConnect={onRequestConnect}
+            />
+            <CommandInput onSend={send} onEcho={echoCommand} functionKeys={functionKeys} />
           </footer>
         </div>
         <ColResize onDrag={handleColDrag} />
-        <PanelSidebar renderPanel={renderPanel} getClearFn={getClearFn} sidebarWidth={sidebarWidth} />
+        <PanelSidebar renderPanel={renderPanelWithLich} getClearFn={getClearFn} sidebarWidth={sidebarWidth} />
       </div>
       {showHighlights && <HighlightsModal onClose={handleHighlightsClose} />}
-      {status === 'disconnected' && (
-        <div className="disconnect-overlay">
-          <div className="disconnect-box">
-            <div className="disconnect-title">Disconnected</div>
-            <p className="disconnect-msg">Connection lost. Returning to login...</p>
-          </div>
-        </div>
-      )}
+      <NotificationCenter charName={charName} status={status} />
     </div>
   )
 }
@@ -313,6 +327,7 @@ function UpdateIcon({ version, ready, error }: { version: string; ready: boolean
 
 function AppInner() {
   const [inGame,        setInGame]        = useState(false)
+  const [showReconnect, setShowReconnect] = useState(false)
   const [charName,      setCharName]      = useState('')
   const [showSettings,  setShowSettings]  = useState(false)
   const [updateVersion, setUpdateVersion] = useState('')
@@ -330,13 +345,21 @@ function AppInner() {
 
   const updateSlot = <UpdateIcon version={updateVersion} ready={updateReady} error={updateError} />
 
+  const enterGame = (name: string) => { setCharName(name); setInGame(true); setShowReconnect(false) }
+
   return (
     <>
       {!inGame && <div className="app-titlebar-shell">{updateSlot}<WindowControls /></div>}
       {!inGame
-        ? <LoginFlow onEnterGame={name => { setCharName(name); setInGame(true) }} onOpenSettings={() => setShowSettings(true)} />
-        : <GameLayout charName={charName} onReturnToLogin={() => { setCharName(''); setInGame(false) }} onOpenSettings={() => setShowSettings(true)} updateSlot={updateSlot} />
+        ? <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} />
+        : <GameLayout charName={charName} onOpenSettings={() => setShowSettings(true)} onRequestConnect={() => setShowReconnect(true)} updateSlot={updateSlot} />
       }
+      {inGame && showReconnect && (
+        <div className="reconnect-overlay">
+          <button className="reconnect-close" onClick={() => setShowReconnect(false)} aria-label="Cancel">✕</button>
+          <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} />
+        </div>
+      )}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </>
   )

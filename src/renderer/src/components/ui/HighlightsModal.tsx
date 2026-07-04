@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { Highlight } from '../../lib/themes'
 import { Tooltip } from './Tooltip'
 export type { Highlight }
@@ -58,6 +58,14 @@ function HighlightRow({ hl, onChange, onDelete }: {
   onDelete: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const optionsRef = useRef<HTMLDivElement>(null)
+
+  // When a row's options open, make sure they're scrolled into view — otherwise
+  // the last row's options render below the fold of the scroll container.
+  useEffect(() => {
+    if (expanded) optionsRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [expanded])
+
   const previewStyle: React.CSSProperties = {
     color:      hl.color   || undefined,
     background: hl.bgcolor || undefined,
@@ -94,7 +102,7 @@ function HighlightRow({ hl, onChange, onDelete }: {
         </Tooltip>
       </div>
       {expanded && (
-        <div className="hl-row-options">
+        <div className="hl-row-options" ref={optionsRef}>
           <label className="hl-checkbox-label">
             <input
               type="checkbox"
@@ -113,6 +121,7 @@ function HighlightRow({ hl, onChange, onDelete }: {
           </label>
           <ColorPicker label="Text color" value={hl.color} onChange={c => onChange({ ...hl, color: c })} />
           <ColorPicker label="Background" value={hl.bgcolor} onChange={c => onChange({ ...hl, bgcolor: c })} />
+          <button className="hl-options-done" onClick={() => setExpanded(false)}>Done ▲</button>
         </div>
       )}
     </div>

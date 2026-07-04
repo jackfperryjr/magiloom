@@ -121,9 +121,6 @@ function looksLikeRoomName(text: string): boolean {
 const TAG_RE = /<([^>]+)>|([^<]+)/g
 
 export function parseLine(raw: string): GameEvent[] {
-  // Debug logging for roundtime data
-  console.log('RAW:', raw)
-
   const events: GameEvent[] = []
   let styles: TextStyle[]   = []
   let buf    = ''
