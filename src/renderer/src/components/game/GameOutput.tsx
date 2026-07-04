@@ -266,23 +266,38 @@ export function GameOutput() {
   const [showJump, setShowJump] = useState(false)
 
   // Use layoutEffect so scroll happens synchronously after DOM update,
-  // preventing the flash of un-scrolled content
+  // preventing the flash of un-scrolled content. Keyed on `lines` so it only
+  // auto-follows when new content arrives — otherwise an unrelated re-render
+  // (e.g. hiding the jump button) would fire an instant scroll that clobbers
+  // the smooth scroll from jumpToPresent.
   useLayoutEffect(() => {
     if (!userScrolled.current) {
       bottomRef.current?.scrollIntoView({ behavior: 'instant' })
     }
-  })
+  }, [lines])
+
+  // While a smooth jump-to-present is animating, onScroll fires at intermediate
+  // (not-yet-at-bottom) positions; ignore those so the button doesn't flicker
+  // back on. A real user scroll (wheel/touch) cancels the guard immediately.
+  const isJumping = useRef(false)
 
   const handleScroll = () => {
     const el = containerRef.current
     if (!el) return
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60
+    if (isJumping.current) {
+      if (atBottom) isJumping.current = false
+      return
+    }
     userScrolled.current = !atBottom
     setShowJump(prev => (prev === !atBottom ? prev : !atBottom))
   }
 
+  const cancelJump = () => { isJumping.current = false }
+
   const jumpToPresent = () => {
     userScrolled.current = false
+    isJumping.current = true
     setShowJump(false)
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -320,7 +335,7 @@ export function GameOutput() {
 
   return (
     <>
-      <div ref={containerRef} className="game-output" onScroll={handleScroll} onCopy={handleCopy}>
+      <div ref={containerRef} className="game-output" onScroll={handleScroll} onWheel={cancelJump} onTouchStart={cancelJump} onCopy={handleCopy}>
         {lines.map(line => (
           <GameLine key={line.id} line={line} highlights={_highlights} />
         ))}

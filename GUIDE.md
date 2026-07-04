@@ -179,11 +179,11 @@ Your own avatar is shown at the **bottom-left of the game window**, next to your
 - **Replace** it with a different picture later.
 - **Remove** it.
 
-If you don't set a picture, Meridian generates a unique **identicon** — a colored geometric pattern based on your character's name. Everyone sees the same identicon for the same name, so characters stay visually distinct even without custom pictures.
+If you don't set a picture, Meridian generates a **letter avatar** — your character's initial on a colored background derived from the name. Everyone sees the same avatar for the same name, so characters stay visually distinct even without custom pictures.
 
 ### Seeing other players' avatars
 
-Avatars appear automatically in the Conversation panel next to each person's speech, whispers, and thoughts. Players who have uploaded and shared a picture show that picture; everyone else shows their identicon.
+Avatars appear automatically in the Conversation panel next to each person's speech, whispers, and thoughts. Players who have uploaded and shared a picture show that picture; everyone else shows their letter avatar.
 
 ### Sharing your avatar with others
 
