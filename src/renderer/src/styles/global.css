@@ -25,7 +25,7 @@
   --color-roomname:  #ffffff;
   --color-roomdesc:  #9aa8c8;
   --color-speech:    #58e058;
-  --color-whisper:   #c0d8ff;
+  --color-whisper:   #6f9dff;
   --color-thought:   #e058d8;
   --color-warning:   #ff5820;
   --color-bonus:     #38d838;
@@ -615,13 +615,13 @@ body[data-platform="darwin"] .status-bar {
   bottom: 14px;
   transform: translateX(-50%);
   z-index: 5;
-  padding: 6px 14px;
-  border-radius: 14px;
+  padding: 8px 18px;
+  border-radius: 6px;
   border: none;
   background: var(--accent);
   color: var(--bg-shell);
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: .02em;
   cursor: pointer;
@@ -1132,9 +1132,9 @@ body[data-platform="darwin"] .status-bar {
 .status-pills { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
 .status-pill {
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.4;
-  padding: 1px 8px;
+  padding: 2px 10px;
   border-radius: 8px;
   background: var(--bg-input);
   border: 1px solid var(--border-soft);
@@ -1703,7 +1703,7 @@ body[data-platform="darwin"] .status-bar {
 .conv-line { font-size: 14px; padding: 1px 0; line-height: 1.35; font-family: var(--font-game); }
 .conv-group { display: flex; gap: 8px; align-items: flex-start; padding: 3px 0; }
 .conv-avatar {
-  width: 26px; height: 26px; flex: 0 0 26px;
+  width: 32px; height: 32px; flex: 0 0 32px;
   margin-top: 2px;
   border-radius: 50%;
   border: 1px solid var(--border-soft);

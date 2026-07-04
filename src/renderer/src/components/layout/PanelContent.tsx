@@ -142,6 +142,9 @@ export function AtmoPanel() {
 }
 
 // ── Conversation Panel ─────────────────────────────────────────────────────────
+// The speaker/verb prefix ("SoAndSo says") keeps its preset color; the quoted
+// text is toned down to a soft (non-bright) white so the speech itself reads
+// calmly while the colored prefix still identifies who's talking and how.
 const convColor = (preset?: string) => {
   switch (preset) {
     case 'speech':  return 'var(--color-speech)'
@@ -149,6 +152,18 @@ const convColor = (preset?: string) => {
     case 'thought': return 'var(--color-thought)'
     default:        return 'var(--text-main)'
   }
+}
+
+function ConvLine({ line }: { line: OutputLine }) {
+  const color = convColor(line.styles[0]?.preset)
+  const q = line.text.indexOf('"')
+  if (q === -1) return <div className="conv-line" style={{ color }}>{line.text}</div>
+  return (
+    <div className="conv-line">
+      <span style={{ color }}>{line.text.slice(0, q)}</span>
+      <span style={{ color: 'var(--text-main)' }}>{line.text.slice(q)}</span>
+    </div>
+  )
 }
 
 // Group consecutive lines from the same speaker so the avatar shows once per
@@ -182,11 +197,7 @@ export function ConversationPanel() {
             </Tooltip>
           )}
           <div className="conv-group-body">
-            {group.lines.map((l: OutputLine) => (
-              <div key={l.id} className="conv-line" style={{ color: convColor(l.styles[0]?.preset) }}>
-                {l.text}
-              </div>
-            ))}
+            {group.lines.map((l: OutputLine) => <ConvLine key={l.id} line={l} />)}
           </div>
         </div>
       ))}
