@@ -73,21 +73,65 @@ export const handsAtom = atom<{ left: string; right: string }>({ left: '', right
 // ── Indicators ────────────────────────────────────────────────────────────────
 export const indicatorsAtom = atom<Record<string, boolean>>({})
 
+// ── Presence (avatar status; shared so notifications can honor Do Not Disturb) ──
+export type PresenceMode = 'online' | 'idle' | 'dnd'
+export const presenceModeAtom = atom<PresenceMode>('online')
+
 // ── Verbs (command autocomplete) ───────────────────────────────────────────────
 // Populated once from the game's `VERB LIST` output during a silent sweep, then
-// cached in settings. Lines look like "accept" or "accept (info)".
-export const verbsAtom = atom<string[]>([])
+// cached in settings. Raw lines look like "accept" or "accept (info)"; the
+// "(info)" suffix marks verbs that have `VERB INFO` detail available.
+const stripInfo = (v: string) => v.replace(/\s*\(info\)\s*$/i, '').trim()
+
+export const verbRawAtom = atom<string[]>([])
+export const verbsAtom = atom(get =>
+  Array.from(new Set(get(verbRawAtom).map(stripInfo).filter(Boolean))).sort()
+)
+export const verbsWithInfoAtom = atom(get => {
+  const m: Record<string, true> = {}
+  for (const v of get(verbRawAtom)) if (/\(info\)\s*$/i.test(v)) m[stripInfo(v).toLowerCase()] = true
+  return m
+})
+
 const VERB_LINE_RE = /^[a-z][a-z'-]*( \(info\))?$/i
 let _verbCapture = false
 let _verbBuf: string[] = []
 export function beginVerbCapture() { _verbCapture = true; _verbBuf = [] }
 export function endVerbCapture()   { _verbCapture = false; _verbBuf = [] }
 
+// ── Verb info (VERB INFO detail for autocomplete popover) ──────────────────────
+export interface VerbInfoEntry { syntax: string; desc: string }
+export const verbInfoAtom = atom<Record<string, VerbInfoEntry[]>>({})
+let _verbInfoName:    string | null = null   // armed flag: awaiting a VERB INFO block
+let _verbInfoHeader:  string | null = null   // actual verb from the response header
+let _verbInfoStarted = false
+let _verbInfoBuf: string[] = []
+export function beginVerbInfoCapture(name: string) {
+  _verbInfoName = name.toLowerCase(); _verbInfoHeader = null; _verbInfoStarted = false; _verbInfoBuf = []
+}
+function parseVerbInfo(name: string, lines: string[]): VerbInfoEntry[] {
+  const entries: VerbInfoEntry[] = []
+  for (const l of lines) {
+    const t = l.trim()
+    if (!t || /^syntax:$/i.test(t)) continue
+    const first = (t.split(/\s+/)[0] ?? '').toUpperCase()
+    if (first === name.toUpperCase()) {
+      entries.push({ syntax: t, desc: '' })
+    } else if (entries.length) {
+      const e = entries[entries.length - 1]
+      e.desc = e.desc ? `${e.desc} ${t}` : t
+    } else {
+      entries.push({ syntax: '', desc: t })
+    }
+  }
+  return entries
+}
+
 // ── Active spell ──────────────────────────────────────────────────────────────
 export const activeSpellAtom = atom<string>('')
 
 // ── Timers ────────────────────────────────────────────────────────────────────
-export const roundtimeAtom        = atom<number>(0)
+export const roundtimeAtom        = atom<number>(0)  // epoch-ms end time of current RT
 export const castTimeAtom         = atom<number>(0)
 export const tickAtom             = atom<number>(0)  // Updated every second for countdowns
 export const roundtimeSecondsAtom = atom(get => {
@@ -169,7 +213,19 @@ export const dispatchGameEventAtom = atom(
         if (_verbCapture) {
           const t = event.text.trim()
           if (/^verb list /i.test(t)) return
-          if (VERB_LINE_RE.test(t)) { _verbBuf.push(t.replace(/\s*\(info\)\s*$/i, '').trim()); return }
+          if (VERB_LINE_RE.test(t)) { _verbBuf.push(t); return }
+        }
+        // Silent VERB INFO fetch — capture the detail block, suppress from output
+        if (_verbInfoName) {
+          const t = event.text.trim()
+          if (!_verbInfoStarted) {
+            if (/^verb info /i.test(t)) return
+            const h = t.match(/^Verb information for verb "([^"]+)"/i)
+            if (h) { _verbInfoStarted = true; _verbInfoHeader = h[1].toLowerCase(); return }
+          } else {
+            _verbInfoBuf.push(t)
+            return
+          }
         }
         const line = mkLine(event.text, event.styles, event.stream, event.links)
 
@@ -377,8 +433,15 @@ export const dispatchGameEventAtom = atom(
         }
         // Flush any verbs captured since the last prompt into the reactive atom.
         if (_verbCapture && _verbBuf.length > 0) {
-          set(verbsAtom, Array.from(new Set([...get(verbsAtom), ..._verbBuf])).sort())
+          set(verbRawAtom, Array.from(new Set([...get(verbRawAtom), ..._verbBuf])).sort())
           _verbBuf = []
+        }
+        // Finalize a VERB INFO fetch: parse the captured block and cache it under
+        // the verb named in the response header (robust to fast re-highlighting).
+        if (_verbInfoName) {
+          const name = _verbInfoHeader ?? _verbInfoName
+          set(verbInfoAtom, { ...get(verbInfoAtom), [name]: parseVerbInfo(name, _verbInfoBuf) })
+          _verbInfoName = null; _verbInfoHeader = null; _verbInfoStarted = false; _verbInfoBuf = []
         }
         // Space out consecutive command-response chunks: if new content landed in
         // the main output since the last prompt, flush a separator (blank line).

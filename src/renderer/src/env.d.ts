@@ -17,6 +17,13 @@ interface AppSettings {
   passwords:        Record<string, string>
   avatars?:         Record<string, string>
   verbs?:           string[]
+  notifications?:   {
+    sound:      boolean
+    desktop:    boolean
+    mention:    boolean
+    whisper:    boolean
+    disconnect: boolean
+  }
 }
 
 interface DrAPI {

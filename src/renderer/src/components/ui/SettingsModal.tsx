@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react'
 import { THEMES } from '../../lib/themes'
 import { setShowTimestamps, setOutputBuffer } from '../game/GameOutput'
+import { DEFAULT_NOTIF, type NotifSettings } from './Notifications'
 
 interface SettingsModalProps {
   onClose: () => void
 }
 
-type TabId = 'appearance' | 'display' | 'keybinds' | 'lich'
+type TabId = 'appearance' | 'display' | 'notifications' | 'keybinds' | 'lich'
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'appearance', label: 'Appearance' },
-  { id: 'display',    label: 'Display' },
-  { id: 'keybinds',   label: 'Function Keys' },
-  { id: 'lich',       label: 'Lich' },
+  { id: 'appearance',    label: 'Appearance' },
+  { id: 'display',       label: 'Display' },
+  { id: 'notifications', label: 'Notifications' },
+  { id: 'keybinds',      label: 'Function Keys' },
+  { id: 'lich',          label: 'Lich' },
 ]
 
 export function SettingsModal({ onClose }: SettingsModalProps) {
@@ -24,6 +26,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [density,         setDensity]         = useState<'cozy' | 'compact'>('cozy')
   const [outputBufferSize, setOutputBufferSize] = useState(5000)
   const [functionKeys,    setFunctionKeys]    = useState<Record<string, string>>({})
+  const [notif,           setNotif]           = useState<NotifSettings>(DEFAULT_NOTIF)
   const [version,         setVersion]         = useState('')
   const [tab,             setTab]             = useState<TabId>('appearance')
 
@@ -43,12 +46,14 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
       setDensity(s.density === 'compact' ? 'compact' : 'cozy')
       setOutputBufferSize(s.outputBufferSize || 5000)
       setFunctionKeys(s.functionKeys || {})
+      setNotif({ ...DEFAULT_NOTIF, ...(s.notifications ?? {}) })
     })
   }, [])
 
   const handleSave = async () => {
     await window.dr.settings.patch({
-      lichPath, fontSize, fontFamily, theme, timestamps, density, outputBufferSize, functionKeys
+      lichPath, fontSize, fontFamily, theme, timestamps, density, outputBufferSize, functionKeys,
+      notifications: notif,
     })
     window.dispatchEvent(new CustomEvent('settings:saved'))
     const { applyTheme } = await import('../../lib/themes')
@@ -189,6 +194,45 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                   </select>
                 </label>
               </div>
+            )}
+
+            {tab === 'notifications' && (
+              <>
+                <div className="settings-section">
+                  <div className="settings-section-label">Alerts</div>
+                  <label className="settings-row">
+                    <span className="settings-label">Play sound</span>
+                    <input type="checkbox" checked={notif.sound} style={{ width: 'auto' }}
+                      onChange={e => setNotif(n => ({ ...n, sound: e.target.checked }))} />
+                  </label>
+                  <label className="settings-row">
+                    <span className="settings-label">Desktop popups</span>
+                    <input type="checkbox" checked={notif.desktop} style={{ width: 'auto' }}
+                      onChange={e => setNotif(n => ({ ...n, desktop: e.target.checked }))} />
+                  </label>
+                  <div className="settings-hint">
+                    Desktop popups only appear when the window isn't focused. Do Not Disturb silences sound and popups.
+                  </div>
+                </div>
+                <div className="settings-section">
+                  <div className="settings-section-label">Notify me about</div>
+                  <label className="settings-row">
+                    <span className="settings-label">Mentions</span>
+                    <input type="checkbox" checked={notif.mention} style={{ width: 'auto' }}
+                      onChange={e => setNotif(n => ({ ...n, mention: e.target.checked }))} />
+                  </label>
+                  <label className="settings-row">
+                    <span className="settings-label">Whispers</span>
+                    <input type="checkbox" checked={notif.whisper} style={{ width: 'auto' }}
+                      onChange={e => setNotif(n => ({ ...n, whisper: e.target.checked }))} />
+                  </label>
+                  <label className="settings-row">
+                    <span className="settings-label">Disconnects</span>
+                    <input type="checkbox" checked={notif.disconnect} style={{ width: 'auto' }}
+                      onChange={e => setNotif(n => ({ ...n, disconnect: e.target.checked }))} />
+                  </label>
+                </div>
+              </>
             )}
 
             {tab === 'keybinds' && (

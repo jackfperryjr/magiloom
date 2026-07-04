@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Tooltip } from '../ui/Tooltip'
 
-export type PanelId = 'room' | 'vitals' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths'
+export type PanelId = 'room' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'lich'
 
 export interface PanelConfig {
   id:      PanelId
@@ -11,7 +11,6 @@ export interface PanelConfig {
 
 const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'room',         label: 'Room',          visible: true  },
-  { id: 'vitals',       label: 'Vitals',        visible: true  },
   { id: 'experience',   label: 'Experience',    visible: true  },
   { id: 'spells',       label: 'Active Spells', visible: false  },
   { id: 'combat',       label: 'Combat',        visible: true },
@@ -19,6 +18,7 @@ const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'conversation', label: 'Conversation',  visible: true },
   { id: 'inventory',    label: 'Inventory',     visible: false },
   { id: 'deaths',       label: 'Deaths',        visible: false },
+  { id: 'lich',         label: 'Lich Log',      visible: false },
 ]
 
 const PANELS_KEY  = 'meridian-panels-v4'
@@ -27,7 +27,15 @@ const HEIGHTS_KEY = 'meridian-panel-heights-v1'
 function loadPanels(): PanelConfig[] {
   try {
     const raw = localStorage.getItem(PANELS_KEY)
-    if (raw) return JSON.parse(raw) as PanelConfig[]
+    if (raw) {
+      // Drop panels that no longer exist (e.g. vitals moved to the top bar) and
+      // append any newly-added defaults, preserving the user's order/visibility.
+      const valid  = new Set(DEFAULT_PANELS.map(p => p.id))
+      const saved  = (JSON.parse(raw) as PanelConfig[]).filter(p => valid.has(p.id))
+      const have   = new Set(saved.map(p => p.id))
+      for (const d of DEFAULT_PANELS) if (!have.has(d.id)) saved.push(d)
+      return saved
+    }
   } catch {}
   return DEFAULT_PANELS
 }
