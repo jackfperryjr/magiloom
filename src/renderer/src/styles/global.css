@@ -630,6 +630,14 @@ body[data-platform="darwin"] .status-bar {
   transition: opacity .12s, transform .12s;
 }
 .jump-present:hover { opacity: 1; transform: translateX(-50%) translateY(-1px); }
+/* Final Fantasy IV's accent is near-white, so the default accent-filled button
+   reads as a stark white blob. Restyle it as an FF menu box — navy fill with a
+   white border and white text — to sit in the theme instead of fighting it. */
+[data-theme="frostbite"] .jump-present {
+  background: #0000A8; /* the lighter blue from the theme's panel gradient */
+  color: var(--text-bright);
+  border: 1px solid var(--border-accent);
+}
 
 /* SGE presets */
 .preset-roomname {
