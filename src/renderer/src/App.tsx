@@ -18,6 +18,7 @@ import {
   echoCommandAtom, beginSilentExpAtom, lichMsgAtom, tickAtom,
   combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom, inventoryLinesAtom,
   verbRawAtom, beginVerbCapture, endVerbCapture,
+  avatarsAtom, selfNameAtom,
 } from './store/game'
 import { applyTheme, DEFAULT_HIGHLIGHTS } from './lib/themes'
 import { IconArrowDownTray, IconArrowPath, IconExclamationTriangle } from './components/ui/Icons'
@@ -100,7 +101,8 @@ function GameLayout({ charName, onOpenSettings, onRequestConnect, updateSlot }: 
   // Register send fn for clickable links
   useEffect(() => { setSendFn(send) }, [send])
   // Register player name so the output can flag @mentions of this character
-  useEffect(() => { setPlayerName(charName) }, [charName])
+  const setSelfName = useSetAtom(selfNameAtom)
+  useEffect(() => { setPlayerName(charName); setSelfName(charName) }, [charName, setSelfName])
 
   // Verb autocomplete: load cached verbs, or silently sweep `VERB LIST a..z` once.
   const setVerbs   = useSetAtom(verbRawAtom)
@@ -136,6 +138,7 @@ function GameLayout({ charName, onOpenSettings, onRequestConnect, updateSlot }: 
   const setConv      = useSetAtom(convLinesAtom)
   const setDeaths    = useSetAtom(deathsAtom)
   const setInventory = useSetAtom(inventoryLinesAtom)
+  const setAvatars   = useSetAtom(avatarsAtom)
 
   const getClearFn = (id: PanelId): (() => void) | undefined => {
     switch (id) {
@@ -194,6 +197,7 @@ function GameLayout({ charName, onOpenSettings, onRequestConnect, updateSlot }: 
       if (s.timestamps)       setShowTimestamps(s.timestamps)
       if (s.outputBufferSize) setOutputBuffer(s.outputBufferSize)
       if (s.functionKeys)     setFunctionKeys(s.functionKeys)
+      if (s.avatars)          setAvatars(s.avatars)
       if (s.highlights && s.highlights.length > 0) {
         setHighlights(s.highlights as never[])
       } else {

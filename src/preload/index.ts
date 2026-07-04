@@ -5,6 +5,12 @@ contextBridge.exposeInMainWorld('dr', {
     getAll: ()          => ipcRenderer.invoke('settings:get-all'),
     patch:  (p: object) => ipcRenderer.invoke('settings:patch', p)
   },
+  avatar: {
+    enabled: ()                                  => ipcRenderer.invoke('avatar:enabled'),
+    get:     (name: string)                      => ipcRenderer.invoke('avatar:get', name),
+    publish: (charName: string, dataUrl: string) => ipcRenderer.invoke('avatar:publish', charName, dataUrl),
+    remove:  (charName: string)                  => ipcRenderer.invoke('avatar:delete', charName)
+  },
   auth: {
     login: (account: string, password: string) =>
       ipcRenderer.invoke('auth:login', account, password),

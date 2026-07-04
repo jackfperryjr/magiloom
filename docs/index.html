@@ -407,7 +407,7 @@
     /* ── Download ── */
     .download-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      grid-template-columns: repeat(2, 1fr);
       gap: 16px;
     }
     .download-card {
@@ -514,37 +514,38 @@
       margin-top: 8px;
     }
 
-    /* ── Vitals bar demo ── */
-    .vitals-demo {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding: 20px;
+    /* ── Experience panel demo ── */
+    .exp-demo {
+      padding: 18px 20px;
       background: var(--bg-panel);
       border: 1px solid var(--border);
       border-radius: 8px;
       font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
     }
-    .vital-row { display: flex; align-items: center; gap: 10px; }
-    .vital-label { color: var(--text-dim); width: 64px; flex-shrink: 0; }
-    .vital-bar {
-      flex: 1;
-      height: 7px;
-      background: rgba(255,255,255,0.06);
-      border-radius: 3px;
-      overflow: hidden;
+    .exp-demo-title {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
     }
-    .vital-fill {
-      height: 100%;
-      border-radius: 3px;
-      transition: width .6s ease;
+    .exp-demo-meta {
+      display: flex;
+      gap: 18px;
+      margin-bottom: 12px;
+      color: var(--text-muted);
+      font-size: 11px;
     }
-    .vital-val { color: var(--text-muted); width: 38px; text-align: right; flex-shrink: 0; }
-    .bar-health  { background: var(--red);    box-shadow: 0 0 8px rgba(221,24,24,0.4); }
-    .bar-mana    { background: var(--blue);   box-shadow: 0 0 8px rgba(64,128,224,0.4); }
-    .bar-stamina { background: var(--cyan);   box-shadow: 0 0 8px rgba(64,184,224,0.4); }
-    .bar-spirit  { background: var(--purple); box-shadow: 0 0 8px rgba(160,64,224,0.4); }
+    .exp-demo-meta b { color: var(--text-bright); font-weight: 600; }
+    .exp-row { display: flex; align-items: baseline; gap: 10px; padding: 3px 0; }
+    .exp-skill { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .exp-rank { width: 34px; text-align: right; color: var(--text-bright); flex-shrink: 0; }
+    .exp-pct  { width: 42px; text-align: right; color: var(--accent); flex-shrink: 0; }
+    .exp-mind { width: 58px; text-align: right; flex-shrink: 0; }
 
     /* ── Responsive ── */
     @media (max-width: 640px) {
@@ -612,13 +613,7 @@
 <!-- ── Screenshot ────────────────────────────────────────────────────────── -->
 <div class="screenshot-section">
   <div class="screenshot-wrap">
-    <div class="screenshot-chrome">
-      <span class="chrome-dot" style="background:#ff5f57"></span>
-      <span class="chrome-dot" style="background:#febc2e"></span>
-      <span class="chrome-dot" style="background:#28c840"></span>
-      <span class="chrome-title">Meridian — Jackreous — connected</span>
-    </div>
-    <img src="./screenshot-game.png" alt="Meridian game view — real-time output, vitals, room panel, spell tracking" loading="lazy" />
+    <img src="./screenshot-game.png" alt="Meridian game view — real-time output, vitals, room panel, and a conversation panel with player avatars" loading="lazy" />
   </div>
 </div>
 
@@ -680,29 +675,19 @@
         <div class="section-label">// panels</div>
         <h2 class="section-title">Your character, at a glance</h2>
         <p class="section-desc" style="margin-bottom: 28px;">
-          Vitals, active spells, current room, experience tracker, conversation log, combat stream, encumbrance, and inventory — each in its own panel you can show, hide, and resize.
+          An always-on vitals bar up top, plus panels for your current room, experience, active spells, conversation log (with player avatars), combat stream, atmosphere, deaths, and inventory — each panel you can show, hide, and resize.
         </p>
-        <div class="vitals-demo">
-          <div class="vital-row">
-            <span class="vital-label">Health</span>
-            <div class="vital-bar"><div class="vital-fill bar-health" style="width:82%"></div></div>
-            <span class="vital-val" style="color:#dd1818">82%</span>
+        <div class="exp-demo">
+          <div class="exp-demo-title">Experience</div>
+          <div class="exp-demo-meta">
+            <span>TDPs: <b>1204</b></span>
+            <span>Favors: <b>37</b></span>
           </div>
-          <div class="vital-row">
-            <span class="vital-label">Mana</span>
-            <div class="vital-bar"><div class="vital-fill bar-mana" style="width:100%"></div></div>
-            <span class="vital-val" style="color:#4080e0">100%</span>
-          </div>
-          <div class="vital-row">
-            <span class="vital-label">Stamina</span>
-            <div class="vital-bar"><div class="vital-fill bar-stamina" style="width:65%"></div></div>
-            <span class="vital-val" style="color:#40b8e0">65%</span>
-          </div>
-          <div class="vital-row">
-            <span class="vital-label">Spirit</span>
-            <div class="vital-bar"><div class="vital-fill bar-spirit" style="width:100%"></div></div>
-            <span class="vital-val" style="color:#a040e0">100%</span>
-          </div>
+          <div class="exp-row"><span class="exp-skill">Small Edged</span><span class="exp-rank">152</span><span class="exp-pct">34%</span><span class="exp-mind" style="color:#5fbcd4">9/34</span></div>
+          <div class="exp-row"><span class="exp-skill">Shield Usage</span><span class="exp-rank">148</span><span class="exp-pct">88%</span><span class="exp-mind" style="color:#7b8fe8">28/34</span></div>
+          <div class="exp-row"><span class="exp-skill">Evasion</span><span class="exp-rank">165</span><span class="exp-pct">12%</span><span class="exp-mind" style="color:#6badd0">15/34</span></div>
+          <div class="exp-row"><span class="exp-skill">Attunement</span><span class="exp-rank">98</span><span class="exp-pct">61%</span><span class="exp-mind" style="color:#6bc5a0">1/34</span></div>
+          <div class="exp-row"><span class="exp-skill">First Aid</span><span class="exp-rank">120</span><span class="exp-pct">97%</span><span class="exp-mind" style="color:#e06060">34/34</span></div>
         </div>
       </div>
       <div>
@@ -718,11 +703,11 @@
             <span class="chrome-dot" style="background:#28c840; width:8px; height:8px; border-radius:50%; display:inline-block"></span>
           </div>
           <div class="terminal-body">
-            <div><span class="t-white">The Gondola Dock, Riverhaven</span></div>
+            <div><span class="t-white">The Dock, Riverhaven</span></div>
             <div><span class="t-dim">Stone steps lead down to a…</span></div>
-            <div style="margin-top:6px"><span class="t-dim">Also here: </span><span class="t-gold">Sabrissa, Corvath</span></div>
+            <div style="margin-top:6px"><span class="t-dim">Also here: </span><span class="t-gold">Penello, Refia</span></div>
             <div><span class="t-dim">Obvious paths: </span><span class="t-green">north</span><span class="t-dim">, </span><span class="t-green">south</span></div>
-            <div style="margin-top:6px"><span class="t-dim">Sabrissa says, </span><span class="t-cyan">"Watch the north gate."</span></div>
+            <div style="margin-top:6px"><span class="t-dim">Refia says, </span><span class="t-cyan">"Watch the north gate."</span></div>
             <div><span class="t-accent t-bold" style="font-weight:700">Jackreous</span><span class="t-dim"> slips quietly into the shadows.</span></div>
             <div style="margin-top:6px"><span class="t-red" style="font-weight:700">Roundtime: 3 sec.</span></div>
             <div style="margin-top:4px"><span class="t-dim">&gt; </span><span class="t-accent">hide</span><span class="t-caret"></span></div>
@@ -758,6 +743,20 @@
       </div>
 
       <div class="download-card">
+        <div class="dl-os-icon">🐧</div>
+        <div>
+          <div class="dl-os-name">Linux</div>
+          <div class="dl-os-note">.AppImage · x64</div>
+        </div>
+        <a href="https://github.com/jackfperryjr/meridian/releases/latest/download/Meridian.AppImage" class="dl-btn">
+          Download for Linux
+        </a>
+        <div style="font-size:11px; color:var(--text-dim); line-height:1.5">
+          Mark executable: <code style="font-family:'JetBrains Mono',monospace; color:var(--accent)">chmod +x Meridian.AppImage</code>
+        </div>
+      </div>
+
+      <div class="download-card">
         <div class="dl-os-icon"></div>
         <div>
           <div class="dl-os-name">macOS (Apple Silicon)</div>
@@ -782,20 +781,6 @@
         </a>
         <div style="font-size:11px; color:var(--text-dim); line-height:1.5">
           On first launch, right-click the app and choose <em>Open</em> to bypass Gatekeeper.
-        </div>
-      </div>
-
-      <div class="download-card">
-        <div class="dl-os-icon">🐧</div>
-        <div>
-          <div class="dl-os-name">Linux</div>
-          <div class="dl-os-note">.AppImage · x64</div>
-        </div>
-        <a href="https://github.com/jackfperryjr/meridian/releases/latest/download/Meridian.AppImage" class="dl-btn">
-          Download for Linux
-        </a>
-        <div style="font-size:11px; color:var(--text-dim); line-height:1.5">
-          Mark executable: <code style="font-family:'JetBrains Mono',monospace; color:var(--accent)">chmod +x Meridian.AppImage</code>
         </div>
       </div>
 
@@ -844,7 +829,6 @@
             <span class="chrome-dot" style="background:#ff5f57"></span>
             <span class="chrome-dot" style="background:#febc2e"></span>
             <span class="chrome-dot" style="background:#28c840"></span>
-            <span class="chrome-title">Meridian — Login</span>
           </div>
           <img src="./screenshot-login.png" alt="Meridian login screen" loading="lazy" />
         </div>

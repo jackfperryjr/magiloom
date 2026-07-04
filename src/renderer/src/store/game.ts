@@ -17,6 +17,17 @@ export interface OutputLine {
   timestamp:  number
   links?:     LinkSpan[]
   separator?: boolean
+  speaker?:   string   // for conversation lines: who is talking (for the avatar)
+}
+
+// Pull the speaker out of a speech/whisper/thought line so the conversation
+// panel can show their avatar. DR speech leads with the speaker after an
+// optional [Channel] prefix; "You say/whisper/think" is the local character.
+const SPEAKER_RE = /^([A-Z][a-z'-]+)\b/
+export function extractSpeaker(text: string): string | undefined {
+  const t = text.replace(/^\s*\[[^\]]*\]\s*/, '').trimStart()
+  if (/^You\b/.test(t)) return 'You'
+  return t.match(SPEAKER_RE)?.[1]
 }
 
 let lineId = 0
@@ -76,6 +87,19 @@ export const indicatorsAtom = atom<Record<string, boolean>>({})
 // ── Presence (avatar status; shared so notifications can honor Do Not Disturb) ──
 export type PresenceMode = 'online' | 'idle' | 'dnd'
 export const presenceModeAtom = atom<PresenceMode>('online')
+
+// ── Avatars ─────────────────────────────────────────────────────────────────
+// Local self-uploads, keyed by lowercased character name (mirrors settings.json
+// `avatars`). Shared so the character bar and the conversation panel resolve
+// from one source. selfNameAtom is the logged-in character, so "You" speech
+// resolves to their avatar. See lib/avatar.ts for the resolution precedence.
+export const avatarsAtom  = atom<Record<string, string>>({})
+export const selfNameAtom = atom<string>('')
+
+// Server-backed custom avatars fetched by name (data URLs), keyed by lowercased
+// name. A `null` value is a negative cache: "no custom image, use the identicon."
+// Undefined means "not fetched yet". Populated by useEnsureAvatars.
+export const serverAvatarsAtom = atom<Record<string, string | null>>({})
 
 // ── Verbs (command autocomplete) ───────────────────────────────────────────────
 // Populated once from the game's `VERB LIST` output during a silent sweep, then
@@ -268,7 +292,7 @@ export const dispatchGameEventAtom = atom(
             const isSpeech = line.styles.some(s => ['speech','whisper','thought'].includes(s.preset ?? ''))
             const isScript = /^\S+:\s/.test(line.text) || /\.lic\b/.test(line.text)
             if (isSpeech && /"/.test(line.text) && !isScript) {
-              set(convLinesAtom, appendDedup(get(convLinesAtom), line, 200))
+              set(convLinesAtom, appendDedup(get(convLinesAtom), { ...line, speaker: extractSpeaker(line.text) }, 200))
             } else {
               set(outputLinesAtom, appendDedup(get(outputLinesAtom), line, 5000))
               _outputDirty = true
@@ -324,7 +348,7 @@ export const dispatchGameEventAtom = atom(
         // appendDedup handles the case where speech arrives in both the pushStream
         // and the main stream, so only the first copy is kept.
         if (event.styles.some(s => ['speech','whisper','thought'].includes(s.preset ?? '')) && /"/.test(event.text) && !/^\S+:\s/.test(event.text) && !/\.lic\b/.test(event.text)) {
-          set(convLinesAtom, appendDedup(get(convLinesAtom), line, 200))
+          set(convLinesAtom, appendDedup(get(convLinesAtom), { ...line, speaker: extractSpeaker(line.text) }, 200))
         }
         break
       }
