@@ -251,5 +251,6 @@ export function applyTheme(id: string): void {
   for (const [key, val] of Object.entries(theme.vars)) {
     root.style.setProperty(key, val)
   }
+  root.dataset.theme = theme.id
   document.body.style.backgroundImage = theme.vars['--bg-theme-image'] ?? 'none'
 }

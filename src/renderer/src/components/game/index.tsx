@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useAtomValue } from 'jotai'
-import { handsAtom } from '../../store/game'
+import { handsAtom, indicatorsAtom, roundtimeAtom, verbsAtom } from '../../store/game'
 export type { ConnectionStatus } from '../../store/game'
 import type { ConnectionStatus } from '../../store/game'
 import {
@@ -9,45 +9,133 @@ import {
 } from '../ui/Icons'
 import { Tooltip } from '../ui/Tooltip'
 
+// ── Command autocomplete ──────────────────────────────────────────────────────
+// Curated common DragonRealms verbs/commands. Can be augmented at runtime via the
+// game's `VERB LIST` output (see setVerbs).
+const COMMON_VERBS = [
+  'north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest',
+  'up', 'down', 'out', 'go',
+  'look', 'look in', 'search', 'glance', 'read', 'appraise', 'inventory',
+  'get', 'put', 'drop', 'stow', 'wear', 'remove', 'wield', 'sheathe', 'ready',
+  'open', 'close', 'turn', 'push', 'pull', 'lift', 'lower',
+  'attack', 'stance', 'retreat', 'advance', 'aim', 'ambush', 'target',
+  'stand', 'sit', 'kneel', 'lie down', 'hide', 'unhide', 'sneak',
+  'prepare', 'cast', 'incant', 'invoke', 'channel',
+  'health', 'exp', 'experience', 'spells', 'skills', 'info',
+  'forage', 'skin', 'gather', 'tend', 'pray',
+  'say', 'whisper', 'ask', 'tell', 'shout', 'yell', 'think', 'roleplay',
+  'deposit', 'withdraw', 'buy', 'sell', 'order', 'appraise',
+]
+
+interface Suggestion { text: string; tag: string }
+
+function buildSuggestions(
+  value: string, history: string[], functionKeys: Record<string, string>, verbs: string[]
+): Suggestion[] {
+  const q = value.toLowerCase().trimStart()
+  if (!q) return []
+  const seen = new Set<string>()
+  const out: Suggestion[] = []
+  const add = (raw: string, tag: string) => {
+    const text = raw.trim()
+    if (!text) return
+    const key = text.toLowerCase()
+    if (key === q || !key.startsWith(q) || seen.has(key)) return
+    seen.add(key)
+    out.push({ text, tag })
+  }
+  history.forEach(h => add(h, 'history'))
+  Object.entries(functionKeys).forEach(([fk, cmd]) => add(cmd, fk))
+  verbs.forEach(v => add(v, 'verb'))
+  return out.slice(0, 8)
+}
+
 // ── CommandInput ──────────────────────────────────────────────────────────────
-export function CommandInput({ onSend, onEcho }: {
+export function CommandInput({ onSend, onEcho, functionKeys = {} }: {
   onSend: (cmd: string) => void
   onEcho: (cmd: string) => void
+  functionKeys?: Record<string, string>
 }) {
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef   = useRef<HTMLInputElement>(null)
   const historyRef = useRef<string[]>([])
   const histIdxRef = useRef(-1)
+  const [value, setValue] = useState('')
+  const [open,  setOpen]  = useState(false)
+  const [sel,   setSel]   = useState(0)
+  const gameVerbs = useAtomValue(verbsAtom)
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
+  const allVerbs = useMemo(
+    () => (gameVerbs.length ? Array.from(new Set([...COMMON_VERBS, ...gameVerbs])).sort() : COMMON_VERBS),
+    [gameVerbs]
+  )
+  const suggestions = useMemo(
+    () => buildSuggestions(value, historyRef.current, functionKeys, allVerbs),
+    [value, functionKeys, allVerbs]
+  )
+  const showSug = open && suggestions.length > 0
+
+  useEffect(() => { if (sel >= suggestions.length) setSel(0) }, [suggestions.length, sel])
+
   const submit = () => {
-    const val = inputRef.current?.value.trim()
+    const val = value.trim()
     if (!val) return
     onEcho(val)
     onSend(val)
     historyRef.current = [val, ...historyRef.current.slice(0, 99)]
     histIdxRef.current = -1
-    if (inputRef.current) inputRef.current.value = ''
+    setValue('')
+    setOpen(false)
+  }
+
+  const accept = (text: string) => {
+    setValue(text)
+    setOpen(false)
+    inputRef.current?.focus()
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showSug) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSel(s => (s + 1) % suggestions.length); return }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); setSel(s => (s - 1 + suggestions.length) % suggestions.length); return }
+      if (e.key === 'Tab')       { e.preventDefault(); accept(suggestions[sel]?.text ?? value); return }
+      if (e.key === 'Escape')    { e.preventDefault(); setOpen(false); return }
+      if (e.key === 'Enter')     { submit(); return }
+      return
+    }
     if (e.key === 'Enter') { submit(); return }
     if (e.key === 'ArrowUp') {
       e.preventDefault()
       const next = Math.min(histIdxRef.current + 1, historyRef.current.length - 1)
       histIdxRef.current = next
-      if (inputRef.current) inputRef.current.value = historyRef.current[next] ?? ''
+      setValue(historyRef.current[next] ?? '')
     }
     if (e.key === 'ArrowDown') {
       e.preventDefault()
       const next = Math.max(histIdxRef.current - 1, -1)
       histIdxRef.current = next
-      if (inputRef.current) inputRef.current.value = next === -1 ? '' : historyRef.current[next] ?? ''
+      setValue(next === -1 ? '' : historyRef.current[next] ?? '')
     }
   }
 
   return (
     <div className="command-input-wrap">
+      {showSug && (
+        <div className="cmd-suggest">
+          {suggestions.map((s, i) => (
+            <div
+              key={s.text}
+              className={'cmd-suggest-item' + (i === sel ? ' active' : '')}
+              onMouseDown={e => { e.preventDefault(); accept(s.text) }}
+              onMouseEnter={() => setSel(i)}
+            >
+              <span className="cmd-suggest-text">{s.text}</span>
+              <span className="cmd-suggest-tag">{s.tag}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <span className="command-prompt">&gt;</span>
       <input
         ref={inputRef}
@@ -55,7 +143,10 @@ export function CommandInput({ onSend, onEcho }: {
         type="text"
         autoComplete="off"
         spellCheck={false}
+        value={value}
+        onChange={e => { setValue(e.target.value); setOpen(true); histIdxRef.current = -1 }}
         onKeyDown={onKeyDown}
+        onBlur={() => setOpen(false)}
         placeholder="Send Commands"
       />
     </div>
@@ -77,7 +168,68 @@ function HandDisplay() {
   )
 }
 
-// ── Game top bar (lich log toggle + hands) ───────────────────────────────────
+// ── Posture / status indicators ──────────────────────────────────────────────
+const POSTURE_IDS = new Set(['standing', 'kneeling', 'sitting', 'prone', 'lying'])
+const DANGER_IDS  = new Set(['dead', 'stunned', 'bleeding', 'poisoned', 'diseased', 'webbed'])
+
+// Show posture first, then everything else; skip flags that add no signal.
+const HIDDEN_IDS = new Set(['joined'])
+
+function StatusIndicators() {
+  const indicators = useAtomValue(indicatorsAtom)
+  const active = Object.entries(indicators)
+    .filter(([id, on]) => on && !HIDDEN_IDS.has(id))
+    .map(([id]) => id)
+    .sort((a, b) => (POSTURE_IDS.has(b) ? 1 : 0) - (POSTURE_IDS.has(a) ? 1 : 0))
+
+  if (active.length === 0) return null
+  return (
+    <div className="status-pills">
+      {active.map(id => (
+        <span
+          key={id}
+          className={'status-pill' +
+            (DANGER_IDS.has(id) ? ' status-pill-danger' : POSTURE_IDS.has(id) ? ' status-pill-posture' : '')}
+        >
+          {id}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+// ── Roundtime bar ─────────────────────────────────────────────────────────────
+function RoundtimeBar() {
+  const expires = useAtomValue(roundtimeAtom)
+  const durationRef = useRef(0)
+  const [, setFrame] = useState(0)
+
+  // Drive a depleting bar with rAF while RT is active; it self-stops at expiry.
+  useEffect(() => {
+    if (expires - Date.now() <= 0) return
+    durationRef.current = expires - Date.now()
+    let raf = 0
+    const loop = () => {
+      setFrame(f => f + 1)
+      if (Date.now() < expires) raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [expires])
+
+  const remaining = Math.max(0, expires - Date.now())
+  if (remaining <= 0) return null
+  const pct = durationRef.current > 0 ? Math.min(100, (remaining / durationRef.current) * 100) : 0
+
+  return (
+    <div className="rt-bar" title="Roundtime">
+      <div className="rt-bar-fill" style={{ width: `${pct}%` }} />
+      <span className="rt-bar-label">RT {Math.ceil(remaining / 1000)}s</span>
+    </div>
+  )
+}
+
+// ── Game top bar (lich log toggle + status + roundtime + hands) ───────────────
 type LichStatus = 'stopped' | 'starting' | 'ready' | 'error'
 
 export function GameTopBar({
@@ -102,7 +254,9 @@ export function GameTopBar({
           </button>
         </Tooltip>
       )}
+      {status === 'connected' && <StatusIndicators />}
       <div className="game-topbar-spacer" />
+      {status === 'connected' && <RoundtimeBar />}
       {status === 'connected' && <HandDisplay />}
     </div>
   )

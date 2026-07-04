@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Provider, useSetAtom, useAtomValue } from 'jotai'
 import { useGameConnection }  from './hooks/useGameConnection'
-import { GameOutput, setHighlights, setSendFn, setShowTimestamps, setOutputBuffer } from './components/game/GameOutput'
+import { GameOutput, setHighlights, setSendFn, setShowTimestamps, setOutputBuffer, setPlayerName } from './components/game/GameOutput'
 import { CommandInput, StatusBar, WindowControls, GameTopBar, CharacterBar } from './components/game'
 import { LoginFlow }          from './components/ui/LoginFlow'
 import { SettingsModal }      from './components/ui/SettingsModal'
@@ -16,6 +16,7 @@ import {
 import {
   echoCommandAtom, beginSilentExpAtom, lichMsgAtom, tickAtom,
   combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom, inventoryLinesAtom,
+  verbsAtom, beginVerbCapture, endVerbCapture,
 } from './store/game'
 import { applyTheme, DEFAULT_HIGHLIGHTS } from './lib/themes'
 import { IconArrowDownTray, IconArrowPath, IconExclamationTriangle } from './components/ui/Icons'
@@ -95,6 +96,31 @@ function GameLayout({ charName, onOpenSettings, onRequestConnect, updateSlot }: 
   const { status, disconnect, send } = useGameConnection()
   // Register send fn for clickable links
   useEffect(() => { setSendFn(send) }, [send])
+  // Register player name so the output can flag @mentions of this character
+  useEffect(() => { setPlayerName(charName) }, [charName])
+
+  // Verb autocomplete: load cached verbs, or silently sweep `VERB LIST a..z` once.
+  const setVerbs   = useSetAtom(verbsAtom)
+  const verbsVal   = useAtomValue(verbsAtom)
+  const verbsRef   = useRef<string[]>([])
+  const verbSwept  = useRef(false)
+  useEffect(() => { verbsRef.current = verbsVal }, [verbsVal])
+  useEffect(() => {
+    if (status !== 'connected' || verbSwept.current) return
+    verbSwept.current = true
+    window.dr.settings.getAll().then(s => {
+      if (s.verbs && s.verbs.length > 0) { setVerbs(s.verbs); return }
+      beginVerbCapture()
+      const letters = 'abcdefghijklmnopqrstuvwxyz'.split('')
+      const settle  = 1200  // let the session settle before spamming commands
+      letters.forEach((l, i) => window.setTimeout(() => send(`verb list ${l}`), settle + i * 150))
+      window.setTimeout(() => {
+        endVerbCapture()
+        // Only cache a healthy sweep; a stunted one retries on the next connect.
+        if (verbsRef.current.length > 50) window.dr.settings.patch({ verbs: verbsRef.current })
+      }, settle + letters.length * 150 + 2500)
+    })
+  }, [status, send, setVerbs])
   const echoCommand      = useSetAtom(echoCommandAtom)
   const beginSilentExp   = useSetAtom(beginSilentExpAtom)
   const setTick          = useSetAtom(tickAtom)
@@ -158,6 +184,7 @@ function GameLayout({ charName, onOpenSettings, onRequestConnect, updateSlot }: 
       if (s.fontSize)   document.documentElement.style.setProperty('--font-size-game', `${s.fontSize}px`)
       if (s.fontFamily) document.documentElement.style.setProperty('--font-game', `'${s.fontFamily}', monospace`)
       if (s.theme)            applyTheme(s.theme)
+      document.documentElement.dataset.density = s.density === 'compact' ? 'compact' : 'cozy'
       if (s.timestamps)       setShowTimestamps(s.timestamps)
       if (s.outputBufferSize) setOutputBuffer(s.outputBufferSize)
       if (s.functionKeys)     setFunctionKeys(s.functionKeys)
@@ -250,7 +277,7 @@ function GameLayout({ charName, onOpenSettings, onRequestConnect, updateSlot }: 
               onDisconnect={disconnect}
               onConnect={onRequestConnect}
             />
-            <CommandInput onSend={send} onEcho={echoCommand} />
+            <CommandInput onSend={send} onEcho={echoCommand} functionKeys={functionKeys} />
           </footer>
         </div>
         <ColResize onDrag={handleColDrag} />

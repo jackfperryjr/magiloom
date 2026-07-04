@@ -73,6 +73,16 @@ export const handsAtom = atom<{ left: string; right: string }>({ left: '', right
 // ── Indicators ────────────────────────────────────────────────────────────────
 export const indicatorsAtom = atom<Record<string, boolean>>({})
 
+// ── Verbs (command autocomplete) ───────────────────────────────────────────────
+// Populated once from the game's `VERB LIST` output during a silent sweep, then
+// cached in settings. Lines look like "accept" or "accept (info)".
+export const verbsAtom = atom<string[]>([])
+const VERB_LINE_RE = /^[a-z][a-z'-]*( \(info\))?$/i
+let _verbCapture = false
+let _verbBuf: string[] = []
+export function beginVerbCapture() { _verbCapture = true; _verbBuf = [] }
+export function endVerbCapture()   { _verbCapture = false; _verbBuf = [] }
+
 // ── Active spell ──────────────────────────────────────────────────────────────
 export const activeSpellAtom = atom<string>('')
 
@@ -155,6 +165,12 @@ export const dispatchGameEventAtom = atom(
     switch (event.type) {
 
       case 'text': {
+        // Silent VERB LIST sweep — capture single-token verb lines, suppress from output
+        if (_verbCapture) {
+          const t = event.text.trim()
+          if (/^verb list /i.test(t)) return
+          if (VERB_LINE_RE.test(t)) { _verbBuf.push(t.replace(/\s*\(info\)\s*$/i, '').trim()); return }
+        }
         const line = mkLine(event.text, event.styles, event.stream, event.links)
 
         // A logon or boost drain wipes all field experience at once; clear the
@@ -358,6 +374,11 @@ export const dispatchGameEventAtom = atom(
         if (_silentExpBatch) {
           _expBatchNames  = null
           _silentExpBatch = false
+        }
+        // Flush any verbs captured since the last prompt into the reactive atom.
+        if (_verbCapture && _verbBuf.length > 0) {
+          set(verbsAtom, Array.from(new Set([...get(verbsAtom), ..._verbBuf])).sort())
+          _verbBuf = []
         }
         // Space out consecutive command-response chunks: if new content landed in
         // the main output since the last prompt, flush a separator (blank line).

@@ -1,8 +1,7 @@
 import { useAtomValue } from 'jotai'
 import { useEffect, useRef } from 'react'
 import {
-  vitalsAtom, roomAtom, activeSpellAtom, roundtimeSecondsAtom,
-  indicatorsAtom, inventoryLinesAtom,
+  vitalsAtom, roomAtom, activeSpellAtom, inventoryLinesAtom,
   expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom,
   type OutputLine,
 } from '../../store/game'
@@ -68,27 +67,15 @@ function VitalRow({ label, value, max, cls }: {
 }
 
 export function VitalsPanel() {
-  const vitals     = useAtomValue(vitalsAtom)
-  const rt         = useAtomValue(roundtimeSecondsAtom)
-  const indicators = useAtomValue(indicatorsAtom)
-  const active     = Object.entries(indicators).filter(([, v]) => v)
+  const vitals = useAtomValue(vitalsAtom)
 
+  // Roundtime + posture/status indicators now live in the game top bar.
   return (
     <div className="vitals-panel">
       <VitalRow label="Health"  {...vitals.health}  cls="vital-health"  />
       <VitalRow label="Mana"  {...vitals.mana}    cls="vital-mana"    />
       <VitalRow label="Stamina"  {...vitals.stamina} cls="vital-stamina" />
       <VitalRow label="Spirit"  {...vitals.spirit}  cls="vital-spirit"  />
-      {(rt > 0 || active.length > 0) && (
-        <div className="vitals-status-row">
-          {rt > 0 && <div className="roundtime-badge">RT: {rt}s</div>}
-          {active.length > 0 && (
-            <div className="indicators">
-              {active.map(([id]) => <span key={id} className="indicator-badge">{id}</span>)}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }

@@ -91,6 +91,7 @@ body {
 }
 
 .game-output-wrap {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -532,15 +533,74 @@ body[data-platform="darwin"] .status-bar {
 .game-output::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
 
 .game-line {
+  position: relative;
   white-space: pre-wrap;
   word-break: break-word;
   min-height: 1em;
+  padding: 1px;
 }
+
+/* Row hover highlight */
+.game-line:hover { background: rgba(255, 255, 255, 0.035); }
+
+/* Hover-only timestamp chip (right gutter) */
+.game-line[data-time]::after {
+  content: attr(data-time);
+  position: absolute;
+  top: 0; right: 2px;
+  padding: 0 5px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  border-radius: 5px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .1s;
+}
+.game-line[data-time]:hover::after { opacity: 0.9; }
+
+/* @mention — this character's name appears on the line */
+.game-line.mention {
+  padding-left: 8px;
+  background: var(--accent-glow);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.game-line.mention:hover { background: var(--accent-glow); }
 
 /* Blank line between command-response chunks */
 .game-separator {
   height: 0.85em;
 }
+
+/* Density — compact tightens line spacing */
+[data-density="compact"] .game-output { line-height: 1.15; }
+[data-density="compact"] .game-line { min-height: 0; }
+[data-density="compact"] .game-separator { height: 0.4em; }
+
+/* Jump-to-present pill */
+.jump-present {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 5;
+  padding: 6px 14px;
+  border-radius: 14px;
+  border: none;
+  background: var(--accent);
+  color: var(--bg-shell);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  opacity: 0.92;
+  transition: opacity .12s, transform .12s;
+}
+.jump-present:hover { opacity: 1; transform: translateX(-50%) translateY(-1px); }
 
 /* SGE presets */
 .preset-roomname {
@@ -573,6 +633,7 @@ body[data-platform="darwin"] .status-bar {
 
 /* Message input (right, ~66%) */
 .command-input-wrap {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -584,6 +645,45 @@ body[data-platform="darwin"] .status-bar {
   border: 1px solid var(--border);
   border-radius: 12px;
   transition: border-color .1s, box-shadow .1s;
+}
+
+/* Command autocomplete popup */
+.cmd-suggest {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 60;
+  padding: 4px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65);
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar) transparent;
+}
+.cmd-suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-game);
+  font-size: 15px;
+  color: var(--text-main);
+}
+.cmd-suggest-item.active { background: var(--accent-dim); color: var(--accent); }
+.cmd-suggest-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmd-suggest-tag {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
 }
 .command-input-wrap:focus-within {
   border-color: var(--border-accent);
@@ -677,6 +777,10 @@ body[data-platform="darwin"] .status-bar {
 .status-online     { background: var(--color-bonus); }
 .status-connecting { background: #e0d040; animation: lichPulse 1.2s ease-in-out infinite; }
 .status-offline    { background: var(--color-penalty); }
+/* FF IV theme's --bg-panel is a gradient, which makes the whole `border`
+   shorthand invalid (dropping width + style too), so the dot loses its ring.
+   Re-declare the full border with a solid navy matching the panel. */
+[data-theme="frostbite"] .char-status-dot { border: 2px solid #000050; }
 
 .char-identity {
   flex: 1;
@@ -797,6 +901,58 @@ body[data-platform="darwin"] .status-bar {
   font-size: 14px;
 }
 .game-topbar-spacer { flex: 1; }
+
+/* Posture / status indicators in the top bar */
+.status-pills { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
+.status-pill {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 1px 8px;
+  border-radius: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  text-transform: capitalize;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.status-pill-posture { color: var(--accent); border-color: var(--border); }
+.status-pill-danger {
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+  background: rgba(255, 88, 32, 0.08);
+}
+
+/* Roundtime progress bar */
+.rt-bar {
+  position: relative;
+  flex-shrink: 0;
+  width: 118px;
+  height: 20px;
+  border-radius: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rt-bar-fill {
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  background: linear-gradient(90deg, var(--color-warning), #e0c060);
+  opacity: 0.4;
+  transition: width .1s linear;
+}
+.rt-bar-label {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text-bright);
+  letter-spacing: .04em;
+}
 
 /* ── Resize handle ───────────────────────────────────────────────────────── */
 .resize-handle {
@@ -1101,6 +1257,36 @@ body[data-platform="darwin"] .status-bar {
 }
 .modal-footer .login-btn, .modal-footer .login-btn-secondary { width: auto; }
 
+/* Tabbed settings (Discord-style left nav) */
+.settings-modal { width: 780px; height: 620px; max-height: 86vh; }
+.settings-content { overflow-x: hidden; }
+.settings-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+.settings-nav {
+  width: 158px;
+  flex-shrink: 0;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+.settings-nav-item {
+  padding: 8px 10px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  cursor: pointer;
+  transition: color .1s, background .1s;
+}
+.settings-nav-item:hover { background: var(--bg-input); color: var(--text-main); }
+.settings-nav-item.active { background: var(--accent-dim); color: var(--accent); }
+
 /* Settings */
 .settings-section { display: flex; flex-direction: column; gap: 8px; }
 .settings-section-label {
@@ -1113,6 +1299,7 @@ body[data-platform="darwin"] .status-bar {
 .settings-label { font-size: 14px; color: var(--text-dim); min-width: 88px; font-family: var(--font-ui); }
 .settings-input {
   flex: 1;
+  min-width: 0;
   background: var(--bg-input); border: 1px solid var(--border-soft);
   color: var(--text-bright);
   font-family: var(--font-ui); font-size: 14px;
@@ -1124,7 +1311,7 @@ body[data-platform="darwin"] .status-bar {
 
 /* Function key grid */
 .fk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.fk-row { display: flex; align-items: center; gap: 8px; }
+.fk-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .fk-label { font-size: 12px; color: var(--text-dim); min-width: 28px; font-family: var(--font-ui); text-align: right; }
 
 /* Theme picker */
@@ -1151,6 +1338,7 @@ body[data-platform="darwin"] .status-bar {
   background: var(--bg-panel);
   border: 1px solid var(--border-soft);
   overflow: hidden;
+  flex-shrink: 0;
   transition: border-color .1s;
 }
 .hl-row:hover { border-color: var(--border); }
@@ -1208,8 +1396,23 @@ body[data-platform="darwin"] .status-bar {
   width: 20px; height: 20px; cursor: pointer;
   border: 1px solid var(--border-soft); padding: 0; background: none;
 }
+.hl-options-done {
+  align-self: flex-end;
+  margin-top: 2px;
+  padding: 3px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color .1s, border-color .1s;
+}
+.hl-options-done:hover { color: var(--text-main); border-color: var(--border); }
 .hl-add-btn {
   margin-top: 4px; background: none;
+  flex-shrink: 0;
   border: 1px dashed var(--border-soft);
   color: var(--text-dim); cursor: pointer;
   font-size: 14px; padding: 7px; text-align: center;
@@ -1478,7 +1681,7 @@ body[data-platform="darwin"] .status-bar {
 .hand-item  { color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
 
 /* ── Timestamps ──────────────────────────────────────────────────────────── */
-.game-timestamp { color: var(--text-dim); font-size: 0.85em; user-select: none; }
+.game-timestamp { color: var(--text-dim); font-size: 0.95em; user-select: none; }
 
 /* ── Settings version label ──────────────────────────────────────────────── */
 .settings-version {

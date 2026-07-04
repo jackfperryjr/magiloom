@@ -1,5 +1,5 @@
 import { useAtomValue } from 'jotai'
-import { useEffect, useRef, useLayoutEffect, useCallback } from 'react'
+import { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react'
 import { outputLinesAtom, type OutputLine } from '../../store/game'
 import { parseExpSkills, type ParsedExpSkill } from '../../lib/exp-parser'
 import type { Highlight } from '../ui/HighlightsModal'
@@ -62,7 +62,10 @@ function matchHighlight(text: string, highlights: Highlight[]): Highlight | null
 
 function fmtTime(ts: number): string {
   const d = new Date(ts)
-  return `[${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}] `
+  const h24 = d.getHours()
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12
+  const ampm = h24 < 12 ? 'AM' : 'PM'
+  return `[${h12}:${String(d.getMinutes()).padStart(2,'0')} ${ampm}] `
 }
 
 function GameLine({ line, highlights }: { line: OutputLine; highlights: Highlight[] }) {
@@ -70,6 +73,9 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
   if (line.separator) return <div className="game-separator" aria-hidden />
 
   const hl = matchHighlight(line.text, highlights)
+  const isMention = _playerRe ? _playerRe.test(line.text) : false
+  // Hover timestamp chip — only when the always-on timestamp setting is off.
+  const hoverTime = _showTimestamps ? undefined : fmtTime(line.timestamp).trim()
   const isShopLine = Boolean(
     line.links?.some(l => l.cmd.startsWith('shop')) ||
     /\b(shop|goods for sale|you see:|shop window)\b/i.test(line.text)
@@ -99,7 +105,8 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
     isExpLine ? 'exp-line' : '',
     isExpHeader ? 'exp-header' : '',
     isExpMeta ? 'exp-meta' : '',
-    isInfoLine ? 'info-line' : ''
+    isInfoLine ? 'info-line' : '',
+    isMention ? 'mention' : ''
   ].filter(Boolean)
 
   const style: React.CSSProperties = {}
@@ -120,7 +127,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
     if (isExits) {
       const dirs = line.links.map(l => expandCmd(l.cmd))
       return (
-        <div className={classList.join(' ')} style={style} data-copy-text={line.text}>
+        <div className={classList.join(' ')} style={style} data-copy-text={line.text} data-time={hoverTime}>
           <span style={{ color: 'var(--text-dim)' }}>Obvious paths: </span>
           {dirs.map((dir, i) => (
             <span key={dir}>
@@ -153,7 +160,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
       remaining = remaining.slice(idx + link.text.length)
     }
     if (remaining) parts.push(<span key={key++}>{remaining}</span>)
-    return <div className={classList.join(' ')} style={style} data-copy-text={line.text}>{parts}</div>
+    return <div className={classList.join(' ')} style={style} data-copy-text={line.text} data-time={hoverTime}>{parts}</div>
   }
 
   // Info attribute lines: parse Label: Value pairs into a 2-column grid
@@ -161,7 +168,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
     const pairs = parseInfoPairs(line.text)
     if (pairs.length > 0) {
       return (
-        <div className="game-line info-data-line" data-copy-text={line.text}>
+        <div className="game-line info-data-line" data-copy-text={line.text} data-time={hoverTime}>
           {_showTimestamps && <span className="game-timestamp">{fmtTime(line.timestamp)}</span>}
           <InfoPairHalf pair={pairs[0]} />
           {pairs[1] && (
@@ -180,7 +187,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
     const skills = parseExpSkills(line.text)
     if (skills.length > 0) {
       return (
-        <div className="game-line exp-data-line" data-copy-text={line.text}>
+        <div className="game-line exp-data-line" data-copy-text={line.text} data-time={hoverTime}>
           {_showTimestamps && <span className="game-timestamp">{fmtTime(line.timestamp)}</span>}
           <ExpSkillHalf s={skills[0]} />
           {skills[1] && (
@@ -195,7 +202,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
   }
 
   return (
-    <div className={classList.join(' ')} style={style} data-copy-text={line.text}>
+    <div className={classList.join(' ')} style={style} data-copy-text={line.text} data-time={hoverTime}>
       {_showTimestamps && <span className="game-timestamp">{fmtTime(line.timestamp)}</span>}
       {line.text}
     </div>
@@ -239,6 +246,13 @@ export function setSendFn(fn: (cmd: string) => void) { _sendFn = fn }
 let _showTimestamps = false
 export function setShowTimestamps(v: boolean) { _showTimestamps = v }
 
+// Player name — used to flag lines that mention the current character (@mention).
+let _playerRe: RegExp | null = null
+export function setPlayerName(name: string) {
+  const n = name.trim()
+  _playerRe = n ? new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i') : null
+}
+
 let _outputBuffer = 5000
 export function setOutputBuffer(v: number) { _outputBuffer = v }
 export function getOutputBuffer() { return _outputBuffer }
@@ -249,6 +263,7 @@ export function GameOutput() {
   const bottomRef    = useRef<HTMLDivElement>(null)
   // Track whether user has scrolled up — use ref not state to avoid re-renders
   const userScrolled = useRef(false)
+  const [showJump, setShowJump] = useState(false)
 
   // Use layoutEffect so scroll happens synchronously after DOM update,
   // preventing the flash of un-scrolled content
@@ -263,6 +278,13 @@ export function GameOutput() {
     if (!el) return
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60
     userScrolled.current = !atBottom
+    setShowJump(prev => (prev === !atBottom ? prev : !atBottom))
+  }
+
+  const jumpToPresent = () => {
+    userScrolled.current = false
+    setShowJump(false)
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
   const handleCopy = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
@@ -297,11 +319,18 @@ export function GameOutput() {
   }, [])
 
   return (
-    <div ref={containerRef} className="game-output" onScroll={handleScroll} onCopy={handleCopy}>
-      {lines.map(line => (
-        <GameLine key={line.id} line={line} highlights={_highlights} />
-      ))}
-      <div ref={bottomRef} />
-    </div>
+    <>
+      <div ref={containerRef} className="game-output" onScroll={handleScroll} onCopy={handleCopy}>
+        {lines.map(line => (
+          <GameLine key={line.id} line={line} highlights={_highlights} />
+        ))}
+        <div ref={bottomRef} />
+      </div>
+      {showJump && (
+        <button className="jump-present" onClick={jumpToPresent}>
+          Jump to present ↓
+        </button>
+      )}
+    </>
   )
 }

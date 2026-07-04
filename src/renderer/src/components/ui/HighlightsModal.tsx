@@ -121,6 +121,7 @@ function HighlightRow({ hl, onChange, onDelete }: {
           </label>
           <ColorPicker label="Text color" value={hl.color} onChange={c => onChange({ ...hl, color: c })} />
           <ColorPicker label="Background" value={hl.bgcolor} onChange={c => onChange({ ...hl, bgcolor: c })} />
+          <button className="hl-options-done" onClick={() => setExpanded(false)}>Done ▲</button>
         </div>
       )}
     </div>
