@@ -7,6 +7,7 @@ import { GameConnection } from './game-connection'
 import { SettingsStore } from './settings-store'
 import { sgeAuth } from './sge-auth'
 import type { SGELaunchKey } from './sge-auth'
+import { getAvatar, publishAvatar, deleteAvatar, isAvatarServiceEnabled } from './avatar-service'
 
 // ── Window state persistence ──────────────────────────────────────────────────
 interface WindowState { x: number; y: number; width: number; height: number; maximized: boolean }
@@ -183,6 +184,11 @@ function setupIpcHandlers(): void {
   })
   ipcMain.handle('settings:get-all', () => settings.getAll())
   ipcMain.handle('settings:patch',   (_e, p) => settings.patch(p))
+
+  ipcMain.handle('avatar:enabled', () => isAvatarServiceEnabled())
+  ipcMain.handle('avatar:get',     (_e, name: string) => getAvatar(name))
+  ipcMain.handle('avatar:publish', (_e, charName: string, dataUrl: string) => publishAvatar(settings, charName, dataUrl))
+  ipcMain.handle('avatar:delete',  (_e, charName: string) => deleteAvatar(settings, charName))
 
   ipcMain.handle('auth:save-password', (_e, account: string, password: string) => {
     if (!safeStorage.isEncryptionAvailable()) return

@@ -3,8 +3,12 @@ import { useEffect, useRef } from 'react'
 import {
   roomAtom, activeSpellAtom, inventoryLinesAtom,
   expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom,
+  avatarsAtom, selfNameAtom, serverAvatarsAtom,
   type OutputLine,
 } from '../../store/game'
+import { resolveAvatarSrc } from '../../lib/avatar'
+import { useEnsureAvatars } from '../../hooks/useAvatars'
+import { Tooltip } from '../ui/Tooltip'
 
 // ── Auto-scroll helper ─────────────────────────────────────────────────────────
 // The actual scrollable box is the parent .panel-content-scroll (which has the
@@ -147,14 +151,43 @@ const convColor = (preset?: string) => {
   }
 }
 
+// Group consecutive lines from the same speaker so the avatar shows once per
+// turn (chat-app style) rather than on every line. Lines with no detected
+// speaker stand on their own.
+function groupBySpeaker(lines: OutputLine[]): { speaker?: string; lines: OutputLine[] }[] {
+  const groups: { speaker?: string; lines: OutputLine[] }[] = []
+  for (const l of lines) {
+    const prev = groups[groups.length - 1]
+    if (prev && prev.speaker && prev.speaker === l.speaker) prev.lines.push(l)
+    else groups.push({ speaker: l.speaker, lines: [l] })
+  }
+  return groups
+}
+
 export function ConversationPanel() {
-  const lines = useAtomValue(convLinesAtom)
+  const lines   = useAtomValue(convLinesAtom)
+  const avatars = useAtomValue(avatarsAtom)
+  const server  = useAtomValue(serverAvatarsAtom)
+  const self    = useAtomValue(selfNameAtom)
+  const groups  = groupBySpeaker(lines)
+  useEnsureAvatars(groups.map(g => g.speaker).filter((s): s is string => !!s))
   if (lines.length === 0) return <div className="panel-empty">No conversation yet</div>
   return (
     <ScrollPanel deps={[lines.length]}>
-      {lines.map((l: OutputLine) => (
-        <div key={l.id} className="conv-line" style={{ color: convColor(l.styles[0]?.preset) }}>
-          {l.text}
+      {groups.map(group => (
+        <div key={group.lines[0].id} className={group.speaker ? 'conv-group' : undefined}>
+          {group.speaker && (
+            <Tooltip text={group.speaker}>
+              <img className="conv-avatar" src={resolveAvatarSrc(group.speaker, avatars, server, self)} alt="" />
+            </Tooltip>
+          )}
+          <div className="conv-group-body">
+            {group.lines.map((l: OutputLine) => (
+              <div key={l.id} className="conv-line" style={{ color: convColor(l.styles[0]?.preset) }}>
+                {l.text}
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </ScrollPanel>

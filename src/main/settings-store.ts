@@ -10,6 +10,9 @@ export interface AppSettings {
   fontFamily:  string
   passwords:   Record<string, string>  // account name → base64 encrypted password
   functionKeys: Record<string, string> // e.g. { F1: 'attack', F2: 'spell' }
+  avatars?:      Record<string, string> // lowercased character name → data URL
+  avatarTokens?: Record<string, string> // account name → avatar-service bearer token
+  avatarShare?:  boolean                // consent to publish avatars to the shared service
 }
 
 const DEFAULTS: AppSettings = {

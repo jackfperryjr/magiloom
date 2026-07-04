@@ -106,7 +106,8 @@ body {
   gap: 10px;
   padding: 6px 12px;
   height: 40px;
-  background: var(--bg-panel);
+  /* Darken the title bar relative to the panel in every theme (incl. light/gradient ones) */
+  background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), var(--bg-panel);
   border-bottom: 3px solid var(--border);
   flex-shrink: 0;
   font-size: 14px;
@@ -1063,6 +1064,17 @@ body[data-platform="darwin"] .status-bar {
 }
 .avatar-modal-actions .login-btn,
 .avatar-modal-actions .login-btn-secondary { width: auto; }
+.avatar-modal-share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  padding: 0 16px 18px;
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.avatar-modal-share input { cursor: pointer; }
 
 /* ── Game top bar (lich log + hands, above the output) ───────────────────── */
 .game-topbar {
@@ -1689,6 +1701,15 @@ body[data-platform="darwin"] .status-bar {
 
 /* ── Conversation / inventory lines ─────────────────────────────────────── */
 .conv-line { font-size: 14px; padding: 1px 0; line-height: 1.35; font-family: var(--font-game); }
+.conv-group { display: flex; gap: 8px; align-items: flex-start; padding: 3px 0; }
+.conv-avatar {
+  width: 26px; height: 26px; flex: 0 0 26px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 1px solid var(--border-soft);
+  background: var(--accent-dim);
+}
+.conv-group-body { flex: 1; min-width: 0; }
 .inv-line  { font-size: 14px; color: var(--text-dim); padding: 1px 0; line-height: 1.3; font-family: var(--font-game); }
 
 /* ── Roundtime badge ─────────────────────────────────────────────────────── */

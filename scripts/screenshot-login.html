@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!--
+  Mockup of Meridian's sign-in screen, used only to render docs/screenshot-login.png
+  via scripts/capture-screenshots.js. Links the real global.css and the app's fonts
+  and uses the actual LoginFlow class names.
+-->
+<html lang="en" data-theme="meridian">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../src/renderer/src/styles/global.css" />
+  <style>
+    html, body { width: 1100px; height: 760px; overflow: hidden; }
+  </style>
+</head>
+<body data-platform="win32">
+  <div class="login-screen">
+    <img class="login-watermark" src="../resources/icon.png" alt="" />
+    <div class="login-card">
+      <div class="login-logo">Meridian</div>
+      <div class="login-logo-sub">DragonRealms Client</div>
+      <div class="login-screen-title">Sign in</div>
+      <div class="login-fields">
+        <label class="login-label">Account name
+          <input class="login-input" type="text" value="jackrealms" />
+        </label>
+        <label class="login-label">Password
+          <input class="login-input" type="password" value="password123" />
+        </label>
+      </div>
+      <button class="login-btn">Sign in</button>
+    </div>
+  </div>
+</body>
+</html>

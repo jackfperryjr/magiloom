@@ -16,6 +16,8 @@ interface AppSettings {
   highlights:       unknown[]
   passwords:        Record<string, string>
   avatars?:         Record<string, string>
+  avatarTokens?:    Record<string, string>
+  avatarShare?:     boolean
   verbs?:           string[]
   notifications?:   {
     sound:      boolean
@@ -30,6 +32,12 @@ interface DrAPI {
   settings: {
     getAll: () => Promise<AppSettings>
     patch:  (p: Partial<AppSettings>) => Promise<void>
+  }
+  avatar: {
+    enabled: () => Promise<boolean>
+    get:     (name: string) => Promise<string | null>
+    publish: (charName: string, dataUrl: string) => Promise<{ ok: boolean; error?: string }>
+    remove:  (charName: string) => Promise<{ ok: boolean; error?: string }>
   }
   auth: {
     login: (account: string, password: string) => Promise<

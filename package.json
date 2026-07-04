@@ -9,6 +9,7 @@
     "preview": "electron-vite preview",
     "build-ico": "node scripts/build-ico.js",
     "social-preview": "node scripts/capture-social-preview.js",
+    "screenshots": "node scripts/capture-screenshots.js",
     "package": "node scripts/build-ico.js && electron-vite build && electron-builder",
     "lint": "eslint src --ext .ts,.tsx"
   },

@@ -3,7 +3,7 @@ import { useAtomValue, useAtom } from 'jotai'
 import {
   handsAtom, indicatorsAtom, roundtimeSecondsAtom, vitalsAtom,
   verbsAtom, verbsWithInfoAtom, verbInfoAtom, beginVerbInfoCapture,
-  presenceModeAtom,
+  presenceModeAtom, avatarsAtom,
 } from '../../store/game'
 import type { PresenceMode } from '../../store/game'
 export type { ConnectionStatus } from '../../store/game'
@@ -397,7 +397,6 @@ export function CharacterBar({
   onDisconnect: () => void
   onConnect:    () => void
 }) {
-  const [avatar,  setAvatar]  = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [showAvatar, setShowAvatar] = useState(false)
   // Pending avatar edit in the modal: null = no change; { url } stages a new image
@@ -408,16 +407,20 @@ export function CharacterBar({
   const fileRef = useRef<HTMLInputElement>(null)
 
   // Avatars live in settings.json (userData) keyed by character name, so they
-  // persist across runs in both dev and production regardless of window origin.
+  // persist across runs. The shared atom (loaded once at layout mount) is the
+  // single source of truth so the conversation panel reflects saves live.
+  const [avatars, setAvatars] = useAtom(avatarsAtom)
   const avatarKey = charName.toLowerCase()
+  const avatar = avatars[avatarKey] ?? null
+
+  // Shared-avatar publishing is opt-in and only surfaced once the service is
+  // configured (MERIDIAN_AVATAR_URL set); otherwise avatars stay purely local.
+  const [svcEnabled, setSvcEnabled] = useState(false)
+  const [share, setShare] = useState(false)
   useEffect(() => {
-    if (!charName) { setAvatar(null); return }
-    let cancelled = false
-    window.dr.settings.getAll().then(s => {
-      if (!cancelled) setAvatar(s.avatars?.[avatarKey] ?? null)
-    })
-    return () => { cancelled = true }
-  }, [charName, avatarKey])
+    window.dr.avatar.enabled().then(setSvcEnabled)
+    window.dr.settings.getAll().then(s => setShare(!!s.avatarShare))
+  }, [])
 
   const presence = presenceFor(status, presenceMode, autoIdle)
   const initial  = charName.trim().charAt(0).toUpperCase() || '?'
@@ -436,13 +439,28 @@ export function CharacterBar({
 
   const onSaveAvatar = async () => {
     if (!avatarDraft || !charName) { closeAvatar(); return }
-    const s = await window.dr.settings.getAll()
-    const avatars = { ...(s.avatars ?? {}) }
-    if (avatarDraft.url) avatars[avatarKey] = avatarDraft.url
-    else delete avatars[avatarKey]
-    await window.dr.settings.patch({ avatars })
-    setAvatar(avatarDraft.url)
+    const next = { ...avatars }
+    if (avatarDraft.url) next[avatarKey] = avatarDraft.url
+    else delete next[avatarKey]
+    await window.dr.settings.patch({ avatars: next })
+    setAvatars(next)
+    // Mirror the change to the shared service when publishing is enabled. A
+    // removal always unpublishes; new images only publish with consent.
+    if (svcEnabled) {
+      if (avatarDraft.url && share) window.dr.avatar.publish(charName, avatarDraft.url).catch(() => {})
+      else if (!avatarDraft.url)    window.dr.avatar.remove(charName).catch(() => {})
+    }
     closeAvatar()
+  }
+
+  // Toggling consent publishes/unpublishes the current avatar immediately.
+  const onToggleShare = async () => {
+    const next = !share
+    setShare(next)
+    await window.dr.settings.patch({ avatarShare: next })
+    if (!charName) return
+    if (next && avatar) window.dr.avatar.publish(charName, avatar).catch(() => {})
+    else if (!next)     window.dr.avatar.remove(charName).catch(() => {})
   }
 
   // What the modal shows: the staged draft if editing, else the saved avatar
@@ -506,6 +524,12 @@ export function CharacterBar({
               )}
               <button className="login-btn" onClick={onSaveAvatar} disabled={!avatarDraft}>Save</button>
             </div>
+            {svcEnabled && (
+              <label className="avatar-modal-share">
+                <input type="checkbox" checked={share} onChange={onToggleShare} />
+                <span>Share so other Meridian players see this avatar</span>
+              </label>
+            )}
           </div>
         </div>
       )}

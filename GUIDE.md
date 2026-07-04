@@ -15,11 +15,12 @@ Meridian is a DragonRealms game client for Windows, Mac, and Linux. It connects 
 3. [Logging in on future visits](#logging-in-on-future-visits)
 4. [The game window](#the-game-window)
 5. [Panels](#panels)
-6. [Command input](#command-input)
-7. [Highlights](#highlights)
-8. [Settings](#settings)
-9. [Lich scripting](#lich-scripting)
-10. [Troubleshooting](#troubleshooting)
+6. [Avatars](#avatars)
+7. [Command input](#command-input)
+8. [Highlights](#highlights)
+9. [Settings](#settings)
+10. [Lich scripting](#lich-scripting)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -62,28 +63,35 @@ After your first login, Meridian shows a **Welcome back** screen listing your sa
 
 ## The game window
 
-Once you are in the game, the window is divided into two areas:
+Once you are in the game, the window has three regions: a **title bar** across the top, the **game column** on the left, and the **panel sidebar** on the right.
 
 ```
-┌─────────────────────────────────────┬──────────────────┐
+┌────────────────────────────────────────────────────────┐
+│  Meridian                               update  — ▢ ✕ │  title bar
+├─────────────────────────────────────┬──────────────────┤
+│  flags · RT · hands (R:/L:)         │  ⊞ Panels       │  top bar
+│  Health · Mana · Stamina · Spirit   │                  │  vitals
 │                                     │  Room            │
-│         Main game output            │  Vitals          │
-│         (scrolling text)            │  Experience      │
-│                                     │  Active Spells   │
-├─────────────────────────────────────┴──────────────────┤
-│ > command input                                         │
-├─────────────────────────────────────────────────────────┤
-│ Status bar: connection · Lich · hands · Settings        │
-└─────────────────────────────────────────────────────────┘
+│         Main game output            │  Experience      │  sidebar
+│         (scrolling text)            │  Conversation    │  panels
+│                                     │  Combat  …       │
+├─────────────────────────────────────┤                  │
+│  ◍ Charname · Online       ✦   ⚙   │                  │  character bar
+│  >  type commands here              │                  │  command bar
+└─────────────────────────────────────┴──────────────────┘
 ```
 
-**Left / main area** — This is the scrolling game output. Everything the game sends — room descriptions, combat, conversations, system messages — appears here.
+**Title bar** — The Meridian name, an **update** button that appears when a new version is ready to install, and the window minimize / maximize / close controls.
 
-**Right sidebar** — Info panels that update automatically as you play (see [Panels](#panels)).
+**Game column** (left), top to bottom:
 
-**Command bar** — Type commands here and press **Enter** to send them.
+- **Top bar** — When connected, shows game status flags (bleeding, stunned, prone, etc.), a roundtime (**RT**) countdown, and what you are holding in each hand (**R:** / **L:**).
+- **Vitals bar** — Health, Mana/Concentration, Stamina, and Spirit as compact bars (see [Vitals](#vitals)).
+- **Main output** — The scrolling game text: room descriptions, combat, conversation, and system messages.
+- **Character bar** — Your avatar, character name, and presence (Online / Idle / Do Not Disturb). Click the avatar to set a picture (see [Avatars](#avatars)); click your name for a menu to change presence or disconnect. To the right are quick buttons for **✦ Highlights** and **⚙ Settings**.
+- **Command bar** — Type commands here and press **Enter** to send them.
 
-**Status bar** — Shows whether you are connected, your Lich status, what is in your hands, and quick buttons for Settings and Highlights.
+**Panel sidebar** (right) — Info panels that update automatically as you play. Click **⊞ Panels** to choose which ones to show (see [Panels](#panels)).
 
 ---
 
@@ -115,24 +123,6 @@ Shows your current location: the room name, description, and clickable exits. Cl
 
 ---
 
-### Vitals
-
-Shows your four core stats as percentage bars:
-
-| Stat      |
-|-----------|
-| Health    |
-| Mana / Concentration |
-| Stamina   |
-| Spirit    |
-
-Below the bars:
-
-- **RT** badge — Appears when you are in roundtime, counting down in seconds.
-- **Indicator badges** — Game status flags (bleeding, stunned, prone, etc.) appear as small labels when active.
-
----
-
 ### Experience
 
 Shows the skills you have recently practiced, along with their rank and learning percentage. Type `exp` in the command bar to load or refresh the list.
@@ -161,13 +151,50 @@ A scrolling log of atmospheric messages — ambient events, weather, NPC movemen
 
 ### Conversation
 
-A scrolling log of speech, whispers, and thoughts (telepathy). All spoken text, party chat, and `thinkto` messages appear here so you can follow conversations even during busy combat.
+A scrolling log of speech, whispers, and thoughts (telepathy). All spoken text, party chat, and `thinkto` messages appear here so you can follow conversations even during busy combat. Each speaker's avatar appears beside their lines so you can tell at a glance who is talking — see [Avatars](#avatars).
 
 ---
 
 ### Inventory
 
 Shows the contents of your inventory. Type `inv` in the command bar to load or refresh it.
+
+---
+
+### Deaths
+
+A scrolling log of recent death announcements — when a character or creature is slain — pulled from the main output so you can keep track of who has fallen.
+
+---
+
+## Avatars
+
+Meridian gives every character a small avatar that appears beside their speech in the [Conversation](#conversation) panel, so you can tell at a glance who is talking.
+
+### Your avatar
+
+Your own avatar is shown at the **bottom-left of the game window**, next to your character name. Click it to open the avatar editor, where you can:
+
+- **Upload** a picture from your computer (it is cropped to a square).
+- **Replace** it with a different picture later.
+- **Remove** it.
+
+If you don't set a picture, Meridian generates a unique **identicon** — a colored geometric pattern based on your character's name. Everyone sees the same identicon for the same name, so characters stay visually distinct even without custom pictures.
+
+### Seeing other players' avatars
+
+Avatars appear automatically in the Conversation panel next to each person's speech, whispers, and thoughts. Players who have uploaded and shared a picture show that picture; everyone else shows their identicon.
+
+### Sharing your avatar with others
+
+By default your uploaded picture stays only on your own computer. To let other Meridian players see it beside your speech, open the avatar editor and tick **Share so other Meridian players see this avatar**.
+
+A few things to know:
+
+- Sharing is **per character and opt-in** — nothing is uploaded until you tick the box.
+- You can only publish an avatar for the character you are **currently signed in as**. The first character to claim a name keeps it.
+- Unticking the box (or removing your picture) takes it back down for everyone.
+- Shared images are **public** — anyone using Meridian can see the avatar tied to a character name. Don't upload anything you wouldn't want shared.
 
 ---
 
@@ -179,7 +206,7 @@ The command bar at the bottom of the screen works like any other DragonRealms cl
 - Press **↑ Arrow Up** to recall previous commands (command history, up to 100 entries).
 - Press **↓ Arrow Down** to move forward through history.
 
-The **R:** and **L:** display in the status bar shows what you are holding in each hand, updated automatically as you pick things up or put them down.
+The **R:** and **L:** display in the top bar shows what you are holding in each hand, updated automatically as you pick things up or put them down.
 
 ---
 
@@ -187,7 +214,7 @@ The **R:** and **L:** display in the status bar shows what you are holding in ea
 
 Highlights let you color-code text in the main output window. For example, you could highlight your character's name in gold, or make healing messages appear in green.
 
-Open the Highlights editor by clicking **✦ Highlights** in the status bar.
+Open the Highlights editor by clicking **✦ Highlights** in the character bar (bottom-left).
 
 ### Adding a highlight
 
@@ -217,7 +244,7 @@ Click the **×** on the right side of the row.
 
 ## Settings
 
-Click **⚙ Settings** in the status bar to open the settings dialog.
+Click **⚙ Settings** in the character bar (bottom-left) to open the settings dialog.
 
 ### Theme
 
@@ -238,7 +265,7 @@ Click **Save** to apply changes.
 
 ## Lich scripting
 
-[Lich](https://lichproject.org/) is a third-party Ruby scripting engine for GemStone and DragonRealms. Meridian can launch Lich for you after you connect, so your scripts run alongside the game.
+[Lich](https://github.com/elanthia-online/) is a third-party Ruby scripting engine for GemStone and DragonRealms. Meridian can launch Lich for you after you connect, so your scripts run alongside the game.
 
 ### Setup
 
@@ -247,16 +274,18 @@ Click **Save** to apply changes.
 
 ### Using Lich
 
-Once you are connected to the game, the status bar shows a Lich indicator:
+If you have set a **Lich path**, Meridian launches Lich automatically when you enter the game and routes the game connection through it, so your scripts run alongside the game. With no Lich path set, Meridian connects directly and runs as a standalone client.
 
-- **○ Start Lich** — Lich is not running. Click to launch it.
-- **◌ Lich starting…** — Lich is connecting.
-- **● Lich active** — Lich is running. Your scripts are available.
-- **✕ Retry Lich** — Something went wrong. Click to try again.
+Add the **Lich** panel to your sidebar (via **⊞ Panels**) to watch it. A colored status dot shows its state:
 
-Click **▸ log** / **▾ log** to show or hide Lich's startup log, useful for diagnosing problems.
+- **stopped** — Lich is not running.
+- **starting** — Lich is launching and connecting.
+- **ready** — Lich is running and your scripts are available.
+- **error** — Lich failed to start; check the log lines in the panel for details.
 
-If you do not use Lich, you can ignore this indicator entirely. Meridian works fine as a standalone client without it.
+The panel also shows Lich's startup and script output, useful for diagnosing problems.
+
+If you do not use Lich, you can ignore this entirely — Meridian works fine without it.
 
 ---
 
@@ -283,7 +312,7 @@ Press **F12** to open the developer tools window, which may show error messages 
 **Lich fails to start.**
 - Confirm the path to `lich.rbw` is correct in **⚙ Settings**.
 - Make sure Ruby is installed and working on your computer.
-- Click **▸ log** in the status bar to read Lich's startup output for error details.
+- Add the **Lich** panel to your sidebar (via **⊞ Panels**) and read its output for error details.
 
 **I need to log in with a different account.**
 From the Welcome back screen, click **+ Add account**. To remove a saved account, there is currently no in-app delete button — this will be added in a future update.
