@@ -182,10 +182,13 @@ body[data-platform="darwin"] .status-bar {
   font-family: var(--font-pixel);
   font-size: 9px;
   letter-spacing: .1em;
-  color: #9a95ff;
-  text-shadow: 0 0 8px rgba(139, 134, 248, 0.4), 2px 2px 0 #0c0a1e;
+  color: var(--accent);
+  text-shadow: 0 0 8px var(--accent-glow), 2px 2px 0 rgba(0, 0, 0, 0.55);
   user-select: none;
 }
+/* The hard dark pixel-offset shadow reads as ghosting on light themes — drop it
+   on Parchment so the brand stays crisp on the pale title bar. */
+[data-theme="parchment"] .app-title { text-shadow: 0 0 6px var(--accent-glow); }
 
 .status-char-name {
   font-size: 16px;
@@ -422,13 +425,11 @@ body[data-platform="darwin"] .status-bar {
 /* ── Panel cards — FF4 window style ─────────────────────────────────────── */
 .panel-card {
   background: var(--bg-panel);
-  border: 3px solid var(--border-accent);
-  border-radius: 12px;
+  border: none;
+  border-radius: 9px;
   box-shadow:
-    inset 0 0 0 2px var(--bg-input),
-    inset 0 0 0 3px rgba(139, 134, 248, 0.06),
-    0 0 0 1px var(--border-soft),
-    0 6px 20px rgba(0, 0, 0, 0.7);
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 4px 16px rgba(0, 0, 0, 0.45);
   overflow: hidden;
   min-width: 0;
   flex-shrink: 0;
@@ -613,6 +614,41 @@ body[data-platform="darwin"] .status-bar {
 [data-density="compact"] .game-line { min-height: 0; }
 [data-density="compact"] .game-separator { height: 0.4em; }
 
+/* Labeled divider (Discord "new messages" style) — a line with a label at the
+   right end. The "Disconnected" variant is themed red. */
+.game-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-family: var(--font-ui);
+}
+.game-divider-line {
+  flex: 1;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.5;
+}
+.game-divider-time {
+  flex-shrink: 0;
+  font-size: 11px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.game-divider-badge {
+  flex-shrink: 0;
+  background: var(--color-penalty);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 3px 12px 3px 18px;
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%);
+}
+.game-divider-error { color: var(--color-penalty); }
+
 /* Jump-to-present pill */
 .jump-present {
   position: absolute;
@@ -624,24 +660,29 @@ body[data-platform="darwin"] .status-bar {
   border-radius: 6px;
   border: none;
   background: var(--accent);
-  color: var(--bg-shell);
+  color: #ffffff;
   font-family: var(--font-ui);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: .02em;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
-  opacity: 0.92;
+  opacity: 1;
   transition: opacity .12s, transform .12s;
 }
 .jump-present:hover { opacity: 1; transform: translateX(-50%) translateY(-1px); }
-/* Final Fantasy IV's accent is near-white, so the default accent-filled button
-   reads as a stark white blob. Restyle it as an FF menu box — navy fill with a
-   white border and white text — to sit in the theme instead of fighting it. */
+
+/* Default: match the login "Sign in" button (periwinkle) with white text. */
+[data-theme="magiloom"] .jump-present {
+  background: linear-gradient(180deg, #524fb6 0%, #423ea0 100%);
+  color: #ffffff;
+}
+
+/* Final Fantasy IV's accent is near-white, so an accent fill reads as a white
+   blob — fill with the theme's blue and keep white text, borderless. */
 [data-theme="frostbite"] .jump-present {
   background: #0000A8; /* the lighter blue from the theme's panel gradient */
   color: var(--text-bright);
-  border: 1px solid var(--border-accent);
 }
 
 /* SGE presets */
@@ -668,7 +709,6 @@ body[data-platform="darwin"] .status-bar {
   align-items: stretch;
   gap: 8px;
   padding: 8px;
-  border-top: 3px solid var(--border);
   background: var(--bg-shell);
   flex-shrink: 0;
 }
@@ -684,9 +724,8 @@ body[data-platform="darwin"] .status-bar {
   min-height: 50px;
   padding: 0 14px;
   background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  transition: border-color .1s, box-shadow .1s;
+  border-radius: 9px;
+  transition: box-shadow .1s;
 }
 
 /* Command autocomplete popup */
@@ -763,8 +802,7 @@ body[data-platform="darwin"] .status-bar {
   color: var(--text-dim);
 }
 .command-input-wrap:focus-within {
-  border-color: var(--border-accent);
-  box-shadow: 0 0 0 1px rgba(192, 152, 40, 0.15);
+  box-shadow: 0 0 0 2px var(--accent-glow), 0 0 12px var(--accent-glow);
 }
 .command-prompt {
   color: var(--accent);
@@ -799,8 +837,7 @@ body[data-platform="darwin"] .status-bar {
   min-height: 50px;
   padding: 6px 12px;
   background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 9px;
 }
 
 .char-avatar {
@@ -808,7 +845,6 @@ body[data-platform="darwin"] .status-bar {
   flex-shrink: 0;
   width: 40px;
   height: 40px;
-  padding: 0;
   border-radius: 50%;
   border: 1px solid var(--border);
   background: var(--accent-dim);
@@ -816,10 +852,8 @@ body[data-platform="darwin"] .status-bar {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: border-color .12s, box-shadow .12s;
+  transition: border-color .16s ease;
 }
-.char-avatar:hover { border-color: var(--border-accent); box-shadow: 0 0 0 2px var(--accent-glow); }
 .char-avatar-img {
   width: 100%; height: 100%;
   border-radius: 50%;
@@ -831,19 +865,6 @@ body[data-platform="darwin"] .status-bar {
   font-weight: 600;
   line-height: 1;
 }
-.char-avatar-edit {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  opacity: 0;
-  transition: opacity .12s;
-}
-.char-avatar:hover .char-avatar-edit { opacity: 1; }
 .char-status-dot {
   position: absolute;
   right: -1px; bottom: -1px;
@@ -865,9 +886,9 @@ body[data-platform="darwin"] .status-bar {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
   padding: 4px 6px;
   background: transparent;
   border: none;
@@ -876,7 +897,18 @@ body[data-platform="darwin"] .status-bar {
   text-align: left;
   transition: background .1s;
 }
+.char-identity-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
 .char-identity:hover { background: rgba(255, 255, 255, 0.05); }
+.char-identity:hover .char-avatar { border-color: var(--border-accent); }
+.char-identity:hover .char-name { color: var(--text-bright); }
+/* Discord-style: the sub-line slides from presence up to the account name */
+.char-identity:hover .char-sub.has-account .char-sub-track { transform: translateY(-16px); }
 .char-name {
   max-width: 100%;
   font-family: var(--font-ui);
@@ -886,12 +918,31 @@ body[data-platform="darwin"] .status-bar {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color .12s;
 }
-.char-presence {
+.char-sub {
+  display: block;
+  height: 16px;
+  overflow: hidden;
+  max-width: 100%;
+}
+.char-sub-track {
+  display: flex;
+  flex-direction: column;
+  transition: transform .22s ease;
+}
+.char-sub-track > span {
+  height: 16px;
+  line-height: 16px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-family: var(--font-ui);
   font-size: 12px;
-  color: var(--text-muted);
 }
+.char-presence { color: var(--text-muted); }
+.char-account { color: var(--text-dim); }
 
 /* Discord-style icon buttons in the character bar */
 .char-actions {
@@ -936,14 +987,63 @@ body[data-platform="darwin"] .status-bar {
   position: absolute;
   bottom: calc(100% + 8px);
   left: 8px;
-  min-width: 190px;
-  padding: 6px;
+  min-width: 300px;
+  padding: 10px 8px 8px;
   background: var(--bg-panel);
-  border: 3px solid var(--border-accent);
-  border-radius: 10px;
-  box-shadow: inset 0 0 0 1px var(--bg-input), 0 8px 32px rgba(0, 0, 0, 0.8);
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.6);
   z-index: 200;
 }
+.char-menu-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 6px 8px;
+}
+.char-menu-avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 74px;
+  height: 74px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--accent-dim);
+  color: var(--accent);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color .12s, box-shadow .12s;
+}
+.char-menu-avatar:hover { border-color: var(--border-accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.char-menu-avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.char-menu-avatar-initial {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  font-family: var(--font-ui); font-size: 34px; font-weight: 600;
+}
+.char-menu-avatar-edit {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.55); color: #fff;
+  opacity: 0; transition: opacity .12s;
+}
+.char-menu-avatar:hover .char-menu-avatar-edit { opacity: 1; }
+.char-menu-profile { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.char-menu-name {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 2px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.char-menu-field { display: flex; gap: 6px; font-family: var(--font-ui); font-size: 12px; line-height: 1.35; }
+.char-menu-k { color: var(--text-dim); flex-shrink: 0; }
+.char-menu-v { color: var(--text-main); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .char-menu-item {
   display: flex;
   align-items: center;
@@ -1148,15 +1248,15 @@ body[data-platform="darwin"] .status-bar {
   background: var(--bg-input);
   border: 1px solid var(--border-soft);
   color: var(--text-muted);
-  text-transform: capitalize;
+  text-transform: uppercase;
   letter-spacing: .02em;
   white-space: nowrap;
 }
-.status-pill-posture { color: var(--accent); border-color: var(--border); }
+.status-pill-posture { background: #e2c024; border-color: #e2c024; color: #1a1206; font-weight: 700; }
 .status-pill-danger {
-  color: var(--color-warning);
-  border-color: var(--color-warning);
-  background: rgba(255, 88, 32, 0.08);
+  color: var(--text-bright);
+  border-color: var(--color-penalty);
+  background: var(--color-penalty);
 }
 
 /* Roundtime progress bar */
@@ -1240,7 +1340,7 @@ body[data-platform="darwin"] .status-bar {
   width: 360px;
   background: linear-gradient(180deg, #251f5a 0%, #1c1648 100%);
   border: none;
-  border-radius: 16px;
+  border-radius: 9px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 20px 55px rgba(8, 6, 26, 0.55);
@@ -1323,8 +1423,8 @@ body[data-platform="darwin"] .status-bar {
 .login-btn {
   padding: 11px;
   border: none;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #615ed0 0%, #4f4bbe 100%);
+  border-radius: 9px;
+  background: linear-gradient(180deg, #524fb6 0%, #423ea0 100%);
   box-shadow: 0 3px 10px rgba(14, 10, 40, 0.50);
   color: #ffffff;
   font-size: 15px;
@@ -1335,7 +1435,7 @@ body[data-platform="darwin"] .status-bar {
   width: 100%;
 }
 .login-btn:hover {
-  background: linear-gradient(180deg, #706de0 0%, #5b58ce 100%);
+  background: linear-gradient(180deg, #5f5bc6 0%, #4d49ae 100%);
   color: #ffffff;
   box-shadow: 0 5px 16px rgba(116, 114, 234, 0.45);
 }
@@ -1346,7 +1446,7 @@ body[data-platform="darwin"] .status-bar {
   padding: 9px;
   border: none;
   border-radius: 9px;
-  background: linear-gradient(180deg, #615ed0 0%, #4f4bbe 100%);
+  background: linear-gradient(180deg, #524fb6 0%, #423ea0 100%);
   box-shadow: 0 3px 10px rgba(14, 10, 40, 0.50);
   color: #ffffff;
   font-size: 14px;
@@ -1357,7 +1457,7 @@ body[data-platform="darwin"] .status-bar {
 }
 .login-btn-secondary:hover {
   color: #ffffff;
-  background: linear-gradient(180deg, #706de0 0%, #5b58ce 100%);
+  background: linear-gradient(180deg, #5f5bc6 0%, #4d49ae 100%);
   box-shadow: 0 5px 16px rgba(116, 114, 234, 0.45);
 }
 
@@ -1418,7 +1518,7 @@ body[data-platform="darwin"] .status-bar {
 }
 .login-char-btn:hover { border-color: #8b86f8; background: rgba(139, 134, 248, 0.06); }
 
-.login-account-info { display: flex; flex-direction: column; gap: 2px; }
+.login-account-info { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
 .login-account-name { font-weight: 400; }
 .login-account-last {
   font-size: 12px; color: #ffffff; letter-spacing: .06em;
@@ -1507,10 +1607,13 @@ body[data-platform="darwin"] .status-bar {
 /* Footer buttons follow the active theme (not the fixed login periwinkle) */
 .modal-footer .login-btn {
   background: var(--accent);
-  color: var(--bg-shell);
+  color: #ffffff;
   border: none;
   box-shadow: 0 3px 10px var(--accent-glow);
 }
+/* Parchment is a light theme with a dark sienna accent — keep the softer
+   parchment-toned label instead of stark white. */
+[data-theme="parchment"] .modal-footer .login-btn { color: var(--bg-shell); }
 .modal-footer .login-btn:hover {
   background: var(--accent);
   filter: brightness(1.12);
@@ -1526,6 +1629,13 @@ body[data-platform="darwin"] .status-bar {
   background: var(--accent-dim);
   border-color: var(--accent);
   color: var(--text-bright);
+}
+/* Final Fantasy IV's accent is near-white, so the themed Save button would be a
+   white blob — give it the theme's blue with white text instead. */
+[data-theme="frostbite"] .modal-footer .login-btn,
+[data-theme="frostbite"] .modal-footer .login-btn:hover {
+  background: #4050d8;
+  color: #ffffff;
 }
 
 /* Tabbed settings (Discord-style left nav) */
@@ -1744,16 +1854,57 @@ body[data-platform="darwin"] .status-bar {
 .exp-col-sep  { width: 8px; border-left: 1px solid var(--border-soft); }
 
 /* ── Conversation / inventory lines ─────────────────────────────────────── */
-.conv-line { font-size: 14px; padding: 1px 0; line-height: 1.35; font-family: var(--font-game); }
-.conv-group { display: flex; gap: 8px; align-items: flex-start; padding: 3px 0; }
+/* ── Conversation panel (Discord-style chat) ─────────────────────────────── */
+.conv-msg { display: flex; gap: 9px; align-items: flex-start; padding: 4px 0; }
 .conv-avatar {
-  width: 32px; height: 32px; flex: 0 0 32px;
-  margin-top: 2px;
+  width: 34px; height: 34px; flex: 0 0 34px;
+  margin-top: 1px;
   border-radius: 50%;
   border: 1px solid var(--border-soft);
   background: var(--accent-dim);
+  object-fit: cover;
+  cursor: pointer;
+  transition: border-color .12s, box-shadow .12s;
 }
-.conv-group-body { flex: 1; min-width: 0; }
+.conv-avatar:hover { border-color: var(--border-accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+.conv-msg-main { flex: 1; min-width: 0; }
+
+/* Avatar profile popup card (conversation panel) */
+.profile-card-backdrop { position: fixed; inset: 0; z-index: 299; }
+.profile-card {
+  position: fixed;
+  z-index: 300;
+  width: 290px;
+  padding: 14px;
+  background: var(--bg-panel);
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.profile-card-avatar {
+  width: 74px; height: 74px; flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--accent-dim);
+  object-fit: cover;
+}
+.profile-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.conv-msg-header { display: flex; align-items: baseline; gap: 6px; line-height: 1.2; }
+.conv-msg-name { font-family: var(--font-ui); font-size: 14px; font-weight: 600; }
+.conv-msg-verb { font-family: var(--font-ui); font-size: 12px; color: var(--text-muted); }
+.conv-msg-time { font-family: var(--font-ui); font-size: 11px; color: var(--text-dim); margin-left: 2px; }
+.conv-msg-text {
+  font-family: var(--font-game);
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--text-main);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.conv-msg-plain { padding: 2px 0; }
+.conv-msg-plain .conv-msg-text { color: var(--text-dim); }
 .inv-line  { font-size: 14px; color: var(--text-dim); padding: 1px 0; line-height: 1.3; font-family: var(--font-game); }
 
 /* ── Roundtime badge ─────────────────────────────────────────────────────── */

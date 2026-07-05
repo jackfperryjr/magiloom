@@ -17,6 +17,7 @@ export interface OutputLine {
   timestamp:  number
   links?:     LinkSpan[]
   separator?: boolean
+  divider?:   string   // labeled separator line (e.g. "Disconnected"), Discord-style
   speaker?:   string   // for conversation lines: who is talking (for the avatar)
 }
 
@@ -52,6 +53,18 @@ function appendDedup(lines: OutputLine[], line: OutputLine, max: number): Output
 
 // Main game output (stream = 'main' + echoes)
 export const outputLinesAtom  = atom<OutputLine[]>([])
+
+// Append a Discord-style "Disconnected" divider to the main output, marking
+// where the connection dropped. Guarded so repeated disconnect events (or a
+// disconnect with no intervening output) don't stack multiple dividers.
+export const appendDisconnectNoticeAtom = atom(null, (get, set) => {
+  const lines = get(outputLinesAtom)
+  if (lines[lines.length - 1]?.divider) return
+  set(outputLinesAtom, [...lines.slice(-4999), {
+    id: lineId++, text: '', styles: [], stream: 'main' as StreamId,
+    timestamp: Date.now(), divider: 'Disconnected',
+  }])
+})
 
 // Stream-specific lines
 export const expLinesAtom     = atom<OutputLine[]>([])
@@ -122,6 +135,52 @@ let _verbCapture = false
 let _verbBuf: string[] = []
 export function beginVerbCapture() { _verbCapture = true; _verbBuf = [] }
 export function endVerbCapture()   { _verbCapture = false; _verbBuf = [] }
+
+// ── Profile (PROFILE <name> summary shown in the character menu) ────────────────
+export interface ProfileInfo {
+  name?:     string
+  spouse?:   string
+  roleplay?: string
+  pvp?:      string
+}
+// Parsed PROFILE summaries, keyed by lowercased character name (self + others
+// viewed from the conversation panel).
+export const profilesAtom = atom<Record<string, ProfileInfo>>({})
+
+// Recognized "Key: Value" labels in a PROFILE block. During the fetch window
+// these are captured (and suppressed from the main output), then parsed for the
+// menu summary; any other output during the window passes through untouched.
+const PROFILE_LABEL_RE = /^(Name|Race|Profession|Gender|Age|Circle|Guild|House|Spouse|Roleplay Stance|PvP Stance|Citizenship|Disposition|Marital Status):\s*(.+)$/i
+let _profileCaptureName: string | null = null
+let _profileBuf: string[] = []
+
+function parseProfile(lines: string[]): ProfileInfo {
+  const info: ProfileInfo = {}
+  for (const l of lines) {
+    const m = l.match(PROFILE_LABEL_RE)
+    if (!m) continue
+    const key = m[1].toLowerCase()
+    const val = m[2].trim()
+    if      (key === 'name')            info.name = val
+    else if (key === 'spouse')          info.spouse = val
+    else if (key === 'roleplay stance') info.roleplay = val
+    else if (key === 'pvp stance')      info.pvp = val
+  }
+  return info
+}
+
+export const beginProfileCaptureAtom = atom(null, (_get, _set, name: string) => {
+  _profileCaptureName = name.trim().toLowerCase()
+  _profileBuf = []
+})
+export const endProfileCaptureAtom = atom(null, (get, set) => {
+  const name = _profileCaptureName
+  _profileCaptureName = null
+  if (name && _profileBuf.length) {
+    set(profilesAtom, { ...get(profilesAtom), [name]: parseProfile(_profileBuf) })
+  }
+  _profileBuf = []
+})
 
 // ── Verb info (VERB INFO detail for autocomplete popover) ──────────────────────
 export interface VerbInfoEntry { syntax: string; desc: string }
@@ -238,6 +297,13 @@ export const dispatchGameEventAtom = atom(
           const t = event.text.trim()
           if (/^verb list /i.test(t)) return
           if (VERB_LINE_RE.test(t)) { _verbBuf.push(t); return }
+        }
+        // Silent PROFILE fetch — capture recognized profile fields, suppress them
+        // from the main output; unrelated output during the window passes through.
+        if (_profileCaptureName) {
+          const t = event.text.trim()
+          if (/^profile\b/i.test(t)) return
+          if (PROFILE_LABEL_RE.test(t)) { _profileBuf.push(t); return }
         }
         // Silent VERB INFO fetch — capture the detail block, suppress from output
         if (_verbInfoName) {
