@@ -96,7 +96,7 @@ function LichLogPanel({ lines, status }: { lines: string[]; status: LichStatus }
 }
 
 // ── Game layout ───────────────────────────────────────────────────────────────
-function GameLayout({ charName, onOpenSettings, onRequestConnect, updateSlot }: { charName: string; onOpenSettings: () => void; onRequestConnect: () => void; updateSlot: React.ReactNode }) {
+function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, updateSlot }: { charName: string; accountName: string; onOpenSettings: () => void; onRequestConnect: () => void; updateSlot: React.ReactNode }) {
   const { status, disconnect, send } = useGameConnection()
   // Register send fn for clickable links
   useEffect(() => { setSendFn(send) }, [send])
@@ -282,6 +282,7 @@ function GameLayout({ charName, onOpenSettings, onRequestConnect, updateSlot }: 
           <footer className="bottom-bar">
             <CharacterBar
               charName={charName}
+              accountName={accountName}
               status={status}
               onHighlights={() => setShowHighlights(true)}
               onSettings={onOpenSettings}
@@ -333,6 +334,7 @@ function AppInner() {
   const [inGame,        setInGame]        = useState(false)
   const [showReconnect, setShowReconnect] = useState(false)
   const [charName,      setCharName]      = useState('')
+  const [accountName,   setAccountName]   = useState('')
   const [showSettings,  setShowSettings]  = useState(false)
   const [updateVersion, setUpdateVersion] = useState('')
   const [updateReady,   setUpdateReady]   = useState(false)
@@ -349,14 +351,14 @@ function AppInner() {
 
   const updateSlot = <UpdateIcon version={updateVersion} ready={updateReady} error={updateError} />
 
-  const enterGame = (name: string) => { setCharName(name); setInGame(true); setShowReconnect(false) }
+  const enterGame = (name: string, account: string) => { setCharName(name); setAccountName(account); setInGame(true); setShowReconnect(false) }
 
   return (
     <>
       {!inGame && <div className="app-titlebar-shell">{updateSlot}<WindowControls /></div>}
       {!inGame
         ? <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} />
-        : <GameLayout charName={charName} onOpenSettings={() => setShowSettings(true)} onRequestConnect={() => setShowReconnect(true)} updateSlot={updateSlot} />
+        : <GameLayout charName={charName} accountName={accountName} onOpenSettings={() => setShowSettings(true)} onRequestConnect={() => setShowReconnect(true)} updateSlot={updateSlot} />
       }
       {inGame && showReconnect && (
         <div className="reconnect-overlay">

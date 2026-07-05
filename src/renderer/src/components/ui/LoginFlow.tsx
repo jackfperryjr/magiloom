@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Tooltip } from './Tooltip'
 
-interface LoginFlowProps { onEnterGame: (characterName: string) => void; onOpenSettings: () => void }
+interface LoginFlowProps { onEnterGame: (characterName: string, accountName: string) => void; onOpenSettings: () => void }
 
 type Screen =
   | 'account-list'
@@ -18,9 +18,9 @@ interface SavedAccount  { name: string; lastCharacter?: string }
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="login-screen">
-      <img src="./icon.png" className="login-watermark" aria-hidden="true" />
       <div className="login-card">
-        <div className="login-logo">Meridian</div>
+        <img src="./icon.png" className="login-hero" alt="MAGILOOM" />
+        <div className="login-logo">MAGILOOM</div>
         <div className="login-logo-sub">DragonRealms Client</div>
         {children}
       </div>
@@ -235,6 +235,7 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
   const [lastCharId,    setLastCharId]    = useState<string | undefined>()
   const [selectedChar,  setSelectedChar]  = useState<SGECharacter | null>(null)
   const selectedCharRef = useRef<SGECharacter | null>(null)
+  const activeAccountRef = useRef('')
   const [logLines,      setLogLines]      = useState<string[]>([])
   const [error,         setError]         = useState('')
   const [loading,       setLoading]       = useState(false)
@@ -249,10 +250,14 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
       })
   }, [])
 
+  // Keep a ref of the active account so the connection listeners (registered
+  // once) always read the current value rather than a stale closure.
+  useEffect(() => { activeAccountRef.current = activeAccount }, [activeAccount])
+
   useEffect(() => {
     const unsubs = [
-      window.dr.lich.onStatus((s: string) => { if (s === 'ready') onEnterGame(selectedCharRef.current?.name ?? '') }),
-      window.dr.game.onConnected(() => onEnterGame(selectedCharRef.current?.name ?? '')),
+      window.dr.lich.onStatus((s: string) => { if (s === 'ready') onEnterGame(selectedCharRef.current?.name ?? '', activeAccountRef.current) }),
+      window.dr.game.onConnected(() => onEnterGame(selectedCharRef.current?.name ?? '', activeAccountRef.current)),
       window.dr.lich.onError((msg: string) => setError(msg)),
       window.dr.lich.onLog((l: string) =>
         setLogLines(prev => [...prev.slice(-99), l.trimEnd()])

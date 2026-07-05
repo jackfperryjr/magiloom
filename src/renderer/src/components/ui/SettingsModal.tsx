@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { THEMES } from '../../lib/themes'
+import { THEMES, applyTheme } from '../../lib/themes'
 import { setShowTimestamps, setOutputBuffer } from '../game/GameOutput'
 import { DEFAULT_NOTIF, type NotifSettings } from './Notifications'
 
@@ -21,7 +21,9 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [lichPath,        setLichPath]        = useState('')
   const [fontSize,        setFontSize]        = useState(13)
   const [fontFamily,      setFontFamily]      = useState('Cascadia Code')
-  const [theme,           setTheme]           = useState('meridian')
+  const [theme,           setTheme]           = useState('magiloom')
+  // Theme active when the modal opened — restored if the user cancels
+  const [originalTheme,   setOriginalTheme]   = useState('magiloom')
   const [timestamps,      setTimestamps]      = useState(false)
   const [density,         setDensity]         = useState<'cozy' | 'compact'>('cozy')
   const [outputBufferSize, setOutputBufferSize] = useState(5000)
@@ -41,7 +43,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
       setLichPath(s.lichPath || '')
       setFontSize(s.fontSize || 13)
       setFontFamily(s.fontFamily || 'Cascadia Code')
-      setTheme(s.theme || 'meridian')
+      setTheme(s.theme || 'magiloom')
+      setOriginalTheme(s.theme || 'magiloom')
       setTimestamps(s.timestamps || false)
       setDensity(s.density === 'compact' ? 'compact' : 'cozy')
       setOutputBufferSize(s.outputBufferSize || 5000)
@@ -56,7 +59,6 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
       notifications: notif,
     })
     window.dispatchEvent(new CustomEvent('settings:saved'))
-    const { applyTheme } = await import('../../lib/themes')
     applyTheme(theme)
     document.documentElement.style.setProperty('--font-game', fontFamily)
     document.documentElement.style.setProperty('--font-size-game', fontSize + 'px')
@@ -66,14 +68,20 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
     onClose()
   }
 
+  // Live-preview a theme the moment its tile is clicked
+  const previewTheme = (id: string) => { setTheme(id); applyTheme(id) }
+
+  // Dismiss without saving — undo any live theme preview first
+  const handleCancel = () => { applyTheme(originalTheme); onClose() }
+
   const versionLabel = !version || version === '0.0.0' ? 'dev' : `v${version}`
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && handleCancel()}>
       <div className="modal-card settings-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <span className="modal-title">Settings</span>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button className="modal-close" onClick={handleCancel}>×</button>
         </div>
 
         <div className="settings-layout">
@@ -104,7 +112,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                           borderColor: theme === t.id ? t.vars['--accent'] : t.vars['--border'],
                           boxShadow:   theme === t.id ? `0 0 10px ${t.vars['--accent-glow']}` : 'none',
                         }}
-                        onClick={() => setTheme(t.id)}
+                        onClick={() => previewTheme(t.id)}
                       >
                         <div style={{ display: 'flex', gap: 2, marginBottom: 5 }}>
                           {['--health-color','--mana-color','--stamina-color','--accent','--color-roomname'].map(k => (
@@ -275,7 +283,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
 
         <div className="modal-footer">
           <span className="settings-version">{versionLabel}</span>
-          <button className="login-btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="login-btn-secondary" onClick={handleCancel}>Cancel</button>
           <button className="login-btn" style={{ minWidth: 80 }} onClick={handleSave}>
             Save
           </button>

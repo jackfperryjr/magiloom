@@ -39,7 +39,7 @@ console.log(`Browser: ${browser}`)
 for (const shot of SHOTS) {
   const htmlFile = path.join(__dirname, shot.html)
   const outFile  = path.join(docsDir, shot.out)
-  const tmpDir   = fs.mkdtempSync(path.join(os.tmpdir(), 'meridian-shot-'))
+  const tmpDir   = fs.mkdtempSync(path.join(os.tmpdir(), 'magiloom-shot-'))
   console.log(`Capturing ${shot.html} → docs/${shot.out} (${shot.w}×${shot.h})`)
   execFileSync(browser, [
     '--headless=new',

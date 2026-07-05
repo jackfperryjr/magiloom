@@ -10,12 +10,12 @@ import type { SettingsStore } from './settings-store'
 //   • writes → the `avatars` Edge Function, authorized with our own TOFU token
 //     in the `x-avatar-token` header.
 // The URL is public (not a secret), so it's baked in as a default and shipped
-// builds work without configuration; MERIDIAN_SUPABASE_URL overrides it for dev
+// builds work without configuration; MAGILOOM_SUPABASE_URL overrides it for dev
 // or self-hosting. Set the default to '' to disable the feature entirely, in
 // which case callers fall back to identicons.
 
 const DEFAULT_SUPABASE_URL = 'https://wyzmtzccdgcmxecdpfhw.supabase.co'
-const SUPABASE_URL = (process.env.MERIDIAN_SUPABASE_URL || DEFAULT_SUPABASE_URL).replace(/\/+$/, '')
+const SUPABASE_URL = (process.env.MAGILOOM_SUPABASE_URL || DEFAULT_SUPABASE_URL).replace(/\/+$/, '')
 const FN_BASE      = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/avatars` : ''
 const STORAGE_BASE = SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/avatars` : ''
 

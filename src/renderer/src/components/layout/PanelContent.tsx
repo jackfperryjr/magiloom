@@ -1,5 +1,6 @@
 import { useAtomValue } from 'jotai'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   roomAtom, activeSpellAtom, inventoryLinesAtom,
   expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom,
@@ -8,7 +9,7 @@ import {
 } from '../../store/game'
 import { resolveAvatarSrc } from '../../lib/avatar'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
-import { Tooltip } from '../ui/Tooltip'
+import { useProfile } from '../../hooks/useProfile'
 
 // ── Auto-scroll helper ─────────────────────────────────────────────────────────
 // The actual scrollable box is the parent .panel-content-scroll (which has the
@@ -154,29 +155,76 @@ const convColor = (preset?: string) => {
   }
 }
 
-function ConvLine({ line }: { line: OutputLine }) {
-  const color = convColor(line.styles[0]?.preset)
-  const q = line.text.indexOf('"')
-  if (q === -1) return <div className="conv-line" style={{ color }}>{line.text}</div>
-  return (
-    <div className="conv-line">
-      <span style={{ color }}>{line.text.slice(0, q)}</span>
-      <span style={{ color: 'var(--text-main)' }}>{line.text.slice(q)}</span>
-    </div>
-  )
+// Third-person verb for the message-type label; "You" uses the base form.
+const CONV_VERB: Record<string, [string, string]> = {
+  speech:  ['says', 'say'],
+  whisper: ['whispers', 'whisper'],
+  thought: ['thinks', 'think'],
+}
+const convVerb = (preset: string | undefined, isYou: boolean): string => {
+  const pair = preset ? CONV_VERB[preset] : undefined
+  return pair ? pair[isYou ? 1 : 0] : ''
 }
 
-// Group consecutive lines from the same speaker so the avatar shows once per
-// turn (chat-app style) rather than on every line. Lines with no detected
-// speaker stand on their own.
-function groupBySpeaker(lines: OutputLine[]): { speaker?: string; lines: OutputLine[] }[] {
-  const groups: { speaker?: string; lines: OutputLine[] }[] = []
+// Just the spoken part: from the first quote onward, dropping the "Name says,"
+// lead-in (which now lives in the message header instead).
+const convBody = (text: string): string => {
+  const q = text.indexOf('"')
+  return q === -1 ? text : text.slice(q)
+}
+
+// A directed message ("You whisper to Refia, ...", "Elanthys says to you, ...")
+// names its target between the verb and the quote. Parse only the well-formed
+// prefix before the quote so message bodies can't false-match.
+const convTarget = (text: string): string | undefined => {
+  const q = text.indexOf('"')
+  if (q === -1) return undefined
+  return text.slice(0, q).match(/\bto\s+([A-Z][a-z'-]+|you)\b/)?.[1]
+}
+
+const convTime = (ts: number): string => {
+  const d = new Date(ts)
+  const h = d.getHours() % 12 === 0 ? 12 : d.getHours() % 12
+  const ampm = d.getHours() < 12 ? 'AM' : 'PM'
+  return `${h}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`
+}
+
+// Group consecutive lines from the same speaker AND message type into one chat
+// bubble, so the avatar + header show once per turn (Discord-style). Lines with
+// no detected speaker stand on their own as plain system text.
+function groupConversation(lines: OutputLine[]): { speaker?: string; preset?: string; target?: string; lines: OutputLine[] }[] {
+  const groups: { speaker?: string; preset?: string; target?: string; lines: OutputLine[] }[] = []
   for (const l of lines) {
+    const preset = l.styles[0]?.preset
+    const target = convTarget(l.text)
     const prev = groups[groups.length - 1]
-    if (prev && prev.speaker && prev.speaker === l.speaker) prev.lines.push(l)
-    else groups.push({ speaker: l.speaker, lines: [l] })
+    if (prev && prev.speaker && prev.speaker === l.speaker && prev.preset === preset && prev.target === target) prev.lines.push(l)
+    else groups.push({ speaker: l.speaker, preset, target, lines: [l] })
   }
   return groups
+}
+
+// Popup card shown when a conversation avatar is clicked — the same larger
+// avatar + PROFILE summary as the character menu's header, for other players.
+function ProfileCard({ name, src, x, y, onClose }: {
+  name: string; src: string; x: number; y: number; onClose: () => void
+}) {
+  const profile = useProfile(name, true)
+  return createPortal(
+    <>
+      <div className="profile-card-backdrop" onClick={onClose} />
+      <div className="profile-card" style={{ left: x, top: y }} onClick={e => e.stopPropagation()}>
+        <img className="profile-card-avatar" src={src} alt="" />
+        <div className="profile-card-body">
+          <div className="char-menu-name">{profile?.name || name}</div>
+          <div className="char-menu-field"><span className="char-menu-k">Spouse</span><span className="char-menu-v">{profile?.spouse ?? '—'}</span></div>
+          <div className="char-menu-field"><span className="char-menu-k">Roleplay</span><span className="char-menu-v">{profile?.roleplay ?? '—'}</span></div>
+          <div className="char-menu-field"><span className="char-menu-k">PvP</span><span className="char-menu-v">{profile?.pvp ?? '—'}</span></div>
+        </div>
+      </div>
+    </>,
+    document.body,
+  )
 }
 
 export function ConversationPanel() {
@@ -184,23 +232,58 @@ export function ConversationPanel() {
   const avatars = useAtomValue(avatarsAtom)
   const server  = useAtomValue(serverAvatarsAtom)
   const self    = useAtomValue(selfNameAtom)
-  const groups  = groupBySpeaker(lines)
+  const groups  = groupConversation(lines)
+  const [card, setCard] = useState<{ name: string; src: string; x: number; y: number } | null>(null)
   useEnsureAvatars(groups.map(g => g.speaker).filter((s): s is string => !!s))
+
+  // Open the profile popup for a clicked avatar, positioned beside it (to the
+  // left since the panel sits on the right edge), clamped to the viewport.
+  const openCard = (e: React.MouseEvent, speaker: string, src: string) => {
+    const name = speaker === 'You' ? self : speaker
+    if (!name) return
+    const r = e.currentTarget.getBoundingClientRect()
+    const CARD_W = 290, CARD_H = 150
+    let x = r.left - CARD_W - 10
+    if (x < 8) x = Math.min(r.right + 10, window.innerWidth - CARD_W - 8)
+    const y = Math.max(8, Math.min(r.top - 6, window.innerHeight - CARD_H - 8))
+    setCard({ name, src, x, y })
+  }
+
   if (lines.length === 0) return <div className="panel-empty">No conversation yet</div>
   return (
     <ScrollPanel deps={[lines.length]}>
-      {groups.map(group => (
-        <div key={group.lines[0].id} className={group.speaker ? 'conv-group' : undefined}>
-          {group.speaker && (
-            <Tooltip text={group.speaker}>
-              <img className="conv-avatar" src={resolveAvatarSrc(group.speaker, avatars, server, self)} alt="" />
-            </Tooltip>
-          )}
-          <div className="conv-group-body">
-            {group.lines.map((l: OutputLine) => <ConvLine key={l.id} line={l} />)}
+      {groups.map(group => {
+        // Lines with no detected speaker render as plain system text.
+        if (!group.speaker) {
+          return (
+            <div key={group.lines[0].id} className="conv-msg conv-msg-plain">
+              {group.lines.map(l => <div key={l.id} className="conv-msg-text">{l.text}</div>)}
+            </div>
+          )
+        }
+        const speaker = group.speaker
+        const src   = resolveAvatarSrc(speaker, avatars, server, self)
+        const color = convColor(group.preset)
+        const verb  = convVerb(group.preset, speaker === 'You')
+        const label = verb && group.target ? `${verb} to ${group.target}` : verb
+        return (
+          <div key={group.lines[0].id} className="conv-msg">
+            <img className="conv-avatar" src={src} alt="" title={`View ${speaker}`}
+              onClick={e => openCard(e, speaker, src)} />
+            <div className="conv-msg-main">
+              <div className="conv-msg-header">
+                <span className="conv-msg-name" style={{ color }}>{speaker}</span>
+                {label && <span className="conv-msg-verb">{label}</span>}
+                <span className="conv-msg-time">{convTime(group.lines[0].timestamp)}</span>
+              </div>
+              {group.lines.map(l => (
+                <div key={l.id} className="conv-msg-text">{convBody(l.text)}</div>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
+      {card && <ProfileCard {...card} onClose={() => setCard(null)} />}
     </ScrollPanel>
   )
 }

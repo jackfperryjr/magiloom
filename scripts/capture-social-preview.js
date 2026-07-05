@@ -31,7 +31,7 @@ if (!browser) {
 
 const htmlFile = path.join(__dirname, 'social-preview.html')
 const outFile  = path.join(__dirname, '..', 'resources', 'social-preview.png')
-const tmpDir   = fs.mkdtempSync(path.join(os.tmpdir(), 'meridian-preview-'))
+const tmpDir   = fs.mkdtempSync(path.join(os.tmpdir(), 'magiloom-preview-'))
 
 console.log(`Browser: ${browser}`)
 console.log(`Capturing ${htmlFile} → ${outFile}`)

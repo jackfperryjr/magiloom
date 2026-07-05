@@ -72,6 +72,22 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
   // Chunk separator — a blank line's worth of space between command responses
   if (line.separator) return <div className="game-separator" aria-hidden />
 
+  // Labeled divider (e.g. the "Disconnected" line): centered date+time on the
+  // line, terminating into a red arrow badge with the white label.
+  if (line.divider) {
+    const stamp = new Date(line.timestamp).toLocaleString(undefined, {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    })
+    return (
+      <div className="game-divider game-divider-error">
+        <span className="game-divider-line" />
+        <span className="game-divider-time">{stamp}</span>
+        <span className="game-divider-line" />
+        <span className="game-divider-badge">{line.divider}</span>
+      </div>
+    )
+  }
+
   const hl = matchHighlight(line.text, highlights)
   const isMention = _playerRe ? _playerRe.test(line.text) : false
   // Hover timestamp chip — only when the always-on timestamp setting is off.

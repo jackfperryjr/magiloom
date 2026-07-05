@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="resources/icon.png" width="96" height="96" alt="Meridian" />
+  <img src="resources/icon.png" width="96" height="96" alt="Magiloom" />
 </p>
 
-# Meridian — Player Guide
+# Magiloom — Player Guide
 
-Meridian is a DragonRealms game client for Windows, Mac, and Linux. It connects directly to the DragonRealms servers and gives you a clean, modern window for playing — with live vitals, room info, experience tracking, highlights, and optional Lich scripting support.
+Magiloom is a DragonRealms game client for Windows, Mac, and Linux. It connects directly to the DragonRealms servers and gives you a clean, modern window for playing — with live vitals, room info, experience tracking, highlights, and optional Lich scripting support.
 
 ---
 
@@ -28,33 +28,33 @@ Meridian is a DragonRealms game client for Windows, Mac, and Linux. It connects 
 
 1. Go to the [Releases page](../../releases) on GitHub.
 2. Download the file for your operating system:
-   - **Windows:** `Meridian-Setup-x.x.x.exe`
-   - **Mac:** `Meridian-x.x.x.dmg`
-   - **Linux:** `Meridian-x.x.x.AppImage`
+   - **Windows:** `Magiloom-Setup-x.x.x.exe`
+   - **Mac:** `Magiloom-x.x.x.dmg`
+   - **Linux:** `Magiloom-x.x.x.AppImage`
 3. Run the installer. On Windows, you may see a SmartScreen warning that says "Windows protected your PC." Click **More info**, then **Run anyway**. This happens because the app is not yet signed with a paid code-signing certificate — it is safe.
-4. Meridian will open automatically after installation.
+4. Magiloom will open automatically after installation.
 
 ---
 
 ## Logging in for the first time
 
-When you open Meridian for the first time, you will see the **Sign in** screen.
+When you open Magiloom for the first time, you will see the **Sign in** screen.
 
 1. Enter your **Simutronics account name** (the username you use on the Simutronics website or in other clients like StormFront or Wizard).
 2. Enter your **password**.
 3. Click **Sign in**.
 
-Meridian will connect to the Simutronics login servers. If you have access to multiple DragonRealms game instances (e.g. Prime, Platinum, The Fallen), you will be asked to **Choose server**. Select the one you want.
+Magiloom will connect to the Simutronics login servers. If you have access to multiple DragonRealms game instances (e.g. Prime, Platinum, The Fallen), you will be asked to **Choose server**. Select the one you want.
 
 Next, you will see the **Choose character** screen. Click your character's name to enter the game.
 
-Meridian saves your account name automatically so you don't have to type it every time.
+Magiloom saves your account name automatically so you don't have to type it every time.
 
 ---
 
 ## Logging in on future visits
 
-After your first login, Meridian shows a **Welcome back** screen listing your saved accounts. Click your account name to jump straight to the password screen. Your last-played character will be noted beside your name for reference.
+After your first login, Magiloom shows a **Welcome back** screen listing your saved accounts. Click your account name to jump straight to the password screen. Your last-played character will be noted beside your name for reference.
 
 - **+ Add account** — adds a new account to the list
 - **⚙ Settings** — opens the settings screen (see [Settings](#settings))
@@ -67,7 +67,7 @@ Once you are in the game, the window has three regions: a **title bar** across t
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  Meridian                               update  — ▢ ✕ │  title bar
+│  Magiloom                               update  — ▢ ✕ │  title bar
 ├─────────────────────────────────────┬──────────────────┤
 │  flags · RT · hands (R:/L:)         │  ⊞ Panels       │  top bar
 │  Health · Mana · Stamina · Spirit   │                  │  vitals
@@ -81,7 +81,7 @@ Once you are in the game, the window has three regions: a **title bar** across t
 └─────────────────────────────────────┴──────────────────┘
 ```
 
-**Title bar** — The Meridian name, an **update** button that appears when a new version is ready to install, and the window minimize / maximize / close controls.
+**Title bar** — The Magiloom name, an **update** button that appears when a new version is ready to install, and the window minimize / maximize / close controls.
 
 **Game column** (left), top to bottom:
 
@@ -169,7 +169,7 @@ A scrolling log of recent death announcements — when a character or creature i
 
 ## Avatars
 
-Meridian gives every character a small avatar that appears beside their speech in the [Conversation](#conversation) panel, so you can tell at a glance who is talking.
+Magiloom gives every character a small avatar that appears beside their speech in the [Conversation](#conversation) panel, so you can tell at a glance who is talking.
 
 ### Your avatar
 
@@ -179,7 +179,7 @@ Your own avatar is shown at the **bottom-left of the game window**, next to your
 - **Replace** it with a different picture later.
 - **Remove** it.
 
-If you don't set a picture, Meridian generates a **letter avatar** — your character's initial on a colored background derived from the name. Everyone sees the same avatar for the same name, so characters stay visually distinct even without custom pictures.
+If you don't set a picture, Magiloom generates a **letter avatar** — your character's initial on a colored background derived from the name. Everyone sees the same avatar for the same name, so characters stay visually distinct even without custom pictures.
 
 ### Seeing other players' avatars
 
@@ -187,14 +187,14 @@ Avatars appear automatically in the Conversation panel next to each person's spe
 
 ### Sharing your avatar with others
 
-By default your uploaded picture stays only on your own computer. To let other Meridian players see it beside your speech, open the avatar editor and tick **Share so other Meridian players see this avatar**.
+By default your uploaded picture stays only on your own computer. To let other Magiloom players see it beside your speech, open the avatar editor and tick **Share so other Magiloom players see this avatar**.
 
 A few things to know:
 
 - Sharing is **per character and opt-in** — nothing is uploaded until you tick the box.
 - You can only publish an avatar for the character you are **currently signed in as**. The first character to claim a name keeps it.
 - Unticking the box (or removing your picture) takes it back down for everyone.
-- Shared images are **public** — anyone using Meridian can see the avatar tied to a character name. Don't upload anything you wouldn't want shared.
+- Shared images are **public** — anyone using Magiloom can see the avatar tied to a character name. Don't upload anything you wouldn't want shared.
 
 ---
 
@@ -257,7 +257,7 @@ Choose from several color themes for the game window. Themes change the backgrou
 
 ### Lich
 
-If you use Lich for scripting, set the path to your `lich.rbw` file here (see [Lich scripting](#lich-scripting)). Leave this blank if Meridian detects Lich automatically.
+If you use Lich for scripting, set the path to your `lich.rbw` file here (see [Lich scripting](#lich-scripting)). Leave this blank if Magiloom detects Lich automatically.
 
 Click **Save** to apply changes.
 
@@ -265,16 +265,16 @@ Click **Save** to apply changes.
 
 ## Lich scripting
 
-[Lich](https://github.com/elanthia-online/) is a third-party Ruby scripting engine for GemStone and DragonRealms. Meridian can launch Lich for you after you connect, so your scripts run alongside the game.
+[Lich](https://github.com/elanthia-online/) is a third-party Ruby scripting engine for GemStone and DragonRealms. Magiloom can launch Lich for you after you connect, so your scripts run alongside the game.
 
 ### Setup
 
 1. Install Ruby and Lich5 on your computer by following the instructions at the Lich Project website.
-2. Open Meridian's **⚙ Settings** and set the **Lich path** to the full path of your `lich.rbw` file (e.g. `C:\Ruby4Lich5\Lich5\lich.rbw`). If you installed Lich in the default location, Meridian may detect it automatically.
+2. Open Magiloom's **⚙ Settings** and set the **Lich path** to the full path of your `lich.rbw` file (e.g. `C:\Ruby4Lich5\Lich5\lich.rbw`). If you installed Lich in the default location, Magiloom may detect it automatically.
 
 ### Using Lich
 
-If you have set a **Lich path**, Meridian launches Lich automatically when you enter the game and routes the game connection through it, so your scripts run alongside the game. With no Lich path set, Meridian connects directly and runs as a standalone client.
+If you have set a **Lich path**, Magiloom launches Lich automatically when you enter the game and routes the game connection through it, so your scripts run alongside the game. With no Lich path set, Magiloom connects directly and runs as a standalone client.
 
 Add the **Lich** panel to your sidebar (via **⊞ Panels**) to watch it. A colored status dot shows its state:
 
@@ -285,7 +285,7 @@ Add the **Lich** panel to your sidebar (via **⊞ Panels**) to watch it. A color
 
 The panel also shows Lich's startup and script output, useful for diagnosing problems.
 
-If you do not use Lich, you can ignore this entirely — Meridian works fine without it.
+If you do not use Lich, you can ignore this entirely — Magiloom works fine without it.
 
 ---
 
@@ -319,4 +319,4 @@ From the Welcome back screen, click **+ Add account**. To remove a saved account
 
 ---
 
-*Meridian is an unofficial, community-made client. DragonRealms is a product of Simutronics Corp.*
+*Magiloom is an unofficial, community-made client. DragonRealms is a product of Simutronics Corp.*

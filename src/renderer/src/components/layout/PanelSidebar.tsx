@@ -21,8 +21,8 @@ const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'lich',         label: 'Lich Log',      visible: false },
 ]
 
-const PANELS_KEY  = 'meridian-panels-v4'
-const HEIGHTS_KEY = 'meridian-panel-heights-v1'
+const PANELS_KEY  = 'magiloom-panels-v4'
+const HEIGHTS_KEY = 'magiloom-panel-heights-v1'
 
 function loadPanels(): PanelConfig[] {
   try {

@@ -5,7 +5,8 @@ import {
   verbsAtom, verbsWithInfoAtom, verbInfoAtom, beginVerbInfoCapture,
   presenceModeAtom, avatarsAtom,
 } from '../../store/game'
-import type { PresenceMode } from '../../store/game'
+import type { PresenceMode, ProfileInfo } from '../../store/game'
+import { useProfile } from '../../hooks/useProfile'
 export type { ConnectionStatus } from '../../store/game'
 import type { ConnectionStatus } from '../../store/game'
 import {
@@ -347,11 +348,16 @@ function useAutoIdle(): boolean {
 }
 
 function CharacterMenu({
-  status, presenceMode, onSetPresence, onDisconnect, onConnect, onClose,
+  status, presenceMode, onSetPresence, onEditAvatar, avatar, initial, charName, profile, onDisconnect, onConnect, onClose,
 }: {
   status:        ConnectionStatus
   presenceMode:  PresenceMode
   onSetPresence: (m: PresenceMode) => void
+  onEditAvatar:  () => void
+  avatar:        string | null
+  initial:       string
+  charName:      string
+  profile:       ProfileInfo | null
   onDisconnect:  () => void
   onConnect:     () => void
   onClose:       () => void
@@ -361,6 +367,21 @@ function CharacterMenu({
     <>
       <div className="char-menu-backdrop" onClick={onClose} />
       <div className="char-menu">
+        <div className="char-menu-head">
+          <button className="char-menu-avatar" onClick={run(onEditAvatar)} title="Change avatar">
+            {avatar
+              ? <img className="char-menu-avatar-img" src={avatar} alt="" />
+              : <span className="char-menu-avatar-initial">{initial}</span>}
+            <span className="char-menu-avatar-edit"><IconPhoto size={20} /></span>
+          </button>
+          <div className="char-menu-profile">
+            <div className="char-menu-name">{profile?.name || charName || 'Unknown'}</div>
+            <div className="char-menu-field"><span className="char-menu-k">Spouse</span><span className="char-menu-v">{profile?.spouse ?? '—'}</span></div>
+            <div className="char-menu-field"><span className="char-menu-k">Roleplay</span><span className="char-menu-v">{profile?.roleplay ?? '—'}</span></div>
+            <div className="char-menu-field"><span className="char-menu-k">PvP</span><span className="char-menu-v">{profile?.pvp ?? '—'}</span></div>
+          </div>
+        </div>
+        <div className="char-menu-sep" />
         {status === 'connected' && (
           <>
             {(['online', 'idle', 'dnd'] as PresenceMode[]).map(m => (
@@ -388,9 +409,10 @@ function CharacterMenu({
 }
 
 export function CharacterBar({
-  charName, status, onHighlights, onSettings, onDisconnect, onConnect,
+  charName, accountName, status, onHighlights, onSettings, onDisconnect, onConnect,
 }: {
   charName:     string
+  accountName:  string
   status:       ConnectionStatus
   onHighlights: () => void
   onSettings:   () => void
@@ -406,6 +428,10 @@ export function CharacterBar({
   const autoIdle = useAutoIdle()
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Character PROFILE summary (Name / Spouse / stances) shown in the menu —
+  // fetched the first time the menu opens for this character.
+  const profile = useProfile(charName, menuOpen)
+
   // Avatars live in settings.json (userData) keyed by character name, so they
   // persist across runs. The shared atom (loaded once at layout mount) is the
   // single source of truth so the conversation panel reflects saves live.
@@ -414,7 +440,7 @@ export function CharacterBar({
   const avatar = avatars[avatarKey] ?? null
 
   // Shared-avatar publishing is opt-in and only surfaced once the service is
-  // configured (MERIDIAN_AVATAR_URL set); otherwise avatars stay purely local.
+  // configured (MAGILOOM_AVATAR_URL set); otherwise avatars stay purely local.
   const [svcEnabled, setSvcEnabled] = useState(false)
   const [share, setShare] = useState(false)
   useEffect(() => {
@@ -468,22 +494,26 @@ export function CharacterBar({
 
   return (
     <div className="character-bar">
-      <Tooltip text="Avatar">
-        <button className="char-avatar" onClick={() => setShowAvatar(true)}>
-          {avatar
-            ? <img className="char-avatar-img" src={avatar} alt="" />
-            : <span className="char-avatar-initial">{initial}</span>}
-          <span className="char-avatar-edit"><IconPhoto size={15} /></span>
-          <span className={`char-status-dot status-${presence.dot}`} />
-        </button>
-      </Tooltip>
       <input
         ref={fileRef} type="file" accept="image/*"
         style={{ display: 'none' }} onChange={onPickFile}
       />
       <button className="char-identity" onClick={() => setMenuOpen(o => !o)}>
-        <span className="char-name">{charName || 'Unknown'}</span>
-        <span className="char-presence">{presence.label}</span>
+        <span className="char-avatar">
+          {avatar
+            ? <img className="char-avatar-img" src={avatar} alt="" />
+            : <span className="char-avatar-initial">{initial}</span>}
+          <span className={`char-status-dot status-${presence.dot}`} />
+        </span>
+        <span className="char-identity-text">
+          <span className="char-name">{charName || 'Unknown'}</span>
+          <span className={'char-sub' + (accountName ? ' has-account' : '')}>
+            <span className="char-sub-track">
+              <span className="char-presence">{presence.label}</span>
+              {accountName && <span className="char-account">{accountName}</span>}
+            </span>
+          </span>
+        </span>
       </button>
       <div className="char-actions">
         <Tooltip text="Highlights">
@@ -498,6 +528,11 @@ export function CharacterBar({
           status={status}
           presenceMode={presenceMode}
           onSetPresence={setPresenceMode}
+          onEditAvatar={() => setShowAvatar(true)}
+          avatar={avatar}
+          initial={initial}
+          charName={charName}
+          profile={profile}
           onDisconnect={onDisconnect}
           onConnect={onConnect}
           onClose={() => setMenuOpen(false)}
@@ -527,7 +562,7 @@ export function CharacterBar({
             {svcEnabled && (
               <label className="avatar-modal-share">
                 <input type="checkbox" checked={share} onChange={onToggleShare} />
-                <span>Share so other Meridian players see this avatar</span>
+                <span>Share so other MAGILOOM players see this avatar</span>
               </label>
             )}
           </div>
@@ -576,7 +611,7 @@ export function StatusBar({ updateSlot }: { updateSlot?: React.ReactNode }) {
   return (
     <div className="status-bar">
       <img src="./icon.png" className="app-icon" alt="" aria-hidden />
-      <span className="app-title">Meridian</span>
+      <span className="app-title">MAGILOOM</span>
       <div className="status-bar-spacer" />
       {updateSlot}
       <WindowControls />
