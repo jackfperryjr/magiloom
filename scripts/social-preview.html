@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=1280">
-  <title>Meridian Social Preview</title>
+  <title>MAGILOOM Social Preview</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -11,9 +11,9 @@
       width: 1280px;
       height: 640px;
       overflow: hidden;
-      background: #070c1a;
+      background: #17133a;
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      color: #dde4f5;
+      color: #dedaf5;
       position: relative;
     }
 
@@ -22,9 +22,9 @@
       position: absolute;
       inset: 0;
       background:
-        radial-gradient(ellipse 70% 60% at 38% 50%, #0d1e40 0%, transparent 70%),
-        radial-gradient(ellipse 40% 80% at 75% 50%, #0a1530 0%, transparent 65%),
-        #070c1a;
+        radial-gradient(ellipse 72% 64% at 32% 46%, rgba(139, 134, 248, 0.32) 0%, transparent 66%),
+        radial-gradient(circle 300px at 30% 42%, rgba(255, 168, 98, 0.11) 0%, transparent 70%),
+        radial-gradient(ellipse at 55% 55%, #262056 0%, #18143c 55%, #110d2e 100%);
     }
 
     /* Subtle grid lines for depth */
@@ -32,8 +32,8 @@
       position: absolute;
       inset: 0;
       background-image:
-        linear-gradient(rgba(80, 130, 220, 0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(80, 130, 220, 0.04) 1px, transparent 1px);
+        linear-gradient(rgba(139, 134, 248, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139, 134, 248, 0.045) 1px, transparent 1px);
       background-size: 48px 48px;
     }
 
@@ -44,7 +44,7 @@
       top: 0;
       bottom: 0;
       width: 3px;
-      background: linear-gradient(to bottom, transparent 5%, #3a6fd8 30%, #6fb3ff 50%, #3a6fd8 70%, transparent 95%);
+      background: linear-gradient(to bottom, transparent 5%, #6a67d8 30%, #9a95ff 50%, #6a67d8 70%, transparent 95%);
     }
 
     .content {
@@ -79,27 +79,27 @@
       display: block;
     }
 
-    /* Soft halo around icon */
+    /* Soft halo around icon — warm amber core into periwinkle, matching the hero */
     .icon-halo {
       position: absolute;
-      inset: -12px;
+      inset: -16px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(70, 130, 255, 0.18) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(255, 168, 98, 0.22) 0%, rgba(139, 134, 248, 0.26) 42%, transparent 72%);
     }
 
     .app-name {
       font-size: 68px;
       font-weight: 700;
       letter-spacing: -1px;
-      color: #eef2ff;
+      color: #f0eeff;
       line-height: 1;
       text-align: center;
-      text-shadow: 0 0 40px rgba(100, 160, 255, 0.35);
+      text-shadow: 0 0 44px rgba(139, 134, 248, 0.45), 0 2px 0 rgba(255, 168, 98, 0.14);
     }
 
     .tagline {
       font-size: 17px;
-      color: #7a9acc;
+      color: #8b86cc;
       letter-spacing: 0.04em;
       text-align: center;
       text-transform: uppercase;
@@ -110,7 +110,7 @@
     .divider {
       width: 1px;
       height: 340px;
-      background: linear-gradient(to bottom, transparent, rgba(80, 130, 220, 0.3) 30%, rgba(80, 130, 220, 0.3) 70%, transparent);
+      background: linear-gradient(to bottom, transparent, rgba(139, 134, 248, 0.32) 30%, rgba(139, 134, 248, 0.32) 70%, transparent);
       flex-shrink: 0;
     }
 
@@ -132,23 +132,23 @@
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #4a8adf;
+      background: #9a95ff;
       flex-shrink: 0;
       margin-top: 8px;
-      box-shadow: 0 0 8px rgba(74, 138, 223, 0.6);
+      box-shadow: 0 0 8px rgba(139, 134, 248, 0.7);
     }
 
     .feature-text h3 {
       font-size: 16px;
       font-weight: 600;
-      color: #ccd8f0;
+      color: #d6d2f0;
       margin-bottom: 3px;
       letter-spacing: 0.01em;
     }
 
     .feature-text p {
       font-size: 13.5px;
-      color: #5a7aaa;
+      color: #8b86cc;
       line-height: 1.5;
     }
 
@@ -159,8 +159,8 @@
       left: 0;
       right: 0;
       height: 48px;
-      background: rgba(10, 18, 38, 0.85);
-      border-top: 1px solid rgba(60, 100, 180, 0.18);
+      background: rgba(18, 14, 44, 0.85);
+      border-top: 1px solid rgba(139, 134, 248, 0.18);
       display: flex;
       align-items: center;
       padding: 0 24px;
@@ -181,9 +181,9 @@
     }
 
     .pill-electron {
-      color: #8fbfff;
-      border-color: rgba(80, 140, 255, 0.3);
-      background: rgba(40, 80, 180, 0.12);
+      color: #a9a4ff;
+      border-color: rgba(139, 134, 248, 0.35);
+      background: rgba(96, 93, 210, 0.15);
     }
 
     .pill-react {
@@ -193,21 +193,21 @@
     }
 
     .pill-ts {
-      color: #88aaee;
-      border-color: rgba(80, 120, 220, 0.3);
-      background: rgba(40, 70, 160, 0.12);
+      color: #8fb0ff;
+      border-color: rgba(111, 157, 255, 0.3);
+      background: rgba(60, 90, 180, 0.12);
     }
 
     .pill-dr {
-      color: #b0aadd;
-      border-color: rgba(140, 120, 220, 0.3);
-      background: rgba(80, 60, 160, 0.12);
+      color: #c3a8ff;
+      border-color: rgba(176, 112, 255, 0.3);
+      background: rgba(120, 80, 200, 0.12);
     }
 
     .strip-right {
       margin-left: auto;
       font-size: 12.5px;
-      color: #3a5888;
+      color: #645d8e;
       letter-spacing: 0.03em;
     }
   </style>
@@ -221,9 +221,9 @@
     <div class="brand">
       <div class="icon-wrap">
         <div class="icon-halo"></div>
-        <img src="../resources/icon.png" alt="Meridian">
+        <img src="../resources/icon.png" alt="MAGILOOM">
       </div>
-      <div class="app-name">Meridian</div>
+      <div class="app-name">MAGILOOM</div>
       <div class="tagline">DragonRealms Client</div>
     </div>
 
@@ -266,7 +266,7 @@
     <span class="pill pill-react">⚛ React</span>
     <span class="pill pill-ts">TS TypeScript</span>
     <span class="pill pill-dr">DragonRealms</span>
-    <span class="strip-right">github.com/jackfperryjr/meridian</span>
+    <span class="strip-right">github.com/jackfperryjr/magiloom</span>
   </div>
 </body>
 </html>

@@ -1,4 +1,4 @@
-// Meridian avatar service — Supabase Edge Function (the trusted server).
+// Magiloom avatar service — Supabase Edge Function (the trusted server).
 //
 // This is the ONLY place the service_role key lives; it is injected by Supabase
 // at runtime and never ships in the desktop app. The function enforces the

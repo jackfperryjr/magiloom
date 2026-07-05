@@ -414,7 +414,7 @@ export function CharacterBar({
   const avatar = avatars[avatarKey] ?? null
 
   // Shared-avatar publishing is opt-in and only surfaced once the service is
-  // configured (MERIDIAN_AVATAR_URL set); otherwise avatars stay purely local.
+  // configured (MAGILOOM_AVATAR_URL set); otherwise avatars stay purely local.
   const [svcEnabled, setSvcEnabled] = useState(false)
   const [share, setShare] = useState(false)
   useEffect(() => {
@@ -527,7 +527,7 @@ export function CharacterBar({
             {svcEnabled && (
               <label className="avatar-modal-share">
                 <input type="checkbox" checked={share} onChange={onToggleShare} />
-                <span>Share so other Meridian players see this avatar</span>
+                <span>Share so other MAGILOOM players see this avatar</span>
               </label>
             )}
           </div>
@@ -576,7 +576,7 @@ export function StatusBar({ updateSlot }: { updateSlot?: React.ReactNode }) {
   return (
     <div className="status-bar">
       <img src="./icon.png" className="app-icon" alt="" aria-hidden />
-      <span className="app-title">Meridian</span>
+      <span className="app-title">MAGILOOM</span>
       <div className="status-bar-spacer" />
       {updateSlot}
       <WindowControls />

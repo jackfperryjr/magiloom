@@ -1,4 +1,4 @@
-# Meridian avatar service (Supabase)
+# Magiloom avatar service (Supabase)
 
 Stores per-character avatar images and serves them by name.
 
@@ -32,7 +32,7 @@ The project URL is baked into `src/main/avatar-service.ts` as `DEFAULT_SUPABASE_
 project during development or self-hosting, override it:
 
 ```
-MERIDIAN_SUPABASE_URL=https://<some-other-ref>.supabase.co
+MAGILOOM_SUPABASE_URL=https://<some-other-ref>.supabase.co
 ```
 
 To disable the shared service entirely, set `DEFAULT_SUPABASE_URL = ''` — everyone

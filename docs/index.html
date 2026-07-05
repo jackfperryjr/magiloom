@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Meridian — DragonRealms Client</title>
+  <title>MAGILOOM — DragonRealms Client</title>
   <meta name="description" content="A modern Electron client for DragonRealms. Real-time parsing, resizable panels, Lich scripting, custom themes." />
   <link rel="icon" type="image/x-icon" href="./favicon.ico" />
   <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png" />
-  <link rel="apple-touch-icon" sizes="192x192" href="./meridian-192x192.png" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=VT323&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -16,23 +16,26 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:           #04080f;
-      --bg-panel:     #070c1a;
-      --bg-card:      #08101f;
-      --border:       #1a2a4a;
-      --border-hi:    #4a6090;
-      --accent:       #c0d0ff;
-      --accent-glow:  rgba(192, 208, 255, 0.15);
-      --accent-dim:   #0a1228;
-      --text:         #b8c4e0;
-      --text-bright:  #eeeeff;
-      --text-dim:     #3e4e72;
-      --text-muted:   #647ab0;
+      --bg:           #17133a;
+      --bg-panel:     #1e1948;
+      --bg-card:      #221c50;
+      --border:       #322c60;
+      --border-hi:    #544e96;
+      --accent:       #9a95ff;
+      --accent-glow:  rgba(139, 134, 248, 0.26);
+      --accent-dim:   #281f5c;
+      --btn:          #605dd2;
+      --btn-hi:       #706de0;
+      --amber:        #ffab5e;
+      --text:         #c8c4e8;
+      --text-bright:  #f0eeff;
+      --text-dim:     #645d8e;
+      --text-muted:   #8b86cc;
       --green:        #38d838;
       --red:          #dd1818;
-      --blue:         #4080e0;
+      --blue:         #6f9dff;
       --cyan:         #40b8e0;
-      --purple:       #a040e0;
+      --purple:       #b070ff;
       --orange:       #ff5820;
       --gold:         #e0c060;
     }
@@ -78,7 +81,7 @@
       position: fixed;
       top: 0; left: 0; right: 0;
       z-index: 100;
-      background: rgba(4, 8, 15, 0.85);
+      background: rgba(23, 19, 58, 0.82);
       backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
     }
@@ -144,9 +147,10 @@
       position: absolute;
       inset: 0;
       background:
-        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(192,208,255,0.07) 0%, transparent 70%),
-        radial-gradient(ellipse 40% 40% at 20% 80%, rgba(64,128,224,0.06) 0%, transparent 60%),
-        radial-gradient(ellipse 40% 40% at 80% 80%, rgba(160,64,224,0.05) 0%, transparent 60%);
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(150,146,255,0.24) 0%, transparent 70%),
+        radial-gradient(circle 320px at 50% 8%, rgba(255,168,98,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 45% 45% at 18% 82%, rgba(111,157,255,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 45% 45% at 82% 82%, rgba(176,112,255,0.06) 0%, transparent 60%);
       pointer-events: none;
     }
     .hero-badge {
@@ -154,7 +158,7 @@
       align-items: center;
       gap: 6px;
       background: var(--accent-dim);
-      border: 1px solid rgba(192,208,255,0.2);
+      border: 1px solid rgba(139,134,248,0.3);
       border-radius: 100px;
       padding: 5px 14px;
       font-size: 11px;
@@ -181,9 +185,9 @@
       letter-spacing: .08em;
       color: var(--text-bright);
       text-shadow:
-        0 0 40px rgba(192,208,255,0.35),
-        0 0 80px rgba(192,208,255,0.15),
-        2px 2px 0 #060a18;
+        0 0 40px rgba(139,134,248,0.45),
+        0 0 80px rgba(139,134,248,0.20),
+        2px 2px 0 #0c0a1e;
       line-height: 1;
       margin-bottom: 20px;
       position: relative;
@@ -222,11 +226,11 @@
       text-decoration: none !important;
     }
     .btn-primary {
-      background: var(--accent);
-      color: #06090f;
-      box-shadow: 0 0 24px rgba(192,208,255,0.25);
+      background: var(--btn);
+      color: #ffffff;
+      box-shadow: 0 3px 16px rgba(96,93,210,0.40);
     }
-    .btn-primary:hover { background: #d8e4ff; box-shadow: 0 0 36px rgba(192,208,255,0.4); }
+    .btn-primary:hover { background: var(--btn-hi); box-shadow: 0 5px 22px rgba(116,114,234,0.50); }
     .btn-secondary {
       background: transparent;
       color: var(--text);
@@ -266,11 +270,11 @@
       box-shadow:
         0 0 0 1px var(--border),
         0 24px 80px rgba(0,0,0,0.8),
-        0 0 80px rgba(192,208,255,0.06);
+        0 0 80px rgba(139,134,248,0.10);
       position: relative;
     }
     .screenshot-chrome {
-      background: #050a14;
+      background: #0a0818;
       border-bottom: 1px solid var(--border);
       padding: 10px 16px;
       display: flex;
@@ -338,7 +342,7 @@
     }
     .feature-card:hover {
       border-color: var(--border-hi);
-      box-shadow: 0 0 24px rgba(192,208,255,0.06), inset 0 1px 0 rgba(192,208,255,0.05);
+      box-shadow: 0 0 24px rgba(139,134,248,0.10), inset 0 1px 0 rgba(139,134,248,0.06);
       transform: translateY(-2px);
     }
     .feature-icon {
@@ -378,7 +382,7 @@
       font-size: 13px;
     }
     .terminal-bar {
-      background: #050a14;
+      background: #0a0818;
       border-bottom: 1px solid var(--border);
       padding: 9px 14px;
       display: flex;
@@ -422,7 +426,7 @@
     }
     .download-card:hover {
       border-color: var(--border-hi);
-      box-shadow: 0 0 20px rgba(192,208,255,0.05);
+      box-shadow: 0 0 20px rgba(139,134,248,0.08);
     }
     .dl-os-icon { font-size: 28px; line-height: 1; }
     .dl-os-name {
@@ -453,12 +457,12 @@
     }
     .dl-btn:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
     .dl-btn-primary {
-      background: var(--accent);
-      color: #06090f;
-      border-color: var(--accent);
-      box-shadow: 0 0 16px rgba(192,208,255,0.2);
+      background: var(--btn);
+      color: #ffffff;
+      border-color: var(--btn);
+      box-shadow: 0 3px 14px rgba(96,93,210,0.35);
     }
-    .dl-btn-primary:hover { background: #d8e4ff; color: #06090f; box-shadow: 0 0 24px rgba(192,208,255,0.35); }
+    .dl-btn-primary:hover { background: var(--btn-hi); color: #ffffff; border-color: var(--btn-hi); box-shadow: 0 5px 20px rgba(116,114,234,0.45); }
 
     /* ── Two-col layout ── */
     .two-col {
@@ -563,12 +567,12 @@
   <div class="nav-inner">
     <div class="nav-logo">
       <img src="./favicon-32x32.png" alt="" />
-      MERIDIAN
+      MAGILOOM
     </div>
     <div class="nav-links">
       <a href="#features" class="nav-text">Features</a>
       <a href="#download" class="nav-text">Download</a>
-      <a href="https://github.com/jackfperryjr/meridian" class="nav-gh" target="_blank" rel="noopener">
+      <a href="https://github.com/jackfperryjr/magiloom" class="nav-gh" target="_blank" rel="noopener">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
           <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
         </svg>
@@ -584,7 +588,7 @@
     <span class="hero-badge-dot"></span>
     Open Source · Free · DragonRealms
   </div>
-  <h1 class="hero-title">MERIDIAN</h1>
+  <h1 class="hero-title">MAGILOOM</h1>
   <p class="hero-sub">
     A <strong>modern desktop client</strong> for DragonRealms — built with Electron.
     Real-time XML parsing, resizable panels, custom themes, and full Lich scripting support.
@@ -594,11 +598,11 @@
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 12l-4.5-4.5 1.06-1.06L7 9.88V2h2v7.88l2.44-2.44 1.06 1.06L8 12zM2 14h12v-2H2v2z"/></svg>
       Download
     </a>
-    <a href="https://github.com/jackfperryjr/meridian" class="btn btn-secondary" target="_blank" rel="noopener">
+    <a href="https://github.com/jackfperryjr/magiloom" class="btn btn-secondary" target="_blank" rel="noopener">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       View Source
     </a>
-    <a href="https://github.com/jackfperryjr/meridian/blob/main/GUIDE.md" class="btn btn-secondary" target="_blank" rel="noopener">
+    <a href="https://github.com/jackfperryjr/magiloom/blob/main/GUIDE.md" class="btn btn-secondary" target="_blank" rel="noopener">
       Player Guide
     </a>
   </div>
@@ -613,7 +617,7 @@
 <!-- ── Screenshot ────────────────────────────────────────────────────────── -->
 <div class="screenshot-section">
   <div class="screenshot-wrap">
-    <img src="./screenshot-game.png" alt="Meridian game view — real-time output, vitals, room panel, and a conversation panel with player avatars" loading="lazy" />
+    <img src="./screenshot-game.png" alt="MAGILOOM game view — real-time output, vitals, room panel, and a conversation panel with player avatars" loading="lazy" />
   </div>
 </div>
 
@@ -654,7 +658,7 @@
       <div class="feature-card">
         <div class="feature-icon ic-gold">◈</div>
         <h3>Six Themes</h3>
-        <p>Meridian, Bloodstone, Thornwood, Parchment, and Ironforge — or Final Fantasy IV. Each with a full color palette for health, mana, speech, warnings, and more.</p>
+        <p>Default, Bloodstone, Thornwood, Parchment, and Discord — or Final Fantasy IV. Each with a full color palette for health, mana, speech, warnings, and more.</p>
       </div>
 
       <div class="feature-card">
@@ -723,7 +727,7 @@
   <div class="container">
     <div class="section-head">
       <div class="section-label">// download</div>
-      <h2 class="section-title">Get Meridian</h2>
+      <h2 class="section-title">Get MAGILOOM</h2>
       <p class="section-desc">Free and open source. Builds for all platforms are released automatically on every update.</p>
     </div>
     <div class="download-grid">
@@ -734,7 +738,7 @@
           <div class="dl-os-name">Windows</div>
           <div class="dl-os-note">.exe installer · x64</div>
         </div>
-        <a href="https://github.com/jackfperryjr/meridian/releases/latest/download/Meridian-Setup.exe" class="dl-btn dl-btn-primary">
+        <a href="https://github.com/jackfperryjr/magiloom/releases/latest/download/Magiloom-Setup.exe" class="dl-btn dl-btn-primary">
           Download for Windows
         </a>
         <div style="font-size:11px; color:var(--text-dim); line-height:1.5">
@@ -748,11 +752,11 @@
           <div class="dl-os-name">Linux</div>
           <div class="dl-os-note">.AppImage · x64</div>
         </div>
-        <a href="https://github.com/jackfperryjr/meridian/releases/latest/download/Meridian.AppImage" class="dl-btn">
+        <a href="https://github.com/jackfperryjr/magiloom/releases/latest/download/Magiloom.AppImage" class="dl-btn">
           Download for Linux
         </a>
         <div style="font-size:11px; color:var(--text-dim); line-height:1.5">
-          Mark executable: <code style="font-family:'JetBrains Mono',monospace; color:var(--accent)">chmod +x Meridian.AppImage</code>
+          Mark executable: <code style="font-family:'JetBrains Mono',monospace; color:var(--accent)">chmod +x Magiloom.AppImage</code>
         </div>
       </div>
 
@@ -762,7 +766,7 @@
           <div class="dl-os-name">macOS (Apple Silicon)</div>
           <div class="dl-os-note">.dmg · arm64</div>
         </div>
-        <a href="https://github.com/jackfperryjr/meridian/releases/latest/download/Meridian-arm64.dmg" class="dl-btn">
+        <a href="https://github.com/jackfperryjr/magiloom/releases/latest/download/Magiloom-arm64.dmg" class="dl-btn">
           Download for Apple Silicon
         </a>
         <div style="font-size:11px; color:var(--text-dim); line-height:1.5">
@@ -776,7 +780,7 @@
           <div class="dl-os-name">macOS (Intel)</div>
           <div class="dl-os-note">.dmg · x64</div>
         </div>
-        <a href="https://github.com/jackfperryjr/meridian/releases/latest/download/Meridian-x64.dmg" class="dl-btn">
+        <a href="https://github.com/jackfperryjr/magiloom/releases/latest/download/Magiloom-x64.dmg" class="dl-btn">
           Download for Intel
         </a>
         <div style="font-size:11px; color:var(--text-dim); line-height:1.5">
@@ -789,7 +793,7 @@
     <div style="margin-top: 32px; padding: 20px 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-muted); line-height: 1.7;">
       <strong style="color: var(--text); display:block; margin-bottom:6px;">Looking for a specific version?</strong>
       All releases, release notes, and older installers are on the
-      <a href="https://github.com/jackfperryjr/meridian/releases" target="_blank" rel="noopener">GitHub Releases page</a>.
+      <a href="https://github.com/jackfperryjr/magiloom/releases" target="_blank" rel="noopener">GitHub Releases page</a>.
     </div>
   </div>
 </section>
@@ -807,7 +811,7 @@
         <ol style="list-style:none; display:flex; flex-direction:column; gap:16px;">
           <li style="display:flex; gap:14px; align-items:flex-start;">
             <span style="font-family:'VT323',monospace; font-size:20px; color:var(--accent); line-height:1.4; flex-shrink:0;">01</span>
-            <span style="font-size:14px; color:var(--text-muted);">Download and install Meridian for your platform.</span>
+            <span style="font-size:14px; color:var(--text-muted);">Download and install MAGILOOM for your platform.</span>
           </li>
           <li style="display:flex; gap:14px; align-items:flex-start;">
             <span style="font-family:'VT323',monospace; font-size:20px; color:var(--accent); line-height:1.4; flex-shrink:0;">02</span>
@@ -830,7 +834,7 @@
             <span class="chrome-dot" style="background:#febc2e"></span>
             <span class="chrome-dot" style="background:#28c840"></span>
           </div>
-          <img src="./screenshot-login.png" alt="Meridian login screen" loading="lazy" />
+          <img src="./screenshot-login.png" alt="MAGILOOM login screen" loading="lazy" />
         </div>
       </div>
     </div>
@@ -840,15 +844,15 @@
 <!-- ── Footer ─────────────────────────────────────────────────────────────── -->
 <footer>
   <div class="footer-inner">
-    <div class="footer-logo">MERIDIAN</div>
+    <div class="footer-logo">MAGILOOM</div>
     <div class="footer-links">
-      <a href="https://github.com/jackfperryjr/meridian" target="_blank" rel="noopener">GitHub</a>
-      <a href="https://github.com/jackfperryjr/meridian/releases" target="_blank" rel="noopener">Releases</a>
-      <a href="https://github.com/jackfperryjr/meridian/blob/main/GUIDE.md" target="_blank" rel="noopener">Guide</a>
-      <a href="https://github.com/jackfperryjr/meridian/issues" target="_blank" rel="noopener">Issues</a>
+      <a href="https://github.com/jackfperryjr/magiloom" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/jackfperryjr/magiloom/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://github.com/jackfperryjr/magiloom/blob/main/GUIDE.md" target="_blank" rel="noopener">Guide</a>
+      <a href="https://github.com/jackfperryjr/magiloom/issues" target="_blank" rel="noopener">Issues</a>
     </div>
     <p class="footer-disclaimer">
-      Meridian is an independent, unofficial client. DragonRealms is a registered trademark of Simutronics Corp.
+      MAGILOOM is an independent, unofficial client. DragonRealms is a registered trademark of Simutronics Corp.
       This project is not affiliated with or endorsed by Simutronics.
     </p>
   </div>

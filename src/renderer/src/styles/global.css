@@ -1,29 +1,38 @@
 /* ── Reset ────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Custom scrollbars — thin, rounded pill thumbs. Styled via the webkit
+   pseudo-elements only; the standard scrollbar-width/scrollbar-color props are
+   avoided app-wide because in modern Chromium they suppress ::-webkit-scrollbar
+   and can't be given a border-radius. */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
 /* ── Design tokens ────────────────────────────────────────────────────────── */
 :root {
-  /* Backgrounds — deep midnight navy */
-  --bg-shell:      #04080f;
-  --bg-panel:      #070c1a;
-  --bg-input:      #050810;
-  --bg-sidebar:    #060a14;
-  --bg-overlay:    rgba(2, 4, 10, 0.92);
+  /* Backgrounds — deep indigo (matches the Default theme) */
+  --bg-shell:      #1a1540;
+  --bg-panel:      #221c50;
+  --bg-input:      #15103a;
+  --bg-sidebar:    #1d1848;
+  --bg-overlay:    rgba(10, 8, 24, 0.92);
 
   /* Borders */
-  --border:        #4a6090;
-  --border-soft:   #0e1a38;
-  --border-accent: #c0d0ff;
+  --border:        #544e96;
+  --border-soft:   #2c2658;
+  --border-accent: #9a95ff;
 
   /* Text */
-  --text-main:     #b8c4e0;
-  --text-dim:      #3e4e72;
-  --text-bright:   #eeeeff;
-  --text-muted:    #647ab0;
+  --text-main:     #c8c4e8;
+  --text-dim:      #645d8e;
+  --text-bright:   #f0eeff;
+  --text-muted:    #8b86cc;
 
   /* Game presets */
   --color-roomname:  #ffffff;
-  --color-roomdesc:  #9aa8c8;
+  --color-roomdesc:  #a29ecc;
   --color-speech:    #58e058;
   --color-whisper:   #6f9dff;
   --color-thought:   #e058d8;
@@ -39,13 +48,13 @@
   --spirit-color:    #8828b8;
 
   /* Accent */
-  --accent:          #c0d0ff;
-  --accent-glow:     rgba(192, 208, 255, 0.18);
-  --accent-dim:      #0a1228;
+  --accent:          #9a95ff;
+  --accent-glow:     rgba(139, 134, 248, 0.24);
+  --accent-dim:      #241d54;
 
   /* Scrollbar */
-  --scrollbar:       #0e1a38;
-  --scrollbar-hover: #182848;
+  --scrollbar:       #2c2658;
+  --scrollbar-hover: #3a3470;
 
   /* Typography */
   --font-game:       'VT323', 'Consolas', monospace;
@@ -173,8 +182,8 @@ body[data-platform="darwin"] .status-bar {
   font-family: var(--font-pixel);
   font-size: 9px;
   letter-spacing: .1em;
-  color: #c0d0ff;
-  text-shadow: 0 0 8px rgba(192, 208, 255, 0.4), 2px 2px 0 #060a18;
+  color: #9a95ff;
+  text-shadow: 0 0 8px rgba(139, 134, 248, 0.4), 2px 2px 0 #0c0a1e;
   user-select: none;
 }
 
@@ -374,8 +383,6 @@ body[data-platform="darwin"] .status-bar {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar) transparent;
 }
 .panel-sidebar-scroll::-webkit-scrollbar { width: 4px; }
 .panel-sidebar-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar); }
@@ -419,7 +426,7 @@ body[data-platform="darwin"] .status-bar {
   border-radius: 12px;
   box-shadow:
     inset 0 0 0 2px var(--bg-input),
-    inset 0 0 0 3px rgba(192, 208, 255, 0.06),
+    inset 0 0 0 3px rgba(139, 134, 248, 0.06),
     0 0 0 1px var(--border-soft),
     0 6px 20px rgba(0, 0, 0, 0.7);
   overflow: hidden;
@@ -433,7 +440,7 @@ body[data-platform="darwin"] .status-bar {
   justify-content: space-between;
   padding: 4px 10px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(192, 208, 255, 0.05) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(139, 134, 248, 0.05) 0%, transparent 100%);
 }
 
 .panel-title {
@@ -553,8 +560,6 @@ body[data-platform="darwin"] .status-bar {
   line-height: var(--line-height-game);
   color: var(--text-main);
   scroll-behavior: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar) transparent;
 }
 .game-output::-webkit-scrollbar { width: 6px; }
 .game-output::-webkit-scrollbar-track { background: transparent; }
@@ -702,8 +707,6 @@ body[data-platform="darwin"] .status-bar {
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65);
   max-height: 260px;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar) transparent;
 }
 
 /* Verb-info detail panel (above the suggestion list) */
@@ -715,8 +718,6 @@ body[data-platform="darwin"] .status-bar {
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65);
   max-height: 220px;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar) transparent;
 }
 .cmd-verbinfo-title {
   font-family: var(--font-ui);
@@ -1228,39 +1229,40 @@ body[data-platform="darwin"] .status-bar {
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(ellipse at 20% 80%, rgba(8, 18, 48, 0.8) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(8, 20, 40, 0.6) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, #080e20 0%, #04080f 60%, #020408 100%);
+    radial-gradient(ellipse 80% 62% at 50% 32%, rgba(150, 146, 255, 0.45) 0%, transparent 66%),
+    radial-gradient(circle 260px at 50% 29%, rgba(255, 168, 98, 0.14) 0%, transparent 70%),
+    radial-gradient(ellipse at 50% 58%, #38327c 0%, #272156 48%, #181240 100%);
   position: relative;
   overflow: hidden;
 }
 
-.login-watermark {
-  position: absolute;
-  width: 520px;
-  height: 520px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  opacity: 0.05;
-  pointer-events: none;
-  user-select: none;
-}
-
 .login-card {
   width: 360px;
-  background: var(--bg-panel);
-  border: 3px solid #c0d0ff;
+  background: linear-gradient(180deg, #251f5a 0%, #1c1648 100%);
+  border: none;
+  border-radius: 16px;
   box-shadow:
-    inset 0 0 0 2px var(--bg-input),
-    inset 0 0 0 3px rgba(192, 208, 255, 0.06),
-    0 0 0 1px #0e1a38,
-    0 20px 60px rgba(0, 0, 0, 0.85),
-    0 0 80px rgba(160, 200, 255, 0.04);
-  padding: 32px 28px;
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 20px 55px rgba(8, 6, 26, 0.55);
+  padding: 26px 28px 30px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.login-hero {
+  align-self: center;
+  width: 76px;
+  height: 76px;
+  margin-bottom: -6px;
+  filter:
+    drop-shadow(0 0 13px rgba(255, 162, 92, 0.45))
+    drop-shadow(0 0 28px rgba(139, 134, 248, 0.45));
+  animation: login-hero-glow 4.5s ease-in-out infinite;
+}
+@keyframes login-hero-glow {
+  0%, 100% { filter: drop-shadow(0 0 11px rgba(255, 162, 92, 0.35)) drop-shadow(0 0 24px rgba(139, 134, 248, 0.40)); }
+  50%      { filter: drop-shadow(0 0 18px rgba(255, 172, 104, 0.55)) drop-shadow(0 0 40px rgba(139, 134, 248, 0.58)); }
 }
 
 .login-logo {
@@ -1269,20 +1271,20 @@ body[data-platform="darwin"] .status-bar {
   font-size: 18px;
   letter-spacing: .1em;
   color: #ffffff;
-  text-shadow: 0 0 20px rgba(180, 210, 255, 0.5), 3px 3px 0 #080e20;
+  text-shadow: 0 0 22px rgba(139, 134, 248, 0.65), 0 2px 0 rgba(255, 255, 255, 0.14), 3px 3px 0 #0c0a1e;
 }
 .login-logo-sub {
   text-align: center;
   font-size: 13px;
   letter-spacing: .15em;
-  color: var(--text-dim);
+  color: #7d78c4;
   text-transform: uppercase;
   margin-top: -4px;
   font-family: var(--font-ui);
 }
 .login-screen-title {
   font-size: 15px;
-  color: #c8d8ff;
+  color: #cbc6ff;
   text-align: center;
   letter-spacing: .06em;
   font-family: var(--font-ui);
@@ -1302,59 +1304,68 @@ body[data-platform="darwin"] .status-bar {
 }
 
 .login-input {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  color: var(--text-bright);
+  background: #14103a;
+  border: 1px solid #453f80;
+  border-radius: 8px;
+  color: #eeecff;
   font-family: var(--font-game);
   font-size: 16px;
   padding: 7px 10px;
   outline: none;
-  transition: border-color .1s;
+  transition: border-color .1s, box-shadow .1s;
 }
 .login-input:focus {
-  border-color: #c0d0ff;
-  box-shadow: 0 0 0 1px rgba(192, 208, 255, 0.12);
+  border-color: #8b86f8;
+  box-shadow: 0 0 0 1px rgba(139, 134, 248, 0.20), 0 0 14px rgba(124, 120, 232, 0.18);
 }
 .login-input-mono { font-family: var(--font-game); }
 
 .login-btn {
-  padding: 9px;
-  border: 3px solid #c0d0ff;
-  background: linear-gradient(180deg, #0e1428 0%, #060a18 100%);
-  box-shadow: inset 0 0 0 1px var(--bg-input);
-  color: #c8d8ff;
+  padding: 11px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #615ed0 0%, #4f4bbe 100%);
+  box-shadow: 0 3px 10px rgba(14, 10, 40, 0.50);
+  color: #ffffff;
   font-size: 15px;
   font-family: var(--font-ui);
   cursor: pointer;
   letter-spacing: .08em;
-  transition: background .1s, border-color .1s, color .1s;
+  transition: background .1s, color .1s, box-shadow .1s;
   width: 100%;
 }
 .login-btn:hover {
-  background: linear-gradient(180deg, #182038 0%, #0c1228 100%);
-  border-color: #ffffff;
+  background: linear-gradient(180deg, #706de0 0%, #5b58ce 100%);
   color: #ffffff;
+  box-shadow: 0 5px 16px rgba(116, 114, 234, 0.45);
 }
 .login-btn:active { filter: brightness(0.85); }
 .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .login-btn-secondary {
-  padding: 7px;
-  border: 1px solid var(--border-soft);
-  background: transparent;
-  color: var(--text-dim);
+  padding: 9px;
+  border: none;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #615ed0 0%, #4f4bbe 100%);
+  box-shadow: 0 3px 10px rgba(14, 10, 40, 0.50);
+  color: #ffffff;
   font-size: 14px;
   font-family: var(--font-ui);
   cursor: pointer;
-  transition: color .1s, border-color .1s;
+  transition: color .1s, box-shadow .1s, background .1s;
   width: 100%;
 }
-.login-btn-secondary:hover { color: var(--text-main); border-color: var(--border); }
+.login-btn-secondary:hover {
+  color: #ffffff;
+  background: linear-gradient(180deg, #706de0 0%, #5b58ce 100%);
+  box-shadow: 0 5px 16px rgba(116, 114, 234, 0.45);
+}
 
 .login-hint { font-size: 13px; color: var(--text-dim); line-height: 1.5; text-align: center; font-family: var(--font-ui); }
 .login-error {
   font-size: 13px; color: var(--color-warning);
   background: rgba(255, 88, 32, 0.08); border: 1px solid rgba(255, 88, 32, 0.3);
+  border-radius: 8px;
   padding: 8px 12px; text-align: center; font-family: var(--font-ui);
 }
 
@@ -1366,7 +1377,8 @@ body[data-platform="darwin"] .status-bar {
 }
 .login-connecting-dots span {
   width: 6px; height: 6px;
-  background: var(--accent);
+  background: #8b86f8;
+  box-shadow: 0 0 8px rgba(139, 134, 248, 0.6);
   animation: pulse-dot 1.2s ease-in-out infinite;
 }
 .login-connecting-dots span:nth-child(2) { animation-delay: .2s; }
@@ -1386,7 +1398,6 @@ body[data-platform="darwin"] .status-bar {
   max-height: 160px;
   overflow-y: auto;
   line-height: 1.35;
-  scrollbar-width: thin;
 }
 .login-log-error { color: var(--color-warning); }
 
@@ -1394,8 +1405,9 @@ body[data-platform="darwin"] .status-bar {
 .login-char-btn {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 14px;
-  background: var(--bg-input);
-  border: 1px solid #1e2e50;
+  background: #191545;
+  border: 1px solid #3a3470;
+  border-radius: 9px;
   color: var(--text-main);
   font-size: 15px;
   font-family: var(--font-ui);
@@ -1404,15 +1416,15 @@ body[data-platform="darwin"] .status-bar {
   width: 100%;
   text-align: left;
 }
-.login-char-btn:hover { border-color: #c0d0ff; background: rgba(160, 200, 255, 0.04); }
+.login-char-btn:hover { border-color: #8b86f8; background: rgba(139, 134, 248, 0.06); }
 
 .login-account-info { display: flex; flex-direction: column; gap: 2px; }
 .login-account-name { font-weight: 400; }
 .login-account-last {
-  font-size: 12px; color: #90a8d8; letter-spacing: .06em;
+  font-size: 12px; color: #ffffff; letter-spacing: .06em;
   text-transform: uppercase; font-family: var(--font-ui);
 }
-.login-account-arrow { color: var(--text-dim); }
+.login-account-arrow { color: #6f6aa8; }
 .login-account-actions {
   display: flex;
   align-items: center;
@@ -1428,14 +1440,15 @@ body[data-platform="darwin"] .status-bar {
   border-radius: 3px;
 }
 .login-account-btn:hover .login-account-forget { opacity: 0.45; }
-.login-account-forget:hover { opacity: 1 !important; background: var(--accent-dim); }
+.login-account-forget:hover { opacity: 1 !important; background: rgba(139, 134, 248, 0.16); }
 
 .login-accounts-list { display: flex; flex-direction: column; gap: 4px; }
 .login-account-btn {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 12px;
-  background: var(--bg-input);
-  border: 1px solid #1e2e50;
+  background: #191545;
+  border: 1px solid #3a3470;
+  border-radius: 9px;
   color: var(--text-main);
   font-size: 14px;
   font-family: var(--font-ui);
@@ -1443,7 +1456,7 @@ body[data-platform="darwin"] .status-bar {
   transition: border-color .1s, background .1s;
   width: 100%;
 }
-.login-account-btn:hover { border-color: #c0d0ff; background: rgba(160, 200, 255, 0.04); }
+.login-account-btn:hover { border-color: #8b86f8; background: rgba(139, 134, 248, 0.07); }
 
 /* ── Modals ───────────────────────────────────────────────────────────────── */
 .modal-overlay {
@@ -1490,6 +1503,30 @@ body[data-platform="darwin"] .status-bar {
   padding: 10px 16px; border-top: 1px solid var(--border); flex-shrink: 0;
 }
 .modal-footer .login-btn, .modal-footer .login-btn-secondary { width: auto; }
+
+/* Footer buttons follow the active theme (not the fixed login periwinkle) */
+.modal-footer .login-btn {
+  background: var(--accent);
+  color: var(--bg-shell);
+  border: none;
+  box-shadow: 0 3px 10px var(--accent-glow);
+}
+.modal-footer .login-btn:hover {
+  background: var(--accent);
+  filter: brightness(1.12);
+  box-shadow: 0 5px 16px var(--accent-glow);
+}
+.modal-footer .login-btn-secondary {
+  background: var(--accent-dim);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  box-shadow: none;
+}
+.modal-footer .login-btn-secondary:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--text-bright);
+}
 
 /* Tabbed settings (Discord-style left nav) */
 .settings-modal { width: 780px; height: 620px; max-height: 86vh; }
@@ -1565,7 +1602,6 @@ body[data-platform="darwin"] .status-bar {
 .hl-body {
   flex: 1; overflow-y: auto; padding: 12px 14px 20px;
   display: flex; flex-direction: column; gap: 4px;
-  scrollbar-width: thin; scrollbar-color: var(--scrollbar) transparent;
 }
 .hl-empty-msg { color: var(--text-dim); font-size: 14px; text-align: center; padding: 24px 0; font-family: var(--font-ui); }
 .hl-row {
@@ -1738,7 +1774,7 @@ body[data-platform="darwin"] .status-bar {
 .panel-empty { font-size: 14px; color: var(--text-dim); font-style: italic; padding: 4px 0; font-family: var(--font-game); }
 
 /* Scrollable panel body */
-.panel-content-scroll { overflow-y: auto; max-height: 220px; scrollbar-width: thin; scrollbar-color: var(--scrollbar) transparent; }
+.panel-content-scroll { overflow-y: auto; max-height: 220px; }
 .panel-content-scroll::-webkit-scrollbar { width: 4px; }
 .panel-content-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar); }
 
@@ -1862,7 +1898,7 @@ body[data-platform="darwin"] .status-bar {
   padding: 0.1rem 0.25rem;
   margin-top: 0.3rem;
   margin-bottom: 0.15rem;
-  background: rgba(192, 208, 255, 0.03);
+  background: rgba(139, 134, 248, 0.03);
   border-radius: 2px;
 }
 .game-line.exp-header {
@@ -1873,7 +1909,7 @@ body[data-platform="darwin"] .status-bar {
 .game-line.exp-meta {
   margin-top: 0.3rem;
   padding: 0.2rem 0.15rem;
-  background: rgba(192, 208, 255, 0.05);
+  background: rgba(139, 134, 248, 0.05);
   border-radius: 3px;
 }
 
@@ -1881,7 +1917,7 @@ body[data-platform="darwin"] .status-bar {
   padding: 0.1rem 0.25rem;
   margin-top: 0.3rem;
   margin-bottom: 0.15rem;
-  background: rgba(192, 208, 255, 0.02);
+  background: rgba(139, 134, 248, 0.02);
   border-radius: 2px;
 }
 
@@ -1988,7 +2024,7 @@ body[data-platform="darwin"] .status-bar {
   font-family: var(--font-ui);
   letter-spacing: 0.03em;
   white-space: nowrap;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.8), 0 0 0 1px rgba(192,208,255,0.04);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.8), 0 0 0 1px rgba(139,134,248,0.04);
   animation: tooltip-in 0.12s ease;
 }
 @keyframes tooltip-in {
@@ -2040,5 +2076,5 @@ body[data-platform="darwin"] .status-bar {
   font-family: var(--font-ui);
   color: var(--text-main);
 }
-.panel-ctx-item:hover { background: rgba(192,208,255,0.08); }
+.panel-ctx-item:hover { background: rgba(139,134,248,0.08); }
 .hand-sep   { color: var(--border); flex-shrink: 0; }
