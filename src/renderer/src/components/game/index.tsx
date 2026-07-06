@@ -619,7 +619,16 @@ export function StatusBar({ updateSlot }: { updateSlot?: React.ReactNode }) {
         <button
           className="titlebar-help"
           onClick={() => window.dr.app.openExternal('https://github.com/jackfperryjr/magiloom/blob/main/GUIDE.md')}
-        >?</button>
+        >
+          <svg className="titlebar-help-icon" viewBox="0 0 20 20" aria-hidden="true">
+            <mask id="titlebar-help-cutout">
+              <circle cx="10" cy="10" r="10" fill="#fff" />
+              <text x="10" y="15" textAnchor="middle" fontFamily="system-ui, sans-serif"
+                fontSize="14" fontWeight="700" fill="#000">?</text>
+            </mask>
+            <rect width="20" height="20" fill="currentColor" mask="url(#titlebar-help-cutout)" />
+          </svg>
+        </button>
       </Tooltip>
       {updateSlot}
       {window.dr.app.platform !== 'darwin' && <div className="titlebar-sep" />}
