@@ -7,7 +7,12 @@ import { ATMO_MESSAGES } from './atmospherics.generated'
 // The bulk list in ./atmospherics.generated.ts is produced by
 // scripts/scrape-atmospherics.js (re-run periodically to refresh). Add anything
 // the wiki is missing to MANUAL below; both are matched the same way.
-const MANUAL: string[] = []
+const MANUAL: string[] = [
+  // Observed in-game but not (yet) documented on Elanthipedia. Use <Player> for
+  // the owner so the pattern matches any character in the room.
+  "The dwalgim on <Player>'s crown pulses with a soft light.",
+  "The eyes of <Player>'s monk pendant flash white for a moment.",
+]
 
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim()
 

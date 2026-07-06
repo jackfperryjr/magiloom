@@ -204,7 +204,9 @@ function HandDisplay() {
 }
 
 // ── Posture / status indicators ──────────────────────────────────────────────
-const POSTURE_IDS = new Set(['standing', 'kneeling', 'sitting', 'prone', 'lying'])
+// 'hidden' isn't a body posture, but it's grouped here so it gets the same
+// yellow/black posture-pill styling and sorts to the front with the postures.
+const POSTURE_IDS = new Set(['standing', 'kneeling', 'sitting', 'prone', 'lying', 'hidden'])
 const DANGER_IDS  = new Set(['dead', 'stunned', 'bleeding', 'poisoned', 'diseased', 'webbed'])
 
 // Show posture first, then everything else; skip flags that add no signal.

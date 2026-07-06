@@ -1,8 +1,10 @@
 import { useAtomValue } from 'jotai'
 import { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react'
-import { outputLinesAtom, type OutputLine } from '../../store/game'
+import { outputLinesAtom, avatarsAtom, serverAvatarsAtom, selfNameAtom, type OutputLine } from '../../store/game'
 import { parseExpSkills, type ParsedExpSkill } from '../../lib/exp-parser'
 import type { LinkSpan } from '../../lib/sge-parser'
+import { resolveAvatarSrc } from '../../lib/avatar'
+import { useEnsureAvatars } from '../../hooks/useAvatars'
 import type { Highlight } from '../ui/HighlightsModal'
 
 // ── Exp skill line helpers ────────────────────────────────────────────────────
@@ -115,7 +117,29 @@ function buildSpans(text: string, links: LinkSpan[], bolds: string[]): React.Rea
   return parts
 }
 
+// LOOK-at-player portrait card: avatar on the left, description text on the right.
+// Uses hooks (so only this rare card re-renders when avatars load); ensures the
+// server-backed avatar for the name is fetched, then resolves custom → letter.
+function LookCard({ name, lines }: { name: string; lines: string[] }) {
+  const avatars       = useAtomValue(avatarsAtom)
+  const serverAvatars = useAtomValue(serverAvatarsAtom)
+  const self          = useAtomValue(selfNameAtom)
+  useEnsureAvatars([name])
+  const src = resolveAvatarSrc(name, avatars, serverAvatars, self)
+  return (
+    <div className="game-line look-card" data-copy-text={lines.join('\n')}>
+      <img className="look-avatar" src={src} alt={name} />
+      <div className="look-card-text">
+        {lines.map((l, i) => <div key={i} className="look-card-line">{l}</div>)}
+      </div>
+    </div>
+  )
+}
+
 function GameLine({ line, highlights }: { line: OutputLine; highlights: Highlight[] }) {
+  // LOOK-at-player block: portrait (avatar) beside the description text
+  if (line.look) return <LookCard name={line.look.name} lines={line.look.lines} />
+
   // Chunk separator — a blank line's worth of space between command responses
   if (line.separator) return <div className="game-separator" aria-hidden />
 
