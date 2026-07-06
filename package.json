@@ -42,7 +42,8 @@
       "output": "dist"
     },
     "extraResources": [
-      { "from": "resources/update.html", "to": "update.html" }
+      { "from": "resources/update.html", "to": "update.html" },
+      { "from": "resources/icon.png", "to": "icon.png" }
     ],
     "publish": {
       "provider": "github",

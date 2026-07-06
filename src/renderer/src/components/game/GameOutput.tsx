@@ -45,6 +45,7 @@ const PRESET_CLASS: Record<string, string> = {
   bonus:          'preset-bonus',
   penalty:        'preset-penalty',
   warning:        'preset-warning',
+  mono:           'preset-mono',
 }
 
 function matchHighlight(text: string, highlights: Highlight[]): Highlight | null {
