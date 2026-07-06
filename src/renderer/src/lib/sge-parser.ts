@@ -24,7 +24,7 @@ export interface LinkSpan {
 }
 
 export type GameEvent =
-  | { type: 'text';      text: string;   styles: TextStyle[]; stream: StreamId; links?: LinkSpan[] }
+  | { type: 'text';      text: string;   styles: TextStyle[]; stream: StreamId; links?: LinkSpan[]; bolds?: string[] }
   | { type: 'roomName';  name: string }
   | { type: 'roomDesc';  description: string }
   | { type: 'roomExits'; exits: string[] }
@@ -66,6 +66,7 @@ let _preXmlPhase        = true   // true until the first XML line arrives after 
 let _inInitialInventory = false  // suppress initial container dump until --- separator
 let _shopDetailBuf = ''  // accumulate SHOP item details across lines
 let _monoMode = false    // inside <output class="mono">…<output class=""> — render ASCII verbatim (guild registers, maps, tables)
+let _lastRoomName = ''   // dedup: both the id='main' and id='room' streamWindows carry the same subtitle
 
 export function resetParser(): void {
   _stream             = 'main'
@@ -90,6 +91,7 @@ export function resetParser(): void {
   _inInitialInventory = false
   _shopDetailBuf      = ''
   _monoMode           = false
+  _lastRoomName       = ''
 }
 
 function decodeEntities(s: string): string {
@@ -130,13 +132,19 @@ export function parseLine(raw: string): GameEvent[] {
   let inLink = false
   let linkCmd = ''
   let linkBuf = ''
+  // Inline bold (<pushBold>/<bold>): accumulate the emphasized substring so it
+  // stays on the same line as its surrounding text (like links do), instead of
+  // flushing and splitting the sentence across separate output lines.
+  let bolds: string[] = []
+  let inBold  = false
+  let boldBuf = ''
 
   const flush = (forcePreset?: string) => {
     // Inside an exp component the buf must survive intermediate style tags
     // (</preset>, </bold>, etc.) so /component can parse the full abbrev+data.
     // The <d> link text has already been appended to buf via buf+=linkBuf in </d>,
     // so we only need to discard the stale link ref.
-    if (_inExpSkill) { links = []; return }
+    if (_inExpSkill) { links = []; bolds = []; return }
 
     let text = buf.replace(/[\r\n]+/g, ' ').replace(/  +/g, ' ').trim()
     buf = ''
@@ -144,6 +152,8 @@ export function parseLine(raw: string): GameEvent[] {
     const s  = forcePreset ? [{ preset: forcePreset }] : [...styles]
     const ls = links.length > 0 ? [...links] : undefined
     links = []
+    const bs = bolds.length > 0 ? [...bolds] : undefined
+    bolds = []
 
     // Handle SHOP item detail buffering
     const isShopDetail = /(Short|Tap|Worn|Cost|Look|Read):/i.test(text)
@@ -224,7 +234,13 @@ export function parseLine(raw: string): GameEvent[] {
       }
       return
     }
-    events.push({ type: 'text', text, styles: s, stream: _stream, links: ls })
+    // The room text render's exits line ("Obvious paths: <d>south</d>.") arrives
+    // via the XML path with no preset — style it like the panel exits for parity.
+    if (s.length === 0 && /^Obvious\s+paths?\b/i.test(text)) {
+      events.push({ type: 'text', text, styles: [{ preset: 'roomexits' }], stream: _stream, links: ls })
+      return
+    }
+    events.push({ type: 'text', text, styles: s, stream: _stream, links: ls, bolds: bs })
   }
 
   // ── Plain-text line (no XML) ───────────────────────────────────────────────
@@ -374,7 +390,7 @@ export function parseLine(raw: string): GameEvent[] {
     if (textNode !== undefined) {
       const decoded = decodeEntities(textNode)
       if (inLink) linkBuf += decoded
-      else buf += decoded
+      else { buf += decoded; if (inBold) boldBuf += decoded }
       continue
     }
     if (!tag) continue
@@ -498,16 +514,11 @@ export function parseLine(raw: string): GameEvent[] {
               ? exitLinks.map(l => l.cmd.replace('go ', ''))
               : textExits
             events.push({ type: 'roomExits', exits: allExits })
-            _suppressExits = true  // suppress duplicate plain-text exits
-            // Build synthetic links from text exits if no <d> tags present
-            const finalLinks = exitLinks.length > 0
-              ? exitLinks
-              : allExits.map(dir => ({ text: dir, cmd: dir }))
-            events.push({
-              type: 'text', text: raw2,
-              styles: [{ preset: 'roomexits' }], stream: 'main',
-              links: finalLinks.length > 0 ? finalLinks : undefined
-            })
+            // Feed the room panel only. The flowing text render that follows
+            // (the trailing "Obvious paths: <d>…</d>." line) supplies the single
+            // scroll line, in natural order after the name/desc/objs. Emitting a
+            // line here too would show exits twice and above the room name.
+            _suppressExits = true  // suppress any plain-text exits duplicate
           }
           styles = []
         } else if (_inRoomObjs) {
@@ -687,7 +698,17 @@ export function parseLine(raw: string): GameEvent[] {
         flush()
         _preXmlPhase = false
         _inInitialInventory = false
+        // A prompt ends the current server message. DR opens streams with
+        // <pushStream id="combat"/> etc. but never sends a matching popStream, so
+        // without this reset the stream would stay stuck (e.g. every line after a
+        // combat hit — room arrivals, prompts — would keep routing to combat).
+        _stream = 'main'
         events.push({ type: 'prompt', time: parseInt(attrs['time'] ?? '0', 10) })
+        break
+      case '/prompt':
+        // Discard the prompt indicator text (">", "R>", etc.) — it's a UI marker,
+        // not output. (Only bare ">" was being dropped by flush() before.)
+        buf = ''
         break
 
       // ── Styled text ───────────────────────────────────────────────────────
@@ -697,11 +718,18 @@ export function parseLine(raw: string): GameEvent[] {
       case '/style':  flush(); styles = []; break
       case 'color':   flush(); styles = attrs['fg'] ? [{ color: attrs['fg'] }] : []; break
       case '/color':  flush(); styles = []; break
-      case 'bold':    flush(); styles = [{ bold: true }]; break
-      case '/bold':   flush(); styles = []; break
-      case 'pushbold': flush(); styles = [{ bold: true }]; break
+      // Bold is inline emphasis (creatures, nouns) — keep it on the same line as
+      // its surrounding text by accumulating the substring rather than flushing.
+      case 'bold':
+      case 'pushbold':
+        inBold = true; boldBuf = ''; break
+      case '/bold':
       case 'popbold':
-      case '/pushbold': flush(); styles = []; break
+      case '/pushbold': {
+        const b = boldBuf.replace(/[\r\n]+/g, ' ').replace(/  +/g, ' ').trim()
+        if (inBold && b) bolds.push(b)
+        inBold = false; boldBuf = ''; break
+      }
 
       // ── Container inventory dump — suppress from main output always ──────────
       case 'exposecontainer': {
@@ -727,9 +755,12 @@ export function parseLine(raw: string): GameEvent[] {
         flush()
         const subtitle = attrs['subtitle'] ?? ''
         if (subtitle.startsWith(' - ')) {
-          const roomName = subtitle.slice(3)  // Remove " - " prefix
-          if (roomName.trim()) {
-            events.push({ type: 'roomName', name: roomName.trim() })
+          const roomName = subtitle.slice(3).trim()  // Remove " - " prefix
+          // A room feed carries this subtitle on both the id='main' and id='room'
+          // streamWindows — emit the name only once per distinct room.
+          if (roomName && roomName !== _lastRoomName) {
+            _lastRoomName = roomName
+            events.push({ type: 'roomName', name: roomName })
           }
         }
         break

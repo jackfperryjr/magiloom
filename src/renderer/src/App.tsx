@@ -18,9 +18,10 @@ import {
   echoCommandAtom, beginSilentExpAtom, lichMsgAtom, tickAtom,
   combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom, inventoryLinesAtom,
   verbRawAtom, beginVerbCapture, endVerbCapture,
-  avatarsAtom, selfNameAtom,
+  avatarsAtom, selfNameAtom, resetSessionAtom,
 } from './store/game'
-import { applyTheme, DEFAULT_HIGHLIGHTS } from './lib/themes'
+import { DEFAULT_HIGHLIGHTS } from './lib/themes'
+import { loadCharAppearance, applyAppearance } from './lib/charSettings'
 import { IconArrowDownTray, IconArrowPath, IconExclamationTriangle } from './components/ui/Icons'
 import { Tooltip } from './components/ui/Tooltip'
 import './styles/global.css'
@@ -98,6 +99,18 @@ function LichLogPanel({ lines, status }: { lines: string[]; status: LichStatus }
 // ── Game layout ───────────────────────────────────────────────────────────────
 function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, updateSlot }: { charName: string; accountName: string; onOpenSettings: () => void; onRequestConnect: () => void; updateSlot: React.ReactNode }) {
   const { status, disconnect, send } = useGameConnection()
+  // Wipe all per-character live state when the active character changes (a
+  // character switch via the reconnect overlay keeps GameLayout mounted, so
+  // nothing else clears the previous character's panels/room/vitals/profile).
+  // Runs before the setSelfName effect below so selfName ends on the new name,
+  // and skips the first mount so it never wipes the initial login's data.
+  const resetSession = useSetAtom(resetSessionAtom)
+  const prevCharRef  = useRef<string | null>(null)
+  useEffect(() => {
+    const prev = prevCharRef.current
+    prevCharRef.current = charName
+    if (prev !== null && prev !== charName) resetSession()
+  }, [charName, resetSession])
   // Register send fn for clickable links
   useEffect(() => { setSendFn(send) }, [send])
   // Register player name so the output can flag @mentions of this character
@@ -187,14 +200,10 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
     }
   }, [lichMsgs])
 
-  // Load settings + apply theme/font/highlights on mount
+  // Load global settings (highlights / function keys / avatars / buffer) on
+  // mount. Appearance is per-character and applied in the effect below.
   useEffect(() => {
     window.dr.settings.getAll().then(s => {
-      if (s.fontSize)   document.documentElement.style.setProperty('--font-size-game', `${s.fontSize}px`)
-      if (s.fontFamily) document.documentElement.style.setProperty('--font-game', `'${s.fontFamily}', monospace`)
-      if (s.theme)            applyTheme(s.theme)
-      document.documentElement.dataset.density = s.density === 'compact' ? 'compact' : 'cozy'
-      if (s.timestamps)       setShowTimestamps(s.timestamps)
       if (s.outputBufferSize) setOutputBuffer(s.outputBufferSize)
       if (s.functionKeys)     setFunctionKeys(s.functionKeys)
       if (s.avatars)          setAvatars(s.avatars)
@@ -207,6 +216,14 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
     })
     window.dr.lich.detectPath().then(() => {})
   }, [])
+
+  // Apply this character's appearance (theme / font / density / timestamps),
+  // reloading whenever the active character changes. A character with nothing
+  // saved falls back to app defaults.
+  useEffect(() => {
+    if (!charName) return
+    applyAppearance(loadCharAppearance(charName), setShowTimestamps)
+  }, [charName])
 
   useEffect(() => {
     const unsubs = [
@@ -293,7 +310,7 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
           </footer>
         </div>
         <ColResize onDrag={handleColDrag} />
-        <PanelSidebar renderPanel={renderPanelWithLich} getClearFn={getClearFn} sidebarWidth={sidebarWidth} />
+        <PanelSidebar renderPanel={renderPanelWithLich} getClearFn={getClearFn} sidebarWidth={sidebarWidth} charName={charName} />
       </div>
       {showHighlights && <HighlightsModal onClose={handleHighlightsClose} />}
       <NotificationCenter charName={charName} status={status} />
@@ -377,7 +394,7 @@ function AppInner() {
           <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} />
         </div>
       )}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsModal charName={charName} onClose={() => setShowSettings(false)} />}
     </>
   )
 }

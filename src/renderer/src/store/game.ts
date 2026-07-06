@@ -1,6 +1,7 @@
 import { atom } from 'jotai'
 import type { GameEvent, LinkSpan, TextStyle, VitalField, StreamId } from '../lib/sge-parser'
 import { parseExpSkills } from '../lib/exp-parser'
+import { isAtmospheric } from '../lib/atmospherics'
 
 export type { StreamId }
 
@@ -16,6 +17,7 @@ export interface OutputLine {
   stream:     StreamId
   timestamp:  number
   links?:     LinkSpan[]
+  bolds?:     string[]   // inline-bold substrings within `text`
   separator?: boolean
   divider?:   string   // labeled separator line (e.g. "Disconnected"), Discord-style
   speaker?:   string   // for conversation lines: who is talking (for the avatar)
@@ -32,8 +34,8 @@ export function extractSpeaker(text: string): string | undefined {
 }
 
 let lineId = 0
-const mkLine = (text: string, styles: OutputLine['styles'], stream: StreamId, links?: LinkSpan[]): OutputLine => ({
-  id: lineId++, text, styles, stream, timestamp: Date.now(), links
+const mkLine = (text: string, styles: OutputLine['styles'], stream: StreamId, links?: LinkSpan[], bolds?: string[]): OutputLine => ({
+  id: lineId++, text, styles, stream, timestamp: Date.now(), links, bolds
 })
 
 // Set whenever new content lands in the main output; the next server prompt
@@ -252,7 +254,7 @@ function clearSkillExp(s: ExpSkill): ExpSkill {
 //   2. the player-initiated "boost" drain.
 // Match only the invariant phrasing — the "hours built up" count in #1 varies
 // per account.
-const EXP_DRAIN_RE = /Log-on system converted your character|drained your field experience/i
+const EXP_DRAIN_RE = /Log-on system converted|drained your field experience/i
 
 // ── Echo ──────────────────────────────────────────────────────────────────────
 export const echoCommandAtom = atom(
@@ -285,6 +287,56 @@ export const beginSilentExpAtom = atom(null, () => {
   _silentExpBatch = true
 })
 
+// ── Session reset ───────────────────────────────────────────────────────────
+// Wipe all per-character live state so switching characters (or reconnecting as
+// a different one) starts clean instead of inheriting the previous character's
+// panels, room, vitals, profile summary, etc. Account/global state (avatars from
+// settings, function keys, highlights, connection status) is intentionally left
+// alone. Called from GameLayout whenever the active character changes.
+export const resetSessionAtom = atom(null, (_get, set) => {
+  set(outputLinesAtom, [])
+  set(expLinesAtom, [])
+  set(combatLinesAtom, [])
+  set(atmoLinesAtom, [])
+  set(convLinesAtom, [])
+  set(deathsAtom, [])
+  set(lichMsgAtom, [])
+  set(inventoryLinesAtom, [])
+  set(roomAtom, { name: '', description: '', exits: [], objs: '', players: [], playerNames: [] })
+  set(vitalsAtom, {
+    health:  { value: 100, max: 100 },
+    mana:    { value: 100, max: 100 },
+    stamina: { value: 100, max: 100 },
+    spirit:  { value: 100, max: 100 },
+  })
+  set(handsAtom, { left: '', right: '' })
+  set(indicatorsAtom, {})
+  set(expAtom, { skills: [], tdps: 0, favors: 0 })
+  set(activeSpellAtom, '')
+  set(roundtimeAtom, 0)
+  set(castTimeAtom, 0)
+  set(profilesAtom, {})
+  set(selfNameAtom, '')
+  set(serverAvatarsAtom, {})
+  set(presenceModeAtom, 'online')
+  // Note: verbRawAtom / verbInfoAtom are game-global (same for every character)
+  // and cached in settings, so they are deliberately NOT reset here.
+
+  // Module-level capture/batch flags — clear any in-flight silent fetch so it
+  // can't bleed into or suppress the new character's output.
+  _outputDirty       = false
+  _verbCapture       = false
+  _verbBuf           = []
+  _profileCaptureName = null
+  _profileBuf        = []
+  _verbInfoName      = null
+  _verbInfoHeader    = null
+  _verbInfoStarted   = false
+  _verbInfoBuf       = []
+  _expBatchNames     = null
+  _silentExpBatch    = false
+})
+
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 export const dispatchGameEventAtom = atom(
   null,
@@ -298,12 +350,20 @@ export const dispatchGameEventAtom = atom(
           if (/^verb list /i.test(t)) return
           if (VERB_LINE_RE.test(t)) { _verbBuf.push(t); return }
         }
-        // Silent PROFILE fetch — capture recognized profile fields, suppress them
-        // from the main output; unrelated output during the window passes through.
+        // Silent PROFILE fetch — the response is a self-contained
+        // <output class="mono"> block, so suppress the whole block from the main
+        // output (including optional free-form fields like "Features" that aren't
+        // in PROFILE_LABEL_RE) and capture the recognized "Key: Value" lines for
+        // the character-menu summary. Non-mono output during the window passes
+        // through untouched.
         if (_profileCaptureName) {
           const t = event.text.trim()
           if (/^profile\b/i.test(t)) return
-          if (PROFILE_LABEL_RE.test(t)) { _profileBuf.push(t); return }
+          const isMonoLine = event.styles.some(s => s.preset === 'mono')
+          if (isMonoLine || PROFILE_LABEL_RE.test(t)) {
+            if (PROFILE_LABEL_RE.test(t)) _profileBuf.push(t)
+            return
+          }
         }
         // Silent VERB INFO fetch — capture the detail block, suppress from output
         if (_verbInfoName) {
@@ -317,7 +377,7 @@ export const dispatchGameEventAtom = atom(
             return
           }
         }
-        const line = mkLine(event.text, event.styles, event.stream, event.links)
+        const line = mkLine(event.text, event.styles, event.stream, event.links, event.bolds)
 
         // A logon or boost drain wipes all field experience at once; clear the
         // panel to match. The message itself still routes to output below.
@@ -346,9 +406,8 @@ export const dispatchGameEventAtom = atom(
             set(lichMsgAtom, [...get(lichMsgAtom).slice(-499), event.text])
             break
           case 'combat':
+            // Combat lives only in the Combat panel — don't echo to main output.
             set(combatLinesAtom, [...get(combatLinesAtom).slice(-499), line])
-            set(outputLinesAtom, [...get(outputLinesAtom).slice(-4999), line])
-            _outputDirty = true
             break
           case 'atmo':
             set(atmoLinesAtom, [...get(atmoLinesAtom).slice(-199), line])
@@ -368,11 +427,20 @@ export const dispatchGameEventAtom = atom(
           default: {
             const isHandUpdate = event.styles.some(s => s.preset === 'left' || s.preset === 'right')
             if (!isHandUpdate && !_silentExpBatch) {
-              set(outputLinesAtom, appendDedup(get(outputLinesAtom), line, 5000))
-              _outputDirty = true
-              const DEATH_RE = /\*\s+.+?\s+(was struck down|was slain|was killed|died|perished|succumbed|fell lifeless)|you have died|you are dead/i
-              if (DEATH_RE.test(event.text)) {
+              // DR's server-wide death broadcast reads "* NAME was just struck
+              // down at LOCATION!" — the "just" (and other death verbs) must not
+              // break the match, or the death never reaches the Deaths panel.
+              const DEATH_RE = /\*\s+.+?\s+(?:was (?:just )?(?:struck down|slain|killed|vanquished|destroyed)|died|perished|succumbed|fell lifeless)\b|you have died|you are dead/i
+              if (isAtmospheric(event.text)) {
+                // Atmospheric-item messages have no stream tag in DR; matched by
+                // text and routed to the Atmo panel only (suppressed from main).
+                set(atmoLinesAtom, [...get(atmoLinesAtom).slice(-199), line])
+              } else if (DEATH_RE.test(event.text)) {
+                // Deaths live only in the Deaths panel — suppress from main output.
                 set(deathsAtom, [...get(deathsAtom).slice(-199), line])
+              } else {
+                set(outputLinesAtom, appendDedup(get(outputLinesAtom), line, 5000))
+                _outputDirty = true
               }
             }
 

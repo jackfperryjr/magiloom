@@ -2188,6 +2188,12 @@ body[data-platform="darwin"] .status-bar {
   border-bottom: 1px solid var(--border-soft);
   word-break: break-word;
 }
+.death-time {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-family: var(--font-ui);
+  margin-right: 6px;
+}
 
 /* ── Panel right-click context menu ─────────────────────────────────────── */
 /* ── Custom tooltip ──────────────────────────────────────────────────────── */

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { THEMES, applyTheme } from '../../lib/themes'
 import { setShowTimestamps, setOutputBuffer } from '../game/GameOutput'
+import { loadCharAppearance, saveCharAppearance, applyAppearance } from '../../lib/charSettings'
 import { DEFAULT_NOTIF, type NotifSettings } from './Notifications'
 
 interface SettingsModalProps {
+  charName?: string
   onClose: () => void
 }
 
@@ -17,7 +19,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'lich',          label: 'Lich' },
 ]
 
-export function SettingsModal({ onClose }: SettingsModalProps) {
+export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [lichPath,        setLichPath]        = useState('')
   const [fontSize,        setFontSize]        = useState(13)
   const [fontFamily,      setFontFamily]      = useState('Cascadia Code')
@@ -39,31 +41,30 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
 
   useEffect(() => {
     window.dr.app.getVersion().then(setVersion)
+    // Appearance is per-character (localStorage); everything else is global.
+    const a = loadCharAppearance(charName)
+    setFontSize(a.fontSize)
+    setFontFamily(a.fontFamily)
+    setTheme(a.theme)
+    setOriginalTheme(a.theme)
+    setTimestamps(a.timestamps)
+    setDensity(a.density)
     window.dr.settings.getAll().then(s => {
       setLichPath(s.lichPath || '')
-      setFontSize(s.fontSize || 13)
-      setFontFamily(s.fontFamily || 'Cascadia Code')
-      setTheme(s.theme || 'magiloom')
-      setOriginalTheme(s.theme || 'magiloom')
-      setTimestamps(s.timestamps || false)
-      setDensity(s.density === 'compact' ? 'compact' : 'cozy')
       setOutputBufferSize(s.outputBufferSize || 5000)
       setFunctionKeys(s.functionKeys || {})
       setNotif({ ...DEFAULT_NOTIF, ...(s.notifications ?? {}) })
     })
-  }, [])
+  }, [charName])
 
   const handleSave = async () => {
+    // Per-character appearance → localStorage; global settings → settings.json.
+    saveCharAppearance(charName, { theme, fontSize, fontFamily, density, timestamps })
     await window.dr.settings.patch({
-      lichPath, fontSize, fontFamily, theme, timestamps, density, outputBufferSize, functionKeys,
-      notifications: notif,
+      lichPath, outputBufferSize, functionKeys, notifications: notif,
     })
     window.dispatchEvent(new CustomEvent('settings:saved'))
-    applyTheme(theme)
-    document.documentElement.style.setProperty('--font-game', fontFamily)
-    document.documentElement.style.setProperty('--font-size-game', fontSize + 'px')
-    document.documentElement.dataset.density = density
-    setShowTimestamps(timestamps)
+    applyAppearance({ theme, fontSize, fontFamily, density, timestamps }, setShowTimestamps)
     setOutputBuffer(outputBufferSize)
     onClose()
   }

@@ -1,0 +1,42 @@
+name: Update atmospherics
+
+on:
+  schedule:
+    # Quarterly — 06:00 UTC on the 1st of Jan, Apr, Jul, Oct
+    - cron: "0 6 1 1,4,7,10 *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Pure Node built-ins (fetch/fs/path) — no dependencies to install.
+      - name: Refresh atmospheric-item messages from Elanthipedia
+        run: node scripts/scrape-atmospherics.js
+
+      # Only opens a PR when the generated file actually changed.
+      - name: Open PR on changes
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "Refresh atmospheric-item messages from Elanthipedia"
+          title: "Refresh atmospheric-item messages"
+          body: |
+            Automated quarterly refresh of
+            `src/renderer/src/lib/atmospherics.generated.ts` from
+            https://elanthipedia.play.net/Category:Atmospheric_items via
+            `scripts/scrape-atmospherics.js`.
+
+            Review the diff before merging — new/changed messages feed the Atmo panel.
+          branch: chore/atmospherics-refresh
+          delete-branch: true
+          add-paths: src/renderer/src/lib/atmospherics.generated.ts

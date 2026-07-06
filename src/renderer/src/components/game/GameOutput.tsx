@@ -2,6 +2,7 @@ import { useAtomValue } from 'jotai'
 import { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react'
 import { outputLinesAtom, type OutputLine } from '../../store/game'
 import { parseExpSkills, type ParsedExpSkill } from '../../lib/exp-parser'
+import type { LinkSpan } from '../../lib/sge-parser'
 import type { Highlight } from '../ui/HighlightsModal'
 
 // ── Exp skill line helpers ────────────────────────────────────────────────────
@@ -39,6 +40,9 @@ const PRESET_CLASS: Record<string, string> = {
   roomname:       'preset-roomname',
   roomdesc:       'preset-roomdesc',
   roomexits:      'preset-roomexits',
+  // DR's flowing room render uses camelCase preset ids for name/desc:
+  roomName:       'preset-roomname',
+  roomDesc:       'preset-roomdesc',
   whisper:        'preset-whisper',
   speech:         'preset-speech',
   thought:        'preset-thought',
@@ -67,6 +71,48 @@ function fmtTime(ts: number): string {
   const h12 = h24 % 12 === 0 ? 12 : h24 % 12
   const ampm = h24 < 12 ? 'AM' : 'PM'
   return `[${h12}:${String(d.getMinutes()).padStart(2,'0')} ${ampm}] `
+}
+
+// Splice inline bold substrings (and any clickable links) into `text`, returning
+// a mix of plain text, <span.game-link> and <span.text-bold> nodes. Links and
+// bold spans are assumed not to overlap; a span starting inside an earlier one
+// is skipped defensively.
+function buildSpans(text: string, links: LinkSpan[], bolds: string[]): React.ReactNode[] {
+  type Mark =
+    | { start: number; end: number; kind: 'link'; link: LinkSpan }
+    | { start: number; end: number; kind: 'bold' }
+  const marks: Mark[] = []
+  for (const l of links) {
+    if (!l.text) continue
+    const idx = text.indexOf(l.text)
+    if (idx >= 0) marks.push({ start: idx, end: idx + l.text.length, kind: 'link', link: l })
+  }
+  for (const b of bolds) {
+    if (!b) continue
+    const idx = text.indexOf(b)
+    if (idx >= 0) marks.push({ start: idx, end: idx + b.length, kind: 'bold' })
+  }
+  marks.sort((a, b) => a.start - b.start)
+
+  const parts: React.ReactNode[] = []
+  let pos = 0, key = 0
+  for (const m of marks) {
+    if (m.start < pos) continue  // overlaps an earlier span — skip
+    if (m.start > pos) parts.push(<span key={key++}>{text.slice(pos, m.start)}</span>)
+    if (m.kind === 'link') {
+      const link = m.link
+      parts.push(
+        <span key={key++} className="game-link" onClick={() => _sendFn?.(expandCmd(link.cmd))} title={link.cmd}>
+          {text.slice(m.start, m.end)}
+        </span>
+      )
+    } else {
+      parts.push(<span key={key++} className="text-bold">{text.slice(m.start, m.end)}</span>)
+    }
+    pos = m.end
+  }
+  if (pos < text.length) parts.push(<span key={key++}>{text.slice(pos)}</span>)
+  return parts
 }
 
 function GameLine({ line, highlights }: { line: OutputLine; highlights: Highlight[] }) {
@@ -135,6 +181,17 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
     style.color = line.styles[0].color
   } else if (line.styles[0]?.bold) {
     style.fontWeight = 'bold'
+  }
+
+  // Inline bold spans (optionally alongside links) — splice them into the text
+  // so emphasized words stay on the same line as their surrounding sentence.
+  if (line.bolds && line.bolds.length > 0) {
+    return (
+      <div className={classList.join(' ')} style={style} data-copy-text={line.text} data-time={hoverTime}>
+        {_showTimestamps && <span className="game-timestamp">{fmtTime(line.timestamp)}</span>}
+        {buildSpans(line.text, line.links ?? [], line.bolds)}
+      </div>
+    )
   }
 
   // Render with clickable link spans if line has <d cmd> links

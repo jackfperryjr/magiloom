@@ -21,12 +21,15 @@ const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'lich',         label: 'Lich Log',      visible: false },
 ]
 
-const PANELS_KEY  = 'magiloom-panels-v4'
-const HEIGHTS_KEY = 'magiloom-panel-heights-v1'
+// Panel layout is per-character: the key is namespaced by character name so each
+// character keeps its own panel set / order / heights. A character with nothing
+// saved falls back to DEFAULT_PANELS (app defaults).
+const panelsKey  = (name: string) => `magiloom-panels-v4:${name.trim().toLowerCase()}`
+const heightsKey = (name: string) => `magiloom-panel-heights-v1:${name.trim().toLowerCase()}`
 
-function loadPanels(): PanelConfig[] {
+function loadPanels(name: string): PanelConfig[] {
   try {
-    const raw = localStorage.getItem(PANELS_KEY)
+    const raw = localStorage.getItem(panelsKey(name))
     if (raw) {
       // Drop panels that no longer exist (e.g. vitals moved to the top bar) and
       // append any newly-added defaults, preserving the user's order/visibility.
@@ -40,20 +43,20 @@ function loadPanels(): PanelConfig[] {
   return DEFAULT_PANELS
 }
 
-function savePanels(panels: PanelConfig[]) {
-  try { localStorage.setItem(PANELS_KEY, JSON.stringify(panels)) } catch {}
+function savePanels(name: string, panels: PanelConfig[]) {
+  try { localStorage.setItem(panelsKey(name), JSON.stringify(panels)) } catch {}
 }
 
-function loadHeights(): Record<string, number> {
+function loadHeights(name: string): Record<string, number> {
   try {
-    const raw = localStorage.getItem(HEIGHTS_KEY)
+    const raw = localStorage.getItem(heightsKey(name))
     if (raw) return JSON.parse(raw) as Record<string, number>
   } catch {}
   return {}
 }
 
-function saveHeights(heights: Record<string, number>) {
-  try { localStorage.setItem(HEIGHTS_KEY, JSON.stringify(heights)) } catch {}
+function saveHeights(name: string, heights: Record<string, number>) {
+  try { localStorage.setItem(heightsKey(name), JSON.stringify(heights)) } catch {}
 }
 
 // ── Single panel ───────────────────────────────────────────────────────────────
@@ -204,18 +207,29 @@ function PanelManager({
 }
 
 // ── Main sidebar ───────────────────────────────────────────────────────────────
-export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth }: {
+export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName = '' }: {
   renderPanel:   (id: PanelId) => React.ReactNode
   getClearFn?:   (id: PanelId) => (() => void) | undefined
   sidebarWidth?: number | null
+  charName?:     string
 }) {
-  const [panels,      setPanels]      = useState<PanelConfig[]>(loadPanels)
-  const [heights,     setHeights]     = useState<Record<string, number>>(loadHeights)
+  const [panels,      setPanels]      = useState<PanelConfig[]>(() => loadPanels(charName))
+  const [heights,     setHeights]     = useState<Record<string, number>>(() => loadHeights(charName))
   const [showManager, setShowManager] = useState(false)
   const managerBtnRef = useRef<HTMLButtonElement>(null)
 
-  useEffect(() => { savePanels(panels)   }, [panels])
-  useEffect(() => { saveHeights(heights) }, [heights])
+  // Reload this character's layout when the active character changes. charRef
+  // tracks whose layout is loaded so the persist effects below always write to
+  // the right character (and never save the previous layout under the new name).
+  const charRef = useRef(charName)
+  useEffect(() => {
+    charRef.current = charName
+    setPanels(loadPanels(charName))
+    setHeights(loadHeights(charName))
+  }, [charName])
+
+  useEffect(() => { savePanels(charRef.current, panels)   }, [panels])
+  useEffect(() => { saveHeights(charRef.current, heights) }, [heights])
 
   const togglePanel = useCallback((id: PanelId) => {
     setPanels(prev => prev.map(p => p.id === id ? { ...p, visible: !p.visible } : p))
