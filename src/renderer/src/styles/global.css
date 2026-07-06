@@ -128,6 +128,29 @@ body {
 .status-bar input,
 .status-bar select { -webkit-app-region: no-drag; }
 
+/* Title-bar help link (question-mark circle) + divider before window controls */
+.titlebar-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: color .12s, border-color .12s, background .12s;
+}
+.titlebar-help:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+.titlebar-sep { width: 1px; height: 18px; flex-shrink: 0; background: var(--border); }
+
 /* macOS: pad left so content clears the traffic-light buttons */
 body[data-platform="darwin"] .status-bar {
   padding-left: 80px;
@@ -846,7 +869,7 @@ body[data-platform="darwin"] .status-bar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 1px solid var(--border);
+  border: none;
   background: var(--accent-dim);
   color: var(--accent);
   display: flex;
@@ -991,7 +1014,7 @@ body[data-platform="darwin"] .status-bar {
   padding: 10px 8px 8px;
   background: var(--bg-panel);
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   box-shadow: 0 10px 34px rgba(0, 0, 0, 0.6);
   z-index: 200;
 }
@@ -1008,14 +1031,13 @@ body[data-platform="darwin"] .status-bar {
   height: 120px;
   padding: 0;
   border-radius: 50%;
-  border: 1px solid var(--border);
+  border: none;
   background: var(--accent-dim);
   color: var(--accent);
   cursor: pointer;
   overflow: hidden;
   transition: border-color .12s, box-shadow .12s;
 }
-.char-menu-avatar:hover { box-shadow: 0 0 0 3px var(--accent-glow); }
 .char-menu-avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .char-menu-avatar-initial {
   display: flex; align-items: center; justify-content: center;
@@ -1125,10 +1147,9 @@ body[data-platform="darwin"] .status-bar {
   display: flex;
   flex-direction: column;
   background: var(--bg-panel);
-  border: 3px solid var(--border-accent);
-  border-radius: 14px;
+  border: none;
+  border-radius: 8px;
   box-shadow:
-    inset 0 0 0 1px var(--bg-input),
     0 0 0 1px var(--border-soft),
     0 20px 60px rgba(0, 0, 0, 0.85);
   overflow: hidden;
@@ -1152,7 +1173,7 @@ body[data-platform="darwin"] .status-bar {
   width: 180px;
   height: 180px;
   border-radius: 50%;
-  border: 2px solid var(--border);
+  border: 3px solid var(--border);
 }
 .avatar-modal-preview img { object-fit: cover; }
 .avatar-modal-initial {
@@ -1568,10 +1589,9 @@ body[data-platform="darwin"] .status-bar {
 }
 .modal-card, .modal-box {
   background: var(--bg-panel);
-  border: 3px solid var(--border-accent);
-  border-radius: 14px;
+  border: none;
+  border-radius: 8px;
   box-shadow:
-    inset 0 0 0 1px var(--bg-input),
     0 0 0 1px var(--border-soft),
     0 20px 60px rgba(0,0,0,0.85);
   width: 600px;
@@ -1877,7 +1897,7 @@ body[data-platform="darwin"] .status-bar {
   width: 290px;
   padding: 14px;
   background: var(--bg-panel);
-  border-radius: 12px;
+  border-radius: 8px;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65);
   display: flex;
   align-items: center;
@@ -1886,7 +1906,7 @@ body[data-platform="darwin"] .status-bar {
 .profile-card-avatar {
   width: 120px; height: 120px; flex-shrink: 0;
   border-radius: 50%;
-  border: 1px solid var(--border);
+  border: none;
   background: var(--accent-dim);
   object-fit: cover;
 }
@@ -2149,6 +2169,16 @@ body[data-platform="darwin"] .status-bar {
   to   { transform: rotate(360deg); }
 }
 .update-spin { animation: updateSpin 1.4s linear infinite; display: block; }
+
+/* Download-style bounce on hover (ready + dev preview; downloading/error opt out) */
+.update-icon-btn.update-ready svg { display: block; }
+.update-icon-btn.update-ready:hover svg { animation: update-bounce 0.6s ease-in-out; }
+@keyframes update-bounce {
+  0%   { transform: translateY(0); }
+  35%  { transform: translateY(3px); }
+  65%  { transform: translateY(-1px); }
+  100% { transform: translateY(0); }
+}
 
 /* ── Deaths panel ────────────────────────────────────────────────────────── */
 .death-line {

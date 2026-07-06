@@ -33,8 +33,9 @@ contextBridge.exposeInMainWorld('dr', {
     onError:  (cb: (m: string) => void) => { const h = (_e: unknown, m: string) => cb(m); ipcRenderer.on('lich:error', h);  return () => ipcRenderer.removeListener('lich:error', h) }
   },
   app: {
-    getVersion: () => ipcRenderer.invoke('app:version'),
-    platform:   process.platform,
+    getVersion:   () => ipcRenderer.invoke('app:version'),
+    openExternal: (url: string) => ipcRenderer.invoke('app:open-external', url),
+    platform:     process.platform,
   },
   window: {
     minimize:         () => ipcRenderer.invoke('window:minimize'),

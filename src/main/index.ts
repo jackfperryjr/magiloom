@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, safeStorage, screen } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, safeStorage, screen, shell } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { autoUpdater } from 'electron-updater'
@@ -157,6 +157,7 @@ function setupUpdater(): void {
 
 function setupIpcHandlers(): void {
   ipcMain.handle('app:version',        () => app.getVersion())
+  ipcMain.handle('app:open-external',  (_e, url: string) => shell.openExternal(url))
   ipcMain.handle('window:minimize',    () => mainWindow?.minimize())
   ipcMain.handle('window:maximize',    () => {
     if (mainWindow?.isMaximized()) mainWindow.unmaximize()

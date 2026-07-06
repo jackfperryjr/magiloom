@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 interface SGECharacter  { id: string; name: string }
 interface SGEInstance   { code: string; name: string }
 interface SavedAccount  { name: string; lastCharacter?: string }
@@ -62,8 +64,9 @@ interface DrAPI {
     onError:  (cb: (m: string) => void) => () => void
   }
   app: {
-    getVersion: () => Promise<string>
-    platform:   string
+    getVersion:   () => Promise<string>
+    openExternal: (url: string) => Promise<void>
+    platform:     string
   }
   window: {
     minimize:         () => Promise<void>
