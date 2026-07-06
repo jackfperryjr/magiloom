@@ -21,6 +21,7 @@ export interface OutputLine {
   separator?: boolean
   divider?:   string   // labeled separator line (e.g. "Disconnected"), Discord-style
   speaker?:   string   // for conversation lines: who is talking (for the avatar)
+  look?:      { name: string; lines: string[] }  // LOOK-at-player block: portrait card
 }
 
 // Pull the speaker out of a speech/whisper/thought line so the conversation
@@ -191,6 +192,19 @@ let _verbInfoName:    string | null = null   // armed flag: awaiting a VERB INFO
 let _verbInfoHeader:  string | null = null   // actual verb from the response header
 let _verbInfoStarted = false
 let _verbInfoBuf: string[] = []
+
+// ── LOOK-at-player capture ─────────────────────────────────────────────────────
+// A "look <player>" reply is "You see NAME, a RACE." + description lines, ending
+// at a prompt. We buffer it and emit one portrait "look card" (avatar + text).
+let _lookCapturing = false
+let _lookSelf = false
+let _lookBuf: string[] = []
+// Matches the first line of both "You see …, a RACE." (others) and "You are …, a
+// RACE." (yourself). Anchored on the trailing ", a/an <Race>." so it doesn't fire
+// on ordinary "You are …" lines. The name is NOT taken from this line — a prefix
+// title ("Blood Channeler Elanarie …") makes the first word unreliable — see the
+// per-case extraction in the prompt handler.
+const LOOK_START_RE = /^You (?:see|are) [A-Z][^,]*?,.*\ban?\s+[A-Z][A-Za-z' -]*\.?\s*$/
 export function beginVerbInfoCapture(name: string) {
   _verbInfoName = name.toLowerCase(); _verbInfoHeader = null; _verbInfoStarted = false; _verbInfoBuf = []
 }
@@ -333,6 +347,9 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _verbInfoHeader    = null
   _verbInfoStarted   = false
   _verbInfoBuf       = []
+  _lookCapturing     = false
+  _lookSelf          = false
+  _lookBuf           = []
   _expBatchNames     = null
   _silentExpBatch    = false
 })
@@ -374,6 +391,17 @@ export const dispatchGameEventAtom = atom(
             if (h) { _verbInfoStarted = true; _verbInfoHeader = h[1].toLowerCase(); return }
           } else {
             _verbInfoBuf.push(t)
+            return
+          }
+        }
+        // LOOK at a player: buffer the description block (suppressing the raw
+        // lines) so the prompt handler can emit it as a single portrait card.
+        if (event.stream === 'main') {
+          if (_lookCapturing) { _lookBuf.push(event.text); return }
+          if (LOOK_START_RE.test(event.text)) {
+            _lookCapturing = true
+            _lookSelf = /^You are\b/.test(event.text)
+            _lookBuf = [event.text]
             return
           }
         }
@@ -604,6 +632,22 @@ export const dispatchGameEventAtom = atom(
           const name = _verbInfoHeader ?? _verbInfoName
           set(verbInfoAtom, { ...get(verbInfoAtom), [name]: parseVerbInfo(name, _verbInfoBuf) })
           _verbInfoName = null; _verbInfoHeader = null; _verbInfoStarted = false; _verbInfoBuf = []
+        }
+        // Flush a captured LOOK block as a single portrait card. The avatar key is
+        // the character's FIRST name: for yourself it follows "You are"; for others
+        // the first line may carry a prefix title, so take it from the second line,
+        // which always leads with the name ("Elanarie has …").
+        if (_lookCapturing && _lookBuf.length) {
+          const name = _lookSelf
+            ? (_lookBuf[0].match(/^You are ([A-Z][\w'-]+)/)?.[1] ?? '')
+            : (_lookBuf[1]?.match(/^([A-Z][\w'-]+)/)?.[1]
+               ?? _lookBuf[0].match(/^You see ([A-Z][\w'-]+)/)?.[1] ?? '')
+          set(outputLinesAtom, [...get(outputLinesAtom).slice(-4999), {
+            id: lineId++, text: _lookBuf.join('\n'), styles: [], stream: 'main' as StreamId,
+            timestamp: Date.now(), look: { name, lines: _lookBuf },
+          }])
+          _outputDirty = true
+          _lookCapturing = false; _lookSelf = false; _lookBuf = []
         }
         // Space out consecutive command-response chunks: if new content landed in
         // the main output since the last prompt, flush a separator (blank line).

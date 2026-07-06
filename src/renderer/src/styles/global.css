@@ -629,6 +629,30 @@ body[data-platform="darwin"] .status-bar {
   height: 0.85em;
 }
 
+/* LOOK-at-player portrait card — avatar on the left of the description text */
+.look-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 3px 2px 5px;
+}
+.look-avatar {
+  width: 84px;
+  height: 108px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-input);
+}
+.look-card-text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.look-card-line { min-height: 1em; }
+
 /* Density — compact tightens line spacing */
 [data-density="compact"] .game-output { line-height: 1.15; }
 [data-density="compact"] .game-line { min-height: 0; }
