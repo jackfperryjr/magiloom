@@ -65,6 +65,7 @@ let _compassDirs: string[] = []
 let _preXmlPhase        = true   // true until the first XML line arrives after connect
 let _inInitialInventory = false  // suppress initial container dump until --- separator
 let _shopDetailBuf = ''  // accumulate SHOP item details across lines
+let _monoMode = false    // inside <output class="mono">…<output class=""> — render ASCII verbatim (guild registers, maps, tables)
 
 export function resetParser(): void {
   _stream             = 'main'
@@ -88,6 +89,7 @@ export function resetParser(): void {
   _preXmlPhase        = true
   _inInitialInventory = false
   _shopDetailBuf      = ''
+  _monoMode           = false
 }
 
 function decodeEntities(s: string): string {
@@ -227,6 +229,15 @@ export function parseLine(raw: string): GameEvent[] {
 
   // ── Plain-text line (no XML) ───────────────────────────────────────────────
   if (!raw.includes('<')) {
+    // Monospace block (guild/hall registers, maps, ASCII tables): emit verbatim,
+    // preserving leading whitespace so the game's ASCII framing stays aligned.
+    // Must run before the trim + lich-table routing below, which would otherwise
+    // strip the indentation and split the box across streams.
+    if (_monoMode) {
+      const monoText = decodeEntities(raw).replace(/[\r\n]+$/, '')
+      if (monoText.trim()) events.push({ type: 'text', text: monoText, styles: [{ preset: 'mono' }], stream: 'main' })
+      return events
+    }
     const text = decodeEntities(raw).trim()
     if (!text || text === '>') return events
     if (_inRoomDesc) { _roomDescBuf += ' ' + text; return events }
@@ -725,6 +736,14 @@ export function parseLine(raw: string): GameEvent[] {
       }
       case 'nav': case '/nav':
         flush(); break
+
+      // ── Monospace toggle: <output class="mono"/> … <output class=""/> ──────
+      // DR wraps ASCII-art blocks (guild/hall registers, maps, tables) in a mono
+      // output span. There's no per-register tag — this toggle is the only signal.
+      case 'output':
+        flush()
+        _monoMode = (attrs['class'] ?? '').toLowerCase().includes('mono')
+        break
 
       case 'left': case 'right':
         flush(); styles = [{ preset: tagName }]; break

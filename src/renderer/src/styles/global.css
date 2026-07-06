@@ -136,7 +136,7 @@ body {
   flex-shrink: 0;
   width: 18px;
   height: 18px;
-  padding: 0;
+  margin-right: 3px;
   border: none;
   background: transparent;
   color: var(--accent);
@@ -720,6 +720,9 @@ body[data-platform="darwin"] .status-bar {
 .preset-penalty   { color: var(--color-penalty); }
 .preset-echo      { color: var(--text-dim); font-style: italic; opacity: 0.7; }
 .preset-echo-script { color: var(--accent); font-style: italic; opacity: 0.85; }
+/* Monospace ASCII blocks (guild/hall registers, maps, tables): keep verbatim
+   alignment — do not wrap, and let a wide box scroll horizontally instead. */
+.preset-mono      { white-space: pre; font-family: var(--font-game); }
 .text-bold        { color: var(--text-bright); }
 
 /* ── Command input ───────────────────────────────────────────────────────── */
