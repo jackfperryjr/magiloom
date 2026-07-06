@@ -306,7 +306,10 @@ export function DeathsPanel() {
   return (
     <ScrollPanel deps={[lines.length]}>
       {lines.map((l: OutputLine) => (
-        <div key={l.id} className="death-line">{l.text}</div>
+        <div key={l.id} className="death-line">
+          <span className="death-time">{convTime(l.timestamp)}</span>
+          <span className="death-text">{l.text}</span>
+        </div>
       ))}
     </ScrollPanel>
   )

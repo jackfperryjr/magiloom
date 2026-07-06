@@ -14,18 +14,22 @@ export function useProfile(name: string, active: boolean): ProfileInfo | null {
   const status   = useAtomValue(connectionStatusAtom)
   const begin    = useSetAtom(beginProfileCaptureAtom)
   const end      = useSetAtom(endProfileCaptureAtom)
-  const fetched  = useRef<Set<string>>(new Set())
+  const inFlight = useRef<Set<string>>(new Set())
   const key = name.trim().toLowerCase()
+  // Fetch keyed on whether the profile is actually cached, rather than a
+  // permanent "already tried" set — so when a character switch clears
+  // profilesAtom, re-opening the menu (even for a previously-viewed character)
+  // fetches a fresh profile instead of showing a blank summary.
+  const have = Boolean(profiles[key])
 
   useEffect(() => {
-    if (!active || status !== 'connected' || !key || fetched.current.has(key)) return
+    if (!active || status !== 'connected' || !key || have || inFlight.current.has(key)) return
+    inFlight.current.add(key)
     begin(name)
     window.dr.game.send(`profile ${name}`)
-    // Mark fetched only once the capture window completes, so an early teardown
-    // (which ends capture in cleanup) retries next time. end() is idempotent.
-    const t = window.setTimeout(() => { end(); fetched.current.add(key) }, 900)
-    return () => { window.clearTimeout(t); end() }
-  }, [active, status, key, name, begin, end])
+    const t = window.setTimeout(() => { end(); inFlight.current.delete(key) }, 900)
+    return () => { window.clearTimeout(t); end(); inFlight.current.delete(key) }
+  }, [active, status, key, name, have, begin, end])
 
   return profiles[key] ?? null
 }

@@ -133,13 +133,13 @@ export function HighlightsModal({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     window.dr.settings.getAll().then(s => {
-      setHighlights((s as Record<string, unknown>).highlights as Highlight[] ?? [])
+      setHighlights((s.highlights as Highlight[]) ?? [])
     })
   }, [])
 
   const save = (hls: Highlight[]) => {
     setHighlights(hls)
-    window.dr.settings.patch({ highlights: hls } as Record<string, unknown>)
+    window.dr.settings.patch({ highlights: hls })
   }
 
   const add = () => save([...highlights, { ...BLANK, id: uid() }])

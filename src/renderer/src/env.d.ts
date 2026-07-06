@@ -54,6 +54,7 @@ interface DrAPI {
     savePassword:   (account: string, password: string) => Promise<void>
     getPassword:    (account: string)                   => Promise<string | null>
     forgetPassword: (account: string)                   => Promise<void>
+    forgetAccount:  (account: string)                   => Promise<void>
   }
   lich: {
     detectPath: () => Promise<string>
