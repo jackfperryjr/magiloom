@@ -574,6 +574,7 @@ body[data-platform="darwin"] .status-bar {
 .game-output {
   flex: 1;
   overflow-y: scroll;
+  overflow-x: hidden;   /* main panel never scrolls sideways; wide mono blocks scroll within themselves (.preset-mono) */
   padding: 10px 14px 6px;
   font-family: var(--font-game);
   font-size: var(--font-size-game);
@@ -589,7 +590,7 @@ body[data-platform="darwin"] .status-bar {
 .game-line {
   position: relative;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;   /* break long unbreakable tokens instead of overflowing the panel */
   min-height: 1em;
   padding: 1px;
 }
@@ -721,8 +722,9 @@ body[data-platform="darwin"] .status-bar {
 .preset-echo      { color: var(--text-dim); font-style: italic; opacity: 0.7; }
 .preset-echo-script { color: var(--accent); font-style: italic; opacity: 0.85; }
 /* Monospace ASCII blocks (guild/hall registers, maps, tables): keep verbatim
-   alignment — do not wrap, and let a wide box scroll horizontally instead. */
-.preset-mono      { white-space: pre; font-family: var(--font-game); }
+   alignment — do not wrap. Since the main panel no longer scrolls sideways, a box
+   wider than the panel scrolls within its own line instead. */
+.preset-mono      { white-space: pre; font-family: var(--font-game); overflow-x: auto; overflow-y: hidden; }
 .text-bold        { color: var(--text-bright); }
 
 /* ── Command input ───────────────────────────────────────────────────────── */

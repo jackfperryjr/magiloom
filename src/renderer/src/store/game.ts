@@ -596,7 +596,11 @@ export const dispatchGameEventAtom = atom(
         }
         // Finalize a VERB INFO fetch: parse the captured block and cache it under
         // the verb named in the response header (robust to fast re-highlighting).
-        if (_verbInfoName) {
+        // Only commit once the response has actually begun (_verbInfoStarted) —
+        // otherwise an unrelated prompt (vitals/exp updates fire constantly) that
+        // lands between arming the capture and the reply arriving would commit an
+        // empty entry, disarm the capture, and cache [] so it never refetches.
+        if (_verbInfoName && _verbInfoStarted) {
           const name = _verbInfoHeader ?? _verbInfoName
           set(verbInfoAtom, { ...get(verbInfoAtom), [name]: parseVerbInfo(name, _verbInfoBuf) })
           _verbInfoName = null; _verbInfoHeader = null; _verbInfoStarted = false; _verbInfoBuf = []
