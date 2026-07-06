@@ -303,7 +303,18 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
 
 // ── Update icon (title bar) ───────────────────────────────────────────────────
 function UpdateIcon({ version, ready, error }: { version: string; ready: boolean; error: string }) {
-  if (!ready && !error) return null
+  if (!ready && !error) {
+    // In dev there's never a real update — render an inert preview so the icon
+    // (and its hover animation) stays visible while working on the title bar.
+    if (!import.meta.env.DEV) return null
+    return (
+      <Tooltip text="Update icon (dev preview)">
+        <button className="update-icon-btn update-ready" aria-label="Update preview">
+          <IconArrowDownTray size={15} />
+        </button>
+      </Tooltip>
+    )
+  }
   if (error) return (
     <Tooltip text={`Update failed: ${error}`}>
       <button className="update-icon-btn update-error" disabled>

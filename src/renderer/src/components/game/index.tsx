@@ -368,12 +368,14 @@ function CharacterMenu({
       <div className="char-menu-backdrop" onClick={onClose} />
       <div className="char-menu">
         <div className="char-menu-head">
-          <button className="char-menu-avatar" onClick={run(onEditAvatar)} title="Change avatar">
-            {avatar
-              ? <img className="char-menu-avatar-img" src={avatar} alt="" />
-              : <span className="char-menu-avatar-initial">{initial}</span>}
-            <span className="char-menu-avatar-edit"><IconPhoto size={20} /></span>
-          </button>
+          <Tooltip text="Change avatar">
+            <button className="char-menu-avatar" onClick={run(onEditAvatar)}>
+              {avatar
+                ? <img className="char-menu-avatar-img" src={avatar} alt="" />
+                : <span className="char-menu-avatar-initial">{initial}</span>}
+              <span className="char-menu-avatar-edit"><IconPhoto size={20} /></span>
+            </button>
+          </Tooltip>
           <div className="char-menu-profile">
             <div className="char-menu-name">{profile?.name || charName || 'Unknown'}</div>
             <div className="char-menu-field"><span className="char-menu-k">Spouse</span><span className="char-menu-v">{profile?.spouse ?? '—'}</span></div>
@@ -613,7 +615,23 @@ export function StatusBar({ updateSlot }: { updateSlot?: React.ReactNode }) {
       <img src="./icon.png" className="app-icon" alt="" aria-hidden />
       <span className="app-title">MAGILOOM</span>
       <div className="status-bar-spacer" />
+      <Tooltip text="Player guide">
+        <button
+          className="titlebar-help"
+          onClick={() => window.dr.app.openExternal('https://github.com/jackfperryjr/magiloom/blob/main/GUIDE.md')}
+        >
+          <svg className="titlebar-help-icon" viewBox="0 0 20 20" aria-hidden="true">
+            <mask id="titlebar-help-cutout">
+              <circle cx="10" cy="10" r="10" fill="#fff" />
+              <text x="10" y="15" textAnchor="middle" fontFamily="system-ui, sans-serif"
+                fontSize="14" fontWeight="700" fill="#000">?</text>
+            </mask>
+            <rect width="20" height="20" fill="currentColor" mask="url(#titlebar-help-cutout)" />
+          </svg>
+        </button>
+      </Tooltip>
       {updateSlot}
+      {window.dr.app.platform !== 'darwin' && <div className="titlebar-sep" />}
       <WindowControls />
     </div>
   )

@@ -10,6 +10,7 @@ import {
 import { resolveAvatarSrc } from '../../lib/avatar'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
 import { useProfile } from '../../hooks/useProfile'
+import { Tooltip } from '../ui/Tooltip'
 
 // ── Auto-scroll helper ─────────────────────────────────────────────────────────
 // The actual scrollable box is the parent .panel-content-scroll (which has the
@@ -268,8 +269,10 @@ export function ConversationPanel() {
         const label = verb && group.target ? `${verb} to ${group.target}` : verb
         return (
           <div key={group.lines[0].id} className="conv-msg">
-            <img className="conv-avatar" src={src} alt="" title={`View ${speaker}`}
-              onClick={e => openCard(e, speaker, src)} />
+            <Tooltip text={`View ${speaker}`}>
+              <img className="conv-avatar" src={src} alt=""
+                onClick={e => openCard(e, speaker, src)} />
+            </Tooltip>
             <div className="conv-msg-main">
               <div className="conv-msg-header">
                 <span className="conv-msg-name" style={{ color }}>{speaker}</span>
