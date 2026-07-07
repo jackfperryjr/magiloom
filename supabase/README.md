@@ -49,6 +49,38 @@ then falls back to deterministic identicons and nothing is published.
 Reads are not an endpoint here — fetch the public object directly:
 `GET {SUPABASE_URL}/storage/v1/object/public/avatars/:name`
 
+## LOOK portraits (`portrait` function)
+
+Auto-generates a character portrait from the text of a `LOOK <character>` and
+stores it once for everyone in a public `portraits` bucket. Generation is
+server-side so the Gemini key never ships in the app; a character is generated
+by the first person to look at them and cached forever (first-writer-wins).
+
+- **Images** live in the public `portraits` bucket — read from the CDN:
+  `GET {SUPABASE_URL}/storage/v1/object/public/portraits/:name`
+- **Generation** goes through the `portrait` Edge Function: `POST { name, prompt }`.
+  It checks the `avatars` bucket first (an owner upload wins and skips
+  generation), then the `portraits` bucket (already generated), then calls Gemini
+  and stores the result. Response: `{ ok, source: "owner" | "cache" | "generated" }`.
+- **Owner override:** uploaded avatars in the `avatars` bucket always outrank
+  generated portraits — resolution precedence in the client is
+  upload → owner avatar → generated portrait → identicon.
+
+Deploy (adds to the setup above):
+
+```sh
+supabase db push                          # creates the `portraits` bucket (0002)
+supabase secrets set GEMINI_API_KEY=<your Google AI Studio key>
+supabase functions deploy portrait --no-verify-jwt
+```
+
+Optional: `supabase secrets set PORTRAIT_MODEL=gemini-3.1-flash-image` to change
+the image model (default `gemini-3.1-flash-lite-image` — "Nano Banana 2 lite").
+
+> The function is public (no per-user auth), so it spends your Gemini key on
+> demand. The bucket/cache checks bound this to one call per new character, but if
+> abuse is a concern, add a rate limit or a shared client header later.
+
 ## Trust model
 
 There is no third-party-verifiable proof that a client controls a DR account, so

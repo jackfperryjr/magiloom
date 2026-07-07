@@ -11,6 +11,9 @@ contextBridge.exposeInMainWorld('dr', {
     publish: (charName: string, dataUrl: string) => ipcRenderer.invoke('avatar:publish', charName, dataUrl),
     remove:  (charName: string)                  => ipcRenderer.invoke('avatar:delete', charName)
   },
+  portrait: {
+    generate: (name: string, prompt: string) => ipcRenderer.invoke('portrait:generate', name, prompt),
+  },
   auth: {
     login: (account: string, password: string) =>
       ipcRenderer.invoke('auth:login', account, password),

@@ -43,7 +43,7 @@ export function RoomPanel() {
               <span
                 className="game-link"
                 onClick={() => window.dr.game.send(dir)}
-                title={'go ' + dir}
+                data-tooltip={'go ' + dir}
               >
                 {dir}
               </span>

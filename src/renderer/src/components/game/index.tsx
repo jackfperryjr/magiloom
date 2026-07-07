@@ -1,11 +1,14 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { useAtomValue, useAtom } from 'jotai'
 import {
   handsAtom, indicatorsAtom, roundtimeSecondsAtom, vitalsAtom,
   verbsAtom, verbsWithInfoAtom, verbInfoAtom, beginVerbInfoCapture,
-  presenceModeAtom, avatarsAtom,
+  presenceModeAtom, avatarsAtom, avatarCropsAtom,
 } from '../../store/game'
 import type { PresenceMode, ProfileInfo } from '../../store/game'
+import type { AvatarCrop } from '../../lib/avatar'
+import { CircleAvatar } from '../ui/CircleAvatar'
+import { downscaleToFit } from '../../lib/image'
 import { useProfile } from '../../hooks/useProfile'
 export type { ConnectionStatus } from '../../store/game'
 import type { ConnectionStatus } from '../../store/game'
@@ -252,7 +255,7 @@ export function VitalsBar() {
         const st  = vitals[v.key]
         const pct = st.max > 0 ? Math.max(0, Math.min(100, (st.value / st.max) * 100)) : 0
         return (
-          <div className="vital-mini" key={v.key} title={`${v.label} ${Math.round(pct)}%`}>
+          <div className="vital-mini" key={v.key} data-tooltip={`${v.label} ${Math.round(pct)}%`}>
             <span className="vital-mini-label" style={{ color: v.color }}>{v.label}</span>
             <div className="vital-mini-track">
               <div className={`vital-mini-fill vital-${v.key}`} style={{ width: `${pct}%` }} />
@@ -286,32 +289,84 @@ export function GameTopBar({ status }: { status: ConnectionStatus }) {
 
 // ── Character bar (bottom-left identity + user menu) ──────────────────────────
 // Downscale the picked image to a small square data URL so settings stay light.
-function fileToAvatar(file: File): Promise<string> {
+// Read a picked File into a data URL (raw — cropping happens live in the modal).
+function readImageFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onerror = () => reject(new Error('read failed'))
-    reader.onload = () => {
-      const img = new Image()
-      img.onerror = () => reject(new Error('decode failed'))
-      img.onload = () => {
-        // 256px keeps the ~180px modal preview crisp while staying light in settings
-        const size = 256
-        const canvas = document.createElement('canvas')
-        canvas.width = size; canvas.height = size
-        const ctx = canvas.getContext('2d')
-        if (!ctx) { reject(new Error('no ctx')); return }
-        ctx.imageSmoothingQuality = 'high'
-        // Cover-fit the source into the square canvas
-        const scale = Math.max(size / img.width, size / img.height)
-        const w = img.width * scale, h = img.height * scale
-        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h)
-        resolve(canvas.toDataURL('image/png'))
-      }
-      img.src = reader.result as string
-    }
+    reader.onload  = () => resolve(reader.result as string)
     reader.readAsDataURL(file)
   })
 }
+
+// Interactive avatar cropper: pan (drag) + zoom (slider/wheel) a source image
+// within a circular frame; export() bakes the framed region to a 256px square.
+export interface AvatarCropHandle { export: () => { url: string; crop: AvatarCrop } }
+const PREVIEW = 180  // matches .avatar-modal-preview img
+
+const AvatarCropper = forwardRef<AvatarCropHandle, { src: string }>(({ src }, ref) => {
+  const imgRef = useRef<HTMLImageElement>(null)
+  const [nat,  setNat]  = useState<{ w: number; h: number } | null>(null)
+  const [zoom, setZoom] = useState(1)                 // multiplier over the cover-fit scale
+  const [off,  setOff]  = useState({ x: 0, y: 0 })    // pan, in preview px
+  const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null)
+
+  const base  = nat ? Math.max(PREVIEW / nat.w, PREVIEW / nat.h) : 1
+  const scale = base * zoom
+  const dispW = nat ? nat.w * scale : PREVIEW
+  const dispH = nat ? nat.h * scale : PREVIEW
+
+  // Keep the image covering the circle — no gaps at the edges.
+  const clamp = (o: { x: number; y: number }) => {
+    const maxX = Math.max(0, (dispW - PREVIEW) / 2)
+    const maxY = Math.max(0, (dispH - PREVIEW) / 2)
+    return { x: Math.min(maxX, Math.max(-maxX, o.x)), y: Math.min(maxY, Math.max(-maxY, o.y)) }
+  }
+  useEffect(() => { setOff(o => clamp(o)) }, [zoom, nat])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onDown = (e: React.PointerEvent) => {
+    e.currentTarget.setPointerCapture(e.pointerId)
+    drag.current = { px: e.clientX, py: e.clientY, ox: off.x, oy: off.y }
+  }
+  const onMove = (e: React.PointerEvent) => {
+    if (!drag.current) return
+    setOff(clamp({ x: drag.current.ox + (e.clientX - drag.current.px), y: drag.current.oy + (e.clientY - drag.current.py) }))
+  }
+  const onUp = (e: React.PointerEvent) => {
+    drag.current = null
+    try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* noop */ }
+  }
+  const onWheel = (e: React.WheelEvent) => {
+    setZoom(z => Math.min(3, Math.max(1, z - e.deltaY * 0.0015)))
+  }
+
+  // Keep the full (downscaled) image; return the pan/zoom as size-independent
+  // fractions so any circle can reproduce this exact framing.
+  useImperativeHandle(ref, () => ({
+    export: () => {
+      const maxX = Math.max(0, (dispW - PREVIEW) / 2)
+      const maxY = Math.max(0, (dispH - PREVIEW) / 2)
+      return { url: src, crop: { zoom, px: maxX ? off.x / maxX : 0, py: maxY ? off.y / maxY : 0 } }
+    },
+  }), [dispW, dispH, off, zoom, src])
+
+  return (
+    <div className="avatar-cropper">
+      <div className="avatar-cropper-frame" onPointerDown={onDown} onPointerMove={onMove}
+           onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel}>
+        <img
+          ref={imgRef} src={src} alt="" draggable={false}
+          onLoad={e => { setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight }); setZoom(1); setOff({ x: 0, y: 0 }) }}
+          style={{ width: dispW, height: dispH, transform: `translate(calc(-50% + ${off.x}px), calc(-50% + ${off.y}px))` }}
+        />
+      </div>
+      <input className="avatar-cropper-zoom" type="range" min={1} max={3} step={0.01}
+             value={zoom} onChange={e => setZoom(Number(e.target.value))} aria-label="Zoom" />
+      <div className="avatar-cropper-hint">Drag to reposition · scroll or slider to zoom</div>
+    </div>
+  )
+})
+AvatarCropper.displayName = 'AvatarCropper'
 
 const IDLE_MS = 5 * 60 * 1000  // auto-idle after 5 min of no input
 
@@ -350,13 +405,14 @@ function useAutoIdle(): boolean {
 }
 
 function CharacterMenu({
-  status, presenceMode, onSetPresence, onEditAvatar, avatar, initial, charName, profile, onDisconnect, onConnect, onClose,
+  status, presenceMode, onSetPresence, onEditAvatar, avatar, crop, initial, charName, profile, onDisconnect, onConnect, onClose,
 }: {
   status:        ConnectionStatus
   presenceMode:  PresenceMode
   onSetPresence: (m: PresenceMode) => void
   onEditAvatar:  () => void
   avatar:        string | null
+  crop?:         AvatarCrop
   initial:       string
   charName:      string
   profile:       ProfileInfo | null
@@ -373,7 +429,7 @@ function CharacterMenu({
           <Tooltip text="Change avatar">
             <button className="char-menu-avatar" onClick={run(onEditAvatar)}>
               {avatar
-                ? <img className="char-menu-avatar-img" src={avatar} alt="" />
+                ? <CircleAvatar className="char-menu-avatar-img" src={avatar} crop={crop} alt="" />
                 : <span className="char-menu-avatar-initial">{initial}</span>}
               <span className="char-menu-avatar-edit"><IconPhoto size={20} /></span>
             </button>
@@ -428,6 +484,8 @@ export function CharacterBar({
   // Pending avatar edit in the modal: null = no change; { url } stages a new image
   // (url === null means "remove"). Committed only on Save.
   const [avatarDraft, setAvatarDraft] = useState<{ url: string | null } | null>(null)
+  const [cropSrc, setCropSrc] = useState<string | null>(null)   // raw picked image, being cropped
+  const cropperRef = useRef<AvatarCropHandle>(null)
   const [presenceMode, setPresenceMode] = useAtom(presenceModeAtom)
   const autoIdle = useAutoIdle()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -440,8 +498,10 @@ export function CharacterBar({
   // persist across runs. The shared atom (loaded once at layout mount) is the
   // single source of truth so the conversation panel reflects saves live.
   const [avatars, setAvatars] = useAtom(avatarsAtom)
+  const [avatarCrops, setAvatarCrops] = useAtom(avatarCropsAtom)
   const avatarKey = charName.toLowerCase()
   const avatar = avatars[avatarKey] ?? null
+  const avatarCrop = avatarCrops[avatarKey]
 
   // Shared-avatar publishing is opt-in and only surfaced once the service is
   // configured (MAGILOOM_AVATAR_URL set); otherwise avatars stay purely local.
@@ -459,26 +519,37 @@ export function CharacterBar({
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file || !charName) return
-    try {
-      const dataUrl = await fileToAvatar(file)
-      setAvatarDraft({ url: dataUrl })   // stage — commit on Save
-    } catch { /* ignore bad image */ }
+    // Downscale to fit the avatar bucket cap (200KB) while keeping the whole
+    // image + aspect ratio; the circle crop is applied on top, not baked in.
+    try { setCropSrc(await downscaleToFit(await readImageFile(file))) } catch { /* ignore bad image */ }
   }
 
-  const closeAvatar = () => { setAvatarDraft(null); setShowAvatar(false) }
+  const closeAvatar = () => { setAvatarDraft(null); setCropSrc(null); setShowAvatar(false) }
 
   const onSaveAvatar = async () => {
-    if (!avatarDraft || !charName) { closeAvatar(); return }
-    const next = { ...avatars }
-    if (avatarDraft.url) next[avatarKey] = avatarDraft.url
-    else delete next[avatarKey]
-    await window.dr.settings.patch({ avatars: next })
-    setAvatars(next)
+    if (!charName || (!avatarDraft && !cropSrc)) { closeAvatar(); return }
+    // A picked image saves the full original + its crop box; otherwise the
+    // staged draft (a removal, or the existing image) with no new crop.
+    const result = cropSrc ? cropperRef.current?.export() : undefined
+    const url  = result ? result.url : (avatarDraft?.url ?? null)
+    const crop = result?.crop
+
+    const nextAvatars = { ...avatars }
+    const nextCrops   = { ...avatarCrops }
+    if (url) {
+      nextAvatars[avatarKey] = url
+      if (crop) nextCrops[avatarKey] = crop; else delete nextCrops[avatarKey]
+    } else {
+      delete nextAvatars[avatarKey]; delete nextCrops[avatarKey]
+    }
+    await window.dr.settings.patch({ avatars: nextAvatars, avatarCrops: nextCrops })
+    setAvatars(nextAvatars); setAvatarCrops(nextCrops)
     // Mirror the change to the shared service when publishing is enabled. A
-    // removal always unpublishes; new images only publish with consent.
+    // removal always unpublishes; new images only publish with consent. (The
+    // crop is local for now; other viewers see the image center-cropped.)
     if (svcEnabled) {
-      if (avatarDraft.url && share) window.dr.avatar.publish(charName, avatarDraft.url).catch(() => {})
-      else if (!avatarDraft.url)    window.dr.avatar.remove(charName).catch(() => {})
+      if (url && share) window.dr.avatar.publish(charName, url).catch(() => {})
+      else if (!url)    window.dr.avatar.remove(charName).catch(() => {})
     }
     closeAvatar()
   }
@@ -505,7 +576,7 @@ export function CharacterBar({
       <button className="char-identity" onClick={() => setMenuOpen(o => !o)}>
         <span className="char-avatar">
           {avatar
-            ? <img className="char-avatar-img" src={avatar} alt="" />
+            ? <CircleAvatar className="char-avatar-img" src={avatar} crop={avatarCrop} alt="" />
             : <span className="char-avatar-initial">{initial}</span>}
           <span className={`char-status-dot status-${presence.dot}`} />
         </span>
@@ -534,6 +605,7 @@ export function CharacterBar({
           onSetPresence={setPresenceMode}
           onEditAvatar={() => setShowAvatar(true)}
           avatar={avatar}
+          crop={avatarCrop}
           initial={initial}
           charName={charName}
           profile={profile}
@@ -549,24 +621,29 @@ export function CharacterBar({
               <span className="modal-title">{charName || 'Avatar'}</span>
               <button className="modal-close" onClick={closeAvatar}>×</button>
             </div>
-            <div className="avatar-modal-preview">
-              {previewUrl
-                ? <img src={previewUrl} alt="" />
-                : <span className="avatar-modal-initial">{initial}</span>}
-            </div>
+            {cropSrc
+              ? <AvatarCropper ref={cropperRef} src={cropSrc} />
+              : previewUrl
+                ? (
+                  <div className="avatar-modal-facewrap">
+                    <CircleAvatar className="avatar-modal-face" src={previewUrl}
+                                  crop={previewUrl === avatar ? avatarCrop : undefined} />
+                  </div>
+                )
+                : <div className="avatar-modal-preview"><span className="avatar-modal-initial">{initial}</span></div>}
             <div className="avatar-modal-actions">
               <button className="login-btn-secondary" onClick={() => fileRef.current?.click()}>
-                {previewUrl ? 'Replace' : 'Upload'}
+                {previewUrl || cropSrc ? 'Replace' : 'Upload'}
               </button>
-              {previewUrl && (
-                <button className="login-btn-secondary" onClick={() => setAvatarDraft({ url: null })}>Remove</button>
+              {(previewUrl || cropSrc) && (
+                <button className="login-btn-secondary" onClick={() => { setCropSrc(null); setAvatarDraft({ url: null }) }}>Remove</button>
               )}
-              <button className="login-btn" onClick={onSaveAvatar} disabled={!avatarDraft}>Save</button>
+              <button className="login-btn" onClick={onSaveAvatar} disabled={!avatarDraft && !cropSrc}>Save</button>
             </div>
             {svcEnabled && (
               <label className="avatar-modal-share">
                 <input type="checkbox" checked={share} onChange={onToggleShare} />
-                <span>Share so other MAGILOOM players see this avatar</span>
+                <span>Share so other MAGILOOM users see this avatar</span>
               </label>
             )}
           </div>
@@ -617,7 +694,7 @@ export function StatusBar({ updateSlot }: { updateSlot?: React.ReactNode }) {
       <img src="./icon.png" className="app-icon" alt="" aria-hidden />
       <span className="app-title">MAGILOOM</span>
       <div className="status-bar-spacer" />
-      <Tooltip text="Player guide">
+      <Tooltip text="Guide">
         <button
           className="titlebar-help"
           onClick={() => window.dr.app.openExternal('https://github.com/jackfperryjr/magiloom/blob/main/GUIDE.md')}

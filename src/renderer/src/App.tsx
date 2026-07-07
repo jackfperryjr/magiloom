@@ -18,12 +18,13 @@ import {
   echoCommandAtom, beginSilentExpAtom, lichMsgAtom, tickAtom,
   combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom, inventoryLinesAtom,
   verbRawAtom, beginVerbCapture, endVerbCapture,
-  avatarsAtom, selfNameAtom, resetSessionAtom,
+  avatarsAtom, avatarCropsAtom, selfNameAtom, resetSessionAtom,
 } from './store/game'
 import { DEFAULT_HIGHLIGHTS } from './lib/themes'
 import { loadCharAppearance, applyAppearance } from './lib/charSettings'
 import { IconArrowDownTray, IconArrowPath, IconExclamationTriangle } from './components/ui/Icons'
 import { Tooltip } from './components/ui/Tooltip'
+import { GlobalTooltip } from './components/ui/GlobalTooltip'
 import './styles/global.css'
 
 document.body.dataset.platform = window.dr.app.platform
@@ -152,6 +153,7 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
   const setDeaths    = useSetAtom(deathsAtom)
   const setInventory = useSetAtom(inventoryLinesAtom)
   const setAvatars   = useSetAtom(avatarsAtom)
+  const setAvatarCrops = useSetAtom(avatarCropsAtom)
 
   const getClearFn = (id: PanelId): (() => void) | undefined => {
     switch (id) {
@@ -204,9 +206,14 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
   // mount. Appearance is per-character and applied in the effect below.
   useEffect(() => {
     window.dr.settings.getAll().then(s => {
+      // Theme the login screen with the last-used character's appearance so it
+      // matches what the player last saw (before any character is active).
+      const lastChar = s.accounts?.find(a => a.name === s.lastAccount)?.lastCharacter
+      if (lastChar) applyAppearance(loadCharAppearance(lastChar), setShowTimestamps)
       if (s.outputBufferSize) setOutputBuffer(s.outputBufferSize)
       if (s.functionKeys)     setFunctionKeys(s.functionKeys)
       if (s.avatars)          setAvatars(s.avatars)
+      if (s.avatarCrops)      setAvatarCrops(s.avatarCrops)
       if (s.highlights && s.highlights.length > 0) {
         setHighlights(s.highlights as never[])
       } else {
@@ -314,6 +321,7 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
       </div>
       {showHighlights && <HighlightsModal onClose={handleHighlightsClose} />}
       <NotificationCenter charName={charName} status={status} />
+      <GlobalTooltip />
     </div>
   )
 }
