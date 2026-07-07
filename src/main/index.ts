@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, screen, shell } from 'electron'
 import { join } from 'path'
-import { existsSync, readFileSync, writeFileSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { autoUpdater } from 'electron-updater'
 import { LichManager, LichConnection } from './lich-manager'
 import { GameConnection } from './game-connection'
@@ -9,6 +9,41 @@ import { sgeAuth } from './sge-auth'
 import type { SGELaunchKey } from './sge-auth'
 import { getAvatar, publishAvatar, deleteAvatar, isAvatarServiceEnabled } from './avatar-service'
 import { ensurePortrait } from './portrait-service'
+
+// ── Multi-instance isolation ──────────────────────────────────────────────────
+// Magiloom is meant to run several windows at once (e.g. one per DragonRealms
+// character). They share ONE settings file (accounts, passwords, avatars) but
+// each gets its own Chromium session directory — otherwise every extra instance
+// collides on the same cache / localStorage and Chromium logs
+// "Unable to move the cache: Access is denied." on Windows.
+//
+// SHARED_DIR is the default userData location (…/AppData/Roaming/Magiloom);
+// capture it BEFORE we repoint userData at a per-instance slot below.
+const SHARED_DIR = app.getPath('userData')
+
+function pidAlive(pid: number): boolean {
+  try { process.kill(pid, 0); return true }
+  catch (e) { return (e as NodeJS.ErrnoException).code === 'EPERM' }
+}
+
+// Claim the lowest-numbered slot whose previous owner has exited, so slots (and
+// their caches / window positions) get reused across restarts instead of piling
+// up. Windows are launched manually, so the pid-file race is not a concern.
+function claimInstanceDir(): string {
+  for (let slot = 0; ; slot++) {
+    const dir     = join(SHARED_DIR, 'instances', String(slot))
+    const pidFile = join(dir, 'owner.pid')
+    mkdirSync(dir, { recursive: true })
+    if (existsSync(pidFile)) {
+      const owner = parseInt(readFileSync(pidFile, 'utf8'), 10)
+      if (!Number.isNaN(owner) && owner !== process.pid && pidAlive(owner)) continue
+    }
+    writeFileSync(pidFile, String(process.pid), 'utf8')
+    return dir
+  }
+}
+
+app.setPath('userData', claimInstanceDir())
 
 // ── Window state persistence ──────────────────────────────────────────────────
 interface WindowState { x: number; y: number; width: number; height: number; maximized: boolean }
@@ -43,7 +78,7 @@ let mainWindow: BrowserWindow | null = null
 const lichManager = new LichManager()
 const gameConn    = new GameConnection()
 const lichConn    = new LichConnection()
-const settings    = new SettingsStore()
+const settings    = new SettingsStore(SHARED_DIR)
 
 const lichLogBuffer: string[] = []
 

@@ -1,4 +1,3 @@
-import { app } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 
@@ -25,16 +24,17 @@ const DEFAULTS: AppSettings = {
   functionKeys: {}
 }
 
-function settingsPath(): string {
-  const dir = app.getPath('userData')
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-  return join(dir, 'settings.json')
-}
-
 export class SettingsStore {
   private data: AppSettings
 
-  constructor() { this.data = this.load() }
+  // `dir` is the shared data directory (not per-instance userData), so every
+  // running window reads and writes the same accounts/passwords/settings.
+  constructor(private dir: string) { this.data = this.load() }
+
+  private settingsPath(): string {
+    if (!existsSync(this.dir)) mkdirSync(this.dir, { recursive: true })
+    return join(this.dir, 'settings.json')
+  }
 
   get<K extends keyof AppSettings>(key: K): AppSettings[K] { return this.data[key] }
 
@@ -91,11 +91,11 @@ export class SettingsStore {
 
   private load(): AppSettings {
     try {
-      return { ...DEFAULTS, ...JSON.parse(readFileSync(settingsPath(), 'utf8')) }
+      return { ...DEFAULTS, ...JSON.parse(readFileSync(this.settingsPath(), 'utf8')) }
     } catch { return { ...DEFAULTS } }
   }
 
   private save(): void {
-    writeFileSync(settingsPath(), JSON.stringify(this.data, null, 2), 'utf8')
+    writeFileSync(this.settingsPath(), JSON.stringify(this.data, null, 2), 'utf8')
   }
 }

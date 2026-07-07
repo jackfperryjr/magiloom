@@ -211,7 +211,7 @@ export const THEMES: Theme[] = [
     }
   },
   {
-    id: 'frostbite',
+    id: 'ff4',
     name: 'Final Fantasy IV',
     vars: {
       '--bg-shell':      '#000018',

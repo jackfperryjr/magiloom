@@ -393,7 +393,6 @@ export function setPlayerName(name: string) {
 
 let _outputBuffer = 5000
 export function setOutputBuffer(v: number) { _outputBuffer = v }
-export function getOutputBuffer() { return _outputBuffer }
 
 export function GameOutput() {
   const lines        = useAtomValue(outputLinesAtom)
