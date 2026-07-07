@@ -738,7 +738,7 @@ body[data-platform="darwin"] .status-bar {
 
 /* Final Fantasy IV's accent is near-white, so an accent fill reads as a white
    blob — fill with the theme's blue and keep white text, borderless. */
-[data-theme="frostbite"] .jump-present {
+[data-theme="ff4"] .jump-present {
   background: #0000A8; /* the lighter blue from the theme's panel gradient */
   color: var(--text-bright);
 }
@@ -942,7 +942,7 @@ body[data-platform="darwin"] .status-bar {
 /* FF IV theme's --bg-panel is a gradient, which makes the whole `border`
    shorthand invalid (dropping width + style too), so the dot loses its ring.
    Re-declare the full border with a solid navy matching the panel. */
-[data-theme="frostbite"] .char-status-dot { border: 2px solid #000050; }
+[data-theme="ff4"] .char-status-dot { border: 2px solid #000050; }
 
 .char-identity {
   flex: 1;
@@ -1709,8 +1709,8 @@ body[data-platform="darwin"] .status-bar {
 [data-theme="parchment"] .login-btn { color: var(--bg-shell); }
 /* Final Fantasy IV's accent is near-white, so an accent button would be a
    white blob — give it the theme's blue with white text instead. */
-[data-theme="frostbite"] .login-btn,
-[data-theme="frostbite"] .login-btn:hover {
+[data-theme="ff4"] .login-btn,
+[data-theme="ff4"] .login-btn:hover {
   background: #4050d8;
   color: #ffffff;
 }
