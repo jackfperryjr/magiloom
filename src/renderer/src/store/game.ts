@@ -2,6 +2,7 @@ import { atom } from 'jotai'
 import type { GameEvent, LinkSpan, TextStyle, VitalField, StreamId } from '../lib/sge-parser'
 import { parseExpSkills } from '../lib/exp-parser'
 import { isAtmospheric } from '../lib/atmospherics'
+import type { AvatarCrop } from '../lib/avatar'
 
 export type { StreamId }
 
@@ -112,10 +113,20 @@ export const presenceModeAtom = atom<PresenceMode>('online')
 export const avatarsAtom  = atom<Record<string, string>>({})
 export const selfNameAtom = atom<string>('')
 
+// Per-character crop (pan/zoom) for the avatar circle. The stored image is the
+// full original; this positions the circular window over it. Keyed by lowercased
+// character name, mirrors settings.avatarCrops. See lib/avatar.ts AvatarCrop.
+export const avatarCropsAtom = atom<Record<string, AvatarCrop>>({})
+
 // Server-backed custom avatars fetched by name (data URLs), keyed by lowercased
 // name. A `null` value is a negative cache: "no custom image, use the identicon."
 // Undefined means "not fetched yet". Populated by useEnsureAvatars.
 export const serverAvatarsAtom = atom<Record<string, string | null>>({})
+
+// AI-generated LOOK portraits (data URLs), keyed by lowercased character name.
+// `null` = generation attempted and unavailable. Ranks below a real bucket image
+// (see LookCard) so an uploaded/shared avatar always overrides the generated one.
+export const aiAvatarsAtom = atom<Record<string, string | null>>({})
 
 // ── Verbs (command autocomplete) ───────────────────────────────────────────────
 // Populated once from the game's `VERB LIST` output during a silent sweep, then
@@ -332,6 +343,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(profilesAtom, {})
   set(selfNameAtom, '')
   set(serverAvatarsAtom, {})
+  set(aiAvatarsAtom, {})
   set(presenceModeAtom, 'online')
   // Note: verbRawAtom / verbInfoAtom are game-global (same for every character)
   // and cached in settings, so they are deliberately NOT reset here.
@@ -638,10 +650,13 @@ export const dispatchGameEventAtom = atom(
         // the first line may carry a prefix title, so take it from the second line,
         // which always leads with the name ("Elanarie has …").
         if (_lookCapturing && _lookBuf.length) {
-          const name = _lookSelf
+          const rawName = _lookSelf
             ? (_lookBuf[0].match(/^You are ([A-Z][\w'-]+)/)?.[1] ?? '')
             : (_lookBuf[1]?.match(/^([A-Z][\w'-]+)/)?.[1]
                ?? _lookBuf[0].match(/^You see ([A-Z][\w'-]+)/)?.[1] ?? '')
+          // A description line can lead with a possessive ("Refia's …"); strip the
+          // trailing 's so the key matches the avatar/portrait ("refia", not "refia's").
+          const name = rawName.replace(/'s$/i, '').replace(/'$/, '')
           set(outputLinesAtom, [...get(outputLinesAtom).slice(-4999), {
             id: lineId++, text: _lookBuf.join('\n'), styles: [], stream: 'main' as StreamId,
             timestamp: Date.now(), look: { name, lines: _lookBuf },

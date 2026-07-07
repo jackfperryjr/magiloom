@@ -18,6 +18,7 @@ interface AppSettings {
   highlights:       unknown[]
   passwords:        Record<string, string>
   avatars?:         Record<string, string>
+  avatarCrops?:     Record<string, { zoom: number; px: number; py: number }>
   avatarTokens?:    Record<string, string>
   avatarShare?:     boolean
   verbs?:           string[]
@@ -40,6 +41,9 @@ interface DrAPI {
     get:     (name: string) => Promise<string | null>
     publish: (charName: string, dataUrl: string) => Promise<{ ok: boolean; error?: string }>
     remove:  (charName: string) => Promise<{ ok: boolean; error?: string }>
+  }
+  portrait: {
+    generate: (name: string, prompt: string) => Promise<string | null>
   }
   auth: {
     login: (account: string, password: string) => Promise<

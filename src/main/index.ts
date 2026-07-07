@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, safeStorage, screen, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, screen, shell } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { autoUpdater } from 'electron-updater'
@@ -8,6 +8,7 @@ import { SettingsStore } from './settings-store'
 import { sgeAuth } from './sge-auth'
 import type { SGELaunchKey } from './sge-auth'
 import { getAvatar, publishAvatar, deleteAvatar, isAvatarServiceEnabled } from './avatar-service'
+import { ensurePortrait } from './portrait-service'
 
 // ── Window state persistence ──────────────────────────────────────────────────
 interface WindowState { x: number; y: number; width: number; height: number; maximized: boolean }
@@ -90,6 +91,28 @@ function createWindow(): void {
   mainWindow.on('close',      () => saveWindowState(mainWindow!))
   mainWindow.on('maximize',   () => send('window:maximize-change', true))
   mainWindow.on('unmaximize', () => send('window:maximize-change', false))
+
+  // Right-click any image (LOOK portrait, avatar, …) → save it. Handles both
+  // data: URLs (decode) and http(s) (fetch), with a native save dialog.
+  mainWindow.webContents.on('context-menu', (_e, params) => {
+    const url = params.srcURL
+    const win = mainWindow
+    if (params.mediaType !== 'image' || !url || !win) return
+    Menu.buildFromTemplate([{
+      label: 'Save Image As…',
+      click: async () => {
+        if (!win) return
+        const m = /^data:([^;]+);base64,(.+)$/.exec(url)
+        const ext = (m ? m[1].split('/')[1] : 'png').replace('jpeg', 'jpg')
+        const res = await dialog.showSaveDialog(win, { defaultPath: `magiloom-image.${ext}` })
+        if (res.canceled || !res.filePath) return
+        try {
+          const bytes = m ? Buffer.from(m[2], 'base64') : Buffer.from(await (await fetch(url)).arrayBuffer())
+          writeFileSync(res.filePath, bytes)
+        } catch (err) { lichLog('[image] save failed: ' + String(err)) }
+      },
+    }]).popup({ window: win })
+  })
 
   mainWindow.webContents.on('did-finish-load', () => {
     for (const line of lichLogBuffer) {
@@ -190,6 +213,7 @@ function setupIpcHandlers(): void {
   ipcMain.handle('avatar:get',     (_e, name: string) => getAvatar(name))
   ipcMain.handle('avatar:publish', (_e, charName: string, dataUrl: string) => publishAvatar(settings, charName, dataUrl))
   ipcMain.handle('avatar:delete',  (_e, charName: string) => deleteAvatar(settings, charName))
+  ipcMain.handle('portrait:generate', (_e, name: string, prompt: string) => ensurePortrait(name, prompt))
 
   ipcMain.handle('auth:save-password', (_e, account: string, password: string) => {
     if (!safeStorage.isEncryptionAvailable()) return

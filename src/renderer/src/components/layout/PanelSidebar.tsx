@@ -125,7 +125,7 @@ function Panel({
         <div
           className="panel-resize-handle panel-resize-handle-top"
           onMouseDown={e => beginDrag('top', e)}
-          title="Drag to resize"
+          data-tooltip="Drag to resize"
         />
       )}
       <div
@@ -167,7 +167,7 @@ function Panel({
           <div
             className="panel-resize-handle"
             onMouseDown={e => beginDrag('bottom', e)}
-            title="Drag to resize"
+            data-tooltip="Drag to resize"
           />
         </>
       )}

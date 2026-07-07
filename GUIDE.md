@@ -187,7 +187,7 @@ Avatars appear automatically in the Conversation panel next to each person's spe
 
 ### Sharing your avatar with others
 
-By default your uploaded picture stays only on your own computer. To let other Magiloom players see it beside your speech, open the avatar editor and tick **Share so other Magiloom players see this avatar**.
+By default your uploaded picture stays only on your own computer. To let other Magiloom users see it beside your speech, open the avatar editor and tick **Share so other Magiloom users see this avatar**.
 
 A few things to know:
 

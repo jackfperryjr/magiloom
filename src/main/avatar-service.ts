@@ -15,7 +15,7 @@ import type { SettingsStore } from './settings-store'
 // which case callers fall back to identicons.
 
 const DEFAULT_SUPABASE_URL = 'https://wyzmtzccdgcmxecdpfhw.supabase.co'
-const SUPABASE_URL = (process.env.MAGILOOM_SUPABASE_URL || DEFAULT_SUPABASE_URL).replace(/\/+$/, '')
+export const SUPABASE_URL = (process.env.MAGILOOM_SUPABASE_URL || DEFAULT_SUPABASE_URL).replace(/\/+$/, '')
 const FN_BASE      = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/avatars` : ''
 const STORAGE_BASE = SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/avatars` : ''
 

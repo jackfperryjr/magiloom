@@ -1,9 +1,11 @@
-import { useAtomValue } from 'jotai'
+import { useAtomValue, useSetAtom } from 'jotai'
+import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react'
-import { outputLinesAtom, avatarsAtom, serverAvatarsAtom, selfNameAtom, type OutputLine } from '../../store/game'
+import { outputLinesAtom, avatarsAtom, serverAvatarsAtom, aiAvatarsAtom, selfNameAtom, connectionStatusAtom, type OutputLine } from '../../store/game'
 import { parseExpSkills, type ParsedExpSkill } from '../../lib/exp-parser'
 import type { LinkSpan } from '../../lib/sge-parser'
 import { resolveAvatarSrc } from '../../lib/avatar'
+import { promptFromLook } from '../../lib/lookPortrait'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
 import type { Highlight } from '../ui/HighlightsModal'
 
@@ -104,7 +106,7 @@ function buildSpans(text: string, links: LinkSpan[], bolds: string[]): React.Rea
     if (m.kind === 'link') {
       const link = m.link
       parts.push(
-        <span key={key++} className="game-link" onClick={() => _sendFn?.(expandCmd(link.cmd))} title={link.cmd}>
+        <span key={key++} className="game-link" onClick={() => _sendFn?.(expandCmd(link.cmd))} data-tooltip={link.cmd}>
           {text.slice(m.start, m.end)}
         </span>
       )
@@ -123,15 +125,53 @@ function buildSpans(text: string, links: LinkSpan[], bolds: string[]): React.Rea
 function LookCard({ name, lines }: { name: string; lines: string[] }) {
   const avatars       = useAtomValue(avatarsAtom)
   const serverAvatars = useAtomValue(serverAvatarsAtom)
+  const aiAvatars     = useAtomValue(aiAvatarsAtom)
+  const setAiAvatars  = useSetAtom(aiAvatarsAtom)
   const self          = useAtomValue(selfNameAtom)
+  const status        = useAtomValue(connectionStatusAtom)
   useEnsureAvatars([name])
-  const src = resolveAvatarSrc(name, avatars, serverAvatars, self)
+
+  const key       = name.trim().toLowerCase()
+  const custom    = avatars[key] || serverAvatars[key]       // real upload / bucket image
+  const realImage = custom || aiAvatars[key] || null         // a photo/portrait (not the letter)
+  // Precedence: real image → AI-generated portrait → letter avatar.
+  const src       = realImage || resolveAvatarSrc(name, avatars, serverAvatars, self)
+
+  const [zoomed, setZoomed] = useState(false)
+  useEffect(() => {
+    if (!zoomed) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setZoomed(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [zoomed])
+
+  // Generate a portrait from the LOOK text when the character has no real avatar.
+  // Cached server-side, so this fires at most once per character.
+  useEffect(() => {
+    if (status !== 'connected' || custom || aiAvatars[key] !== undefined) return
+    let cancelled = false
+    window.dr.portrait.generate(name, promptFromLook(lines))
+      .then(url => { if (!cancelled) setAiAvatars(prev => ({ ...prev, [key]: url })) })
+    return () => { cancelled = true }
+  }, [key, name, lines, custom, aiAvatars, status, setAiAvatars])
+
   return (
     <div className="game-line look-card" data-copy-text={lines.join('\n')}>
-      <img className="look-avatar" src={src} alt={name} />
+      <img
+        className={'look-avatar' + (realImage ? ' look-avatar-zoomable' : '')}
+        src={src} alt={name}
+        onClick={realImage ? () => setZoomed(true) : undefined}
+        data-tooltip={realImage ? 'Click to enlarge' : undefined}
+      />
       <div className="look-card-text">
         {lines.map((l, i) => <div key={i} className="look-card-line">{l}</div>)}
       </div>
+      {zoomed && realImage && createPortal(
+        <div className="modal-overlay look-lightbox" onClick={() => setZoomed(false)}>
+          <img className="look-lightbox-img" src={realImage} alt={name} />
+        </div>,
+        document.body,
+      )}
     </div>
   )
 }
@@ -229,7 +269,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
           <span style={{ color: 'var(--text-dim)' }}>Obvious paths: </span>
           {dirs.map((dir, i) => (
             <span key={dir}>
-              <span className="game-link" onClick={() => _sendFn?.(dir)} title={dir}>{dir}</span>
+              <span className="game-link" onClick={() => _sendFn?.(dir)}>{dir}</span>
               {i < dirs.length - 1 && <span style={{ color: 'var(--text-dim)' }}>, </span>}
             </span>
           ))}
@@ -250,7 +290,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
           key={key++}
           className="game-link"
           onClick={() => _sendFn?.(expandCmd(link.cmd))}
-          title={link.cmd}
+          data-tooltip={link.cmd}
         >
           {link.text}
         </span>
