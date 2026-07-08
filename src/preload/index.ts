@@ -91,5 +91,17 @@ contextBridge.exposeInMainWorld('dr', {
     onConnected:    (cb: () => void)           => {                                               ipcRenderer.on('game:connected', cb);    return () => ipcRenderer.removeListener('game:connected', cb) },
     onDisconnected: (cb: () => void)           => {                                               ipcRenderer.on('game:disconnected', cb); return () => ipcRenderer.removeListener('game:disconnected', cb) },
     onError:        (cb: (e: string) => void)  => { const h = (_e: unknown, e: string) => cb(e); ipcRenderer.on('game:error', h);         return () => ipcRenderer.removeListener('game:error', h) }
+  },
+  broadcast: {
+    // Send a command to OTHER Magiloom windows (this window runs its own copy).
+    send:       (cmd: string) => ipcRenderer.invoke('broadcast:send', cmd),
+    // Opt this window in/out of executing commands broadcast by other windows.
+    setReceive: (on: boolean) => ipcRenderer.invoke('broadcast:set-receive', on),
+    // A command broadcast from another window, to run in this one.
+    onIncoming: (cb: (cmd: string) => void) => {
+      const h = (_e: unknown, cmd: string) => cb(cmd)
+      ipcRenderer.on('broadcast:incoming', h)
+      return () => ipcRenderer.removeListener('broadcast:incoming', h)
+    }
   }
 })

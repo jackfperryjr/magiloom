@@ -39,6 +39,7 @@ export type GameEvent =
   | { type: 'spell';     name: string }
   | { type: 'roundtime'; expires: number }
   | { type: 'cast_time'; expires: number }
+  | { type: 'percClear' }   // <clearStream id='percWindow'/> — active-spell list is being refreshed
   | { type: 'prompt';    time: number }
 
 export type VitalField = 'health' | 'mana' | 'stamina' | 'spirit'
@@ -569,13 +570,19 @@ export function parseLine(raw: string): GameEvent[] {
         break
 
       // ── Stream switching ──────────────────────────────────────────────────
-      case 'clearstream':
+      case 'clearstream': {
         flush()
-        // clearStream resets inv panel - emit special event handled in store
-        if ((attrs['id'] ?? '').toLowerCase() === 'inv') {
+        // clearStream resets a side panel — emit a special event handled in store.
+        const csId = (attrs['id'] ?? '').toLowerCase()
+        if (csId === 'inv') {
           events.push({ type: 'text', text: '__clear_inv__', styles: [], stream: 'inv' })
+        } else if (csId === 'percwindow') {
+          // DR refreshes the active-spell list ("Name (N roisaen)" lines that
+          // follow) after clearing it. Signal a fresh snapshot is starting.
+          events.push({ type: 'percClear' })
         }
         break
+      }
       case 'pushstream': {
         flush()
         const id = (attrs['id'] ?? '').toLowerCase()

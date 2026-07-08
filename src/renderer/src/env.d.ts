@@ -16,9 +16,10 @@ interface AppSettings {
   density:          'cozy' | 'compact'
   outputBufferSize: number
   functionKeys:     Record<string, string>
-  aliases?:         { id: string; pattern: string; command: string; enabled: boolean }[]
-  triggers?:        { id: string; pattern: string; isRegex: boolean; command: string; enabled: boolean }[]
+  aliases?:         { id: string; pattern: string; command: string; enabled: boolean; class?: string }[]
+  triggers?:        { id: string; pattern: string; isRegex: boolean; command: string; enabled: boolean; class?: string }[]
   highlights:       unknown[]
+  classes?:         Record<string, boolean>
   passwords:        Record<string, string>
   avatars?:         Record<string, string>
   avatarCrops?:     Record<string, { zoom: number; px: number; py: number }>
@@ -39,6 +40,7 @@ interface CharSettings {
   aliases:      NonNullable<AppSettings['aliases']>
   triggers:     NonNullable<AppSettings['triggers']>
   highlights:   unknown[]
+  classes:      Record<string, boolean>
   appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact' }
   panels?:       { id: string; label: string; visible: boolean }[]
   panelHeights?: Record<string, number>
@@ -122,6 +124,11 @@ interface DrAPI {
     onConnected:    (cb: () => void)           => () => void
     onDisconnected: (cb: () => void)           => () => void
     onError:        (cb: (e: string) => void)  => () => void
+  }
+  broadcast: {
+    send:       (cmd: string) => Promise<void>
+    setReceive: (on: boolean) => Promise<void>
+    onIncoming: (cb: (cmd: string) => void) => () => void
   }
 }
 

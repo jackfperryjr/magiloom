@@ -1,7 +1,7 @@
 import { useAtomValue, useSetAtom } from 'jotai'
 import { createPortal } from 'react-dom'
-import { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react'
-import { outputLinesAtom, avatarsAtom, serverAvatarsAtom, aiAvatarsAtom, selfNameAtom, connectionStatusAtom, type OutputLine } from '../../store/game'
+import { useEffect, useRef, useState, useLayoutEffect, useCallback, memo } from 'react'
+import { outputLinesAtom, avatarsAtom, serverAvatarsAtom, aiAvatarsAtom, selfNameAtom, connectionStatusAtom, setOutputBufferSize, type OutputLine } from '../../store/game'
 import { parseExpSkills, type ParsedExpSkill } from '../../lib/exp-parser'
 import type { LinkSpan } from '../../lib/sge-parser'
 import { resolveAvatarSrc } from '../../lib/avatar'
@@ -56,9 +56,15 @@ const PRESET_CLASS: Record<string, string> = {
   mono:           'preset-mono',
 }
 
+// Classes disabled for the active character — highlights tagged with one are
+// skipped. Mirrors the _highlights module var (set from App on char load/toggle).
+let _disabledClasses: ReadonlySet<string> = new Set()
+export function setDisabledClasses(s: ReadonlySet<string>) { _disabledClasses = s }
+
 function matchHighlight(text: string, highlights: Highlight[]): Highlight | null {
   for (const hl of highlights) {
     if (!hl.enabled || !hl.pattern) continue
+    if (hl.class && _disabledClasses.has(hl.class)) continue
     try {
       const match = hl.isRegex
         ? new RegExp(hl.pattern, 'i').test(text)
@@ -168,7 +174,13 @@ function LookCard({ name, lines }: { name: string; lines: string[] }) {
   )
 }
 
-function GameLine({ line, highlights }: { line: OutputLine; highlights: Highlight[] }) {
+// Memoized so appending a new line doesn't re-render (and re-run the regex
+// classification below on) every existing line. `line` objects are immutable —
+// appended by reference — so a shallow prop compare skips all unchanged lines,
+// turning an O(n) re-render per append into a single new-line render. The
+// `highlights` array reference is stable between edits (see setHighlights), so
+// it participates correctly in the default shallow comparison.
+const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine; highlights: Highlight[] }) {
   // LOOK-at-player block: portrait (avatar) beside the description text
   if (line.look) return <LookCard name={line.look.name} lines={line.look.lines} />
 
@@ -331,7 +343,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
       {line.text}
     </div>
   )
-}
+})
 
 function ExpSkillHalf({ s }: { s: ParsedExpSkill }) {
   return (
@@ -375,8 +387,10 @@ export function setPlayerName(name: string) {
   _playerRe = n ? new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i') : null
 }
 
-let _outputBuffer = 5000
-export function setOutputBuffer(v: number) { _outputBuffer = v }
+// Forward the user's Output Buffer Size setting to the store, which owns the
+// rolling cap on the line array. (Previously this only set a local var that was
+// never read, so the setting had no effect.)
+export function setOutputBuffer(v: number) { setOutputBufferSize(v) }
 
 export function GameOutput() {
   const lines        = useAtomValue(outputLinesAtom)

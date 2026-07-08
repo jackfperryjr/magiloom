@@ -2,7 +2,7 @@ import { useAtomValue } from 'jotai'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  roomAtom, activeSpellAtom, inventoryLinesAtom,
+  roomAtom, activeSpellAtom, activeSpellsAtom, inventoryLinesAtom,
   expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom,
   avatarsAtom, selfNameAtom, serverAvatarsAtom,
   type OutputLine,
@@ -110,11 +110,46 @@ export function ExperiencePanel() {
 }
 
 // ── Spells Panel ───────────────────────────────────────────────────────────────
+// Active buffs (name + remaining "roisaen", DR's time unit) come from DR's
+// percWindow — see activeSpellsAtom. The bar is relative to the longest-remaining
+// spell in the list; the last few roisaen turn amber/red so expiring buffs stand
+// out. Colors: expiring (≤3) red, soon (≤8) amber, otherwise accent.
+function spellDurColor(roisaen: number): string {
+  if (roisaen <= 3) return 'var(--color-warning, #e06060)'
+  if (roisaen <= 8) return '#e0b050'
+  return 'var(--accent)'
+}
+
 export function SpellsPanel() {
-  const spell = useAtomValue(activeSpellAtom)
-  return spell
-    ? <div className="active-spell">{spell}</div>
-    : <div className="panel-empty">No active spell</div>
+  const spells   = useAtomValue(activeSpellsAtom)
+  const prepared = useAtomValue(activeSpellAtom)
+
+  if (spells.length === 0) {
+    return prepared && prepared !== 'None'
+      ? <div className="active-spell">Preparing: {prepared}</div>
+      : <div className="panel-empty">No active spells</div>
+  }
+
+  const max = Math.max(...spells.map(s => s.roisaen), 1)
+  return (
+    <div className="spells-panel">
+      {spells.map(s => {
+        const color = spellDurColor(s.roisaen)
+        return (
+          <div key={s.name} className="spell-row">
+            <div className="spell-row-head">
+              <span className="spell-name">{s.name}</span>
+              <span className="spell-dur" style={{ color }}>{s.roisaen} <span className="spell-unit">roisaen</span></span>
+            </div>
+            <div className="spell-bar-track">
+              <div className="spell-bar-fill"
+                   style={{ width: `${Math.min(100, (s.roisaen / max) * 100)}%`, background: color }} />
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 // ── Combat Panel ───────────────────────────────────────────────────────────────

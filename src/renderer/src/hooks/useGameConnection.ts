@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react'
-import { useSetAtom, useAtom } from 'jotai'
+import { useSetAtom, useAtom, useAtomValue } from 'jotai'
 import { parseLine, resetParser } from '../lib/sge-parser'
-import { connectionStatusAtom, dispatchGameEventAtom, appendDisconnectNoticeAtom, appendScriptOutputAtom, echoCommandAtom } from '../store/game'
+import { connectionStatusAtom, dispatchGameEventAtom, appendDisconnectNoticeAtom, appendScriptOutputAtom, echoCommandAtom, linkModeAtom, broadcastReceiveAtom, classStatesAtom, disabledClassesAtom } from '../store/game'
 import { expandAlias, matchTriggers, type Alias, type Trigger } from '../lib/automation'
 
 // Ignore a repeat firing of the same trigger command within this window, so a
@@ -14,12 +14,38 @@ export function useGameConnection(charName = '') {
   const appendDisconnectNotice = useSetAtom(appendDisconnectNoticeAtom)
   const appendScriptOutput = useSetAtom(appendScriptOutputAtom)
   const echoCommand = useSetAtom(echoCommandAtom)
+  const linkMode = useAtomValue(linkModeAtom)
+  const receive  = useAtomValue(broadcastReceiveAtom)
+  const disabledClasses = useAtomValue(disabledClassesAtom)
+  const classStates = useAtomValue(classStatesAtom)
+  const setClassStates = useSetAtom(classStatesAtom)
 
   // Aliases/triggers live in refs so the stable send/onData callbacks always see
   // the latest rules without re-subscribing the game listeners.
   const aliasesRef  = useRef<Alias[]>([])
   const triggersRef = useRef<Trigger[]>([])
   const cooldownRef = useRef<Map<string, number>>(new Map())
+  // Link mode lives in a ref so `send` stays a stable callback (it changes what
+  // typing does, but must not re-subscribe the game listeners).
+  const linkRef = useRef(linkMode)
+  useEffect(() => { linkRef.current = linkMode }, [linkMode])
+  // Disabled classes + current class-state map in refs, same reason.
+  const disabledRef = useRef(disabledClasses)
+  useEffect(() => { disabledRef.current = disabledClasses }, [disabledClasses])
+  const classStatesRef = useRef(classStates)
+  useEffect(() => { classStatesRef.current = classStates }, [classStates])
+  // Push this window's receive opt-in down to the main-process bus.
+  useEffect(() => { window.dr.broadcast.setReceive(receive) }, [receive])
+
+  // Toggle a Genie-style class on/off and persist it for this character.
+  const applyClassCommand = useCallback((name: string, action: 'on' | 'off' | 'toggle') => {
+    const prev = classStatesRef.current
+    const isOn = prev[name] !== false
+    const next = action === 'toggle' ? !isOn : action === 'on'
+    const map  = { ...prev, [name]: next }
+    setClassStates(map)
+    if (charName) window.dr.settings.patchChar(charName, { classes: map })
+  }, [charName, setClassStates])
 
   // Load this character's automation rules (per-character, falling back to
   // globals), reloading on character switch and whenever settings are saved.
@@ -40,10 +66,17 @@ export function useGameConnection(charName = '') {
 
   const disconnect = useCallback(() => window.dr.game.disconnect(), [])
 
-  // Outbound chokepoint: expand aliases, then route. A leading '.' runs a native
-  // .cmd script ('.kill'/'.stop' halts all); everything else goes to the game.
-  const send = useCallback((cmd: string) => {
-    const line = expandAlias(cmd, aliasesRef.current)
+  // Local execution of one command: expand aliases, then route. A leading '.'
+  // runs a native .cmd script ('.kill'/'.stop' halts all); everything else goes
+  // to the game. This is the shared core — it never broadcasts, so triggers and
+  // received broadcasts can reuse it without looping.
+  const runLocal = useCallback((cmd: string) => {
+    // Client-side class control: `#class <name> [on|off|toggle]` (default toggle).
+    // Never reaches the game.
+    const cm = cmd.trim().match(/^#class\s+(\S+)\s*(on|off|toggle)?$/i)
+    if (cm) { applyClassCommand(cm[1].toLowerCase(), (cm[2]?.toLowerCase() as 'on' | 'off' | 'toggle') ?? 'toggle'); return }
+
+    const line = expandAlias(cmd, aliasesRef.current, disabledRef.current)
     const t = line.trimStart()
     if (t.startsWith('.')) {
       const [name, ...args] = t.slice(1).trim().split(/\s+/)
@@ -52,9 +85,38 @@ export function useGameConnection(charName = '') {
       return
     }
     window.dr.game.send(line)
-  }, [])
+  }, [applyClassCommand])
+
+  // Outbound chokepoint for USER input. Handles multi-boxing on top of runLocal:
+  //   `\\ cmd` → run here AND broadcast to my other windows
+  //   `\ cmd`  → broadcast to my other windows only (skip this one)
+  //   link on  → every normal command also mirrors to my other windows
+  // Peers only run it if they've opted in to receive (per-window setting).
+  const send = useCallback((cmd: string) => {
+    const t = cmd.trimStart()
+    if (t.startsWith('\\')) {
+      const all  = t.startsWith('\\\\')                 // '\\' = include this window
+      const body = t.replace(/^\\+\s*/, '')
+      if (!body) return
+      window.dr.broadcast.send(body)
+      if (all) runLocal(body)
+      return
+    }
+    runLocal(cmd)
+    if (linkRef.current) window.dr.broadcast.send(cmd)
+  }, [runLocal])
+
+  // A command broadcast from one of my other windows: echo it here and run it
+  // locally (never re-broadcast — runLocal, not send — or windows would loop).
+  useEffect(() => {
+    return window.dr.broadcast.onIncoming((cmd: string) => {
+      echoCommand(cmd)
+      runLocal(cmd)
+    })
+  }, [echoCommand, runLocal])
 
   // Inbound automation: fire matching triggers off each incoming game line.
+  // Triggers run locally only (runLocal) so an auto-fire never storms peers.
   const runTriggers = useCallback((raw: string) => {
     const trigs = triggersRef.current
     if (trigs.length === 0) return
@@ -62,16 +124,16 @@ export function useGameConnection(charName = '') {
     for (const l of lines) {
       const line = l.trim()
       if (!line) continue
-      for (const cmd of matchTriggers(line, trigs)) {
+      for (const cmd of matchTriggers(line, trigs, disabledRef.current)) {
         const now  = Date.now()
         const last = cooldownRef.current.get(cmd) ?? 0
         if (now - last < TRIGGER_COOLDOWN_MS) continue
         cooldownRef.current.set(cmd, now)
         echoCommand(cmd)   // show the auto-fired command like a normal echo
-        send(cmd)
+        runLocal(cmd)
       }
     }
-  }, [echoCommand, send])
+  }, [echoCommand, runLocal])
 
   useEffect(() => {
     // When GameLayout mounts, we may have already connected (the connected
