@@ -3,19 +3,54 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 
 export interface AppSettings {
   lichPath:    string
+  scriptDir:   string                  // folder holding native .cmd scripts ('' → default)
   accounts:    { name: string; lastCharacter?: string }[]
   lastAccount: string
   fontSize:    number
   fontFamily:  string
   passwords:   Record<string, string>  // account name → base64 encrypted password
   functionKeys: Record<string, string> // e.g. { F1: 'attack', F2: 'spell' }
+  aliases?:     { id: string; pattern: string; command: string; enabled: boolean }[]
+  triggers?:    { id: string; pattern: string; isRegex: boolean; command: string; enabled: boolean }[]
+  highlights?:  unknown[]              // global default set; per-character overrides live in `characters`
+  // Per-character overrides for gameplay settings. Missing keys fall back to the
+  // matching global value above, so existing setups become each character's
+  // default until it customises. Keyed by lowercased character name.
+  characters?:  Record<string, CharScopedSettings>
   avatars?:      Record<string, string> // lowercased character name → data URL
   avatarTokens?: Record<string, string> // account name → avatar-service bearer token
   avatarShare?:  boolean                // consent to publish avatars to the shared service
 }
 
+// The subset of settings that can be overridden per character.
+export interface CharScopedSettings {
+  functionKeys?: Record<string, string>
+  aliases?:      AppSettings['aliases']
+  triggers?:     AppSettings['triggers']
+  highlights?:   unknown[]
+  // Appearance + panel layout — previously kept per-character in the renderer's
+  // localStorage, now unified here so they follow the character across windows.
+  appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact' }
+  panels?:       { id: string; label: string; visible: boolean }[]
+  panelHeights?: Record<string, number>
+}
+
+// A fully-resolved per-character view: the four gameplay keys resolve to
+// char-override ?? global default; appearance/panels pass through (undefined when
+// the character hasn't set them, so the renderer can apply its own defaults).
+export interface ResolvedCharSettings {
+  functionKeys: Record<string, string>
+  aliases:      NonNullable<AppSettings['aliases']>
+  triggers:     NonNullable<AppSettings['triggers']>
+  highlights:   unknown[]
+  appearance?:   CharScopedSettings['appearance']
+  panels?:       CharScopedSettings['panels']
+  panelHeights?: CharScopedSettings['panelHeights']
+}
+
 const DEFAULTS: AppSettings = {
   lichPath:    '',
+  scriptDir:   '',
   accounts:    [],
   lastAccount: '',
   fontSize:    13,
@@ -47,6 +82,32 @@ export class SettingsStore {
 
   patch(partial: Partial<AppSettings>): void {
     this.data = { ...this.data, ...partial }
+    this.save()
+  }
+
+  private charKey(name: string): string { return name.trim().toLowerCase() }
+
+  // Resolve a character's gameplay settings: its own overrides, falling back to
+  // the global value for anything it hasn't customised. An empty name (no active
+  // character) yields the globals.
+  getCharSettings(name: string): ResolvedCharSettings {
+    const c = (name ? this.data.characters?.[this.charKey(name)] : undefined) ?? {}
+    return {
+      functionKeys: c.functionKeys ?? this.data.functionKeys ?? {},
+      aliases:      c.aliases      ?? this.data.aliases      ?? [],
+      triggers:     c.triggers     ?? this.data.triggers     ?? [],
+      highlights:   c.highlights   ?? this.data.highlights   ?? [],
+      appearance:   c.appearance,
+      panels:       c.panels,
+      panelHeights: c.panelHeights,
+    }
+  }
+
+  patchCharSettings(name: string, partial: CharScopedSettings): void {
+    if (!name.trim()) return
+    const k = this.charKey(name)
+    const cur = this.data.characters?.[k] ?? {}
+    this.data.characters = { ...(this.data.characters ?? {}), [k]: { ...cur, ...partial } }
     this.save()
   }
 

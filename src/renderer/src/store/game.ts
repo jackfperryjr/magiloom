@@ -210,12 +210,37 @@ let _verbInfoBuf: string[] = []
 let _lookCapturing = false
 let _lookSelf = false
 let _lookBuf: string[] = []
+// Target of the most recent "look <name>" command, used to key a portrait for
+// LOOK replies that carry no name in their text (see LOOK_HAZE_RE). Set by
+// echoCommandAtom, consumed and cleared when a LOOK block is flushed.
+let _pendingLookTarget = ''
 // Matches the first line of both "You see …, a RACE." (others) and "You are …, a
 // RACE." (yourself). Anchored on the trailing ", a/an <Race>." so it doesn't fire
 // on ordinary "You are …" lines. The name is NOT taken from this line — a prefix
 // title ("Blood Channeler Elanarie …") makes the first word unreliable — see the
 // per-case extraction in the prompt handler.
 const LOOK_START_RE = /^You (?:see|are) [A-Z][^,]*?,.*\ban?\s+[A-Z][A-Za-z' -]*\.?\s*$/
+// Special themed LOOKs whose first line is the whole description and does NOT open
+// with "You see NAME, a RACE." A shrouded character ("<Name> seems to be wrapped
+// in dark shadows / enveloped in a dark cloak, concealing all but <his/her> empty
+// hands.") or a Duskruin/Celestial cosmetic seen "Through a <colour> haze, you
+// see a <race> Champion/Aspect … with … eyes." lookPortrait.ts renders bespoke
+// prompts for these; here we just need to capture the block.
+const LOOK_CONCEAL_RE = /^[A-Z][\w'-]+ seems to be (?:wrapped in dark shadows|enveloped in a dark cloak), concealing all but (?:his|her|their|its)\s+empty hands\b/
+const LOOK_HAZE_RE    = /^Through an?\s+.+?\s+haze,\s+you see an?\s+.+?\s+with\s+.+/i
+
+// Stable short key derived from a LOOK's text (FNV-1a). Used to file a nameless
+// haze-cosmetic portrait under the LOOK itself, so identical hazes share one
+// cached image rather than being (mis)attributed to whoever was looked at.
+function hashLook(text: string): string {
+  const norm = text.toLowerCase().replace(/\s+/g, ' ').trim()
+  let h = 0x811c9dc5
+  for (let i = 0; i < norm.length; i++) {
+    h ^= norm.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return (h >>> 0).toString(36)
+}
 export function beginVerbInfoCapture(name: string) {
   _verbInfoName = name.toLowerCase(); _verbInfoHeader = null; _verbInfoStarted = false; _verbInfoBuf = []
 }
@@ -285,9 +310,17 @@ const EXP_DRAIN_RE = /Log-on system converted|drained your field experience/i
 export const echoCommandAtom = atom(
   null,
   (get, set, command: string) => {
-    const preset = command.startsWith(';') ? 'echo-script' : 'echo'
+    const preset = command.startsWith(';') || command.startsWith('.') ? 'echo-script' : 'echo'
     const line   = mkLine(command, [{ preset }], 'main')
     set(outputLinesAtom, [...get(outputLinesAtom).slice(-4999), line])
+    // Remember who a "look <name>" targeted so a themed reply that carries no name
+    // in its text (haze cosmetics) can still be keyed to a portrait. Consumed and
+    // cleared when the LOOK block flushes.
+    const lookAt = command.trim().match(/^(?:look|l)(?:\s+at)?\s+([A-Za-z][\w'-]*)$/i)
+    if (lookAt) {
+      const w = lookAt[1].toLowerCase()
+      _pendingLookTarget = w.charAt(0).toUpperCase() + w.slice(1)
+    }
     // Pre-open the exp batch on the command itself, not the first matching report
     // line — a report with zero active skills never matches at all, so waiting
     // for a match to start the batch meant it could never close (never clearing).
@@ -295,6 +328,16 @@ export const echoCommandAtom = atom(
       _expBatchNames  = new Set()
       _silentExpBatch = false  // manual send wins over any pending background poll
     }
+  }
+)
+
+// Append a line emitted by a running native .cmd script to the main output,
+// styled like a script echo.
+export const appendScriptOutputAtom = atom(
+  null,
+  (get, set, text: string) => {
+    const line = mkLine(text, [{ preset: 'echo-script' }], 'main')
+    set(outputLinesAtom, [...get(outputLinesAtom).slice(-4999), line])
   }
 )
 
@@ -362,6 +405,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _lookCapturing     = false
   _lookSelf          = false
   _lookBuf           = []
+  _pendingLookTarget = ''
   _expBatchNames     = null
   _silentExpBatch    = false
 })
@@ -413,6 +457,13 @@ export const dispatchGameEventAtom = atom(
           if (LOOK_START_RE.test(event.text)) {
             _lookCapturing = true
             _lookSelf = /^You are\b/.test(event.text)
+            _lookBuf = [event.text]
+            return
+          }
+          // Themed LOOKs (shrouded / haze) whose first line IS the description.
+          if (LOOK_CONCEAL_RE.test(event.text) || LOOK_HAZE_RE.test(event.text)) {
+            _lookCapturing = true
+            _lookSelf = false
             _lookBuf = [event.text]
             return
           }
@@ -650,10 +701,32 @@ export const dispatchGameEventAtom = atom(
         // the first line may carry a prefix title, so take it from the second line,
         // which always leads with the name ("Elanarie has …").
         if (_lookCapturing && _lookBuf.length) {
-          const rawName = _lookSelf
-            ? (_lookBuf[0].match(/^You are ([A-Z][\w'-]+)/)?.[1] ?? '')
-            : (_lookBuf[1]?.match(/^([A-Z][\w'-]+)/)?.[1]
-               ?? _lookBuf[0].match(/^You see ([A-Z][\w'-]+)/)?.[1] ?? '')
+          const blob = _lookBuf.join(' ')
+          let rawName: string
+          if (_lookSelf) {
+            rawName = _lookBuf[0].match(/^You are ([A-Z][\w'-]+)/)?.[1] ?? ''
+          } else if (LOOK_HAZE_RE.test(blob)) {
+            // Haze cosmetic: the LOOK carries no character name and the portrait
+            // depicts a generic hazed figure, not a person — so key it to the LOOK
+            // text itself. Identical hazes then share one cached image instead of
+            // being filed under whoever we happened to look at.
+            rawName = 'haze-' + hashLook(blob)
+          } else if (/\bconcealing all but (?:his|her|their|its)\s+empty hands\b/i.test(blob)) {
+            // Shrouded: the concealed line leads with the character's name.
+            rawName = _lookBuf.find(l => /\bseems to be\b/i.test(l))?.match(/^([A-Z][\w'-]+)/)?.[1]
+                   ?? _pendingLookTarget
+          } else {
+            // Key the portrait to the character's ACTUAL name from the "You see"
+            // line — the word just before the first comma. This survives prefix
+            // titles ("You see Strawberry Nurse Illiya, …") AND resolves the full
+            // name when the player looked with an abbreviation ("l mits" → the line
+            // says "…Mitsuri,"). Only fall back to the typed target / second line
+            // if that parse fails.
+            rawName = _lookBuf[0].match(/^You see .*?([A-Z][\w'-]+),/)?.[1]
+                   || _lookBuf[1]?.match(/^([A-Z][\w'-]+)/)?.[1]
+                   || _pendingLookTarget
+                   || _lookBuf[0].match(/^You see ([A-Z][\w'-]+)/)?.[1] || ''
+          }
           // A description line can lead with a possessive ("Refia's …"); strip the
           // trailing 's so the key matches the avatar/portrait ("refia", not "refia's").
           const name = rawName.replace(/'s$/i, '').replace(/'$/, '')
@@ -662,7 +735,7 @@ export const dispatchGameEventAtom = atom(
             timestamp: Date.now(), look: { name, lines: _lookBuf },
           }])
           _outputDirty = true
-          _lookCapturing = false; _lookSelf = false; _lookBuf = []
+          _lookCapturing = false; _lookSelf = false; _lookBuf = []; _pendingLookTarget = ''
         }
         // Space out consecutive command-response chunks: if new content landed in
         // the main output since the last prompt, flush a separator (blank line).

@@ -69,14 +69,6 @@ function matchHighlight(text: string, highlights: Highlight[]): Highlight | null
   return null
 }
 
-function fmtTime(ts: number): string {
-  const d = new Date(ts)
-  const h24 = d.getHours()
-  const h12 = h24 % 12 === 0 ? 12 : h24 % 12
-  const ampm = h24 < 12 ? 'AM' : 'PM'
-  return `[${h12}:${String(d.getMinutes()).padStart(2,'0')} ${ampm}] `
-}
-
 // Splice inline bold substrings (and any clickable links) into `text`, returning
 // a mix of plain text, <span.game-link> and <span.text-bold> nodes. Links and
 // bold spans are assumed not to overlap; a span starting inside an earlier one
@@ -201,8 +193,6 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
 
   const hl = matchHighlight(line.text, highlights)
   const isMention = _playerRe ? _playerRe.test(line.text) : false
-  // Hover timestamp chip — only when the always-on timestamp setting is off.
-  const hoverTime = _showTimestamps ? undefined : fmtTime(line.timestamp).trim()
   const isShopLine = Boolean(
     line.links?.some(l => l.cmd.startsWith('shop')) ||
     /\b(shop|goods for sale|you see:|shop window)\b/i.test(line.text)
@@ -251,8 +241,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
   // so emphasized words stay on the same line as their surrounding sentence.
   if (line.bolds && line.bolds.length > 0) {
     return (
-      <div className={classList.join(' ')} style={style} data-copy-text={line.text} data-time={hoverTime}>
-        {_showTimestamps && <span className="game-timestamp">{fmtTime(line.timestamp)}</span>}
+      <div className={classList.join(' ')} style={style} data-copy-text={line.text}>
         {buildSpans(line.text, line.links ?? [], line.bolds)}
       </div>
     )
@@ -265,7 +254,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
     if (isExits) {
       const dirs = line.links.map(l => expandCmd(l.cmd))
       return (
-        <div className={classList.join(' ')} style={style} data-copy-text={line.text} data-time={hoverTime}>
+        <div className={classList.join(' ')} style={style} data-copy-text={line.text}>
           <span style={{ color: 'var(--text-dim)' }}>Obvious paths: </span>
           {dirs.map((dir, i) => (
             <span key={dir}>
@@ -298,7 +287,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
       remaining = remaining.slice(idx + link.text.length)
     }
     if (remaining) parts.push(<span key={key++}>{remaining}</span>)
-    return <div className={classList.join(' ')} style={style} data-copy-text={line.text} data-time={hoverTime}>{parts}</div>
+    return <div className={classList.join(' ')} style={style} data-copy-text={line.text}>{parts}</div>
   }
 
   // Info attribute lines: parse Label: Value pairs into a 2-column grid
@@ -306,9 +295,8 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
     const pairs = parseInfoPairs(line.text)
     if (pairs.length > 0) {
       return (
-        <div className="game-line info-data-line" data-copy-text={line.text} data-time={hoverTime}>
-          {_showTimestamps && <span className="game-timestamp">{fmtTime(line.timestamp)}</span>}
-          <InfoPairHalf pair={pairs[0]} />
+        <div className="game-line info-data-line" data-copy-text={line.text}>
+            <InfoPairHalf pair={pairs[0]} />
           {pairs[1] && (
             <>
               <div className="info-data-sep" />
@@ -325,9 +313,8 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
     const skills = parseExpSkills(line.text)
     if (skills.length > 0) {
       return (
-        <div className="game-line exp-data-line" data-copy-text={line.text} data-time={hoverTime}>
-          {_showTimestamps && <span className="game-timestamp">{fmtTime(line.timestamp)}</span>}
-          <ExpSkillHalf s={skills[0]} />
+        <div className="game-line exp-data-line" data-copy-text={line.text}>
+            <ExpSkillHalf s={skills[0]} />
           {skills[1] && (
             <>
               <div className="exp-data-sep" />
@@ -340,8 +327,7 @@ function GameLine({ line, highlights }: { line: OutputLine; highlights: Highligh
   }
 
   return (
-    <div className={classList.join(' ')} style={style} data-copy-text={line.text} data-time={hoverTime}>
-      {_showTimestamps && <span className="game-timestamp">{fmtTime(line.timestamp)}</span>}
+    <div className={classList.join(' ')} style={style} data-copy-text={line.text}>
       {line.text}
     </div>
   )
@@ -381,8 +367,6 @@ export function setHighlights(h: Highlight[]) { _highlights = h }
 let _sendFn: ((cmd: string) => void) | null = null
 export function setSendFn(fn: (cmd: string) => void) { _sendFn = fn }
 
-let _showTimestamps = false
-export function setShowTimestamps(v: boolean) { _showTimestamps = v }
 
 // Player name — used to flag lines that mention the current character (@mention).
 let _playerRe: RegExp | null = null

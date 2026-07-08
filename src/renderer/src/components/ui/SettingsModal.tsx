@@ -1,35 +1,46 @@
 import { useState, useEffect } from 'react'
 import { THEMES, applyTheme } from '../../lib/themes'
-import { setShowTimestamps, setOutputBuffer } from '../game/GameOutput'
+import { setOutputBuffer } from '../game/GameOutput'
 import { loadCharAppearance, saveCharAppearance, applyAppearance } from '../../lib/charSettings'
 import { DEFAULT_NOTIF, type NotifSettings } from './Notifications'
+import type { Alias, Trigger } from '../../lib/automation'
+import { parseGenieConfig, mergeAliases, mergeTriggers } from '../../lib/genieImport'
 
 interface SettingsModalProps {
   charName?: string
   onClose: () => void
 }
 
-type TabId = 'appearance' | 'display' | 'notifications' | 'keybinds' | 'lich'
+type TabId = 'appearance' | 'display' | 'notifications' | 'keybinds' | 'aliases' | 'triggers' | 'scripts' | 'lich'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'appearance',    label: 'Appearance' },
   { id: 'display',       label: 'Display' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'keybinds',      label: 'Function Keys' },
+  { id: 'aliases',       label: 'Aliases' },
+  { id: 'triggers',      label: 'Triggers' },
+  { id: 'scripts',       label: 'Scripts' },
   { id: 'lich',          label: 'Lich' },
 ]
 
+function uid() { return Math.random().toString(36).slice(2, 9) }
+
 export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [lichPath,        setLichPath]        = useState('')
+  const [scriptDir,       setScriptDir]       = useState('')
+  const [defaultScriptDir, setDefaultScriptDir] = useState('')
   const [fontSize,        setFontSize]        = useState(13)
   const [fontFamily,      setFontFamily]      = useState('Cascadia Code')
   const [theme,           setTheme]           = useState('magiloom')
   // Theme active when the modal opened — restored if the user cancels
   const [originalTheme,   setOriginalTheme]   = useState('magiloom')
-  const [timestamps,      setTimestamps]      = useState(false)
   const [density,         setDensity]         = useState<'cozy' | 'compact'>('cozy')
   const [outputBufferSize, setOutputBufferSize] = useState(5000)
   const [functionKeys,    setFunctionKeys]    = useState<Record<string, string>>({})
+  const [aliases,         setAliases]         = useState<Alias[]>([])
+  const [triggers,        setTriggers]        = useState<Trigger[]>([])
+  const [importMsg,       setImportMsg]       = useState('')
   const [notif,           setNotif]           = useState<NotifSettings>(DEFAULT_NOTIF)
   const [version,         setVersion]         = useState('')
   const [tab,             setTab]             = useState<TabId>('appearance')
@@ -39,32 +50,62 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const setFk = (key: string, cmd: string) =>
     setFunctionKeys(prev => ({ ...prev, [key]: cmd }))
 
+  const importGenie = async () => {
+    const res = await window.dr.app.openTextFile([
+      { name: 'Genie config', extensions: ['cfg', 'xml', 'txt'] },
+      { name: 'All Files', extensions: ['*'] },
+    ])
+    if (!res) return
+    if (res.error || !res.content) { setImportMsg(`Could not read file: ${res.error ?? 'file is empty'}`); return }
+    const parsed = parseGenieConfig(res.content)
+    const a = mergeAliases(aliases, parsed.aliases)
+    const t = mergeTriggers(triggers, parsed.triggers)
+    setAliases(a.merged)
+    setTriggers(t.merged)
+    const unsupported = Object.values(parsed.skipped).reduce((n, c) => n + c, 0)
+    const kinds = Object.keys(parsed.skipped).sort().map(k => `#${k}`).join(', ')
+    setImportMsg(
+      `Imported ${a.added} alias(es) and ${t.added} trigger(s)` +
+      (a.dupes + t.dupes ? `, skipped ${a.dupes + t.dupes} duplicate(s)` : '') +
+      (unsupported ? `. ${unsupported} unsupported line(s) not imported (${kinds}).` : '.') +
+      ' Review below, then Save to keep them.'
+    )
+  }
+
   useEffect(() => {
     window.dr.app.getVersion().then(setVersion)
-    // Appearance is per-character (localStorage); everything else is global.
-    const a = loadCharAppearance(charName)
-    setFontSize(a.fontSize)
-    setFontFamily(a.fontFamily)
-    setTheme(a.theme)
-    setOriginalTheme(a.theme)
-    setTimestamps(a.timestamps)
-    setDensity(a.density)
+    window.dr.script.defaultDir().then(setDefaultScriptDir)
+    // Appearance is per-character (in settings.json); everything else is global.
+    loadCharAppearance(charName).then(a => {
+      setFontSize(a.fontSize)
+      setFontFamily(a.fontFamily)
+      setTheme(a.theme)
+      setOriginalTheme(a.theme)
+      setDensity(a.density)
+    })
     window.dr.settings.getAll().then(s => {
       setLichPath(s.lichPath || '')
+      setScriptDir(s.scriptDir || '')
       setOutputBufferSize(s.outputBufferSize || 5000)
-      setFunctionKeys(s.functionKeys || {})
       setNotif({ ...DEFAULT_NOTIF, ...(s.notifications ?? {}) })
+    })
+    // Function keys / aliases / triggers are per-character (fall back to globals).
+    window.dr.settings.getChar(charName).then(c => {
+      setFunctionKeys(c.functionKeys || {})
+      setAliases(c.aliases || [])
+      setTriggers(c.triggers || [])
     })
   }, [charName])
 
   const handleSave = async () => {
-    // Per-character appearance → localStorage; global settings → settings.json.
-    saveCharAppearance(charName, { theme, fontSize, fontFamily, density, timestamps })
+    // Per-character appearance + gameplay → settings.json; the rest is global.
+    saveCharAppearance(charName, { theme, fontSize, fontFamily, density })
     await window.dr.settings.patch({
-      lichPath, outputBufferSize, functionKeys, notifications: notif,
+      lichPath, scriptDir, outputBufferSize, notifications: notif,
     })
+    await window.dr.settings.patchChar(charName, { functionKeys, aliases, triggers })
     window.dispatchEvent(new CustomEvent('settings:saved'))
-    applyAppearance({ theme, fontSize, fontFamily, density, timestamps }, setShowTimestamps)
+    applyAppearance({ theme, fontSize, fontFamily, density })
     setOutputBuffer(outputBufferSize)
     onClose()
   }
@@ -181,15 +222,6 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                   </div>
                 </label>
                 <label className="settings-row">
-                  <span className="settings-label">Timestamps</span>
-                  <input
-                    type="checkbox"
-                    checked={timestamps}
-                    onChange={e => setTimestamps(e.target.checked)}
-                    style={{ width: 'auto' }}
-                  />
-                </label>
-                <label className="settings-row">
                   <span className="settings-label">Output buffer</span>
                   <select
                     className="settings-input"
@@ -264,11 +296,159 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
               </div>
             )}
 
+            {tab === 'aliases' && (
+              <div className="settings-section">
+                <div className="rule-header">
+                  <span className="settings-section-label">Aliases</span>
+                  <button className="login-btn-secondary rule-import-btn" onClick={importGenie}>Import from Genie…</button>
+                </div>
+                {importMsg && <div className="settings-hint rule-import-msg">{importMsg}</div>}
+                <div className="rule-list">
+                  {aliases.length === 0 && (
+                    <p className="hl-empty-msg">No aliases yet. Add one below.</p>
+                  )}
+                  {aliases.map(a => (
+                    <div key={a.id} className={'rule-row' + (a.enabled ? '' : ' rule-row-off')}>
+                      <input
+                        type="checkbox"
+                        checked={a.enabled}
+                        title="Enabled"
+                        onChange={e => setAliases(list => list.map(x => x.id === a.id ? { ...x, enabled: e.target.checked } : x))}
+                      />
+                      <input
+                        className="settings-input settings-input-mono rule-key"
+                        placeholder="kk"
+                        value={a.pattern}
+                        spellCheck={false}
+                        onChange={e => setAliases(list => list.map(x => x.id === a.id ? { ...x, pattern: e.target.value } : x))}
+                      />
+                      <span className="rule-arrow">→</span>
+                      <input
+                        className="settings-input settings-input-mono"
+                        placeholder="kill %1"
+                        value={a.command}
+                        spellCheck={false}
+                        onChange={e => setAliases(list => list.map(x => x.id === a.id ? { ...x, command: e.target.value } : x))}
+                      />
+                      <button className="hl-btn-icon hl-btn-delete" title="Delete"
+                        onClick={() => setAliases(list => list.filter(x => x.id !== a.id))}>×</button>
+                    </div>
+                  ))}
+                  <button className="hl-add-btn"
+                    onClick={() => setAliases(list => [...list, { id: uid(), pattern: '', command: '', enabled: true }])}>
+                    + Add alias
+                  </button>
+                </div>
+                <div className="settings-hint">
+                  Type the alias as the first word of a command. Use <code>%1</code>…<code>%9</code> for the
+                  words after it and <code>%0</code> for all of them (e.g. <code>kk</code> → <code>kill %1</code>).
+                  An alias may expand to a script (<code>.hunt %1</code>).
+                </div>
+              </div>
+            )}
+
+            {tab === 'triggers' && (
+              <div className="settings-section">
+                <div className="rule-header">
+                  <span className="settings-section-label">Triggers</span>
+                  <button className="login-btn-secondary rule-import-btn" onClick={importGenie}>Import from Genie…</button>
+                </div>
+                {importMsg && <div className="settings-hint rule-import-msg">{importMsg}</div>}
+                <div className="rule-list">
+                  {triggers.length === 0 && (
+                    <p className="hl-empty-msg">No triggers yet. Add one below.</p>
+                  )}
+                  {triggers.map(t => (
+                    <div key={t.id} className={'rule-row' + (t.enabled ? '' : ' rule-row-off')}>
+                      <input
+                        type="checkbox"
+                        checked={t.enabled}
+                        title="Enabled"
+                        onChange={e => setTriggers(list => list.map(x => x.id === t.id ? { ...x, enabled: e.target.checked } : x))}
+                      />
+                      <input
+                        className="settings-input settings-input-mono"
+                        placeholder={t.isRegex ? 'stunned (.+)' : 'text to match'}
+                        value={t.pattern}
+                        spellCheck={false}
+                        onChange={e => setTriggers(list => list.map(x => x.id === t.id ? { ...x, pattern: e.target.value } : x))}
+                      />
+                      <label className="rule-regex" title="Regular expression">
+                        <input
+                          type="checkbox"
+                          checked={t.isRegex}
+                          onChange={e => setTriggers(list => list.map(x => x.id === t.id ? { ...x, isRegex: e.target.checked } : x))}
+                        />
+                        .*
+                      </label>
+                      <span className="rule-arrow">→</span>
+                      <input
+                        className="settings-input settings-input-mono"
+                        placeholder="stand"
+                        value={t.command}
+                        spellCheck={false}
+                        onChange={e => setTriggers(list => list.map(x => x.id === t.id ? { ...x, command: e.target.value } : x))}
+                      />
+                      <button className="hl-btn-icon hl-btn-delete" title="Delete"
+                        onClick={() => setTriggers(list => list.filter(x => x.id !== t.id))}>×</button>
+                    </div>
+                  ))}
+                  <button className="hl-add-btn"
+                    onClick={() => setTriggers(list => [...list, { id: uid(), pattern: '', isRegex: false, command: '', enabled: true }])}>
+                    + Add trigger
+                  </button>
+                </div>
+                <div className="settings-hint">
+                  When a line of game text matches, the command fires automatically. Enable
+                  <code> .*</code> for a regular expression; then <code>%0</code> is the whole match and
+                  <code> %1</code>…<code>%9</code> are capture groups. A trigger may also run a script (<code>.foo</code>).
+                </div>
+              </div>
+            )}
+
+            {tab === 'scripts' && (
+              <div className="settings-section">
+                <div className="settings-section-label">Native Scripts</div>
+                <div className="settings-label">Script folder</div>
+                <div className="settings-path-row">
+                  <input
+                    className="settings-input settings-input-mono"
+                    type="text"
+                    placeholder={defaultScriptDir}
+                    value={scriptDir}
+                    onChange={e => setScriptDir(e.target.value)}
+                  />
+                  <button
+                    className="login-btn-secondary"
+                    style={{ minWidth: 84 }}
+                    onClick={async () => { const d = await window.dr.app.chooseFolder(); if (d) setScriptDir(d) }}
+                  >
+                    Browse…
+                  </button>
+                  {scriptDir && (
+                    <button
+                      className="login-btn-secondary"
+                      style={{ minWidth: 72 }}
+                      onClick={() => setScriptDir('')}
+                      title="Fall back to the default folder"
+                    >
+                      Default
+                    </button>
+                  )}
+                </div>
+                <div className="settings-hint">
+                  Magiloom runs Genie/Wizard-style <code>.cmd</code> scripts from this folder —
+                  type <code>.name</code> in the command bar to run one (<code>.stop</code> halts all).
+                  If no folder is set, Magiloom uses <code>{defaultScriptDir}</code>.
+                </div>
+              </div>
+            )}
+
             {tab === 'lich' && (
               <div className="settings-section">
                 <div className="settings-section-label">Lich</div>
-                <label className="settings-row">
-                  <span className="settings-label">Lich path</span>
+                <div className="settings-label">Lich path</div>
+                <div className="settings-path-row">
                   <input
                     className="settings-input settings-input-mono"
                     type="text"
@@ -276,7 +456,24 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                     value={lichPath}
                     onChange={e => setLichPath(e.target.value)}
                   />
-                </label>
+                  <button
+                    className="login-btn-secondary"
+                    style={{ minWidth: 84 }}
+                    onClick={async () => {
+                      const f = await window.dr.app.chooseFile([
+                        { name: 'Lich', extensions: ['rbw', 'rb'] },
+                        { name: 'All Files', extensions: ['*'] },
+                      ])
+                      if (f) setLichPath(f)
+                    }}
+                  >
+                    Browse…
+                  </button>
+                </div>
+                <div className="settings-hint">
+                  Point this at your <code>lich.rbw</code> (or <code>lich.rb</code>) to launch Lich at login.
+                  Leave blank to connect directly without Lich.
+                </div>
               </div>
             )}
           </div>

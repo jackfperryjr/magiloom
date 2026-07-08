@@ -124,7 +124,9 @@ export function CombatPanel() {
   return (
     <ScrollPanel deps={[lines.length]}>
       {lines.map((l: OutputLine) => (
-        <div key={l.id} className="combat-line">{l.text}</div>
+        <div key={l.id} className="combat-line">
+          <span className="panel-line-time">{convTime(l.timestamp)}</span>{l.text}
+        </div>
       ))}
     </ScrollPanel>
   )
@@ -137,7 +139,9 @@ export function AtmoPanel() {
   return (
     <ScrollPanel deps={[lines.length]}>
       {lines.map((l: OutputLine) => (
-        <div key={l.id} className="atmo-line">{l.text}</div>
+        <div key={l.id} className="atmo-line">
+          <span className="panel-line-time">{convTime(l.timestamp)}</span>{l.text}
+        </div>
       ))}
     </ScrollPanel>
   )

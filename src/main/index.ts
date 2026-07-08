@@ -4,6 +4,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { autoUpdater } from 'electron-updater'
 import { LichManager, LichConnection } from './lich-manager'
 import { GameConnection } from './game-connection'
+import { CmdScriptEngine } from './cmd-script-engine'
 import { SettingsStore } from './settings-store'
 import { sgeAuth } from './sge-auth'
 import type { SGELaunchKey } from './sge-auth'
@@ -79,6 +80,9 @@ const lichManager = new LichManager()
 const gameConn    = new GameConnection()
 const lichConn    = new LichConnection()
 const settings    = new SettingsStore(SHARED_DIR)
+const cmdEngine   = new CmdScriptEngine(
+  () => settings.get('scriptDir') || join(SHARED_DIR, 'scripts')
+)
 
 const lichLogBuffer: string[] = []
 
@@ -175,6 +179,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   mainWindow = null
+  cmdEngine.stop()
   gameConn.disconnect()
   lichConn.disconnect()
   lichManager.stop()
@@ -243,6 +248,8 @@ function setupIpcHandlers(): void {
   })
   ipcMain.handle('settings:get-all', () => settings.getAll())
   ipcMain.handle('settings:patch',   (_e, p) => settings.patch(p))
+  ipcMain.handle('settings:get-char',   (_e, name: string) => settings.getCharSettings(name))
+  ipcMain.handle('settings:patch-char', (_e, name: string, partial) => settings.patchCharSettings(name, partial))
 
   ipcMain.handle('avatar:enabled', () => isAvatarServiceEnabled())
   ipcMain.handle('avatar:get',     (_e, name: string) => getAvatar(name))
@@ -333,6 +340,38 @@ function setupIpcHandlers(): void {
     // ;commands are sent via gameConn directly; Lich intercepts them
   })
 
+  // ── Native .cmd script engine ───────────────────────────────────────────────
+  ipcMain.handle('script:list',    () => cmdEngine.list())
+  ipcMain.handle('script:running', () => cmdEngine.running())
+  ipcMain.handle('script:default-dir', () => join(SHARED_DIR, 'scripts'))
+  ipcMain.handle('script:run',     (_e, name: string, args: string[] = []) => cmdEngine.run(name, args))
+  ipcMain.handle('script:stop',    (_e, id?: number) => cmdEngine.stop(id))
+  ipcMain.handle('dialog:choose-folder', async () => {
+    if (!mainWindow) return null
+    const res = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] })
+    return res.canceled || !res.filePaths[0] ? null : res.filePaths[0]
+  })
+  ipcMain.handle('dialog:choose-file', async (_e, filters?: { name: string; extensions: string[] }[]) => {
+    if (!mainWindow) return null
+    const res = await dialog.showOpenDialog(mainWindow, { properties: ['openFile'], filters })
+    return res.canceled || !res.filePaths[0] ? null : res.filePaths[0]
+  })
+  ipcMain.handle('dialog:open-text-file', async (_e, filters?: { name: string; extensions: string[] }[]) => {
+    if (!mainWindow) return null
+    const res = await dialog.showOpenDialog(mainWindow, { properties: ['openFile'], filters })
+    if (res.canceled || !res.filePaths[0]) return null
+    try {
+      return { path: res.filePaths[0], content: readFileSync(res.filePaths[0], 'utf8') }
+    } catch (e) {
+      return { path: res.filePaths[0], content: '', error: String(e) }
+    }
+  })
+
+  cmdEngine.on('send',   (cmd: string)          => gameConn.send(cmd))
+  cmdEngine.on('echo',   (text: string)         => send('script:output', text))
+  cmdEngine.on('status', (info: unknown)        => send('script:status', info))
+  cmdEngine.on('error',  (msg: string)          => { lichLog('[script] ' + msg); send('script:output', msg) })
+
   ipcMain.handle('game:get-status', () => gameConn.getStatus())
   ipcMain.handle('game:disconnect', () => gameConn.disconnect())
   ipcMain.handle('game:send', (_e, d: string) => {
@@ -344,12 +383,15 @@ function setupIpcHandlers(): void {
   gameConn.on('log',          (l: string) => lichLog('[game] ' + l))
   gameConn.on('data',         (r: string) => {
     send('game:data', r)
+    cmdEngine.feed(r)   // drive waitfor/matchwait in running .cmd scripts
     if (!lichReadyDetected) {
       // <app char="Name"> appears in the game stream once Lich has connected
       // to the game server and parsed the character name from the initial XML.
       // This is the reliable signal that XMLData.name is set and scripts can run.
-      if (/<app[^>]+char=/.test(r)) {
+      const charMatch = /<app[^>]+char=["']([^"']+)["']/.exec(r)
+      if (charMatch) {
         lichReadyDetected = true
+        cmdEngine.setContext({ charname: charMatch[1] })   // $charname for .cmd scripts
         lichLog('[lich] Character data received -- Lich ready')
         mainWindow?.webContents.send('lich:status', 'ready')
       }

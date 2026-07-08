@@ -6,6 +6,7 @@ interface SavedAccount  { name: string; lastCharacter?: string }
 
 interface AppSettings {
   lichPath:         string
+  scriptDir:        string
   accounts:         SavedAccount[]
   lastAccount:      string
   fontSize:         number
@@ -15,6 +16,8 @@ interface AppSettings {
   density:          'cozy' | 'compact'
   outputBufferSize: number
   functionKeys:     Record<string, string>
+  aliases?:         { id: string; pattern: string; command: string; enabled: boolean }[]
+  triggers?:        { id: string; pattern: string; isRegex: boolean; command: string; enabled: boolean }[]
   highlights:       unknown[]
   passwords:        Record<string, string>
   avatars?:         Record<string, string>
@@ -31,10 +34,22 @@ interface AppSettings {
   }
 }
 
+interface CharSettings {
+  functionKeys: Record<string, string>
+  aliases:      NonNullable<AppSettings['aliases']>
+  triggers:     NonNullable<AppSettings['triggers']>
+  highlights:   unknown[]
+  appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact' }
+  panels?:       { id: string; label: string; visible: boolean }[]
+  panelHeights?: Record<string, number>
+}
+
 interface DrAPI {
   settings: {
     getAll: () => Promise<AppSettings>
     patch:  (p: Partial<AppSettings>) => Promise<void>
+    getChar:   (name: string) => Promise<CharSettings>
+    patchChar: (name: string, partial: Partial<CharSettings>) => Promise<void>
   }
   avatar: {
     enabled: () => Promise<boolean>
@@ -68,9 +83,21 @@ interface DrAPI {
     onStatus: (cb: (s: string) => void) => () => void
     onError:  (cb: (m: string) => void) => () => void
   }
+  script: {
+    list:       () => Promise<string[]>
+    running:    () => Promise<{ id: number; name: string; state: string }[]>
+    defaultDir: () => Promise<string>
+    run:      (name: string, args?: string[]) => Promise<{ ok: boolean; error?: string }>
+    stop:     (id?: number) => Promise<void>
+    onOutput: (cb: (line: string) => void) => () => void
+    onStatus: (cb: (info: { id: number; name: string; state: string }) => void) => () => void
+  }
   app: {
     getVersion:   () => Promise<string>
     openExternal: (url: string) => Promise<void>
+    chooseFolder: () => Promise<string | null>
+    chooseFile:   (filters?: { name: string; extensions: string[] }[]) => Promise<string | null>
+    openTextFile: (filters?: { name: string; extensions: string[] }[]) => Promise<{ path: string; content: string; error?: string } | null>
     platform:     string
   }
   window: {

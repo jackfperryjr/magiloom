@@ -1,14 +1,14 @@
 import { applyTheme } from './themes'
 
-// Per-character appearance settings. Stored in localStorage keyed by character
-// name so each character remembers its own theme / font / density / timestamps.
-// A character with nothing saved falls back to DEFAULT_APPEARANCE (app defaults).
+// Per-character appearance settings. Stored in the shared settings.json under the
+// character's `characters[name]` namespace so they follow the character across
+// windows/instances. Legacy installs kept these in localStorage; those are
+// migrated up on first load (see loadCharAppearance).
 export interface CharAppearance {
   theme:      string
   fontSize:   number
   fontFamily: string
   density:    'cozy' | 'compact'
-  timestamps: boolean
 }
 
 export const DEFAULT_APPEARANCE: CharAppearance = {
@@ -16,29 +16,41 @@ export const DEFAULT_APPEARANCE: CharAppearance = {
   fontSize:   13,
   fontFamily: 'Cascadia Code',
   density:    'cozy',
-  timestamps: false,
 }
 
-const KEY = (name: string) => `magiloom-charsettings:${name.trim().toLowerCase()}`
+const LEGACY_KEY = (name: string) => `magiloom-charsettings:${name.trim().toLowerCase()}`
 
-export function loadCharAppearance(name: string): CharAppearance {
+function readLegacyAppearance(name: string): CharAppearance | null {
   try {
-    const raw = localStorage.getItem(KEY(name))
+    const raw = localStorage.getItem(LEGACY_KEY(name))
     if (raw) return { ...DEFAULT_APPEARANCE, ...JSON.parse(raw) }
   } catch { /* ignore malformed */ }
+  return null
+}
+
+export async function loadCharAppearance(name: string): Promise<CharAppearance> {
+  try {
+    const c = await window.dr.settings.getChar(name)
+    if (c.appearance) return { ...DEFAULT_APPEARANCE, ...c.appearance }
+    // One-time migration from the old localStorage key.
+    const legacy = readLegacyAppearance(name)
+    if (legacy) {
+      window.dr.settings.patchChar(name, { appearance: legacy })
+      try { localStorage.removeItem(LEGACY_KEY(name)) } catch { /* ignore */ }
+      return legacy
+    }
+  } catch { /* fall through to defaults */ }
   return { ...DEFAULT_APPEARANCE }
 }
 
 export function saveCharAppearance(name: string, next: CharAppearance): void {
-  try { localStorage.setItem(KEY(name), JSON.stringify(next)) } catch { /* quota / disabled */ }
+  window.dr.settings.patchChar(name, { appearance: next })
 }
 
-// Apply an appearance to the document. `setTimestamps` bridges the runtime
-// timestamp flag owned by the GameOutput module setter.
-export function applyAppearance(a: CharAppearance, setTimestamps?: (b: boolean) => void): void {
+// Apply an appearance to the document.
+export function applyAppearance(a: CharAppearance): void {
   applyTheme(a.theme)
   document.documentElement.style.setProperty('--font-game', `'${a.fontFamily}', monospace`)
   document.documentElement.style.setProperty('--font-size-game', `${a.fontSize}px`)
   document.documentElement.dataset.density = a.density
-  setTimestamps?.(a.timestamps)
 }
