@@ -319,13 +319,17 @@ export const activeSpellAtom = atom<string>('')
 // inline after a cast. Each emission is the COMPLETE list, so a contiguous run
 // replaces the panel wholesale (mirrors the exp-batch pattern). The lines are
 // suppressed from the main output — they're panel-only, like atmo/combat.
-export interface ActiveSpell { name: string; roisaen: number }
+// One roisaen ≈ one real minute, so `expires` (epoch-ms, stamped when the snapshot
+// commits) lets the panel run a live mm:ss countdown between game resends instead
+// of showing a frozen whole-minute value.
+export const ROISAEN_MS = 60_000
+export interface ActiveSpell { name: string; roisaen: number; expires: number }
 export const activeSpellsAtom = atom<ActiveSpell[]>([])
 
 const ACTIVE_SPELL_RE = /^(.+?)\s+\((\d+)\s+roisaen\)\s*$/
 function parseActiveSpell(text: string): ActiveSpell | null {
   const m = ACTIVE_SPELL_RE.exec(text.trim())
-  return m ? { name: m[1].trim(), roisaen: parseInt(m[2], 10) } : null
+  return m ? { name: m[1].trim(), roisaen: parseInt(m[2], 10), expires: 0 } : null
 }
 // Accumulates the current snapshot; null = not mid-snapshot. Committed on the
 // next prompt. A percClear opens an empty batch so a fully-expired list clears.
@@ -569,7 +573,12 @@ export const dispatchGameEventAtom = atom(
           const spell = parseActiveSpell(event.text)
           if (spell) {
             if (_spellBatch === null) _spellBatch = []
-            _spellBatch.push(spell)
+            // Dedupe by name: with Lich running the same buff list can arrive twice
+            // in one snapshot (DR's native percWindow + Lich's re-emission), which
+            // otherwise doubled every row. Keep one entry per spell, latest value.
+            const existing = _spellBatch.find(s => s.name === spell.name)
+            if (existing) existing.roisaen = spell.roisaen
+            else _spellBatch.push(spell)
             return
           }
         }
@@ -806,7 +815,10 @@ export const dispatchGameEventAtom = atom(
         // "Name (N roisaen)" lines, or an empty batch from a percClear with no
         // spells left) as the complete new list.
         if (_spellBatch !== null) {
-          set(activeSpellsAtom, _spellBatch)
+          // Stamp each buff's real-time expiry from its roisaen count so the panel
+          // can count down live (see ROISAEN_MS) until the next game resend.
+          const committedAt = Date.now()
+          set(activeSpellsAtom, _spellBatch.map(s => ({ ...s, expires: committedAt + s.roisaen * ROISAEN_MS })))
           _spellBatch = null
         }
         // The server sends <prompt> at the end of every command response.
@@ -853,14 +865,16 @@ export const dispatchGameEventAtom = atom(
             rawName = _lookBuf.find(l => /\bseems to be\b/i.test(l))?.match(/^([A-Z][\w'-]+)/)?.[1]
                    ?? _pendingLookTarget
           } else {
-            // Key the portrait to the character's ACTUAL name from the "You see"
-            // line — the word just before the first comma. This survives prefix
-            // titles ("You see Strawberry Nurse Illiya, …") AND resolves the full
-            // name when the player looked with an abbreviation ("l mits" → the line
-            // says "…Mitsuri,"). Only fall back to the typed target / second line
-            // if that parse fails.
-            rawName = _lookBuf[0].match(/^You see .*?([A-Z][\w'-]+),/)?.[1]
-                   || _lookBuf[1]?.match(/^([A-Z][\w'-]+)/)?.[1]
+            // Key the portrait to the character's FIRST name. The description body
+            // always leads with it ("Catheroine has a soft-featured face …"), so the
+            // second line is the authoritative source — it isolates the given name
+            // from BOTH prefix titles AND a trailing surname ("You see Paintress
+            // Catheroine Rotschreck, …" → Catheroine, not Rotschreck), and resolves
+            // an abbreviated look ("l mits" → "Mitsuri has …" → Mitsuri). Fall back
+            // to the "You see" line's word-before-comma (correct for single-name
+            // characters) only when there's no description line to read.
+            rawName = _lookBuf[1]?.match(/^([A-Z][\w'-]+)/)?.[1]
+                   || _lookBuf[0].match(/^You see .*?([A-Z][\w'-]+),/)?.[1]
                    || _pendingLookTarget
                    || _lookBuf[0].match(/^You see ([A-Z][\w'-]+)/)?.[1] || ''
           }

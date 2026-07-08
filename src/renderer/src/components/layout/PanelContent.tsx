@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import {
   roomAtom, activeSpellAtom, activeSpellsAtom, inventoryLinesAtom,
   expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom,
-  avatarsAtom, selfNameAtom, serverAvatarsAtom,
+  avatarsAtom, selfNameAtom, serverAvatarsAtom, tickAtom,
   type OutputLine,
 } from '../../store/game'
 import { resolveAvatarSrc } from '../../lib/avatar'
@@ -110,19 +110,33 @@ export function ExperiencePanel() {
 }
 
 // ── Spells Panel ───────────────────────────────────────────────────────────────
-// Active buffs (name + remaining "roisaen", DR's time unit) come from DR's
-// percWindow — see activeSpellsAtom. The bar is relative to the longest-remaining
-// spell in the list; the last few roisaen turn amber/red so expiring buffs stand
-// out. Colors: expiring (≤3) red, soon (≤8) amber, otherwise accent.
-function spellDurColor(roisaen: number): string {
-  if (roisaen <= 3) return 'var(--color-warning, #e06060)'
-  if (roisaen <= 8) return '#e0b050'
+// Active buffs (name + expiry) come from DR's percWindow — see activeSpellsAtom.
+// One roisaen ≈ one minute, so each row runs a live mm:ss countdown (driven by
+// tickAtom) toward its `expires` time. The bar is relative to the longest-
+// remaining spell; the final minutes turn amber/red so expiring buffs stand out.
+// Colors: expiring (≤3 min) red, soon (≤8 min) amber, otherwise accent.
+function spellDurColor(sec: number): string {
+  if (sec <= 180) return 'var(--color-warning, #e06060)'
+  if (sec <= 480) return '#e0b050'
   return 'var(--accent)'
+}
+
+// Gradient fill: darker at the base, brightening toward the leading edge for a
+// subtle glow. color-mix keeps it in step with whichever expiry color is active.
+function spellBarFill(color: string): string {
+  return `linear-gradient(90deg, color-mix(in oklab, ${color} 35%, transparent) 0%, ${color} 100%)`
+}
+
+function fmtDur(sec: number): string {
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
 }
 
 export function SpellsPanel() {
   const spells   = useAtomValue(activeSpellsAtom)
   const prepared = useAtomValue(activeSpellAtom)
+  useAtomValue(tickAtom)   // re-render every second so the countdowns tick down
 
   if (spells.length === 0) {
     return prepared && prepared !== 'None'
@@ -130,20 +144,23 @@ export function SpellsPanel() {
       : <div className="panel-empty">No active spells</div>
   }
 
-  const max = Math.max(...spells.map(s => s.roisaen), 1)
+  const now = Date.now()
+  const secLeft = (s: { expires: number }) => Math.max(0, Math.ceil((s.expires - now) / 1000))
+  const max = Math.max(...spells.map(secLeft), 1)
   return (
     <div className="spells-panel">
       {spells.map(s => {
-        const color = spellDurColor(s.roisaen)
+        const sec   = secLeft(s)
+        const color = spellDurColor(sec)
         return (
           <div key={s.name} className="spell-row">
             <div className="spell-row-head">
               <span className="spell-name">{s.name}</span>
-              <span className="spell-dur" style={{ color }}>{s.roisaen} <span className="spell-unit">roisaen</span></span>
+              <span className="spell-dur" style={{ color }}>{fmtDur(sec)}</span>
             </div>
             <div className="spell-bar-track">
               <div className="spell-bar-fill"
-                   style={{ width: `${Math.min(100, (s.roisaen / max) * 100)}%`, background: color }} />
+                   style={{ width: `${Math.min(100, (sec / max) * 100)}%`, background: spellBarFill(color) }} />
             </div>
           </div>
         )
