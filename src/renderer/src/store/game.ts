@@ -228,6 +228,19 @@ const LOOK_START_RE = /^You (?:see|are) [A-Z][^,]*?,.*\ban?\s+[A-Z][A-Za-z' -]*\
 // prompts for these; here we just need to capture the block.
 const LOOK_CONCEAL_RE = /^[A-Z][\w'-]+ seems to be (?:wrapped in dark shadows|enveloped in a dark cloak), concealing all but (?:his|her|their|its)\s+empty hands\b/
 const LOOK_HAZE_RE    = /^Through an?\s+.+?\s+haze,\s+you see an?\s+.+?\s+with\s+.+/i
+
+// Stable short key derived from a LOOK's text (FNV-1a). Used to file a nameless
+// haze-cosmetic portrait under the LOOK itself, so identical hazes share one
+// cached image rather than being (mis)attributed to whoever was looked at.
+function hashLook(text: string): string {
+  const norm = text.toLowerCase().replace(/\s+/g, ' ').trim()
+  let h = 0x811c9dc5
+  for (let i = 0; i < norm.length; i++) {
+    h ^= norm.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return (h >>> 0).toString(36)
+}
 export function beginVerbInfoCapture(name: string) {
   _verbInfoName = name.toLowerCase(); _verbInfoHeader = null; _verbInfoStarted = false; _verbInfoBuf = []
 }
@@ -693,21 +706,25 @@ export const dispatchGameEventAtom = atom(
           if (_lookSelf) {
             rawName = _lookBuf[0].match(/^You are ([A-Z][\w'-]+)/)?.[1] ?? ''
           } else if (LOOK_HAZE_RE.test(blob)) {
-            // Haze cosmetic: no name in the text — key off the look command target.
-            rawName = _pendingLookTarget
+            // Haze cosmetic: the LOOK carries no character name and the portrait
+            // depicts a generic hazed figure, not a person — so key it to the LOOK
+            // text itself. Identical hazes then share one cached image instead of
+            // being filed under whoever we happened to look at.
+            rawName = 'haze-' + hashLook(blob)
           } else if (/\bconcealing all but (?:his|her|their|its)\s+empty hands\b/i.test(blob)) {
             // Shrouded: the concealed line leads with the character's name.
             rawName = _lookBuf.find(l => /\bseems to be\b/i.test(l))?.match(/^([A-Z][\w'-]+)/)?.[1]
                    ?? _pendingLookTarget
           } else {
-            // Prefer the explicit look target the player typed ("l illiya"), then
-            // the name sitting just before the first comma on the "You see" line —
-            // that survives prefix titles ("You see Strawberry Nurse Illiya, …") and
-            // cosmetic lines wedged between the header and the "<Name> has …" line,
-            // which used to derail the second-line / first-word heuristics below.
-            rawName = _pendingLookTarget
-                   || _lookBuf[0].match(/^You see .*?([A-Z][\w'-]+),/)?.[1]
+            // Key the portrait to the character's ACTUAL name from the "You see"
+            // line — the word just before the first comma. This survives prefix
+            // titles ("You see Strawberry Nurse Illiya, …") AND resolves the full
+            // name when the player looked with an abbreviation ("l mits" → the line
+            // says "…Mitsuri,"). Only fall back to the typed target / second line
+            // if that parse fails.
+            rawName = _lookBuf[0].match(/^You see .*?([A-Z][\w'-]+),/)?.[1]
                    || _lookBuf[1]?.match(/^([A-Z][\w'-]+)/)?.[1]
+                   || _pendingLookTarget
                    || _lookBuf[0].match(/^You see ([A-Z][\w'-]+)/)?.[1] || ''
           }
           // A description line can lead with a possessive ("Refia's …"); strip the

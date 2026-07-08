@@ -39,7 +39,7 @@ interface CharSettings {
   aliases:      NonNullable<AppSettings['aliases']>
   triggers:     NonNullable<AppSettings['triggers']>
   highlights:   unknown[]
-  appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact'; timestamps: boolean }
+  appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact' }
   panels?:       { id: string; label: string; visible: boolean }[]
   panelHeights?: Record<string, number>
 }

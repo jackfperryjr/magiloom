@@ -9,14 +9,26 @@ export interface LookFields {
 }
 
 // Sentences that carry no portrait-relevant visual info (height/age/condition/
-// injuries) — dropped so they don't confuse the image model.
+// injuries) — dropped so they don't confuse the image model. In a DR LOOK these
+// fall between the age/tattoo lines and the "is wearing" clothing list.
 const DROP_RE: RegExp[] = [
-  /\bis\s+(?:short|tall|average|small|large|huge|tiny|slightly)\b.*\bfor an?\b/i,
-  /\bappears?\s+to\s+be\b/i,
-  /\bin\s+(?:the\s+|your\s+|her\s+|his\s+|their\s+)?prime\b/i,
-  /\bin\s+(?:good|bad|great|poor|terrible|decent|excellent|reasonable)\s+shape\b/i,
-  /\b(?:scars?|scuffing|bruis\w*|wounds?|welts?|abrasions?|lacerations?|swelling|scrapes?)\b/i,
+  /\bis\s+(?:short|tall|average|small|large|huge|tiny|slightly)\b.*\bfor an?\b/i,  // height
+  /\bappears?\s+to\s+be\b/i,                                                        // age
+  /\bin\s+(?:the\s+|your\s+|her\s+|his\s+|their\s+)?prime\b/i,                      // age
+  /\bin\s+(?:good|bad|great|poor|terrible|decent|excellent|reasonable)\s+shape\b/i, // condition
+  // Injuries are temporary — drop them. Matches the DR wound sentence: a
+  // "has/have" clause naming a wound. Strong wound words (rarely appearance
+  // features) match anywhere; ambiguous ones (cut/burn/broken) require a body
+  // location, so "a sharply cut jaw" survives but "a deep cut on her cheek" goes.
+  /\b(?:has|have)\b.*(?:\b(?:scuffing|scratch(?:es)?|scars?|gashe?s?|bruis\w+|welts?|abrasions?|lacerations?|scrapes?|swollen|swelling|blisters?|charred|fractured?|shattered|mangled|severed|punctures?|slashe?s?|wounds?)\b|\b(?:cuts?|burns?|broken)\b.*\b(?:to|on|along|across|over|around)\s+(?:the|his|her|its|their)\b)/i,
 ]
+
+// Lines that must never be dropped even if a rule above would match them: the
+// clothing list ("is wearing …" may contain "wound"/"blood" as garment flavour)
+// and tattoos (permanent, and a tattoo line like "a bleeding heart on her arm"
+// looks injury-ish). Keeping these is also what puts the character's attire back
+// in the prompt.
+const KEEP_RE = /\b(?:is|are)\s+wearing\b|\btattoos?\b/i
 
 function detectGender(text: string): LookFields['gender'] {
   if      (/\b(?:she|her|hers)\b/i.test(text))    return 'female'
@@ -34,7 +46,7 @@ export function parseLookFields(lines: string[]): LookFields {
   const gender = detectGender(body.join(' '))
 
   const description = body
-    .filter(l => l.trim() && !DROP_RE.some(re => re.test(l)))
+    .filter(l => l.trim() && (KEEP_RE.test(l) || !DROP_RE.some(re => re.test(l))))
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim()

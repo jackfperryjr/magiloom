@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Provider, useSetAtom, useAtomValue } from 'jotai'
 import { useGameConnection }  from './hooks/useGameConnection'
-import { GameOutput, setHighlights, setSendFn, setShowTimestamps, setOutputBuffer, setPlayerName } from './components/game/GameOutput'
+import { GameOutput, setHighlights, setSendFn, setOutputBuffer, setPlayerName } from './components/game/GameOutput'
 import { CommandInput, StatusBar, WindowControls, GameTopBar, CharacterBar, VitalsBar } from './components/game'
 import { LoginFlow }          from './components/ui/LoginFlow'
 import { SettingsModal }      from './components/ui/SettingsModal'
@@ -49,6 +49,11 @@ function renderPanel(id: PanelId) {
 // ── Native .cmd scripts side panel ────────────────────────────────────────────
 interface ScriptStatus { id: number; name: string; state: string }
 
+// The engine's `pause` command parks a script in a 'paused' state, but a timed
+// pause is just part of running — only a genuine wait (matchwait/waitfor) is
+// worth flagging distinctly. Map 'paused' → 'running' for the panel.
+const scriptStateLabel = (state: string): string => (state === 'paused' ? 'running' : state)
+
 function ScriptsPanel() {
   const [available, setAvailable] = useState<string[]>([])
   const [running,   setRunning]   = useState<ScriptStatus[]>([])
@@ -84,7 +89,7 @@ function ScriptsPanel() {
           {running.map(r => (
             <div key={r.id} className="script-row script-row-running">
               <span className="script-name">{r.name}</span>
-              <span className="script-state">{r.state}</span>
+              <span className="script-state">{scriptStateLabel(r.state)}</span>
               <button className="script-stop-btn" onClick={() => window.dr.script.stop(r.id)} title="Stop">■</button>
             </div>
           ))}
@@ -268,7 +273,7 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
       // Theme the login screen with the last-used character's appearance so it
       // matches what the player last saw (before any character is active).
       const lastChar = s.accounts?.find(a => a.name === s.lastAccount)?.lastCharacter
-      if (lastChar) loadCharAppearance(lastChar).then(a => applyAppearance(a, setShowTimestamps))
+      if (lastChar) loadCharAppearance(lastChar).then(a => applyAppearance(a))
       if (s.outputBufferSize) setOutputBuffer(s.outputBufferSize)
       if (s.avatars)          setAvatars(s.avatars)
       if (s.avatarCrops)      setAvatarCrops(s.avatarCrops)
@@ -296,7 +301,7 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
   useEffect(() => {
     if (!charName) return
     let cancelled = false
-    loadCharAppearance(charName).then(a => { if (!cancelled) applyAppearance(a, setShowTimestamps) })
+    loadCharAppearance(charName).then(a => { if (!cancelled) applyAppearance(a) })
     return () => { cancelled = true }
   }, [charName])
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { THEMES, applyTheme } from '../../lib/themes'
-import { setShowTimestamps, setOutputBuffer } from '../game/GameOutput'
+import { setOutputBuffer } from '../game/GameOutput'
 import { loadCharAppearance, saveCharAppearance, applyAppearance } from '../../lib/charSettings'
 import { DEFAULT_NOTIF, type NotifSettings } from './Notifications'
 import type { Alias, Trigger } from '../../lib/automation'
@@ -35,7 +35,6 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [theme,           setTheme]           = useState('magiloom')
   // Theme active when the modal opened — restored if the user cancels
   const [originalTheme,   setOriginalTheme]   = useState('magiloom')
-  const [timestamps,      setTimestamps]      = useState(false)
   const [density,         setDensity]         = useState<'cozy' | 'compact'>('cozy')
   const [outputBufferSize, setOutputBufferSize] = useState(5000)
   const [functionKeys,    setFunctionKeys]    = useState<Record<string, string>>({})
@@ -82,7 +81,6 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setFontFamily(a.fontFamily)
       setTheme(a.theme)
       setOriginalTheme(a.theme)
-      setTimestamps(a.timestamps)
       setDensity(a.density)
     })
     window.dr.settings.getAll().then(s => {
@@ -100,14 +98,14 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   }, [charName])
 
   const handleSave = async () => {
-    // Per-character appearance → localStorage; global settings → settings.json.
-    saveCharAppearance(charName, { theme, fontSize, fontFamily, density, timestamps })
+    // Per-character appearance + gameplay → settings.json; the rest is global.
+    saveCharAppearance(charName, { theme, fontSize, fontFamily, density })
     await window.dr.settings.patch({
       lichPath, scriptDir, outputBufferSize, notifications: notif,
     })
     await window.dr.settings.patchChar(charName, { functionKeys, aliases, triggers })
     window.dispatchEvent(new CustomEvent('settings:saved'))
-    applyAppearance({ theme, fontSize, fontFamily, density, timestamps }, setShowTimestamps)
+    applyAppearance({ theme, fontSize, fontFamily, density })
     setOutputBuffer(outputBufferSize)
     onClose()
   }
@@ -222,15 +220,6 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                       {fontSize}px
                     </span>
                   </div>
-                </label>
-                <label className="settings-row">
-                  <span className="settings-label">Timestamps</span>
-                  <input
-                    type="checkbox"
-                    checked={timestamps}
-                    onChange={e => setTimestamps(e.target.checked)}
-                    style={{ width: 'auto' }}
-                  />
                 </label>
                 <label className="settings-row">
                   <span className="settings-label">Output buffer</span>

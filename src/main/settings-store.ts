@@ -30,7 +30,7 @@ export interface CharScopedSettings {
   highlights?:   unknown[]
   // Appearance + panel layout — previously kept per-character in the renderer's
   // localStorage, now unified here so they follow the character across windows.
-  appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact'; timestamps: boolean }
+  appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact' }
   panels?:       { id: string; label: string; visible: boolean }[]
   panelHeights?: Record<string, number>
 }

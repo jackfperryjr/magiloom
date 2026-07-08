@@ -9,7 +9,6 @@ export interface CharAppearance {
   fontSize:   number
   fontFamily: string
   density:    'cozy' | 'compact'
-  timestamps: boolean
 }
 
 export const DEFAULT_APPEARANCE: CharAppearance = {
@@ -17,7 +16,6 @@ export const DEFAULT_APPEARANCE: CharAppearance = {
   fontSize:   13,
   fontFamily: 'Cascadia Code',
   density:    'cozy',
-  timestamps: false,
 }
 
 const LEGACY_KEY = (name: string) => `magiloom-charsettings:${name.trim().toLowerCase()}`
@@ -49,12 +47,10 @@ export function saveCharAppearance(name: string, next: CharAppearance): void {
   window.dr.settings.patchChar(name, { appearance: next })
 }
 
-// Apply an appearance to the document. `setTimestamps` bridges the runtime
-// timestamp flag owned by the GameOutput module setter.
-export function applyAppearance(a: CharAppearance, setTimestamps?: (b: boolean) => void): void {
+// Apply an appearance to the document.
+export function applyAppearance(a: CharAppearance): void {
   applyTheme(a.theme)
   document.documentElement.style.setProperty('--font-game', `'${a.fontFamily}', monospace`)
   document.documentElement.style.setProperty('--font-size-game', `${a.fontSize}px`)
   document.documentElement.dataset.density = a.density
-  setTimestamps?.(a.timestamps)
 }

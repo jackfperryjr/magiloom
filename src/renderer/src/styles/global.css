@@ -644,24 +644,6 @@ body[data-platform="darwin"] .status-bar {
 /* Row hover highlight */
 .game-line:hover { background: rgba(255, 255, 255, 0.035); }
 
-/* Hover-only timestamp chip (right gutter) */
-.game-line[data-time]::after {
-  content: attr(data-time);
-  position: absolute;
-  top: 0; right: 2px;
-  padding: 0 5px;
-  font-family: var(--font-ui);
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--text-dim);
-  background: var(--bg-panel);
-  border-radius: 5px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .1s;
-}
-.game-line[data-time]:hover::after { opacity: 0.9; }
-
 /* @mention — this character's name appears on the line */
 .game-line.mention {
   padding-left: 8px;
@@ -2101,6 +2083,11 @@ body[data-platform="darwin"] .status-bar {
   font-size: 14px; padding: 1px 0; line-height: 1.35;
   color: var(--text-dim); font-style: italic; font-family: var(--font-game);
 }
+/* Leading timestamp on combat/atmo panel lines */
+.panel-line-time {
+  font-family: var(--font-ui); font-size: 11px; color: var(--text-dim);
+  font-style: normal; margin-right: 6px;
+}
 
 /* ── Room exits preset ───────────────────────────────────────────────────── */
 .preset-roomexits { color: var(--color-bonus); font-size: 15px; font-family: var(--font-game); }
@@ -2267,7 +2254,6 @@ body[data-platform="darwin"] .status-bar {
 .hand-item  { color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
 
 /* ── Timestamps ──────────────────────────────────────────────────────────── */
-.game-timestamp { color: var(--text-dim); font-size: 0.95em; user-select: none; }
 
 /* ── Settings version label ──────────────────────────────────────────────── */
 .settings-version {
