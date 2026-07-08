@@ -41,8 +41,66 @@ function renderPanel(id: PanelId) {
     case 'conversation': return <ConversationPanel />
     case 'inventory':    return <InventoryPanel />
     case 'deaths':       return <DeathsPanel />
+    case 'scripts':      return <ScriptsPanel />
     default:             return null
   }
+}
+
+// ── Native .cmd scripts side panel ────────────────────────────────────────────
+interface ScriptStatus { id: number; name: string; state: string }
+
+function ScriptsPanel() {
+  const [available, setAvailable] = useState<string[]>([])
+  const [running,   setRunning]   = useState<ScriptStatus[]>([])
+
+  const refresh = useCallback(() => { window.dr.script.list().then(setAvailable) }, [])
+
+  useEffect(() => {
+    refresh()
+    window.dr.script.running().then(setRunning)
+    const onSaved = () => refresh()          // script folder may have changed
+    window.addEventListener('settings:saved', onSaved)
+    const unsub = window.dr.script.onStatus((s: ScriptStatus) => {
+      setRunning(prev => {
+        const rest = prev.filter(p => p.id !== s.id)
+        return s.state === 'stopped' ? rest : [...rest, s]
+      })
+    })
+    return () => { window.removeEventListener('settings:saved', onSaved); unsub() }
+  }, [refresh])
+
+  return (
+    <div className="lich-panel script-panel">
+      <div className="lich-panel-status">
+        <span>{available.length} script{available.length === 1 ? '' : 's'}</span>
+        {running.length > 0 && (
+          <button className="script-stopall" onClick={() => window.dr.script.stop()}>Stop all</button>
+        )}
+        <button className="script-refresh" onClick={refresh} title="Rescan folder">⟳</button>
+      </div>
+
+      {running.length > 0 && (
+        <div className="script-running-list">
+          {running.map(r => (
+            <div key={r.id} className="script-row script-row-running">
+              <span className="script-name">{r.name}</span>
+              <span className="script-state">{r.state}</span>
+              <button className="script-stop-btn" onClick={() => window.dr.script.stop(r.id)} title="Stop">■</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {available.length === 0
+        ? <div className="lich-panel-empty">No .cmd scripts found. Set a folder in Settings → Scripts.</div>
+        : available.map(name => (
+            <div key={name} className="script-row">
+              <span className="script-name">{name}</span>
+              <button className="script-run-btn" onClick={() => window.dr.script.run(name)} title="Run">▶</button>
+            </div>
+          ))}
+    </div>
+  )
 }
 
 // ── Horizontal resize between game col and sidebar ────────────────────────────
@@ -99,7 +157,7 @@ function LichLogPanel({ lines, status }: { lines: string[]; status: LichStatus }
 
 // ── Game layout ───────────────────────────────────────────────────────────────
 function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, updateSlot }: { charName: string; accountName: string; onOpenSettings: () => void; onRequestConnect: () => void; updateSlot: React.ReactNode }) {
-  const { status, disconnect, send } = useGameConnection()
+  const { status, disconnect, send } = useGameConnection(charName)
   // Wipe all per-character live state when the active character changes (a
   // character switch via the reconnect overlay keeps GameLayout mounted, so
   // nothing else clears the previous character's panels/room/vitals/profile).
@@ -202,34 +260,44 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
     }
   }, [lichMsgs])
 
-  // Load global settings (highlights / function keys / avatars / buffer) on
-  // mount. Appearance is per-character and applied in the effect below.
+  // Load global settings (avatars / buffer) on mount. Function keys and
+  // highlights are per-character (loaded in the charName effect below); appearance
+  // is per-character too and applied further down.
   useEffect(() => {
     window.dr.settings.getAll().then(s => {
       // Theme the login screen with the last-used character's appearance so it
       // matches what the player last saw (before any character is active).
       const lastChar = s.accounts?.find(a => a.name === s.lastAccount)?.lastCharacter
-      if (lastChar) applyAppearance(loadCharAppearance(lastChar), setShowTimestamps)
+      if (lastChar) loadCharAppearance(lastChar).then(a => applyAppearance(a, setShowTimestamps))
       if (s.outputBufferSize) setOutputBuffer(s.outputBufferSize)
-      if (s.functionKeys)     setFunctionKeys(s.functionKeys)
       if (s.avatars)          setAvatars(s.avatars)
       if (s.avatarCrops)      setAvatarCrops(s.avatarCrops)
-      if (s.highlights && s.highlights.length > 0) {
-        setHighlights(s.highlights as never[])
-      } else {
-        setHighlights(DEFAULT_HIGHLIGHTS as never[])
+      // Seed the global default highlight set once; per-character loading reads it
+      // as the fallback for characters that haven't customised their highlights.
+      if (!s.highlights || s.highlights.length === 0) {
         window.dr.settings.patch({ highlights: DEFAULT_HIGHLIGHTS as unknown[] })
       }
     })
     window.dr.lich.detectPath().then(() => {})
   }, [])
 
+  // Per-character function keys + highlights (fall back to globals). Reloads on
+  // character switch so each character keeps its own set.
+  useEffect(() => {
+    window.dr.settings.getChar(charName).then(c => {
+      setFunctionKeys(c.functionKeys || {})
+      setHighlights((c.highlights && c.highlights.length > 0 ? c.highlights : DEFAULT_HIGHLIGHTS) as never[])
+    })
+  }, [charName])
+
   // Apply this character's appearance (theme / font / density / timestamps),
   // reloading whenever the active character changes. A character with nothing
   // saved falls back to app defaults.
   useEffect(() => {
     if (!charName) return
-    applyAppearance(loadCharAppearance(charName), setShowTimestamps)
+    let cancelled = false
+    loadCharAppearance(charName).then(a => { if (!cancelled) applyAppearance(a, setShowTimestamps) })
+    return () => { cancelled = true }
   }, [charName])
 
   useEffect(() => {
@@ -255,22 +323,18 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [functionKeys, send, echoCommand])
 
-  // Reload function keys whenever settings are saved mid-session
+  // Reload this character's function keys whenever settings are saved mid-session
   useEffect(() => {
     const onSaved = () => {
-      window.dr.settings.getAll().then(s => {
-        if (s.functionKeys) setFunctionKeys(s.functionKeys)
-      })
+      window.dr.settings.getChar(charName).then(c => setFunctionKeys(c.functionKeys || {}))
     }
     window.addEventListener('settings:saved', onSaved)
     return () => window.removeEventListener('settings:saved', onSaved)
-  }, [])
+  }, [charName])
 
   const handleHighlightsClose = () => {
     setShowHighlights(false)
-    window.dr.settings.getAll().then(s => {
-      if (s.highlights) setHighlights(s.highlights as never[])
-    })
+    window.dr.settings.getChar(charName).then(c => setHighlights((c.highlights ?? []) as never[]))
   }
 
   // Lich log is rendered as an optional side panel; inject it here so it can
@@ -319,7 +383,7 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
         <ColResize onDrag={handleColDrag} />
         <PanelSidebar renderPanel={renderPanelWithLich} getClearFn={getClearFn} sidebarWidth={sidebarWidth} charName={charName} />
       </div>
-      {showHighlights && <HighlightsModal onClose={handleHighlightsClose} />}
+      {showHighlights && <HighlightsModal onClose={handleHighlightsClose} charName={charName} />}
       <NotificationCenter charName={charName} status={status} />
       <GlobalTooltip />
     </div>

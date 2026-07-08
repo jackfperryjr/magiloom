@@ -2,8 +2,10 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('dr', {
   settings: {
-    getAll: ()          => ipcRenderer.invoke('settings:get-all'),
-    patch:  (p: object) => ipcRenderer.invoke('settings:patch', p)
+    getAll:    ()          => ipcRenderer.invoke('settings:get-all'),
+    patch:     (p: object) => ipcRenderer.invoke('settings:patch', p),
+    getChar:   (name: string)                  => ipcRenderer.invoke('settings:get-char', name),
+    patchChar: (name: string, partial: object) => ipcRenderer.invoke('settings:patch-char', name, partial)
   },
   avatar: {
     enabled: ()                                  => ipcRenderer.invoke('avatar:enabled'),
@@ -35,9 +37,21 @@ contextBridge.exposeInMainWorld('dr', {
     onStatus: (cb: (s: string) => void) => { const h = (_e: unknown, s: string) => cb(s); ipcRenderer.on('lich:status', h); return () => ipcRenderer.removeListener('lich:status', h) },
     onError:  (cb: (m: string) => void) => { const h = (_e: unknown, m: string) => cb(m); ipcRenderer.on('lich:error', h);  return () => ipcRenderer.removeListener('lich:error', h) }
   },
+  script: {
+    list:       ()                          => ipcRenderer.invoke('script:list'),
+    running:    ()                          => ipcRenderer.invoke('script:running'),
+    defaultDir: ()                          => ipcRenderer.invoke('script:default-dir'),
+    run:     (name: string, args: string[] = []) => ipcRenderer.invoke('script:run', name, args),
+    stop:    (id?: number)                  => ipcRenderer.invoke('script:stop', id),
+    onOutput: (cb: (l: string) => void)      => { const h = (_e: unknown, l: string) => cb(l); ipcRenderer.on('script:output', h); return () => ipcRenderer.removeListener('script:output', h) },
+    onStatus: (cb: (s: unknown) => void)     => { const h = (_e: unknown, s: unknown) => cb(s); ipcRenderer.on('script:status', h); return () => ipcRenderer.removeListener('script:status', h) }
+  },
   app: {
     getVersion:   () => ipcRenderer.invoke('app:version'),
     openExternal: (url: string) => ipcRenderer.invoke('app:open-external', url),
+    chooseFolder: () => ipcRenderer.invoke('dialog:choose-folder'),
+    chooseFile:   (filters?: { name: string; extensions: string[] }[]) => ipcRenderer.invoke('dialog:choose-file', filters),
+    openTextFile: (filters?: { name: string; extensions: string[] }[]) => ipcRenderer.invoke('dialog:open-text-file', filters),
     platform:     process.platform,
   },
   window: {

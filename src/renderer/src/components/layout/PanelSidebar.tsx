@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Tooltip } from '../ui/Tooltip'
 
-export type PanelId = 'room' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'lich'
+export type PanelId = 'room' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'scripts' | 'lich'
 
 export interface PanelConfig {
   id:      PanelId
@@ -18,45 +18,60 @@ const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'conversation', label: 'Conversation',  visible: true },
   { id: 'inventory',    label: 'Inventory',     visible: false },
   { id: 'deaths',       label: 'Deaths',        visible: false },
+  { id: 'scripts',      label: 'Scripts',       visible: false },
   { id: 'lich',         label: 'Lich Log',      visible: false },
 ]
 
-// Panel layout is per-character: the key is namespaced by character name so each
-// character keeps its own panel set / order / heights. A character with nothing
-// saved falls back to DEFAULT_PANELS (app defaults).
+// Panel layout is per-character, stored in the shared settings.json under the
+// character's `characters[name]` namespace (previously in localStorage — those
+// legacy keys are migrated up on first load). A character with nothing saved
+// falls back to DEFAULT_PANELS (app defaults).
 const panelsKey  = (name: string) => `magiloom-panels-v4:${name.trim().toLowerCase()}`
 const heightsKey = (name: string) => `magiloom-panel-heights-v1:${name.trim().toLowerCase()}`
 
-function loadPanels(name: string): PanelConfig[] {
+// Drop panels that no longer exist (e.g. vitals moved to the top bar) and append
+// any newly-added defaults, preserving the user's order/visibility.
+function reconcilePanels(saved: PanelConfig[] | undefined): PanelConfig[] {
+  if (!saved || saved.length === 0) return DEFAULT_PANELS
+  const valid  = new Set(DEFAULT_PANELS.map(p => p.id))
+  const kept   = saved.filter(p => valid.has(p.id))
+  const have   = new Set(kept.map(p => p.id))
+  for (const d of DEFAULT_PANELS) if (!have.has(d.id)) kept.push(d)
+  return kept
+}
+
+function readLegacy<T>(key: string): T | null {
+  try { const raw = localStorage.getItem(key); if (raw) return JSON.parse(raw) as T } catch {}
+  return null
+}
+
+async function loadPanelLayout(name: string): Promise<{ panels: PanelConfig[]; heights: Record<string, number> }> {
   try {
-    const raw = localStorage.getItem(panelsKey(name))
-    if (raw) {
-      // Drop panels that no longer exist (e.g. vitals moved to the top bar) and
-      // append any newly-added defaults, preserving the user's order/visibility.
-      const valid  = new Set(DEFAULT_PANELS.map(p => p.id))
-      const saved  = (JSON.parse(raw) as PanelConfig[]).filter(p => valid.has(p.id))
-      const have   = new Set(saved.map(p => p.id))
-      for (const d of DEFAULT_PANELS) if (!have.has(d.id)) saved.push(d)
-      return saved
+    const c = await window.dr.settings.getChar(name)
+    let panels  = c.panels as PanelConfig[] | undefined
+    let heights = c.panelHeights as Record<string, number> | undefined
+
+    // One-time migration from the old localStorage keys.
+    if (!panels) {
+      const legacy = readLegacy<PanelConfig[]>(panelsKey(name))
+      if (legacy) { panels = legacy; window.dr.settings.patchChar(name, { panels: legacy }); try { localStorage.removeItem(panelsKey(name)) } catch {} }
     }
-  } catch {}
-  return DEFAULT_PANELS
+    if (!heights) {
+      const legacy = readLegacy<Record<string, number>>(heightsKey(name))
+      if (legacy) { heights = legacy; window.dr.settings.patchChar(name, { panelHeights: legacy }); try { localStorage.removeItem(heightsKey(name)) } catch {} }
+    }
+    return { panels: reconcilePanels(panels), heights: heights ?? {} }
+  } catch {
+    return { panels: DEFAULT_PANELS, heights: {} }
+  }
 }
 
 function savePanels(name: string, panels: PanelConfig[]) {
-  try { localStorage.setItem(panelsKey(name), JSON.stringify(panels)) } catch {}
-}
-
-function loadHeights(name: string): Record<string, number> {
-  try {
-    const raw = localStorage.getItem(heightsKey(name))
-    if (raw) return JSON.parse(raw) as Record<string, number>
-  } catch {}
-  return {}
+  window.dr.settings.patchChar(name, { panels })
 }
 
 function saveHeights(name: string, heights: Record<string, number>) {
-  try { localStorage.setItem(heightsKey(name), JSON.stringify(heights)) } catch {}
+  window.dr.settings.patchChar(name, { panelHeights: heights })
 }
 
 // ── Single panel ───────────────────────────────────────────────────────────────
@@ -213,23 +228,33 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
   sidebarWidth?: number | null
   charName?:     string
 }) {
-  const [panels,      setPanels]      = useState<PanelConfig[]>(() => loadPanels(charName))
-  const [heights,     setHeights]     = useState<Record<string, number>>(() => loadHeights(charName))
+  const [panels,      setPanels]      = useState<PanelConfig[]>(DEFAULT_PANELS)
+  const [heights,     setHeights]     = useState<Record<string, number>>({})
   const [showManager, setShowManager] = useState(false)
   const managerBtnRef = useRef<HTMLButtonElement>(null)
 
-  // Reload this character's layout when the active character changes. charRef
-  // tracks whose layout is loaded so the persist effects below always write to
-  // the right character (and never save the previous layout under the new name).
-  const charRef = useRef(charName)
+  // Load this character's layout (async, from settings.json) when the active
+  // character changes. charRef tracks whose layout is loaded so the persist
+  // effects always write to the right character (never the previous one's under
+  // the new name). loadedRef gates persistence until the async load lands, so the
+  // initial default state can't overwrite stored data.
+  const charRef   = useRef(charName)
+  const loadedRef = useRef(false)
   useEffect(() => {
     charRef.current = charName
-    setPanels(loadPanels(charName))
-    setHeights(loadHeights(charName))
+    loadedRef.current = false
+    let cancelled = false
+    loadPanelLayout(charName).then(({ panels, heights }) => {
+      if (cancelled) return
+      setPanels(panels)
+      setHeights(heights)
+      loadedRef.current = true
+    })
+    return () => { cancelled = true }
   }, [charName])
 
-  useEffect(() => { savePanels(charRef.current, panels)   }, [panels])
-  useEffect(() => { saveHeights(charRef.current, heights) }, [heights])
+  useEffect(() => { if (loadedRef.current) savePanels(charRef.current, panels)   }, [panels])
+  useEffect(() => { if (loadedRef.current) saveHeights(charRef.current, heights) }, [heights])
 
   const togglePanel = useCallback((id: PanelId) => {
     setPanels(prev => prev.map(p => p.id === id ? { ...p, visible: !p.visible } : p))

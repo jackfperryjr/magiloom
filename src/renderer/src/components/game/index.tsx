@@ -692,7 +692,6 @@ export function StatusBar({ updateSlot }: { updateSlot?: React.ReactNode }) {
   return (
     <div className="status-bar">
       <img src="./icon.png" className="app-icon" alt="" aria-hidden />
-      <span className="app-title">MAGILOOM</span>
       <div className="status-bar-spacer" />
       <Tooltip text="Guide">
         <button

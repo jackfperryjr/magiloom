@@ -383,6 +383,50 @@ body[data-platform="darwin"] .status-bar {
   font-size: 13px;
 }
 
+/* ── Scripts panel ───────────────────────────────────────────────────────── */
+.script-panel .lich-panel-status { justify-content: flex-start; }
+.script-refresh, .script-stopall {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 1px 7px;
+}
+.script-stopall { margin-left: auto; color: var(--color-warning); border-color: var(--color-warning); }
+.script-refresh { margin-left: 6px; }
+.script-refresh:hover, .script-stopall:hover { color: var(--text-main); }
+.script-running-list { margin-bottom: 6px; }
+.script-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.script-row:hover { background: var(--bg-input); }
+.script-row-running { background: var(--bg-input); }
+.script-name { flex: 1; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.script-state {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--accent);
+}
+.script-run-btn, .script-stop-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+  color: var(--text-dim);
+}
+.script-run-btn:hover  { color: var(--color-bonus); }
+.script-stop-btn:hover { color: var(--color-warning); }
+
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 .panel-sidebar {
   flex: 1;
@@ -1766,6 +1810,32 @@ body[data-platform="darwin"] .status-bar {
 .settings-input:focus { border-color: var(--border-accent); }
 .settings-input-mono { font-family: var(--font-game); font-size: 14px; }
 .settings-hint { font-size: 13px; color: var(--text-dim); line-height: 1.5; font-family: var(--font-ui); }
+/* Full-width path entry (folder input + Browse/Default buttons on their own row) */
+.settings-path-row { display: flex; align-items: center; gap: 6px; }
+.settings-path-row .settings-input { flex: 1 1 auto; min-width: 0; }
+/* Login buttons default to width:100%; keep them content-sized here so the
+   input gets the remaining width instead of the buttons ballooning. */
+.settings-path-row button { flex: 0 0 auto; width: auto; }
+
+/* Alias / trigger rule rows */
+.rule-list { display: flex; flex-direction: column; gap: 6px; }
+.rule-row { display: flex; align-items: center; gap: 6px; }
+.rule-row-off { opacity: 0.5; }
+.rule-row .settings-input { flex: 1; min-width: 0; }
+.rule-row .rule-key { flex: 0 0 96px; }
+.rule-arrow { color: var(--text-dim); font-size: 13px; }
+.rule-regex {
+  display: flex; align-items: center; gap: 3px;
+  font-family: var(--font-game); font-size: 12px; color: var(--text-dim);
+  cursor: pointer; user-select: none;
+}
+.rule-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  border-bottom: 1px solid var(--border-soft); padding-bottom: 4px;
+}
+.rule-header .settings-section-label { border-bottom: none; padding-bottom: 0; }
+.rule-import-btn { flex: 0 0 auto; width: auto; padding: 4px 12px; font-size: 12px; }
+.rule-import-msg { color: var(--accent); }
 
 /* Function key grid */
 .fk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }

@@ -128,27 +128,28 @@ function HighlightRow({ hl, onChange, onDelete }: {
   )
 }
 
-export function HighlightsModal({ onClose }: { onClose: () => void }) {
+export function HighlightsModal({ onClose, charName = '' }: { onClose: () => void; charName?: string }) {
   const [highlights, setHighlights] = useState<Highlight[]>([])
 
   useEffect(() => {
-    window.dr.settings.getAll().then(s => {
-      setHighlights((s.highlights as Highlight[]) ?? [])
+    window.dr.settings.getChar(charName).then(c => {
+      setHighlights((c.highlights as Highlight[]) ?? [])
     })
-  }, [])
+  }, [charName])
 
-  const save = (hls: Highlight[]) => {
-    setHighlights(hls)
-    window.dr.settings.patch({ highlights: hls })
-  }
-
-  const add = () => save([...highlights, { ...BLANK, id: uid() }])
+  // Edits stay local until Save — that's what lets Cancel discard them.
+  const add = () => setHighlights(hls => [...hls, { ...BLANK, id: uid() }])
 
   const update = (id: string, hl: Highlight) =>
-    save(highlights.map(h => h.id === id ? hl : h))
+    setHighlights(hls => hls.map(h => h.id === id ? hl : h))
 
   const remove = (id: string) =>
-    save(highlights.filter(h => h.id !== id))
+    setHighlights(hls => hls.filter(h => h.id !== id))
+
+  const handleSave = async () => {
+    await window.dr.settings.patchChar(charName, { highlights })
+    onClose()
+  }
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -170,6 +171,10 @@ export function HighlightsModal({ onClose }: { onClose: () => void }) {
             />
           ))}
           <button className="hl-add-btn" onClick={add}>+ Add highlight</button>
+        </div>
+        <div className="modal-footer">
+          <button className="login-btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="login-btn" style={{ minWidth: 80 }} onClick={handleSave}>Save</button>
         </div>
       </div>
     </div>
