@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Provider, useSetAtom, useAtomValue } from 'jotai'
 import { useGameConnection }  from './hooks/useGameConnection'
-import { GameOutput, setHighlights, setSendFn, setOutputBuffer, setPlayerName } from './components/game/GameOutput'
+import { GameOutput, setHighlights, setSendFn, setOutputBuffer, setPlayerName, setDisabledClasses } from './components/game/GameOutput'
 import { CommandInput, StatusBar, WindowControls, GameTopBar, CharacterBar, VitalsBar } from './components/game'
 import { LoginFlow }          from './components/ui/LoginFlow'
 import { SettingsModal }      from './components/ui/SettingsModal'
@@ -19,8 +19,9 @@ import {
   combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom, inventoryLinesAtom,
   verbRawAtom, beginVerbCapture, endVerbCapture,
   avatarsAtom, avatarCropsAtom, selfNameAtom, resetSessionAtom,
+  classStatesAtom, disabledClassesAtom, setGagSubRules,
 } from './store/game'
-import { DEFAULT_HIGHLIGHTS } from './lib/themes'
+import { DEFAULT_HIGHLIGHTS, type Highlight } from './lib/themes'
 import { loadCharAppearance, applyAppearance } from './lib/charSettings'
 import { IconArrowDownTray, IconArrowPath, IconExclamationTriangle } from './components/ui/Icons'
 import { Tooltip } from './components/ui/Tooltip'
@@ -217,6 +218,21 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
   const setInventory = useSetAtom(inventoryLinesAtom)
   const setAvatars   = useSetAtom(avatarsAtom)
   const setAvatarCrops = useSetAtom(avatarCropsAtom)
+  const setClassStates = useSetAtom(classStatesAtom)
+  const disabledClasses = useAtomValue(disabledClassesAtom)
+
+  // Push a character's highlight set to the renderer (colors) AND the store's
+  // gag/sub engine (the action gag/sub subset), so both stay in sync on every
+  // load/save. Class gating for gag/sub is applied live in dispatch.
+  const applyHighlightRules = useCallback((hls: Highlight[]) => {
+    setHighlights(hls as never[])
+    setGagSubRules(
+      hls.filter(h => h.action === 'gag' || h.action === 'sub').map(h => ({
+        pattern: h.pattern, isRegex: h.isRegex, action: h.action as 'gag' | 'sub',
+        replace: h.replace, enabled: h.enabled, class: h.class,
+      })),
+    )
+  }, [])
 
   const getClearFn = (id: PanelId): (() => void) | undefined => {
     switch (id) {
@@ -291,9 +307,14 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
   useEffect(() => {
     window.dr.settings.getChar(charName).then(c => {
       setFunctionKeys(c.functionKeys || {})
-      setHighlights((c.highlights && c.highlights.length > 0 ? c.highlights : DEFAULT_HIGHLIGHTS) as never[])
+      applyHighlightRules((c.highlights && c.highlights.length > 0 ? c.highlights : DEFAULT_HIGHLIGHTS) as Highlight[])
+      setClassStates(c.classes || {})
     })
-  }, [charName])
+  }, [charName, setClassStates, applyHighlightRules])
+
+  // Mirror the disabled-class set into GameOutput's matcher (highlights) whenever
+  // it changes — the aliases/triggers matchers read it via useGameConnection.
+  useEffect(() => { setDisabledClasses(disabledClasses) }, [disabledClasses])
 
   // Apply this character's appearance (theme / font / density / timestamps),
   // reloading whenever the active character changes. A character with nothing
@@ -331,7 +352,10 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
   // Reload this character's function keys whenever settings are saved mid-session
   useEffect(() => {
     const onSaved = () => {
-      window.dr.settings.getChar(charName).then(c => setFunctionKeys(c.functionKeys || {}))
+      window.dr.settings.getChar(charName).then(c => {
+        setFunctionKeys(c.functionKeys || {})
+        setClassStates(c.classes || {})
+      })
     }
     window.addEventListener('settings:saved', onSaved)
     return () => window.removeEventListener('settings:saved', onSaved)
@@ -339,7 +363,10 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
 
   const handleHighlightsClose = () => {
     setShowHighlights(false)
-    window.dr.settings.getChar(charName).then(c => setHighlights((c.highlights ?? []) as never[]))
+    window.dr.settings.getChar(charName).then(c => {
+      applyHighlightRules((c.highlights ?? []) as Highlight[])
+      setClassStates(c.classes || {})
+    })
   }
 
   // Lich log is rendered as an optional side panel; inject it here so it can

@@ -3,7 +3,7 @@ import { useAtomValue, useAtom } from 'jotai'
 import {
   handsAtom, indicatorsAtom, roundtimeSecondsAtom, vitalsAtom,
   verbsAtom, verbsWithInfoAtom, verbInfoAtom, beginVerbInfoCapture,
-  presenceModeAtom, avatarsAtom, avatarCropsAtom,
+  presenceModeAtom, avatarsAtom, avatarCropsAtom, linkModeAtom,
 } from '../../store/game'
 import type { PresenceMode, ProfileInfo } from '../../store/game'
 import type { AvatarCrop } from '../../lib/avatar'
@@ -13,10 +13,11 @@ import { useProfile } from '../../hooks/useProfile'
 export type { ConnectionStatus } from '../../store/game'
 import type { ConnectionStatus } from '../../store/game'
 import {
-  IconCog, IconPaintBrush, IconPhoto, IconPower, IconBolt,
+  IconCog, IconPaintBrush, IconPhoto, IconPower, IconBolt, IconBroadcast,
   IconWinMinimize, IconWinMaximize, IconWinRestore, IconWinClose,
 } from '../ui/Icons'
 import { Tooltip } from '../ui/Tooltip'
+import { BroadcastModal } from '../ui/BroadcastModal'
 
 // ── Command autocomplete ──────────────────────────────────────────────────────
 // Curated common DragonRealms verbs/commands. Can be augmented at runtime via the
@@ -480,6 +481,8 @@ export function CharacterBar({
   onConnect:    () => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [showBroadcast, setShowBroadcast] = useState(false)
+  const linkMode = useAtomValue(linkModeAtom)
   const [showAvatar, setShowAvatar] = useState(false)
   // Pending avatar edit in the modal: null = no change; { url } stages a new image
   // (url === null means "remove"). Committed only on Save.
@@ -591,10 +594,18 @@ export function CharacterBar({
         </span>
       </button>
       <div className="char-actions">
-        <Tooltip text="Highlights">
+        <Tooltip text={linkMode ? 'Broadcast · Link on' : 'Broadcast Options'}>
+          <button
+            className={'char-action-btn char-action-broadcast' + (linkMode ? ' live' : '')}
+            onClick={() => setShowBroadcast(true)}
+          >
+            <IconBroadcast size={22} />
+          </button>
+        </Tooltip>
+        <Tooltip text="Highlight Options">
           <button className="char-action-btn char-action-brush" onClick={onHighlights}><IconPaintBrush size={16} /></button>
         </Tooltip>
-        <Tooltip text="Settings">
+        <Tooltip text="User Settings">
           <button className="char-action-btn char-action-gear" onClick={onSettings}><IconCog size={22} /></button>
         </Tooltip>
       </div>
@@ -649,6 +660,7 @@ export function CharacterBar({
           </div>
         </div>
       )}
+      {showBroadcast && <BroadcastModal charName={charName} onClose={() => setShowBroadcast(false)} />}
     </div>
   )
 }

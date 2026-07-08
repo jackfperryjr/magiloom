@@ -5,6 +5,7 @@ import { loadCharAppearance, saveCharAppearance, applyAppearance } from '../../l
 import { DEFAULT_NOTIF, type NotifSettings } from './Notifications'
 import type { Alias, Trigger } from '../../lib/automation'
 import { parseGenieConfig, mergeAliases, mergeTriggers } from '../../lib/genieImport'
+import { ClassToggleStrip, distinctClasses, toggleClassState } from './ClassToggleStrip'
 
 interface SettingsModalProps {
   charName?: string
@@ -40,6 +41,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [functionKeys,    setFunctionKeys]    = useState<Record<string, string>>({})
   const [aliases,         setAliases]         = useState<Alias[]>([])
   const [triggers,        setTriggers]        = useState<Trigger[]>([])
+  const [classes,         setClasses]         = useState<Record<string, boolean>>({})
   const [importMsg,       setImportMsg]       = useState('')
   const [notif,           setNotif]           = useState<NotifSettings>(DEFAULT_NOTIF)
   const [version,         setVersion]         = useState('')
@@ -94,8 +96,11 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setFunctionKeys(c.functionKeys || {})
       setAliases(c.aliases || [])
       setTriggers(c.triggers || [])
+      setClasses(c.classes || {})
     })
   }, [charName])
+
+  const toggleClass = (name: string) => setClasses(m => toggleClassState(m, name))
 
   const handleSave = async () => {
     // Per-character appearance + gameplay → settings.json; the rest is global.
@@ -103,7 +108,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
     await window.dr.settings.patch({
       lichPath, scriptDir, outputBufferSize, notifications: notif,
     })
-    await window.dr.settings.patchChar(charName, { functionKeys, aliases, triggers })
+    await window.dr.settings.patchChar(charName, { functionKeys, aliases, triggers, classes })
     window.dispatchEvent(new CustomEvent('settings:saved'))
     applyAppearance({ theme, fontSize, fontFamily, density })
     setOutputBuffer(outputBufferSize)
@@ -303,6 +308,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                   <button className="login-btn-secondary rule-import-btn" onClick={importGenie}>Import from Genie…</button>
                 </div>
                 {importMsg && <div className="settings-hint rule-import-msg">{importMsg}</div>}
+                <ClassToggleStrip names={distinctClasses(aliases)} states={classes} onToggle={toggleClass} />
                 <div className="rule-list">
                   {aliases.length === 0 && (
                     <p className="hl-empty-msg">No aliases yet. Add one below.</p>
@@ -330,6 +336,14 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                         spellCheck={false}
                         onChange={e => setAliases(list => list.map(x => x.id === a.id ? { ...x, command: e.target.value } : x))}
                       />
+                      <input
+                        className="settings-input settings-input-mono rule-class"
+                        placeholder="class"
+                        title="Class (optional) — toggle groups on/off"
+                        value={a.class ?? ''}
+                        spellCheck={false}
+                        onChange={e => setAliases(list => list.map(x => x.id === a.id ? { ...x, class: e.target.value.trim() || undefined } : x))}
+                      />
                       <button className="hl-btn-icon hl-btn-delete" title="Delete"
                         onClick={() => setAliases(list => list.filter(x => x.id !== a.id))}>×</button>
                     </div>
@@ -354,6 +368,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                   <button className="login-btn-secondary rule-import-btn" onClick={importGenie}>Import from Genie…</button>
                 </div>
                 {importMsg && <div className="settings-hint rule-import-msg">{importMsg}</div>}
+                <ClassToggleStrip names={distinctClasses(triggers)} states={classes} onToggle={toggleClass} />
                 <div className="rule-list">
                   {triggers.length === 0 && (
                     <p className="hl-empty-msg">No triggers yet. Add one below.</p>
@@ -389,6 +404,14 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                         spellCheck={false}
                         onChange={e => setTriggers(list => list.map(x => x.id === t.id ? { ...x, command: e.target.value } : x))}
                       />
+                      <input
+                        className="settings-input settings-input-mono rule-class"
+                        placeholder="class"
+                        title="Class (optional) — toggle groups on/off"
+                        value={t.class ?? ''}
+                        spellCheck={false}
+                        onChange={e => setTriggers(list => list.map(x => x.id === t.id ? { ...x, class: e.target.value.trim() || undefined } : x))}
+                      />
                       <button className="hl-btn-icon hl-btn-delete" title="Delete"
                         onClick={() => setTriggers(list => list.filter(x => x.id !== t.id))}>×</button>
                     </div>
@@ -402,6 +425,8 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                   When a line of game text matches, the command fires automatically. Enable
                   <code> .*</code> for a regular expression; then <code>%0</code> is the whole match and
                   <code> %1</code>…<code>%9</code> are capture groups. A trigger may also run a script (<code>.foo</code>).
+                  Tag rules with a <b>class</b> to toggle whole groups on/off — from the pills above,
+                  or in-game with <code>#class name on|off</code>.
                 </div>
               </div>
             )}

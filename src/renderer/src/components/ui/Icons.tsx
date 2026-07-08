@@ -66,6 +66,20 @@ export function IconBolt({ size = 16, className, style }: IconProps) {
   )
 }
 
+// tower broadcast — used for the multi-boxing "link" control. The concentric
+// arcs read as "broadcasting"; the pulse animation scales the whole glyph.
+export function IconBroadcast({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" className={className} style={style} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+      <path d="M16.616 13.924a5 5 0 1 0 -9.23 0" />
+      <path d="M20.307 15.469a9 9 0 1 0 -16.615 0" />
+      <path d="M9 21l3 -9l3 9" />
+      <path d="M10 19h4" />
+    </svg>
+  )
+}
+
 // ── Window control icons ──────────────────────────────────────────────────────
 
 export function IconWinMinimize({ size = 10 }: { size?: number }) {

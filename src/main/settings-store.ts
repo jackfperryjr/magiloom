@@ -10,9 +10,10 @@ export interface AppSettings {
   fontFamily:  string
   passwords:   Record<string, string>  // account name → base64 encrypted password
   functionKeys: Record<string, string> // e.g. { F1: 'attack', F2: 'spell' }
-  aliases?:     { id: string; pattern: string; command: string; enabled: boolean }[]
-  triggers?:    { id: string; pattern: string; isRegex: boolean; command: string; enabled: boolean }[]
+  aliases?:     { id: string; pattern: string; command: string; enabled: boolean; class?: string }[]
+  triggers?:    { id: string; pattern: string; isRegex: boolean; command: string; enabled: boolean; class?: string }[]
   highlights?:  unknown[]              // global default set; per-character overrides live in `characters`
+  classes?:     Record<string, boolean> // Genie-style class on/off (global default)
   // Per-character overrides for gameplay settings. Missing keys fall back to the
   // matching global value above, so existing setups become each character's
   // default until it customises. Keyed by lowercased character name.
@@ -28,6 +29,7 @@ export interface CharScopedSettings {
   aliases?:      AppSettings['aliases']
   triggers?:     AppSettings['triggers']
   highlights?:   unknown[]
+  classes?:      Record<string, boolean>  // Genie-style class on/off, per character
   // Appearance + panel layout — previously kept per-character in the renderer's
   // localStorage, now unified here so they follow the character across windows.
   appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact' }
@@ -43,6 +45,7 @@ export interface ResolvedCharSettings {
   aliases:      NonNullable<AppSettings['aliases']>
   triggers:     NonNullable<AppSettings['triggers']>
   highlights:   unknown[]
+  classes:      Record<string, boolean>
   appearance?:   CharScopedSettings['appearance']
   panels?:       CharScopedSettings['panels']
   panelHeights?: CharScopedSettings['panelHeights']
@@ -97,6 +100,7 @@ export class SettingsStore {
       aliases:      c.aliases      ?? this.data.aliases      ?? [],
       triggers:     c.triggers     ?? this.data.triggers     ?? [],
       highlights:   c.highlights   ?? this.data.highlights   ?? [],
+      classes:      c.classes      ?? this.data.classes      ?? {},
       appearance:   c.appearance,
       panels:       c.panels,
       panelHeights: c.panelHeights,

@@ -7,6 +7,11 @@ export interface Highlight {
   bgcolor: string
   bold:    boolean
   enabled: boolean
+  class?:  string   // optional Genie-style class; disabled classes are skipped
+  // Action beyond coloring (Genie-style). Undefined = 'highlight' (colorize).
+  // 'gag' hides the matching line; 'sub' rewrites the matched text with `replace`.
+  action?:  'gag' | 'sub'
+  replace?: string  // replacement text when action === 'sub'
 }
 
 function hl(id: string, pattern: string, color: string, bgcolor = '', bold = false, isRegex = false): Highlight {

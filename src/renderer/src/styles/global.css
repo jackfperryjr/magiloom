@@ -604,6 +604,23 @@ body[data-platform="darwin"] .status-bar {
   margin-top: 4px;
   font-family: var(--font-game);
 }
+
+/* Active-spells panel — one row per buff with a remaining-duration bar */
+.spells-panel { display: flex; flex-direction: column; gap: 7px; padding: 4px 2px; }
+.spell-row { display: flex; flex-direction: column; gap: 3px; }
+.spell-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.spell-name {
+  font-size: 12.5px; color: var(--text-main);
+  font-family: var(--font-game);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.spell-dur { font-size: 12px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.spell-unit { font-size: 10px; color: var(--text-dim); }
+.spell-bar-track {
+  height: 5px; border-radius: 3px; overflow: hidden;
+  background: var(--accent-dim);
+}
+.spell-bar-fill { height: 100%; border-radius: 3px; transition: width .3s ease, background .3s ease; }
 .indicators { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
 .indicator-badge {
   font-size: 14px;
@@ -1068,6 +1085,163 @@ body[data-platform="darwin"] .status-bar {
   50%      { transform: rotate(10deg) translateY(-1px); }
   80%      { transform: rotate(-6deg); }
 }
+
+/* Broadcast (multi-boxing) action button — signal pulse on hover, and a steady
+   "on air" pulse while link mode is live. */
+.char-action-broadcast:hover svg { animation: signal-ping 0.7s ease-out; }
+.char-action-broadcast.live {
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+.char-action-broadcast.live svg { animation: signal-live 1.8s ease-in-out infinite; }
+@keyframes signal-ping {
+  0%   { transform: scale(0.82); opacity: 0.6; }
+  60%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes signal-live {
+  0%, 100% { opacity: 0.65; transform: scale(0.92); }
+  50%      { opacity: 1;    transform: scale(1.06); }
+}
+
+/* ── Broadcast modal ─────────────────────────────────────────────────────────*/
+.broadcast-modal {
+  width: 420px; max-width: calc(100vw - 32px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.broadcast-modal-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.broadcast-modal-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; flex-shrink: 0;
+  border-radius: 10px;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.04);
+  transition: color .2s, background .2s;
+}
+.broadcast-modal-icon.live {
+  color: var(--accent);
+  background: var(--accent-glow);
+  box-shadow: 0 0 0 1px var(--border-accent) inset;
+}
+.broadcast-modal-icon.live svg { animation: signal-live 1.8s ease-in-out infinite; }
+.broadcast-modal-titles { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.broadcast-modal-sub { font-size: 11px; color: var(--text-dim); }
+.broadcast-modal-body { padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+
+.broadcast-toggle {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.broadcast-toggle:hover { border-color: var(--border); background: rgba(255, 255, 255, 0.02); }
+.broadcast-toggle-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.broadcast-toggle-label { font-size: 13px; color: var(--text-bright); }
+.broadcast-toggle-hint  { font-size: 11px; color: var(--text-dim); line-height: 1.35; }
+
+/* Pill switch — restyles the native checkbox */
+.broadcast-switch {
+  appearance: none; -webkit-appearance: none;
+  position: relative; flex-shrink: 0;
+  width: 38px; height: 22px; margin: 0;
+  border-radius: 999px;
+  background: var(--accent-dim);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .18s, border-color .18s;
+}
+.broadcast-switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform .18s, background .18s;
+}
+.broadcast-switch:checked { background: var(--accent-glow); border-color: var(--border-accent); }
+.broadcast-switch:checked::after { transform: translateX(16px); background: var(--accent); }
+
+.broadcast-help {
+  margin-top: 4px; padding: 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--border-soft);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.broadcast-help-title {
+  font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-dim); margin-bottom: 2px;
+}
+.broadcast-help-row { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--text-main); }
+.broadcast-key {
+  flex-shrink: 0; min-width: 22px; text-align: center;
+  padding: 1px 6px; border-radius: 5px;
+  background: var(--accent-dim); border: 1px solid var(--border-soft);
+  color: var(--accent); font-family: var(--font-mono, monospace); font-size: 12px;
+}
+.broadcast-help-note { margin-top: 4px; font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+
+/* ── Automation class toggle strip + per-rule class field ─────────────────────*/
+.class-strip {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  padding: 8px 2px 10px;
+}
+.class-strip-label {
+  font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-dim); margin-right: 2px;
+}
+.class-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--accent-dim);
+  color: var(--text-dim);
+  font-size: 11px; cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s, opacity .15s;
+}
+.class-pill:hover { border-color: var(--border); }
+.class-pill.on { color: var(--text-bright); border-color: var(--border-accent); }
+.class-pill:not(.on) { opacity: 0.55; text-decoration: line-through; }
+.class-pill-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text-dim); flex-shrink: 0;
+}
+.class-pill.on .class-pill-dot { background: var(--accent); box-shadow: 0 0 5px var(--accent-glow); }
+
+/* Narrow class field appended to each alias/trigger row */
+.rule-class { flex: 0 0 74px !important; min-width: 0; }
+/* Class row inside a highlight's options panel */
+.hl-class-row { display: flex; align-items: center; gap: 8px; }
+.hl-class-label { font-size: 12px; color: var(--text-dim); min-width: 42px; }
+.hl-class-input {
+  flex: 1; min-width: 0;
+  padding: 4px 8px; border-radius: 6px;
+  background: var(--accent-dim);
+  border: 1px solid var(--border-soft);
+  color: var(--text-main); font-size: 12px;
+  font-family: var(--font-mono, monospace);
+}
+.hl-class-input:focus { outline: none; border-color: var(--border-accent); }
+
+/* Gag/Sub action badge on a highlight row */
+.hl-action-badge {
+  flex-shrink: 0;
+  font-size: 9px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 4px;
+  font-family: var(--font-ui);
+}
+.hl-action-gag { color: #e88; background: rgba(224, 96, 96, 0.14); border: 1px solid rgba(224, 96, 96, 0.3); }
+.hl-action-sub { color: #7cc; background: rgba(96, 200, 200, 0.12); border: 1px solid rgba(96, 200, 200, 0.28); }
 
 /* Character user menu (pops above the bar) */
 .char-menu-backdrop { position: fixed; inset: 0; z-index: 199; }

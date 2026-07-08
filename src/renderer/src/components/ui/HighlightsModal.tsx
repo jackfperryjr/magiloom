@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Highlight } from '../../lib/themes'
 import { Tooltip } from './Tooltip'
+import { ClassToggleStrip, distinctClasses, toggleClassState } from './ClassToggleStrip'
 export type { Highlight }
 
 
@@ -92,6 +93,9 @@ function HighlightRow({ hl, onChange, onDelete }: {
           placeholder="text or /regex/"
           spellCheck={false}
         />
+        {hl.action && (
+          <span className={'hl-action-badge hl-action-' + hl.action}>{hl.action}</span>
+        )}
         <Tooltip text="Options">
           <button className="hl-btn-icon" onClick={() => setExpanded(x => !x)}>
             {expanded ? '▲' : '▼'}
@@ -111,16 +115,59 @@ function HighlightRow({ hl, onChange, onDelete }: {
             />
             Regular expression
           </label>
-          <label className="hl-checkbox-label">
-            <input
-              type="checkbox"
-              checked={hl.bold}
-              onChange={e => onChange({ ...hl, bold: e.target.checked })}
-            />
-            Bold
+          <label className="hl-class-row">
+            <span className="hl-class-label">Action</span>
+            <select
+              className="hl-class-input"
+              value={hl.action ?? 'highlight'}
+              onChange={e => {
+                const v = e.target.value
+                onChange({ ...hl, action: v === 'highlight' ? undefined : (v as 'gag' | 'sub') })
+              }}
+            >
+              <option value="highlight">Highlight (color)</option>
+              <option value="gag">Gag (hide line)</option>
+              <option value="sub">Substitute (rewrite)</option>
+            </select>
           </label>
-          <ColorPicker label="Text color" value={hl.color} onChange={c => onChange({ ...hl, color: c })} />
-          <ColorPicker label="Background" value={hl.bgcolor} onChange={c => onChange({ ...hl, bgcolor: c })} />
+          {hl.action === 'sub' && (
+            <label className="hl-class-row">
+              <span className="hl-class-label">Replace</span>
+              <input
+                className="hl-class-input"
+                value={hl.replace ?? ''}
+                placeholder="replacement text (blank = remove)"
+                spellCheck={false}
+                onChange={e => onChange({ ...hl, replace: e.target.value })}
+              />
+            </label>
+          )}
+          {hl.action !== 'gag' && (
+            <label className="hl-checkbox-label">
+              <input
+                type="checkbox"
+                checked={hl.bold}
+                onChange={e => onChange({ ...hl, bold: e.target.checked })}
+              />
+              Bold
+            </label>
+          )}
+          {hl.action !== 'gag' && (
+            <ColorPicker label="Text color" value={hl.color} onChange={c => onChange({ ...hl, color: c })} />
+          )}
+          {hl.action !== 'gag' && (
+            <ColorPicker label="Background" value={hl.bgcolor} onChange={c => onChange({ ...hl, bgcolor: c })} />
+          )}
+          <label className="hl-class-row">
+            <span className="hl-class-label">Class</span>
+            <input
+              className="hl-class-input"
+              value={hl.class ?? ''}
+              placeholder="(none)"
+              spellCheck={false}
+              onChange={e => onChange({ ...hl, class: e.target.value.trim() || undefined })}
+            />
+          </label>
           <button className="hl-options-done" onClick={() => setExpanded(false)}>Done ▲</button>
         </div>
       )}
@@ -130,10 +177,12 @@ function HighlightRow({ hl, onChange, onDelete }: {
 
 export function HighlightsModal({ onClose, charName = '' }: { onClose: () => void; charName?: string }) {
   const [highlights, setHighlights] = useState<Highlight[]>([])
+  const [classes, setClasses] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     window.dr.settings.getChar(charName).then(c => {
       setHighlights((c.highlights as Highlight[]) ?? [])
+      setClasses(c.classes || {})
     })
   }, [charName])
 
@@ -146,8 +195,10 @@ export function HighlightsModal({ onClose, charName = '' }: { onClose: () => voi
   const remove = (id: string) =>
     setHighlights(hls => hls.filter(h => h.id !== id))
 
+  const toggleClass = (name: string) => setClasses(m => toggleClassState(m, name))
+
   const handleSave = async () => {
-    await window.dr.settings.patchChar(charName, { highlights })
+    await window.dr.settings.patchChar(charName, { highlights, classes })
     onClose()
   }
 
@@ -159,6 +210,7 @@ export function HighlightsModal({ onClose, charName = '' }: { onClose: () => voi
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="hl-body">
+          <ClassToggleStrip names={distinctClasses(highlights)} states={classes} onToggle={toggleClass} />
           {highlights.length === 0 && (
             <p className="hl-empty-msg">No highlights yet. Add one below.</p>
           )}

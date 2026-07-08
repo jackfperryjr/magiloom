@@ -10,6 +10,40 @@ export type { StreamId }
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 export const connectionStatusAtom = atom<ConnectionStatus>('disconnected')
 
+// ── Multi-boxing / broadcast ("link") ──────────────────────────────────────────
+// Both settings are per-WINDOW (each character runs as its own process), so they
+// persist in localStorage (per-instance Chromium session dir) rather than the
+// shared settings.json. linkMode: mirror everything I type to my other windows.
+// broadcastReceive: let my other windows' broadcasts run in this one.
+const LS_LINK = 'magiloom-link-mode'
+const LS_RECV = 'magiloom-broadcast-receive'
+const _lsBool = (k: string) => { try { return localStorage.getItem(k) === '1' } catch { return false } }
+const _lsSet  = (k: string, v: boolean) => { try { localStorage.setItem(k, v ? '1' : '0') } catch { /* ignore */ } }
+
+const _linkMode = atom<boolean>(_lsBool(LS_LINK))
+export const linkModeAtom = atom(
+  get => get(_linkMode),
+  (_get, set, v: boolean) => { set(_linkMode, v); _lsSet(LS_LINK, v) },
+)
+const _broadcastReceive = atom<boolean>(_lsBool(LS_RECV))
+export const broadcastReceiveAtom = atom(
+  get => get(_broadcastReceive),
+  (_get, set, v: boolean) => { set(_broadcastReceive, v); _lsSet(LS_RECV, v) },
+)
+
+// ── Automation classes (Genie-style on/off groups) ──────────────────────────────
+// Per-character map of className → enabled. A class absent from the map (or true)
+// is ON; only an explicit `false` disables its aliases/triggers/highlights. The
+// loader (App) seeds this from charSettings; the `#class` command and the class
+// toggle UI update it (and persist to charSettings.classes).
+export const classStatesAtom = atom<Record<string, boolean>>({})
+// The disabled subset, as a Set for cheap membership tests in the matchers.
+export const disabledClassesAtom = atom(get => {
+  const s = new Set<string>()
+  for (const [k, v] of Object.entries(get(classStatesAtom))) if (v === false) s.add(k)
+  return s
+})
+
 // ── Output lines ──────────────────────────────────────────────────────────────
 export interface OutputLine {
   id:         number
@@ -47,9 +81,23 @@ const mkSeparator = (): OutputLine => ({
   id: lineId++, text: '', styles: [], stream: 'main', timestamp: Date.now(), separator: true
 })
 
+// Rolling cap on the main output buffer. Configurable from settings (Output
+// Buffer Size) via setOutputBufferSize; a smaller buffer means fewer retained
+// lines → fewer DOM nodes and smaller per-append array copies. Previously the
+// cap was hardcoded to 5000 at every call site and the setting was ignored.
+let _outputBufferSize = 5000
+export function setOutputBufferSize(n: number): void {
+  if (Number.isFinite(n) && n >= 100) _outputBufferSize = Math.floor(n)
+}
+// Append `line` to the main output, trimming to the current buffer cap. Kept as
+// a helper so the cap lives in one place.
+const appendMain = (lines: OutputLine[], line: OutputLine): OutputLine[] =>
+  [...lines.slice(-(_outputBufferSize - 1)), line]
+
 // Skip appending if the last line in the array is identical and was added within
 // 300 ms — catches protocol-level duplicates (e.g. double-fired IPC listeners).
-function appendDedup(lines: OutputLine[], line: OutputLine, max: number): OutputLine[] {
+// `max` defaults to the main output buffer cap; side panels pass their own.
+function appendDedup(lines: OutputLine[], line: OutputLine, max: number = _outputBufferSize): OutputLine[] {
   const last = lines[lines.length - 1]
   if (last && last.text === line.text && line.timestamp - last.timestamp < 300) return lines
   return [...lines.slice(-(max - 1)), line]
@@ -64,10 +112,10 @@ export const outputLinesAtom  = atom<OutputLine[]>([])
 export const appendDisconnectNoticeAtom = atom(null, (get, set) => {
   const lines = get(outputLinesAtom)
   if (lines[lines.length - 1]?.divider) return
-  set(outputLinesAtom, [...lines.slice(-4999), {
+  set(outputLinesAtom, appendMain(lines, {
     id: lineId++, text: '', styles: [], stream: 'main' as StreamId,
     timestamp: Date.now(), divider: 'Disconnected',
-  }])
+  }))
 })
 
 // Stream-specific lines
@@ -262,8 +310,26 @@ function parseVerbInfo(name: string, lines: string[]): VerbInfoEntry[] {
   return entries
 }
 
-// ── Active spell ──────────────────────────────────────────────────────────────
+// ── Active spell (the currently PREPARED spell, from the <spell> tag) ───────────
 export const activeSpellAtom = atom<string>('')
+
+// ── Active spells (buffs currently in effect, with remaining duration) ──────────
+// DR pushes these on its `percWindow` as bare lines "Spell Name  (N roisaen)"
+// (roisaen = DR time unit), refreshed after a <clearStream id='percWindow'/> or
+// inline after a cast. Each emission is the COMPLETE list, so a contiguous run
+// replaces the panel wholesale (mirrors the exp-batch pattern). The lines are
+// suppressed from the main output — they're panel-only, like atmo/combat.
+export interface ActiveSpell { name: string; roisaen: number }
+export const activeSpellsAtom = atom<ActiveSpell[]>([])
+
+const ACTIVE_SPELL_RE = /^(.+?)\s+\((\d+)\s+roisaen\)\s*$/
+function parseActiveSpell(text: string): ActiveSpell | null {
+  const m = ACTIVE_SPELL_RE.exec(text.trim())
+  return m ? { name: m[1].trim(), roisaen: parseInt(m[2], 10) } : null
+}
+// Accumulates the current snapshot; null = not mid-snapshot. Committed on the
+// next prompt. A percClear opens an empty batch so a fully-expired list clears.
+let _spellBatch: ActiveSpell[] | null = null
 
 // ── Timers ────────────────────────────────────────────────────────────────────
 export const roundtimeAtom        = atom<number>(0)  // epoch-ms end time of current RT
@@ -312,7 +378,7 @@ export const echoCommandAtom = atom(
   (get, set, command: string) => {
     const preset = command.startsWith(';') || command.startsWith('.') ? 'echo-script' : 'echo'
     const line   = mkLine(command, [{ preset }], 'main')
-    set(outputLinesAtom, [...get(outputLinesAtom).slice(-4999), line])
+    set(outputLinesAtom, appendMain(get(outputLinesAtom), line))
     // Remember who a "look <name>" targeted so a themed reply that carries no name
     // in its text (haze cosmetics) can still be keyed to a portrait. Consumed and
     // cleared when the LOOK block flushes.
@@ -337,7 +403,7 @@ export const appendScriptOutputAtom = atom(
   null,
   (get, set, text: string) => {
     const line = mkLine(text, [{ preset: 'echo-script' }], 'main')
-    set(outputLinesAtom, [...get(outputLinesAtom).slice(-4999), line])
+    set(outputLinesAtom, appendMain(get(outputLinesAtom), line))
   }
 )
 
@@ -381,6 +447,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(indicatorsAtom, {})
   set(expAtom, { skills: [], tdps: 0, favors: 0 })
   set(activeSpellAtom, '')
+  set(activeSpellsAtom, [])
   set(roundtimeAtom, 0)
   set(castTimeAtom, 0)
   set(profilesAtom, {})
@@ -408,7 +475,43 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _pendingLookTarget = ''
   _expBatchNames     = null
   _silentExpBatch    = false
+  _spellBatch        = null
 })
+
+// ── Gags & substitutions ────────────────────────────────────────────────────
+// A subset of the highlight rules (action gag/sub) applied to incoming text at
+// INGEST — a gag drops the line, a sub rewrites its text before it's shown. App
+// pushes the current character's gag/sub rules here whenever highlights load;
+// class gating is applied live via disabledClassesAtom in dispatch.
+export interface TextRule {
+  pattern: string; isRegex: boolean; action: 'gag' | 'sub'
+  replace?: string; enabled: boolean; class?: string
+}
+let _gagSubRules: TextRule[] = []
+export function setGagSubRules(rules: TextRule[]): void { _gagSubRules = rules }
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// Returns the (possibly rewritten) text, or null when a gag suppresses the line.
+function applyGagSub(text: string, disabled: ReadonlySet<string>): string | null {
+  if (_gagSubRules.length === 0) return text
+  let out = text
+  for (const r of _gagSubRules) {
+    if (!r.enabled || !r.pattern || (r.class && disabled.has(r.class))) continue
+    if (r.action === 'gag') {
+      let hit = false
+      if (r.isRegex) { try { hit = new RegExp(r.pattern, 'i').test(out) } catch { hit = false } }
+      else hit = out.toLowerCase().includes(r.pattern.toLowerCase())
+      if (hit) return null
+    } else { // sub — replace every occurrence
+      try {
+        const re = new RegExp(r.isRegex ? r.pattern : escapeRe(r.pattern), 'gi')
+        out = out.replace(re, r.replace ?? '')
+      } catch { /* invalid regex — skip */ }
+    }
+  }
+  return out
+}
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 export const dispatchGameEventAtom = atom(
@@ -447,6 +550,26 @@ export const dispatchGameEventAtom = atom(
             if (h) { _verbInfoStarted = true; _verbInfoHeader = h[1].toLowerCase(); return }
           } else {
             _verbInfoBuf.push(t)
+            return
+          }
+        }
+        // Gags & substitutions: drop or rewrite the line before it's routed. Runs
+        // after the internal silent sweeps (which the user doesn't gag) but before
+        // panel routing, so a gag hides it everywhere and a sub is reflected in
+        // whichever panel the line lands in.
+        {
+          const subbed = applyGagSub(event.text, get(disabledClassesAtom))
+          if (subbed === null) return                 // gagged
+          event.text = subbed                          // sub rewrite (no-op if unchanged)
+        }
+        // Active-spell list ("Name (N roisaen)"): accumulate into the current
+        // snapshot and suppress from main — it shows only in the Spells panel.
+        // Committed on the next prompt (see the prompt handler).
+        if (event.stream === 'main') {
+          const spell = parseActiveSpell(event.text)
+          if (spell) {
+            if (_spellBatch === null) _spellBatch = []
+            _spellBatch.push(spell)
             return
           }
         }
@@ -510,7 +633,7 @@ export const dispatchGameEventAtom = atom(
             if (isSpeech && /"/.test(line.text) && !isScript) {
               set(convLinesAtom, appendDedup(get(convLinesAtom), { ...line, speaker: extractSpeaker(line.text) }, 200))
             } else {
-              set(outputLinesAtom, appendDedup(get(outputLinesAtom), line, 5000))
+              set(outputLinesAtom, appendDedup(get(outputLinesAtom), line))
               _outputDirty = true
             }
             break
@@ -530,7 +653,7 @@ export const dispatchGameEventAtom = atom(
                 // Deaths live only in the Deaths panel — suppress from main output.
                 set(deathsAtom, [...get(deathsAtom).slice(-199), line])
               } else {
-                set(outputLinesAtom, appendDedup(get(outputLinesAtom), line, 5000))
+                set(outputLinesAtom, appendDedup(get(outputLinesAtom), line))
                 _outputDirty = true
               }
             }
@@ -671,7 +794,21 @@ export const dispatchGameEventAtom = atom(
         set(castTimeAtom, event.expires)
         break
 
+      case 'percClear':
+        // A fresh active-spell snapshot is starting. Open an empty batch so that
+        // if NO spell lines follow (all buffs expired), the prompt commits an
+        // empty list and the panel clears.
+        _spellBatch = []
+        break
+
       case 'prompt':
+        // Commit any accumulated active-spell snapshot (a contiguous run of
+        // "Name (N roisaen)" lines, or an empty batch from a percClear with no
+        // spells left) as the complete new list.
+        if (_spellBatch !== null) {
+          set(activeSpellsAtom, _spellBatch)
+          _spellBatch = null
+        }
         // The server sends <prompt> at the end of every command response.
         // If _silentExpBatch is still true here it means either no skills are
         // active (the batch never opened) or the batch-close line never arrived
@@ -730,17 +867,17 @@ export const dispatchGameEventAtom = atom(
           // A description line can lead with a possessive ("Refia's …"); strip the
           // trailing 's so the key matches the avatar/portrait ("refia", not "refia's").
           const name = rawName.replace(/'s$/i, '').replace(/'$/, '')
-          set(outputLinesAtom, [...get(outputLinesAtom).slice(-4999), {
+          set(outputLinesAtom, appendMain(get(outputLinesAtom), {
             id: lineId++, text: _lookBuf.join('\n'), styles: [], stream: 'main' as StreamId,
             timestamp: Date.now(), look: { name, lines: _lookBuf },
-          }])
+          }))
           _outputDirty = true
           _lookCapturing = false; _lookSelf = false; _lookBuf = []; _pendingLookTarget = ''
         }
         // Space out consecutive command-response chunks: if new content landed in
         // the main output since the last prompt, flush a separator (blank line).
         if (_outputDirty) {
-          set(outputLinesAtom, [...get(outputLinesAtom).slice(-4999), mkSeparator()])
+          set(outputLinesAtom, appendMain(get(outputLinesAtom), mkSeparator()))
           _outputDirty = false
         }
         break

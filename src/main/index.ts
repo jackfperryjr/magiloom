@@ -5,6 +5,7 @@ import { autoUpdater } from 'electron-updater'
 import { LichManager, LichConnection } from './lich-manager'
 import { GameConnection } from './game-connection'
 import { CmdScriptEngine } from './cmd-script-engine'
+import { BroadcastBus } from './broadcast-bus'
 import { SettingsStore } from './settings-store'
 import { sgeAuth } from './sge-auth'
 import type { SGELaunchKey } from './sge-auth'
@@ -83,6 +84,9 @@ const settings    = new SettingsStore(SHARED_DIR)
 const cmdEngine   = new CmdScriptEngine(
   () => settings.get('scriptDir') || join(SHARED_DIR, 'scripts')
 )
+// Cross-process command bus for multi-boxing ("link"). Lives in the SHARED dir so
+// every character window (a separate process) sees the same bus.
+const broadcastBus = new BroadcastBus(SHARED_DIR)
 
 const lichLogBuffer: string[] = []
 
@@ -180,6 +184,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   mainWindow = null
   cmdEngine.stop()
+  broadcastBus.dispose()
   gameConn.disconnect()
   lichConn.disconnect()
   lichManager.stop()
@@ -378,6 +383,15 @@ function setupIpcHandlers(): void {
     // All commands go through gameConn -- Lich intercepts ; prefixed lines
     gameConn.send(d)
   })
+
+  // ── Broadcast bus (multi-boxing / link) ─────────────────────────────────────
+  // A command broadcast from another window arrives here; hand it to the renderer
+  // so it echoes + alias-expands in THIS character's context (it must not
+  // re-broadcast, or windows would loop — the renderer's incoming handler sends
+  // locally only).
+  broadcastBus.on('command', (cmd: string) => send('broadcast:incoming', cmd))
+  ipcMain.handle('broadcast:send',        (_e, cmd: string) => broadcastBus.send(cmd))
+  ipcMain.handle('broadcast:set-receive', (_e, on: boolean) => broadcastBus.setReceive(on))
 
   let lichReadyDetected = false
   gameConn.on('log',          (l: string) => lichLog('[game] ' + l))
