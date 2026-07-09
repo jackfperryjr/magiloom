@@ -40,6 +40,7 @@
   --color-bonus:     #38d838;
   --color-penalty:   #e83838;
   --color-black:     #000000;
+  --color-bold:      #f0d84a;   /* monsterbold / emphasized text (yellow on dark themes) */
 
   /* Vitals */
   --health-color:    #dd1818;
@@ -806,7 +807,7 @@ body[data-platform="darwin"] .status-bar {
    alignment at normal widths, but wrap rather than scroll sideways when the panel
    is too narrow to fit them (no horizontal scrollbar). */
 .preset-mono      { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-game); }
-.text-bold        { color: var(--text-bright); }
+.text-bold        { color: var(--color-bold); }
 
 /* ── Command input ───────────────────────────────────────────────────────── */
 .bottom-bar {

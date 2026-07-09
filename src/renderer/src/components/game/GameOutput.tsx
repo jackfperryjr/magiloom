@@ -79,7 +79,10 @@ function matchHighlight(text: string, highlights: Highlight[]): Highlight | null
 // a mix of plain text, <span.game-link> and <span.text-bold> nodes. Links and
 // bold spans are assumed not to overlap; a span starting inside an earlier one
 // is skipped defensively.
-function buildSpans(text: string, links: LinkSpan[], bolds: string[]): React.ReactNode[] {
+// `hlColor` (set when the line matches a text-color highlight) is applied inline
+// to the bold spans so the highlight wins — otherwise `.text-bold`'s own color
+// rule would override the color inherited from the parent line div.
+function buildSpans(text: string, links: LinkSpan[], bolds: string[], hlColor?: string): React.ReactNode[] {
   type Mark =
     | { start: number; end: number; kind: 'link'; link: LinkSpan }
     | { start: number; end: number; kind: 'bold' }
@@ -109,7 +112,7 @@ function buildSpans(text: string, links: LinkSpan[], bolds: string[]): React.Rea
         </span>
       )
     } else {
-      parts.push(<span key={key++} className="text-bold">{text.slice(m.start, m.end)}</span>)
+      parts.push(<span key={key++} className="text-bold" style={hlColor ? { color: hlColor } : undefined}>{text.slice(m.start, m.end)}</span>)
     }
     pos = m.end
   }
@@ -254,7 +257,7 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
   if (line.bolds && line.bolds.length > 0) {
     return (
       <div className={classList.join(' ')} style={style} data-copy-text={line.text}>
-        {buildSpans(line.text, line.links ?? [], line.bolds)}
+        {buildSpans(line.text, line.links ?? [], line.bolds, hl?.color || undefined)}
       </div>
     )
   }
