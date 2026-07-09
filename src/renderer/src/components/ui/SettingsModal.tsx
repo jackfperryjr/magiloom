@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { THEMES, applyTheme } from '../../lib/themes'
 import { setOutputBuffer } from '../game/GameOutput'
 import { loadCharAppearance, saveCharAppearance, applyAppearance } from '../../lib/charSettings'
-import { DEFAULT_NOTIF, type NotifSettings } from './Notifications'
+import { DEFAULT_NOTIF, makeNameRule, type NotifSettings, type NotifRule } from './Notifications'
 import type { Alias, Trigger } from '../../lib/automation'
 import { parseGenieConfig, mergeAliases, mergeTriggers } from '../../lib/genieImport'
 import { ClassToggleStrip, distinctClasses, toggleClassState } from './ClassToggleStrip'
@@ -44,6 +44,8 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [classes,         setClasses]         = useState<Record<string, boolean>>({})
   const [importMsg,       setImportMsg]       = useState('')
   const [notif,           setNotif]           = useState<NotifSettings>(DEFAULT_NOTIF)
+  const [notifRules,      setNotifRules]      = useState<NotifRule[]>([])
+  const [watchName,       setWatchName]       = useState('')
   const [version,         setVersion]         = useState('')
   const [tab,             setTab]             = useState<TabId>('appearance')
 
@@ -90,6 +92,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setScriptDir(s.scriptDir || '')
       setOutputBufferSize(s.outputBufferSize || 5000)
       setNotif({ ...DEFAULT_NOTIF, ...(s.notifications ?? {}) })
+      setNotifRules(s.notifRules ?? [])
     })
     // Function keys / aliases / triggers are per-character (fall back to globals).
     window.dr.settings.getChar(charName).then(c => {
@@ -102,11 +105,20 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
 
   const toggleClass = (name: string) => setClasses(m => toggleClassState(m, name))
 
+  const patchRule = (id: string, p: Partial<NotifRule>) =>
+    setNotifRules(list => list.map(x => x.id === id ? { ...x, ...p } : x))
+  const addWatchName = () => {
+    const n = watchName.trim()
+    if (!n) return
+    setNotifRules(list => [...list, makeNameRule(n)])
+    setWatchName('')
+  }
+
   const handleSave = async () => {
     // Per-character appearance + gameplay → settings.json; the rest is global.
     saveCharAppearance(charName, { theme, fontSize, fontFamily, density })
     await window.dr.settings.patch({
-      lichPath, scriptDir, outputBufferSize, notifications: notif,
+      lichPath, scriptDir, outputBufferSize, notifications: notif, notifRules,
     })
     await window.dr.settings.patchChar(charName, { functionKeys, aliases, triggers, classes })
     window.dispatchEvent(new CustomEvent('settings:saved'))
@@ -277,6 +289,79 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                     <input type="checkbox" checked={notif.disconnect} style={{ width: 'auto' }}
                       onChange={e => setNotif(n => ({ ...n, disconnect: e.target.checked }))} />
                   </label>
+                </div>
+
+                <div className="settings-section">
+                  <div className="settings-section-label">Custom alerts</div>
+                  <div className="alert-quickadd">
+                    <input
+                      className="settings-input"
+                      placeholder="Watch a character by name…"
+                      value={watchName}
+                      spellCheck={false}
+                      onChange={e => setWatchName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addWatchName() } }}
+                    />
+                    <button className="login-btn-secondary rule-import-btn" onClick={addWatchName}>+ Watch</button>
+                  </div>
+
+                  <div className="rule-list">
+                    {notifRules.length === 0 && (
+                      <p className="hl-empty-msg">No custom alerts yet. Watch a name above, or add a rule below.</p>
+                    )}
+                    {notifRules.map(r => (
+                      <div key={r.id} className={'rule-row' + (r.enabled ? '' : ' rule-row-off')}>
+                        <input
+                          type="checkbox"
+                          checked={r.enabled}
+                          title="Enabled"
+                          onChange={e => patchRule(r.id, { enabled: e.target.checked })}
+                        />
+                        <input
+                          className="settings-input settings-input-mono"
+                          placeholder={r.isRegex ? 'has died' : 'text to match'}
+                          value={r.pattern}
+                          spellCheck={false}
+                          onChange={e => patchRule(r.id, { pattern: e.target.value, label: r.label || e.target.value })}
+                        />
+                        <label className="rule-regex" title="Regular expression">
+                          <input
+                            type="checkbox"
+                            checked={r.isRegex}
+                            onChange={e => patchRule(r.id, { isRegex: e.target.checked })}
+                          />
+                          .*
+                        </label>
+                        <label className="alert-ch" title="App toast">
+                          <input type="checkbox" checked={r.toast}
+                            onChange={e => patchRule(r.id, { toast: e.target.checked })} />
+                          Toast
+                        </label>
+                        <label className="alert-ch" title="Desktop popup (when window unfocused)">
+                          <input type="checkbox" checked={r.desktop}
+                            onChange={e => patchRule(r.id, { desktop: e.target.checked })} />
+                          Popup
+                        </label>
+                        <label className="alert-ch" title="Sound">
+                          <input type="checkbox" checked={r.sound}
+                            onChange={e => patchRule(r.id, { sound: e.target.checked })} />
+                          Sound
+                        </label>
+                        <button className="hl-btn-icon hl-btn-delete" title="Delete"
+                          onClick={() => setNotifRules(list => list.filter(x => x.id !== r.id))}>×</button>
+                      </div>
+                    ))}
+                    <button className="hl-add-btn"
+                      onClick={() => setNotifRules(list => [...list, makeNameRule('')])}>
+                      + Add alert
+                    </button>
+                  </div>
+                  <div className="settings-hint">
+                    When a line of game text matches, the chosen channels fire. Enable
+                    <code> .*</code> for a regular expression. Popups only show when the window
+                    isn't focused; Do Not Disturb silences sound and popups. Alerts are shared
+                    across all characters.
+                  </div>
                 </div>
               </>
             )}

@@ -88,15 +88,15 @@ export function useGameConnection(charName = '') {
   }, [applyClassCommand])
 
   // Outbound chokepoint for USER input. Handles multi-boxing on top of runLocal:
-  //   `\\ cmd` → run here AND broadcast to my other windows
-  //   `\ cmd`  → broadcast to my other windows only (skip this one)
+  //   `// cmd` → run here AND broadcast to my other windows
+  //   `/ cmd`  → broadcast to my other windows only (skip this one)
   //   link on  → every normal command also mirrors to my other windows
   // Peers only run it if they've opted in to receive (per-window setting).
   const send = useCallback((cmd: string) => {
     const t = cmd.trimStart()
-    if (t.startsWith('\\')) {
-      const all  = t.startsWith('\\\\')                 // '\\' = include this window
-      const body = t.replace(/^\\+\s*/, '')
+    if (t.startsWith('/')) {
+      const all  = t.startsWith('//')                   // '//' = include this window
+      const body = t.replace(/^\/+\s*/, '')
       if (!body) return
       window.dr.broadcast.send(body)
       if (all) runLocal(body)

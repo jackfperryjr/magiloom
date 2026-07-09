@@ -50,11 +50,11 @@ export function BroadcastModal({ charName, onClose }: { charName: string; onClos
           <div className="broadcast-help">
             <div className="broadcast-help-title">One-off broadcasts</div>
             <div className="broadcast-help-row">
-              <code className="broadcast-key">\\</code>
+              <code className="broadcast-key">//</code>
               <span>cmd → run here <b>and</b> in my other windows</span>
             </div>
             <div className="broadcast-help-row">
-              <code className="broadcast-key">\</code>
+              <code className="broadcast-key">/</code>
               <span>cmd → run in my other windows <b>only</b></span>
             </div>
             <div className="broadcast-help-note">
