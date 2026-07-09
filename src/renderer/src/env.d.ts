@@ -33,6 +33,12 @@ interface AppSettings {
     whisper:    boolean
     disconnect: boolean
   }
+  // User-defined "watch" alerts: fire toast/desktop/sound when incoming game text
+  // matches. Global (shared across characters). See components/ui/Notifications.tsx.
+  notifRules?:      {
+    id: string; label: string; pattern: string; isRegex: boolean
+    toast: boolean; desktop: boolean; sound: boolean; enabled: boolean
+  }[]
 }
 
 interface CharSettings {

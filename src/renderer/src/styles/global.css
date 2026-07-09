@@ -1088,10 +1088,23 @@ body[data-platform="darwin"] .status-bar {
 
 /* Broadcast (multi-boxing) action button — signal pulse on hover, and a steady
    "on air" pulse while link mode is live. */
+.char-action-broadcast { position: relative; }
 .char-action-broadcast:hover svg { animation: signal-ping 0.7s ease-out; }
-.char-action-broadcast.live {
-  color: var(--accent);
-  background: var(--accent-glow);
+/* Link/receive state: green when either is on, red with a slash when both off. */
+.char-action-broadcast.bc-on  { color: var(--color-bonus); background: rgba(56, 216, 56, 0.14); }
+.char-action-broadcast.bc-off { color: var(--color-warning); background: rgba(255, 88, 32, 0.14); }
+.char-action-broadcast.bc-off::after {
+  content: '';
+  position: absolute; left: 50%; top: 50%;
+  /* content-box so the border adds AROUND the red core (border-box would eat
+     the 2px core down to nothing). The border matches the button surface, so
+     the slash reads as a cut-out gap over the icon — Discord muted-mic style. */
+  box-sizing: content-box;
+  width: 22px; height: 2px; border-radius: 3px;
+  background: currentColor;
+  border: 2px solid var(--bg-panel);
+  transform: translate(-50%, -50%) rotate(-45deg);   /* forward slash */
+  pointer-events: none;
 }
 .char-action-broadcast.live svg { animation: signal-live 1.8s ease-in-out infinite; }
 @keyframes signal-ping {
@@ -1134,7 +1147,7 @@ body[data-platform="darwin"] .status-bar {
 }
 .broadcast-modal-icon.live svg { animation: signal-live 1.8s ease-in-out infinite; }
 .broadcast-modal-titles { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.broadcast-modal-sub { font-size: 11px; color: var(--text-dim); }
+.broadcast-modal-sub { font-size: 12px; color: var(--text-dim); }
 .broadcast-modal-body { padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 10px; }
 
 .broadcast-toggle {
@@ -1147,8 +1160,8 @@ body[data-platform="darwin"] .status-bar {
 }
 .broadcast-toggle:hover { border-color: var(--border); background: rgba(255, 255, 255, 0.02); }
 .broadcast-toggle-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
-.broadcast-toggle-label { font-size: 13px; color: var(--text-bright); }
-.broadcast-toggle-hint  { font-size: 11px; color: var(--text-dim); line-height: 1.35; }
+.broadcast-toggle-label { font-size: 14px; color: var(--text-bright); }
+.broadcast-toggle-hint  { font-size: 12px; color: var(--text-dim); line-height: 1.35; }
 
 /* Pill switch — restyles the native checkbox */
 .broadcast-switch {
@@ -1178,17 +1191,17 @@ body[data-platform="darwin"] .status-bar {
   display: flex; flex-direction: column; gap: 6px;
 }
 .broadcast-help-title {
-  font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
   color: var(--text-dim); margin-bottom: 2px;
 }
-.broadcast-help-row { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--text-main); }
+.broadcast-help-row { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--text-main); }
 .broadcast-key {
   flex-shrink: 0; min-width: 22px; text-align: center;
   padding: 1px 6px; border-radius: 5px;
   background: var(--accent-dim); border: 1px solid var(--border-soft);
-  color: var(--accent); font-family: var(--font-mono, monospace); font-size: 12px;
+  color: var(--accent); font-family: var(--font-mono, monospace); font-size: 13px;
 }
-.broadcast-help-note { margin-top: 4px; font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+.broadcast-help-note { margin-top: 4px; font-size: 12px; color: var(--text-dim); line-height: 1.4; }
 
 /* ── Automation class toggle strip + per-rule class field ─────────────────────*/
 .class-strip {
@@ -1356,6 +1369,8 @@ body[data-platform="darwin"] .status-bar {
 .toast-mention    { border-left-color: var(--accent); }
 .toast-whisper    { border-left-color: var(--color-whisper); }
 .toast-disconnect { border-left-color: var(--color-warning); }
+.toast-custom     { border-left-color: #f5b544; }
+.toast-custom .toast-title { color: #f5b544; }
 .toast-title {
   font-family: var(--font-ui);
   font-size: 12px;
@@ -1382,7 +1397,7 @@ body[data-platform="darwin"] .status-bar {
 
 /* Avatar modal (view / replace / remove) */
 .avatar-modal {
-  width: 320px;
+  width: 400px;
   display: flex;
   flex-direction: column;
   background: var(--bg-panel);
@@ -1416,8 +1431,8 @@ body[data-platform="darwin"] .status-bar {
   padding: 22px 26px 8px;
 }
 .avatar-cropper-frame {
-  width: 180px;
-  height: 180px;
+  width: 240px;
+  height: 240px;
   border-radius: 50%;
   border: 3px solid var(--border);
   overflow: hidden;
@@ -1436,18 +1451,18 @@ body[data-platform="darwin"] .status-bar {
   -webkit-user-drag: none;
   pointer-events: none;
 }
-.avatar-cropper-zoom { width: 180px; accent-color: var(--accent); }
+.avatar-cropper-zoom { width: 240px; accent-color: var(--accent); }
 .avatar-cropper-hint { font-size: 12px; color: var(--text-dim); font-family: var(--font-ui); }
 
 /* Circular avatar that clips a panned/zoomed image (see CircleAvatar) */
 .circle-avatar { position: relative; overflow: hidden; display: inline-block; }
 .circle-avatar > img { display: block; }
 .avatar-modal-facewrap { display: flex; align-items: center; justify-content: center; padding: 26px; }
-.avatar-modal-face { width: 180px; height: 180px; border-radius: 50%; border: 3px solid var(--border); }
+.avatar-modal-face { width: 240px; height: 240px; border-radius: 50%; border: 3px solid var(--border); }
 .avatar-modal-preview img,
 .avatar-modal-initial {
-  width: 180px;
-  height: 180px;
+  width: 240px;
+  height: 240px;
   border-radius: 50%;
   border: 3px solid var(--border);
 }
@@ -1459,7 +1474,7 @@ body[data-platform="darwin"] .status-bar {
   background: var(--accent-dim);
   color: var(--accent);
   font-family: var(--font-ui);
-  font-size: 72px;
+  font-size: 96px;
   font-weight: 600;
 }
 .avatar-modal-actions {
@@ -1695,7 +1710,7 @@ body[data-platform="darwin"] .status-bar {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -1885,7 +1900,7 @@ body[data-platform="darwin"] .status-bar {
   flex-shrink: 0;
 }
 .modal-title {
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: .12em; text-transform: uppercase;
   color: var(--accent);
   font-family: var(--font-ui);
@@ -1938,7 +1953,7 @@ body[data-platform="darwin"] .status-bar {
   border-radius: 6px;
   color: var(--text-dim);
   font-family: var(--font-ui);
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
   transition: color .1s, background .1s;
 }
@@ -1948,24 +1963,24 @@ body[data-platform="darwin"] .status-bar {
 /* Settings */
 .settings-section { display: flex; flex-direction: column; gap: 8px; }
 .settings-section-label {
-  font-size: 12px; text-transform: uppercase; letter-spacing: .12em;
+  font-size: 13px; text-transform: uppercase; letter-spacing: .12em;
   color: var(--accent); padding-bottom: 4px;
   border-bottom: 1px solid var(--border-soft);
   font-family: var(--font-ui);
 }
 .settings-row { display: flex; align-items: center; gap: 12px; }
-.settings-label { font-size: 14px; color: var(--text-dim); min-width: 88px; font-family: var(--font-ui); }
+.settings-label { font-size: 15px; color: var(--text-dim); min-width: 88px; font-family: var(--font-ui); }
 .settings-input {
   flex: 1;
   min-width: 0;
   background: var(--bg-input); border: 1px solid var(--border-soft);
   color: var(--text-bright);
-  font-family: var(--font-ui); font-size: 14px;
+  font-family: var(--font-ui); font-size: 15px;
   padding: 5px 10px; outline: none;
 }
 .settings-input:focus { border-color: var(--border-accent); }
-.settings-input-mono { font-family: var(--font-game); font-size: 14px; }
-.settings-hint { font-size: 13px; color: var(--text-dim); line-height: 1.5; font-family: var(--font-ui); }
+.settings-input-mono { font-family: var(--font-game); font-size: 15px; }
+.settings-hint { font-size: 14px; color: var(--text-dim); line-height: 1.5; font-family: var(--font-ui); }
 /* Full-width path entry (folder input + Browse/Default buttons on their own row) */
 .settings-path-row { display: flex; align-items: center; gap: 6px; }
 .settings-path-row .settings-input { flex: 1 1 auto; min-width: 0; }
@@ -1982,7 +1997,7 @@ body[data-platform="darwin"] .status-bar {
 .rule-arrow { color: var(--text-dim); font-size: 13px; }
 .rule-regex {
   display: flex; align-items: center; gap: 3px;
-  font-family: var(--font-game); font-size: 12px; color: var(--text-dim);
+  font-family: var(--font-game); font-size: 13px; color: var(--text-dim);
   cursor: pointer; user-select: none;
 }
 .rule-header {
@@ -1992,6 +2007,16 @@ body[data-platform="darwin"] .status-bar {
 .rule-header .settings-section-label { border-bottom: none; padding-bottom: 0; }
 .rule-import-btn { flex: 0 0 auto; width: auto; padding: 4px 12px; font-size: 12px; }
 .rule-import-msg { color: var(--accent); }
+
+/* Custom notification alerts */
+.alert-quickadd { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.alert-quickadd .settings-input { flex: 1; min-width: 0; }
+.alert-ch {
+  display: flex; align-items: center; gap: 3px; flex: 0 0 auto;
+  font-family: var(--font-ui); font-size: 12px; color: var(--text-dim);
+  cursor: pointer; user-select: none;
+}
+.alert-ch input { width: auto; margin: 0; }
 
 /* Function key grid */
 .fk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }

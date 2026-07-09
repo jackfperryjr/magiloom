@@ -3,7 +3,7 @@ import { useAtomValue, useAtom } from 'jotai'
 import {
   handsAtom, indicatorsAtom, roundtimeSecondsAtom, vitalsAtom,
   verbsAtom, verbsWithInfoAtom, verbInfoAtom, beginVerbInfoCapture,
-  presenceModeAtom, avatarsAtom, avatarCropsAtom, linkModeAtom,
+  presenceModeAtom, avatarsAtom, avatarCropsAtom, linkModeAtom, broadcastReceiveAtom,
 } from '../../store/game'
 import type { PresenceMode, ProfileInfo } from '../../store/game'
 import type { AvatarCrop } from '../../lib/avatar'
@@ -303,7 +303,7 @@ function readImageFile(file: File): Promise<string> {
 // Interactive avatar cropper: pan (drag) + zoom (slider/wheel) a source image
 // within a circular frame; export() bakes the framed region to a 256px square.
 export interface AvatarCropHandle { export: () => { url: string; crop: AvatarCrop } }
-const PREVIEW = 180  // matches .avatar-modal-preview img
+const PREVIEW = 240  // matches .avatar-cropper-frame / .avatar-modal-preview img
 
 const AvatarCropper = forwardRef<AvatarCropHandle, { src: string }>(({ src }, ref) => {
   const imgRef = useRef<HTMLImageElement>(null)
@@ -483,6 +483,7 @@ export function CharacterBar({
   const [menuOpen, setMenuOpen] = useState(false)
   const [showBroadcast, setShowBroadcast] = useState(false)
   const linkMode = useAtomValue(linkModeAtom)
+  const receive  = useAtomValue(broadcastReceiveAtom)
   const [showAvatar, setShowAvatar] = useState(false)
   // Pending avatar edit in the modal: null = no change; { url } stages a new image
   // (url === null means "remove"). Committed only on Save.
@@ -594,9 +595,15 @@ export function CharacterBar({
         </span>
       </button>
       <div className="char-actions">
-        <Tooltip text={linkMode ? 'Broadcast · Link on' : 'Broadcast Options'}>
+        <Tooltip text={
+          linkMode ? 'Broadcast · Link on'
+          : receive ? 'Broadcast · Receiving'
+          : 'Broadcast · Off'
+        }>
           <button
-            className={'char-action-btn char-action-broadcast' + (linkMode ? ' live' : '')}
+            className={'char-action-btn char-action-broadcast '
+              + (linkMode || receive ? 'bc-on' : 'bc-off')
+              + (linkMode ? ' live' : '')}
             onClick={() => setShowBroadcast(true)}
           >
             <IconBroadcast size={22} />
