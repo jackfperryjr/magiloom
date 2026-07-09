@@ -6,6 +6,7 @@ import { LichManager, LichConnection } from './lich-manager'
 import { GameConnection } from './game-connection'
 import { CmdScriptEngine } from './cmd-script-engine'
 import { BroadcastBus } from './broadcast-bus'
+import { MapStore, type StoredZone } from './map-store'
 import { SettingsStore } from './settings-store'
 import { sgeAuth } from './sge-auth'
 import type { SGELaunchKey } from './sge-auth'
@@ -87,6 +88,9 @@ const cmdEngine   = new CmdScriptEngine(
 // Cross-process command bus for multi-boxing ("link"). Lives in the SHARED dir so
 // every character window (a separate process) sees the same bus.
 const broadcastBus = new BroadcastBus(SHARED_DIR)
+// Shared world-map database (automapper). Lives in the SHARED dir so every
+// character's exploration accumulates into one map.
+const mapStore = new MapStore(SHARED_DIR)
 
 const lichLogBuffer: string[] = []
 
@@ -185,6 +189,7 @@ app.on('window-all-closed', () => {
   mainWindow = null
   cmdEngine.stop()
   broadcastBus.dispose()
+  mapStore.dispose()
   gameConn.disconnect()
   lichConn.disconnect()
   lichManager.stop()
@@ -210,8 +215,11 @@ function setupUpdater(): void {
     send('updater:ready')
   })
   autoUpdater.on('error', (err) => {
-    lichLog('[updater] Error: ' + err.message)
-    send('updater:error', err.message)
+    // Update checks fail for all sorts of transient reasons (offline, DNS blip,
+    // GitHub 5xx, rate limit). None of these are actionable by the user and the
+    // poll below retries, so fail silently — just log. The renderer shows a
+    // connectivity indicator from navigator.onLine instead of surfacing these.
+    lichLog('[updater] check failed (will retry): ' + err.message)
   })
 
   // Poll for updates every 30 minutes in packaged mode, every 10 seconds in dev for testing
@@ -372,7 +380,7 @@ function setupIpcHandlers(): void {
     }
   })
 
-  cmdEngine.on('send',   (cmd: string)          => gameConn.send(cmd))
+  cmdEngine.on('send',   (cmd: string)          => { gameConn.send(cmd); send('game:sent', cmd) })
   cmdEngine.on('echo',   (text: string)         => send('script:output', text))
   cmdEngine.on('status', (info: unknown)        => send('script:status', info))
   cmdEngine.on('error',  (msg: string)          => { lichLog('[script] ' + msg); send('script:output', msg) })
@@ -382,6 +390,10 @@ function setupIpcHandlers(): void {
   ipcMain.handle('game:send', (_e, d: string) => {
     // All commands go through gameConn -- Lich intercepts ; prefixed lines
     gameConn.send(d)
+    // Echo every sent command back to the renderer so the automapper can capture
+    // movement regardless of how it was issued (typed, clicked exit link, Room
+    // panel, alias). This is the single universal capture point.
+    send('game:sent', d)
   })
 
   // ── Broadcast bus (multi-boxing / link) ─────────────────────────────────────
@@ -392,6 +404,25 @@ function setupIpcHandlers(): void {
   broadcastBus.on('command', (cmd: string) => send('broadcast:incoming', cmd))
   ipcMain.handle('broadcast:send',        (_e, cmd: string) => broadcastBus.send(cmd))
   ipcMain.handle('broadcast:set-receive', (_e, on: boolean) => broadcastBus.setReceive(on))
+
+  // ── Automapper: shared world-map persistence ──────────────────────────────
+  // A zone rewritten by another character's window flows back into this one.
+  mapStore.on('zoneChanged', (zone: StoredZone) => send('map:zone-changed', zone))
+  ipcMain.handle('map:load',        () => mapStore.loadAll())
+  ipcMain.handle('map:save-zone',   (_e, zone: StoredZone) => mapStore.saveZone(zone))
+  ipcMain.handle('map:delete-zone', (_e, zoneId: string)   => mapStore.deleteZone(zoneId))
+  ipcMain.handle('map:clear',       () => mapStore.clearAll())
+  // Export the whole map (or one zone) to a user-chosen file for sharing/backup.
+  ipcMain.handle('map:export', async (_e, content: string, defaultName: string) => {
+    if (!mainWindow) return { ok: false }
+    const res = await dialog.showSaveDialog(mainWindow, {
+      defaultPath: defaultName,
+      filters: [{ name: 'Map', extensions: ['xml'] }],
+    })
+    if (res.canceled || !res.filePath) return { ok: false }
+    try { writeFileSync(res.filePath, content, 'utf8'); return { ok: true, path: res.filePath } }
+    catch (err) { return { ok: false, error: String(err) } }
+  })
 
   let lichReadyDetected = false
   gameConn.on('log',          (l: string) => lichLog('[game] ' + l))

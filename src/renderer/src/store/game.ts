@@ -140,6 +140,11 @@ export const vitalsAtom = atom<Record<VitalField, VitalState>>({
 export interface RoomState { name: string; description: string; exits: string[]; objs: string; players: string[]; playerNames: string[] }
 export const roomAtom = atom<RoomState>({ name: '', description: '', exits: [], objs: '', players: [], playerNames: [] })
 
+// Incremented on every server prompt (end of a command response). The automapper
+// watches this to know when the current room is fully populated so it can fold it
+// into the map — a prompt marks the room name/desc/exits as all having landed.
+export const promptCountAtom = atom<number>(0)
+
 // ── Inventory ─────────────────────────────────────────────────────────────────
 export const inventoryLinesAtom = atom<string[]>([])
 
@@ -480,6 +485,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _expBatchNames     = null
   _silentExpBatch    = false
   _spellBatch        = null
+  _gameMove          = null
 })
 
 // ── Gags & substitutions ────────────────────────────────────────────────────
@@ -517,6 +523,23 @@ function applyGagSub(text: string, disabled: ReadonlySet<string>): string | null
   return out
 }
 
+// ── Movement direction from the game's own confirmation ────────────────────────
+// The game narrates each successful compass move ("You go east.", "You run
+// southeast.") no matter who issued it — typed, clicked, or Lich `;go2` (which
+// moves us server-side, so the outbound-command capture never sees it). This is
+// the automapper's authoritative direction signal. Posture lines ("You stand up.",
+// "You sit down.") are excluded via the verb blacklist.
+const MOVE_VERB_SKIP = new Set(['stand', 'sit', 'kneel', 'lie', 'lay', 'get'])
+const GAME_MOVE_RE = /^You\s+([a-z]+)\s+(north|south|east|west|northeast|northwest|southeast|southwest|up|down|out|in)\.?$/i
+function parseGameMove(text: string): string | null {
+  const m = text.trim().match(GAME_MOVE_RE)
+  if (!m || MOVE_VERB_SKIP.has(m[1].toLowerCase())) return null
+  return m[2].toLowerCase()
+}
+let _gameMove: { dir: string; move: string; ts: number } | null = null
+export function currentGameMove(): { dir: string; move: string; ts: number } | null { return _gameMove }
+export function clearGameMove(): void { _gameMove = null }
+
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 export const dispatchGameEventAtom = atom(
   null,
@@ -524,6 +547,12 @@ export const dispatchGameEventAtom = atom(
     switch (event.type) {
 
       case 'text': {
+        // Capture the game's movement confirmation for the automapper (authoritative
+        // direction, covers Lich `;go2`). Runs before any suppression/return below.
+        if (event.stream === 'main') {
+          const md = parseGameMove(event.text)
+          if (md) _gameMove = { dir: md, move: md, ts: Date.now() }
+        }
         // Silent VERB LIST sweep — capture single-token verb lines, suppress from output
         if (_verbCapture) {
           const t = event.text.trim()
@@ -894,6 +923,9 @@ export const dispatchGameEventAtom = atom(
           set(outputLinesAtom, appendMain(get(outputLinesAtom), mkSeparator()))
           _outputDirty = false
         }
+        // Signal the automapper that a full server message just closed — the room
+        // atom now holds a complete room (name/desc/exits) it can fold into the map.
+        set(promptCountAtom, get(promptCountAtom) + 1)
         break
     }
   }

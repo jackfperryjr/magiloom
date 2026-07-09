@@ -88,9 +88,26 @@ contextBridge.exposeInMainWorld('dr', {
         return () => { ipcRenderer.removeListener('game:data', h); if (_h === h) _h = null }
       }
     })(),
+    // Every command sent to the game (any UI path) — used by the automapper to
+    // capture movement. Fires just before the server response arrives.
+    onSent: (cb: (cmd: string) => void) => { const h = (_e: unknown, c: string) => cb(c); ipcRenderer.on('game:sent', h); return () => ipcRenderer.removeListener('game:sent', h) },
     onConnected:    (cb: () => void)           => {                                               ipcRenderer.on('game:connected', cb);    return () => ipcRenderer.removeListener('game:connected', cb) },
     onDisconnected: (cb: () => void)           => {                                               ipcRenderer.on('game:disconnected', cb); return () => ipcRenderer.removeListener('game:disconnected', cb) },
     onError:        (cb: (e: string) => void)  => { const h = (_e: unknown, e: string) => cb(e); ipcRenderer.on('game:error', h);         return () => ipcRenderer.removeListener('game:error', h) }
+  },
+  map: {
+    // Shared world-map (automapper) persistence.
+    load:       ()                    => ipcRenderer.invoke('map:load'),
+    saveZone:   (zone: object)        => ipcRenderer.invoke('map:save-zone', zone),
+    deleteZone: (zoneId: string)      => ipcRenderer.invoke('map:delete-zone', zoneId),
+    clear:      ()                    => ipcRenderer.invoke('map:clear'),
+    export:     (content: string, defaultName: string) => ipcRenderer.invoke('map:export', content, defaultName),
+    // A zone rewritten by another character's window, to merge into this one.
+    onZoneChanged: (cb: (zone: unknown) => void) => {
+      const h = (_e: unknown, zone: unknown) => cb(zone)
+      ipcRenderer.on('map:zone-changed', h)
+      return () => ipcRenderer.removeListener('map:zone-changed', h)
+    }
   },
   broadcast: {
     // Send a command to OTHER Magiloom windows (this window runs its own copy).

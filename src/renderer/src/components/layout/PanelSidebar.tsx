@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Tooltip } from '../ui/Tooltip'
 
-export type PanelId = 'room' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'scripts' | 'lich'
+export type PanelId = 'room' | 'map' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'scripts' | 'lich'
 
 export interface PanelConfig {
   id:      PanelId
@@ -11,6 +11,7 @@ export interface PanelConfig {
 
 const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'room',         label: 'Room',          visible: true  },
+  { id: 'map',          label: 'Map',           visible: true  },
   { id: 'experience',   label: 'Experience',    visible: true  },
   { id: 'spells',       label: 'Active Spells', visible: false  },
   { id: 'combat',       label: 'Combat',        visible: true },

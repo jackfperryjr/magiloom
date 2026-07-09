@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Provider, useSetAtom, useAtomValue } from 'jotai'
 import { useGameConnection }  from './hooks/useGameConnection'
+import { useAutomapper }       from './hooks/useAutomapper'
 import { GameOutput, setHighlights, setSendFn, setOutputBuffer, setPlayerName, setDisabledClasses } from './components/game/GameOutput'
 import { CommandInput, StatusBar, WindowControls, GameTopBar, CharacterBar, VitalsBar } from './components/game'
 import { LoginFlow }          from './components/ui/LoginFlow'
@@ -14,6 +15,8 @@ import {
   ExperiencePanel, ConversationPanel, InventoryPanel,
   CombatPanel, AtmoPanel, DeathsPanel,
 } from './components/layout/PanelContent'
+import { MapPanel } from './components/map/MapPanel'
+import { MapOverlay } from './components/map/MapOverlay'
 import {
   echoCommandAtom, beginSilentExpAtom, lichMsgAtom, tickAtom,
   combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom, inventoryLinesAtom,
@@ -163,7 +166,13 @@ function LichLogPanel({ lines, status }: { lines: string[]; status: LichStatus }
 
 // ── Game layout ───────────────────────────────────────────────────────────────
 function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, updateSlot }: { charName: string; accountName: string; onOpenSettings: () => void; onRequestConnect: () => void; updateSlot: React.ReactNode }) {
+  // Automapper: records rooms into the shared world map (movement is captured
+  // universally via dr.game.onSent inside the hook).
+  const automap = useAutomapper()
   const { status, disconnect, send } = useGameConnection(charName)
+  // Give the walker the game send fn (walk steps flow through the same path the
+  // mapper observes, so click-walking also confirms/records arcs).
+  useEffect(() => { automap.provideSend(send) }, [automap, send])
   // Wipe all per-character live state when the active character changes (a
   // character switch via the reconnect overlay keeps GameLayout mounted, so
   // nothing else clears the previous character's panels/room/vitals/profile).
@@ -266,6 +275,7 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
   const [lichLog,        setLichLog]        = useState<string[]>([])
   const lichMsgs = useAtomValue(lichMsgAtom)
   const [showHighlights, setShowHighlights] = useState(false)
+  const [showMap,        setShowMap]        = useState(false)
   const [sidebarWidth,   setSidebarWidth]   = useState<number | null>(null)
   const [functionKeys,   setFunctionKeys]   = useState<Record<string, string>>({})
   const mainAreaRef = useRef<HTMLDivElement>(null)
@@ -373,8 +383,11 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
   // read this layout's live lich state while other panels use the shared renderer.
   const renderPanelWithLich = useCallback((id: PanelId) => {
     if (id === 'lich') return <LichLogPanel lines={lichLog} status={lichStatus} />
+    // The map panel is injected here (not in the module-level renderPanel) so it
+    // can receive layout-local handlers: click-to-walk and the pop-out toggle.
+    if (id === 'map') return <MapPanel onNodeClick={automap.walkTo} onStopWalk={automap.stopWalk} onExpand={() => setShowMap(true)} />
     return renderPanel(id)
-  }, [lichLog, lichStatus])
+  }, [lichLog, lichStatus, automap])
 
   const handleColDrag = useCallback((dx: number) => {
     const el = mainAreaRef.current
@@ -416,6 +429,7 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
         <PanelSidebar renderPanel={renderPanelWithLich} getClearFn={getClearFn} sidebarWidth={sidebarWidth} charName={charName} />
       </div>
       {showHighlights && <HighlightsModal onClose={handleHighlightsClose} charName={charName} />}
+      {showMap && <MapOverlay onClose={() => setShowMap(false)} onWalkTo={automap.walkTo} onStopWalk={automap.stopWalk} />}
       <NotificationCenter charName={charName} status={status} />
       <GlobalTooltip />
     </div>
@@ -423,22 +437,12 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
 }
 
 // ── Update icon (title bar) ───────────────────────────────────────────────────
-function UpdateIcon({ version, ready, error }: { version: string; ready: boolean; error: string }) {
-  if (!ready && !error) {
-    // In dev there's never a real update — render an inert preview so the icon
-    // (and its hover animation) stays visible while working on the title bar.
-    if (!import.meta.env.DEV) return null
-    return (
-      <Tooltip text="Update icon (dev preview)">
-        <button className="update-icon-btn update-ready" aria-label="Update preview">
-          <IconArrowDownTray size={15} />
-        </button>
-      </Tooltip>
-    )
-  }
-  if (error) return (
-    <Tooltip text={`Update failed: ${error}`}>
-      <button className="update-icon-btn update-error" disabled>
+// The red triangle means "no internet connection" (driven by navigator.onLine) —
+// NOT update errors, which fail silently and retry on the next poll (see main).
+function UpdateIcon({ version, ready, offline }: { version: string; ready: boolean; offline: boolean }) {
+  if (offline) return (
+    <Tooltip text="No internet connection">
+      <button className="update-icon-btn update-error" disabled aria-label="Offline">
         <IconExclamationTriangle size={15} />
       </button>
     </Tooltip>
@@ -453,10 +457,20 @@ function UpdateIcon({ version, ready, error }: { version: string; ready: boolean
       </button>
     </Tooltip>
   )
-  return (
+  if (version) return (
     <Tooltip text={`Downloading v${version}…`}>
       <button className="update-icon-btn update-downloading" disabled>
         <IconArrowPath size={15} className="update-spin" />
+      </button>
+    </Tooltip>
+  )
+  // In dev there's never a real update — render an inert preview so the icon
+  // (and its hover animation) stays visible while working on the title bar.
+  if (!import.meta.env.DEV) return null
+  return (
+    <Tooltip text="Update icon (dev preview)">
+      <button className="update-icon-btn update-ready" aria-label="Update preview">
+        <IconArrowDownTray size={15} />
       </button>
     </Tooltip>
   )
@@ -470,18 +484,26 @@ function AppInner() {
   const [showSettings,  setShowSettings]  = useState(false)
   const [updateVersion, setUpdateVersion] = useState('')
   const [updateReady,   setUpdateReady]   = useState(false)
-  const [updateError,   setUpdateError]   = useState('')
+  const [offline,       setOffline]       = useState(!navigator.onLine)
 
   useEffect(() => {
+    // Update availability/readiness (errors are handled silently in main).
     const unsubs = [
-      window.dr.updater.onAvailable((v: string) => { setUpdateVersion(v); setUpdateError('') }),
+      window.dr.updater.onAvailable((v: string) => setUpdateVersion(v)),
       window.dr.updater.onReady(()              => setUpdateReady(true)),
-      window.dr.updater.onError((msg: string)   => setUpdateError(msg))
     ]
     return () => unsubs.forEach(fn => fn())
   }, [])
 
-  const updateSlot = <UpdateIcon version={updateVersion} ready={updateReady} error={updateError} />
+  useEffect(() => {
+    // Connectivity indicator: the red triangle shows only when actually offline.
+    const update = () => setOffline(!navigator.onLine)
+    window.addEventListener('online',  update)
+    window.addEventListener('offline', update)
+    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update) }
+  }, [])
+
+  const updateSlot = <UpdateIcon version={updateVersion} ready={updateReady} offline={offline} />
 
   const enterGame = (name: string, account: string) => { setCharName(name); setAccountName(account); setInGame(true); setShowReconnect(false) }
 
