@@ -948,9 +948,9 @@ body[data-platform="darwin"] .status-bar {
 .command-rt {
   flex-shrink: 0;
   font-family: var(--font-ui);
-  font-size: 12px; font-weight: 700; letter-spacing: 0.02em;
+  font-size: 16px; font-weight: 600; letter-spacing: 0.02em;
   color: var(--color-warning); background: rgba(255, 88, 32, 0.14);
-  padding: 3px 9px; border-radius: 6px;
+  padding: 8px 4px; border-radius: 6px;
   animation: rt-pop 0.15s ease-out;
 }
 @keyframes rt-pop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
