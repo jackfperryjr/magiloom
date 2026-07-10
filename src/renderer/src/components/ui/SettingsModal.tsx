@@ -4,7 +4,7 @@ import { setOutputBuffer } from '../game/GameOutput'
 import { loadCharAppearance, saveCharAppearance, applyAppearance } from '../../lib/charSettings'
 import { DEFAULT_NOTIF, makeNameRule, type NotifSettings, type NotifRule } from './Notifications'
 import type { Alias, Trigger } from '../../lib/automation'
-import { parseGenieConfig, mergeAliases, mergeTriggers } from '../../lib/genieImport'
+import { parseGenieConfig, mergeAliases, mergeTriggers, mergeVars } from '../../lib/genieImport'
 import { ClassToggleStrip, distinctClasses, toggleClassState } from './ClassToggleStrip'
 
 interface SettingsModalProps {
@@ -12,11 +12,10 @@ interface SettingsModalProps {
   onClose: () => void
 }
 
-type TabId = 'appearance' | 'display' | 'notifications' | 'keybinds' | 'aliases' | 'triggers' | 'scripts' | 'lich'
+type TabId = 'appearance' | 'notifications' | 'keybinds' | 'aliases' | 'triggers' | 'scripts' | 'lich'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'appearance',    label: 'Appearance' },
-  { id: 'display',       label: 'Display' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'keybinds',      label: 'Function Keys' },
   { id: 'aliases',       label: 'Aliases' },
@@ -38,10 +37,12 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [originalTheme,   setOriginalTheme]   = useState('magiloom')
   const [density,         setDensity]         = useState<'cozy' | 'compact'>('cozy')
   const [outputBufferSize, setOutputBufferSize] = useState(5000)
+  const [logging,         setLogging]         = useState(false)
   const [functionKeys,    setFunctionKeys]    = useState<Record<string, string>>({})
   const [aliases,         setAliases]         = useState<Alias[]>([])
   const [triggers,        setTriggers]        = useState<Trigger[]>([])
   const [classes,         setClasses]         = useState<Record<string, boolean>>({})
+  const [vars,            setVars]            = useState<{ name: string; value: string }[]>([])
   const [importMsg,       setImportMsg]       = useState('')
   const [notif,           setNotif]           = useState<NotifSettings>(DEFAULT_NOTIF)
   const [notifRules,      setNotifRules]      = useState<NotifRule[]>([])
@@ -64,12 +65,14 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
     const parsed = parseGenieConfig(res.content)
     const a = mergeAliases(aliases, parsed.aliases)
     const t = mergeTriggers(triggers, parsed.triggers)
+    const v = mergeVars(Object.fromEntries(vars.map(x => [x.name, x.value])), parsed.vars)
     setAliases(a.merged)
     setTriggers(t.merged)
+    setVars(Object.entries(v.merged).map(([name, value]) => ({ name, value })))
     const unsupported = Object.values(parsed.skipped).reduce((n, c) => n + c, 0)
     const kinds = Object.keys(parsed.skipped).sort().map(k => `#${k}`).join(', ')
     setImportMsg(
-      `Imported ${a.added} alias(es) and ${t.added} trigger(s)` +
+      `Imported ${a.added} alias(es), ${t.added} trigger(s), ${v.added} variable(s)` +
       (a.dupes + t.dupes ? `, skipped ${a.dupes + t.dupes} duplicate(s)` : '') +
       (unsupported ? `. ${unsupported} unsupported line(s) not imported (${kinds}).` : '.') +
       ' Review below, then Save to keep them.'
@@ -91,6 +94,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setLichPath(s.lichPath || '')
       setScriptDir(s.scriptDir || '')
       setOutputBufferSize(s.outputBufferSize || 5000)
+      setLogging(!!s.logging)
       setNotif({ ...DEFAULT_NOTIF, ...(s.notifications ?? {}) })
       setNotifRules(s.notifRules ?? [])
     })
@@ -100,6 +104,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setAliases(c.aliases || [])
       setTriggers(c.triggers || [])
       setClasses(c.classes || {})
+      setVars(Object.entries(c.vars || {}).map(([name, value]) => ({ name, value })))
     })
   }, [charName])
 
@@ -118,9 +123,12 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
     // Per-character appearance + gameplay → settings.json; the rest is global.
     saveCharAppearance(charName, { theme, fontSize, fontFamily, density })
     await window.dr.settings.patch({
-      lichPath, scriptDir, outputBufferSize, notifications: notif, notifRules,
+      lichPath, scriptDir, outputBufferSize, logging, notifications: notif, notifRules,
     })
-    await window.dr.settings.patchChar(charName, { functionKeys, aliases, triggers, classes })
+    const varsRecord = Object.fromEntries(
+      vars.map(v => [v.name.trim(), v.value]).filter(([n]) => n) as [string, string][]
+    )
+    await window.dr.settings.patchChar(charName, { functionKeys, aliases, triggers, classes, vars: varsRecord })
     window.dispatchEvent(new CustomEvent('settings:saved'))
     applyAppearance({ theme, fontSize, fontFamily, density })
     setOutputBuffer(outputBufferSize)
@@ -205,12 +213,9 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                     </select>
                   </label>
                 </div>
-              </>
-            )}
 
-            {tab === 'display' && (
-              <div className="settings-section">
-                <div className="settings-section-label">Display</div>
+                <div className="settings-section">
+                  <div className="settings-section-label">Display</div>
                 <label className="settings-row">
                   <span className="settings-label">Font family</span>
                   <select
@@ -251,7 +256,17 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                     <option value={10000}>10,000 lines</option>
                   </select>
                 </label>
-              </div>
+                <label className="settings-row">
+                  <span className="settings-label">Log game output to file</span>
+                  <input type="checkbox" checked={logging} style={{ width: 'auto' }}
+                    onChange={e => setLogging(e.target.checked)} />
+                </label>
+                <div className="settings-hint">
+                  Saves the visible game text to a per-character, per-day file under the app's
+                  data folder (<code>logs/</code>). Off by default.
+                </div>
+                </div>
+              </>
             )}
 
             {tab === 'notifications' && (
@@ -290,31 +305,48 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                       onChange={e => setNotif(n => ({ ...n, disconnect: e.target.checked }))} />
                   </label>
                 </div>
+                <div className="settings-section">
+                  <div className="settings-section-label">Speak aloud (text-to-speech)</div>
+                  <label className="settings-row">
+                    <span className="settings-label">Speak mentions</span>
+                    <input type="checkbox" checked={!!notif.ttsMention} style={{ width: 'auto' }}
+                      onChange={e => setNotif(n => ({ ...n, ttsMention: e.target.checked }))} />
+                  </label>
+                  <label className="settings-row">
+                    <span className="settings-label">Speak whispers</span>
+                    <input type="checkbox" checked={!!notif.ttsWhisper} style={{ width: 'auto' }}
+                      onChange={e => setNotif(n => ({ ...n, ttsWhisper: e.target.checked }))} />
+                  </label>
+                  <div className="settings-hint">Reads the line aloud using your system voice. Custom alerts have their own “Speak” option below.</div>
+                </div>
 
                 <div className="settings-section">
                   <div className="settings-section-label">Custom alerts</div>
+                  <div className="settings-hint" style={{ marginTop: 0 }}>
+                    Watch for any incoming text — a character name, a phrase, or a <code>.*</code> regex — and fire the channels you check on each row.
+                  </div>
                   <div className="alert-quickadd">
                     <input
                       className="settings-input"
-                      placeholder="Watch a character by name…"
+                      placeholder="Add an alert — text to watch (e.g. a name)…"
                       value={watchName}
                       spellCheck={false}
                       onChange={e => setWatchName(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addWatchName() } }}
                     />
-                    <button className="login-btn-secondary rule-import-btn" onClick={addWatchName}>+ Watch</button>
+                    <button className="login-btn-secondary rule-import-btn" onClick={addWatchName}>+ Add</button>
                   </div>
 
                   <div className="rule-list">
                     {notifRules.length === 0 && (
-                      <p className="hl-empty-msg">No custom alerts yet. Watch a name above, or add a rule below.</p>
+                      <p className="hl-empty-msg">No alerts yet. Type text to watch above and press + Add.</p>
                     )}
                     {notifRules.map(r => (
                       <div key={r.id} className={'rule-row' + (r.enabled ? '' : ' rule-row-off')}>
                         <input
                           type="checkbox"
                           checked={r.enabled}
-                          title="Enabled"
+                          data-tooltip="Enabled"
                           onChange={e => patchRule(r.id, { enabled: e.target.checked })}
                         />
                         <input
@@ -324,7 +356,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                           spellCheck={false}
                           onChange={e => patchRule(r.id, { pattern: e.target.value, label: r.label || e.target.value })}
                         />
-                        <label className="rule-regex" title="Regular expression">
+                        <label className="rule-regex" data-tooltip="Regular expression">
                           <input
                             type="checkbox"
                             checked={r.isRegex}
@@ -332,35 +364,34 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                           />
                           .*
                         </label>
-                        <label className="alert-ch" title="App toast">
+                        <label className="alert-ch" data-tooltip="App toast">
                           <input type="checkbox" checked={r.toast}
                             onChange={e => patchRule(r.id, { toast: e.target.checked })} />
                           Toast
                         </label>
-                        <label className="alert-ch" title="Desktop popup (when window unfocused)">
+                        <label className="alert-ch" data-tooltip="Desktop popup (when window unfocused)">
                           <input type="checkbox" checked={r.desktop}
                             onChange={e => patchRule(r.id, { desktop: e.target.checked })} />
                           Popup
                         </label>
-                        <label className="alert-ch" title="Sound">
+                        <label className="alert-ch" data-tooltip="Sound">
                           <input type="checkbox" checked={r.sound}
                             onChange={e => patchRule(r.id, { sound: e.target.checked })} />
                           Sound
                         </label>
-                        <button className="hl-btn-icon hl-btn-delete" title="Delete"
+                        <label className="alert-ch" data-tooltip="Speak the matched line aloud">
+                          <input type="checkbox" checked={!!r.tts}
+                            onChange={e => patchRule(r.id, { tts: e.target.checked })} />
+                          Speak
+                        </label>
+                        <button className="hl-btn-icon hl-btn-delete" data-tooltip="Delete"
                           onClick={() => setNotifRules(list => list.filter(x => x.id !== r.id))}>×</button>
                       </div>
                     ))}
-                    <button className="hl-add-btn"
-                      onClick={() => setNotifRules(list => [...list, makeNameRule('')])}>
-                      + Add alert
-                    </button>
                   </div>
                   <div className="settings-hint">
-                    When a line of game text matches, the chosen channels fire. Enable
-                    <code> .*</code> for a regular expression. Popups only show when the window
-                    isn't focused; Do Not Disturb silences sound and popups. Alerts are shared
-                    across all characters.
+                    Popups only show when the window isn't focused; Do Not Disturb silences
+                    sound, popups, and speech. Alerts are shared across all characters.
                   </div>
                 </div>
               </>
@@ -387,10 +418,11 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
             )}
 
             {tab === 'aliases' && (
+              <>
               <div className="settings-section">
                 <div className="rule-header">
                   <span className="settings-section-label">Aliases</span>
-                  <button className="login-btn-secondary rule-import-btn" onClick={importGenie}>Import from Genie…</button>
+                  <button className="login-btn-secondary rule-import-btn" onClick={importGenie}>Import…</button>
                 </div>
                 {importMsg && <div className="settings-hint rule-import-msg">{importMsg}</div>}
                 <ClassToggleStrip names={distinctClasses(aliases)} states={classes} onToggle={toggleClass} />
@@ -444,13 +476,54 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                   An alias may expand to a script (<code>.hunt %1</code>).
                 </div>
               </div>
+
+              <div className="settings-section">
+                <div className="settings-section-label">Variables</div>
+                <div className="rule-list">
+                  {vars.length === 0 && (
+                    <p className="hl-empty-msg">No variables yet. Add one below, or set them live with <code>#var name value</code>.</p>
+                  )}
+                  {vars.map((v, i) => (
+                    <div key={i} className="rule-row">
+                      <span className="rule-arrow">%</span>
+                      <input
+                        className="settings-input settings-input-mono rule-key"
+                        placeholder="target"
+                        value={v.name}
+                        spellCheck={false}
+                        onChange={e => setVars(list => list.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                      />
+                      <span className="rule-arrow">=</span>
+                      <input
+                        className="settings-input settings-input-mono"
+                        placeholder="orc"
+                        value={v.value}
+                        spellCheck={false}
+                        onChange={e => setVars(list => list.map((x, j) => j === i ? { ...x, value: e.target.value } : x))}
+                      />
+                      <button className="hl-btn-icon hl-btn-delete" data-tooltip="Delete"
+                        onClick={() => setVars(list => list.filter((_, j) => j !== i))}>×</button>
+                    </div>
+                  ))}
+                  <button className="hl-add-btn"
+                    onClick={() => setVars(list => [...list, { name: '', value: '' }])}>
+                    + Add variable
+                  </button>
+                </div>
+                <div className="settings-hint">
+                  Reference a variable as <code>%name</code> in any command, alias, or trigger
+                  (e.g. <code>attack %target</code>). Set them live with <code>#var target orc</code>,
+                  view with <code>#var</code>, remove with <code>#unvar target</code>.
+                </div>
+              </div>
+              </>
             )}
 
             {tab === 'triggers' && (
               <div className="settings-section">
                 <div className="rule-header">
                   <span className="settings-section-label">Triggers</span>
-                  <button className="login-btn-secondary rule-import-btn" onClick={importGenie}>Import from Genie…</button>
+                  <button className="login-btn-secondary rule-import-btn" onClick={importGenie}>Import…</button>
                 </div>
                 {importMsg && <div className="settings-hint rule-import-msg">{importMsg}</div>}
                 <ClassToggleStrip names={distinctClasses(triggers)} states={classes} onToggle={toggleClass} />

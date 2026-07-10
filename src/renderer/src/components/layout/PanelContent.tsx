@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import {
   roomAtom, activeSpellAtom, activeSpellsAtom, inventoryLinesAtom,
   expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom,
-  avatarsAtom, selfNameAtom, serverAvatarsAtom, tickAtom,
+  avatarsAtom, selfNameAtom, serverAvatarsAtom, tickAtom, logonLinesAtom,
   type OutputLine,
 } from '../../store/game'
 import { resolveAvatarSrc } from '../../lib/avatar'
@@ -365,6 +365,23 @@ export function DeathsPanel() {
         <div key={l.id} className="death-line">
           <span className="death-time">{convTime(l.timestamp)}</span>
           <span className="death-text">{l.text}</span>
+        </div>
+      ))}
+    </ScrollPanel>
+  )
+}
+
+// ── Connections Panel (logons / logoffs / disconnects) ──────────────────────────
+export function ConnectionsPanel() {
+  const lines = useAtomValue(logonLinesAtom)
+  if (lines.length === 0) return <div className="panel-empty">No logons or logoffs yet</div>
+  return (
+    <ScrollPanel deps={[lines.length]}>
+      {lines.map(l => (
+        <div key={l.id} className={'conn-line conn-' + l.kind}>
+          <span className="panel-line-time">{convTime(l.timestamp)}</span>
+          <span className="conn-dot" />
+          <span className="conn-text">{l.text}</span>
         </div>
       ))}
     </ScrollPanel>

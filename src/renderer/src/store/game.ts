@@ -126,6 +126,32 @@ export const convLinesAtom    = atom<OutputLine[]>([])
 export const deathsAtom       = atom<OutputLine[]>([])
 export const lichMsgAtom      = atom<string[]>([])
 
+// ── Connections (logon / logoff / disconnect monitor) ──────────────────────────
+// A timestamped feed of connection events: this character's own connect/disconnect
+// (fed from GameLayout) plus game lines announcing others logging on/off or link-
+// dying. Shown in the Connections panel; matched lines also stay in main output.
+export interface LogonEntry { id: number; text: string; timestamp: number; kind: 'on' | 'off' }
+export const logonLinesAtom = atom<LogonEntry[]>([])
+
+// DR's "* …" adventure broadcasts announcing players coming online / going offline.
+// NOTE: DR declares a `logons` streamWindow ("Arrivals") at login but NEVER routes
+// text to it — verified across the raw Lich .xml logs, `pushStream id="logons"` never
+// appears. These broadcasts arrive as bare "* NAME …" MAIN-stream text, so matching
+// on wording (below) is the only option; there is no stream tag to key off.
+// Arrivals all read "… joins the adventure." or "just <verb> into the adventure …"
+//   (sauntered / crawled / "was just deposited into the adventure by a mighty dragon").
+// Departures are more varied (real examples harvested from the logs):
+//   "retires from the adventure for now." / "retires from the lands to enjoy a nice
+//   long catnap." / "returns home from a hard day of adventuring." / "has disconnected."
+//   / "wanders off, muttering something about spiders." / "The mournful cry of a battle
+//   horn sounds as NAME heads off toward home." / "just found a shadow to hide out in."
+const LOGON_RE  = /\b(?:joins|into) the adventure\b|\bhas reconnected\b|\bhas logged (?:on|in)\b/i
+const LOGOFF_RE = /\bretires from the (?:adventure|lands)\b|\breturns home from a hard day\b|\bheads off toward home\b|\bwanders off, muttering something about spiders\b|\bhas disconnected\b|\bfound a shadow to hide out in\b|\bhas logged o(?:ff|ut)\b|\bhas gone link-?dead\b/i
+
+export const appendLogonAtom = atom(null, (get, set, e: { text: string; kind: 'on' | 'off' }) => {
+  set(logonLinesAtom, [...get(logonLinesAtom).slice(-199), { id: lineId++, text: e.text, timestamp: Date.now(), kind: e.kind }])
+})
+
 // ── Vitals ────────────────────────────────────────────────────────────────────
 export interface VitalState { value: number; max: number }
 
@@ -139,6 +165,11 @@ export const vitalsAtom = atom<Record<VitalField, VitalState>>({
 // ── Room ──────────────────────────────────────────────────────────────────────
 export interface RoomState { name: string; description: string; exits: string[]; objs: string; players: string[]; playerNames: string[] }
 export const roomAtom = atom<RoomState>({ name: '', description: '', exits: [], objs: '', players: [], playerNames: [] })
+
+// Incremented on every server prompt (end of a command response). The automapper
+// watches this to know when the current room is fully populated so it can fold it
+// into the map — a prompt marks the room name/desc/exits as all having landed.
+export const promptCountAtom = atom<number>(0)
 
 // ── Inventory ─────────────────────────────────────────────────────────────────
 export const inventoryLinesAtom = atom<string[]>([])
@@ -438,6 +469,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(atmoLinesAtom, [])
   set(convLinesAtom, [])
   set(deathsAtom, [])
+  set(logonLinesAtom, [])
   set(lichMsgAtom, [])
   set(inventoryLinesAtom, [])
   set(roomAtom, { name: '', description: '', exits: [], objs: '', players: [], playerNames: [] })
@@ -480,6 +512,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _expBatchNames     = null
   _silentExpBatch    = false
   _spellBatch        = null
+  _gameMove          = null
 })
 
 // ── Gags & substitutions ────────────────────────────────────────────────────
@@ -517,6 +550,23 @@ function applyGagSub(text: string, disabled: ReadonlySet<string>): string | null
   return out
 }
 
+// ── Movement direction from the game's own confirmation ────────────────────────
+// The game narrates each successful compass move ("You go east.", "You run
+// southeast.") no matter who issued it — typed, clicked, or Lich `;go2` (which
+// moves us server-side, so the outbound-command capture never sees it). This is
+// the automapper's authoritative direction signal. Posture lines ("You stand up.",
+// "You sit down.") are excluded via the verb blacklist.
+const MOVE_VERB_SKIP = new Set(['stand', 'sit', 'kneel', 'lie', 'lay', 'get'])
+const GAME_MOVE_RE = /^You\s+([a-z]+)\s+(north|south|east|west|northeast|northwest|southeast|southwest|up|down|out|in)\.?$/i
+function parseGameMove(text: string): string | null {
+  const m = text.trim().match(GAME_MOVE_RE)
+  if (!m || MOVE_VERB_SKIP.has(m[1].toLowerCase())) return null
+  return m[2].toLowerCase()
+}
+let _gameMove: { dir: string; move: string; ts: number } | null = null
+export function currentGameMove(): { dir: string; move: string; ts: number } | null { return _gameMove }
+export function clearGameMove(): void { _gameMove = null }
+
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 export const dispatchGameEventAtom = atom(
   null,
@@ -524,6 +574,12 @@ export const dispatchGameEventAtom = atom(
     switch (event.type) {
 
       case 'text': {
+        // Capture the game's movement confirmation for the automapper (authoritative
+        // direction, covers Lich `;go2`). Runs before any suppression/return below.
+        if (event.stream === 'main') {
+          const md = parseGameMove(event.text)
+          if (md) _gameMove = { dir: md, move: md, ts: Date.now() }
+        }
         // Silent VERB LIST sweep — capture single-token verb lines, suppress from output
         if (_verbCapture) {
           const t = event.text.trim()
@@ -661,6 +717,12 @@ export const dispatchGameEventAtom = atom(
               } else if (DEATH_RE.test(event.text)) {
                 // Deaths live only in the Deaths panel — suppress from main output.
                 set(deathsAtom, [...get(deathsAtom).slice(-199), line])
+              } else if (LOGON_RE.test(event.text) || LOGOFF_RE.test(event.text)) {
+                // Logon/logoff/disconnect "* …" broadcasts live only in the
+                // Connections panel — suppress from main output (they're spammy).
+                const kind = LOGOFF_RE.test(event.text) ? 'off' : 'on'
+                const text = event.text.replace(/^\*\s+/, '')   // drop the "* " broadcast prefix
+                set(logonLinesAtom, [...get(logonLinesAtom).slice(-199), { id: lineId++, text, timestamp: Date.now(), kind }])
               } else {
                 set(outputLinesAtom, appendDedup(get(outputLinesAtom), line))
                 _outputDirty = true
@@ -894,6 +956,9 @@ export const dispatchGameEventAtom = atom(
           set(outputLinesAtom, appendMain(get(outputLinesAtom), mkSeparator()))
           _outputDirty = false
         }
+        // Signal the automapper that a full server message just closed — the room
+        // atom now holds a complete room (name/desc/exits) it can fold into the map.
+        set(promptCountAtom, get(promptCountAtom) + 1)
         break
     }
   }

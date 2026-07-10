@@ -40,6 +40,19 @@ function subMatch(template: string, m: RegExpExecArray): string {
 }
 
 /**
+ * Named global variables (Genie `#var`): substitute `%name` with its stored value.
+ * A name is letters/digits/underscore and MUST start with a non-digit, so numeric
+ * arg placeholders (%0..%9) are never touched. Unknown names are left as-is.
+ * Applied to every sent command (typed, alias expansion, trigger) so vars work
+ * everywhere, exactly like Genie.
+ */
+export function substituteVars(text: string, vars: Record<string, string>): string {
+  if (!vars || !text.includes('%')) return text
+  return text.replace(/%([A-Za-z_][A-Za-z0-9_]*)/g, (m, name: string) =>
+    Object.prototype.hasOwnProperty.call(vars, name) ? vars[name] : m)
+}
+
+/**
  * Expand a typed line when its first word matches an enabled alias. Recurses so
  * an alias can expand into another alias, with a depth cap to stop cycles.
  * Returns the original line unchanged when nothing matches.

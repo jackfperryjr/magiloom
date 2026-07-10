@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+import type { MapDB, Zone } from './lib/mapModel'
+
 interface SGECharacter  { id: string; name: string }
 interface SGEInstance   { code: string; name: string }
 interface SavedAccount  { name: string; lastCharacter?: string }
@@ -20,6 +22,7 @@ interface AppSettings {
   triggers?:        { id: string; pattern: string; isRegex: boolean; command: string; enabled: boolean; class?: string }[]
   highlights:       unknown[]
   classes?:         Record<string, boolean>
+  vars?:            Record<string, string>
   passwords:        Record<string, string>
   avatars?:         Record<string, string>
   avatarCrops?:     Record<string, { zoom: number; px: number; py: number }>
@@ -32,13 +35,17 @@ interface AppSettings {
     mention:    boolean
     whisper:    boolean
     disconnect: boolean
+    ttsMention?: boolean
+    ttsWhisper?: boolean
   }
-  // User-defined "watch" alerts: fire toast/desktop/sound when incoming game text
-  // matches. Global (shared across characters). See components/ui/Notifications.tsx.
+  // User-defined "watch" alerts: fire toast/desktop/sound/speak when incoming game
+  // text matches. Global (shared across characters). See components/ui/Notifications.tsx.
   notifRules?:      {
     id: string; label: string; pattern: string; isRegex: boolean
-    toast: boolean; desktop: boolean; sound: boolean; enabled: boolean
+    toast: boolean; desktop: boolean; sound: boolean; tts?: boolean; enabled: boolean
   }[]
+  // Write game output to a per-character log file (default off). See main/log-store.ts.
+  logging?:         boolean
 }
 
 interface CharSettings {
@@ -47,6 +54,7 @@ interface CharSettings {
   triggers:     NonNullable<AppSettings['triggers']>
   highlights:   unknown[]
   classes:      Record<string, boolean>
+  vars:         Record<string, string>
   appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact' }
   panels?:       { id: string; label: string; visible: boolean }[]
   panelHeights?: Record<string, number>
@@ -127,6 +135,7 @@ interface DrAPI {
     disconnect:     ()               => Promise<void>
     send:           (d: string)      => Promise<void>
     onData:         (cb: (r: string) => void) => () => void
+    onSent:         (cb: (cmd: string) => void) => () => void
     onConnected:    (cb: () => void)           => () => void
     onDisconnected: (cb: () => void)           => () => void
     onError:        (cb: (e: string) => void)  => () => void
@@ -135,6 +144,14 @@ interface DrAPI {
     send:       (cmd: string) => Promise<void>
     setReceive: (on: boolean) => Promise<void>
     onIncoming: (cb: (cmd: string) => void) => () => void
+  }
+  map: {
+    load:       () => Promise<MapDB>
+    saveZone:   (zone: Zone) => Promise<void>
+    deleteZone: (zoneId: string) => Promise<void>
+    clear:      () => Promise<void>
+    export:     (content: string, defaultName: string) => Promise<{ ok: boolean; path?: string; error?: string }>
+    onZoneChanged: (cb: (zone: Zone) => void) => () => void
   }
 }
 

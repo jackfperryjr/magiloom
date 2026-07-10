@@ -2,7 +2,7 @@ import { useEffect, useCallback, useRef } from 'react'
 import { useSetAtom, useAtom, useAtomValue } from 'jotai'
 import { parseLine, resetParser } from '../lib/sge-parser'
 import { connectionStatusAtom, dispatchGameEventAtom, appendDisconnectNoticeAtom, appendScriptOutputAtom, echoCommandAtom, linkModeAtom, broadcastReceiveAtom, classStatesAtom, disabledClassesAtom } from '../store/game'
-import { expandAlias, matchTriggers, type Alias, type Trigger } from '../lib/automation'
+import { expandAlias, matchTriggers, substituteVars, type Alias, type Trigger } from '../lib/automation'
 
 // Ignore a repeat firing of the same trigger command within this window, so a
 // trigger whose command re-produces its own matching line can't storm the game.
@@ -24,6 +24,7 @@ export function useGameConnection(charName = '') {
   // the latest rules without re-subscribing the game listeners.
   const aliasesRef  = useRef<Alias[]>([])
   const triggersRef = useRef<Trigger[]>([])
+  const varsRef     = useRef<Record<string, string>>({})
   const cooldownRef = useRef<Map<string, number>>(new Map())
   // Link mode lives in a ref so `send` stays a stable callback (it changes what
   // typing does, but must not re-subscribe the game listeners).
@@ -47,12 +48,43 @@ export function useGameConnection(charName = '') {
     if (charName) window.dr.settings.patchChar(charName, { classes: map })
   }, [charName, setClassStates])
 
+  // Named global variables (#var), per character. Set via the `#var` command and
+  // substituted (%name) into every sent command below.
+  const applyVarCommand = useCallback((rest: string, unset: boolean) => {
+    const arg = rest.trim()
+    const persist = (map: Record<string, string>) => {
+      varsRef.current = map
+      if (charName) window.dr.settings.patchChar(charName, { vars: map })
+    }
+    if (unset) {
+      const name = arg.split(/\s+/)[0]
+      if (name && Object.prototype.hasOwnProperty.call(varsRef.current, name)) {
+        const map = { ...varsRef.current }; delete map[name]; persist(map)
+        appendScriptOutput(`[var] %${name} removed`)
+      }
+      return
+    }
+    if (!arg) {
+      const entries = Object.entries(varsRef.current)
+      appendScriptOutput(entries.length ? entries.map(([k, v]) => `%${k} = ${v}`).join('\n') : '[var] no variables set')
+      return
+    }
+    const sp = arg.search(/\s/)
+    const name = (sp === -1 ? arg : arg.slice(0, sp)).replace(/^%/, '')
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) { appendScriptOutput(`[var] invalid name "${name}"`); return }
+    if (sp === -1) { appendScriptOutput(`%${name} = ${varsRef.current[name] ?? '(unset)'}`); return }
+    const value = arg.slice(sp + 1).trim()
+    persist({ ...varsRef.current, [name]: value })
+    appendScriptOutput(`[var] %${name} = ${value}`)
+  }, [charName, appendScriptOutput])
+
   // Load this character's automation rules (per-character, falling back to
   // globals), reloading on character switch and whenever settings are saved.
   useEffect(() => {
     const load = () => window.dr.settings.getChar(charName).then(c => {
       aliasesRef.current  = (c.aliases  ?? []) as Alias[]
       triggersRef.current = (c.triggers ?? []) as Trigger[]
+      varsRef.current     = (c.vars     ?? {}) as Record<string, string>
     })
     load()
     window.addEventListener('settings:saved', load)
@@ -76,7 +108,12 @@ export function useGameConnection(charName = '') {
     const cm = cmd.trim().match(/^#class\s+(\S+)\s*(on|off|toggle)?$/i)
     if (cm) { applyClassCommand(cm[1].toLowerCase(), (cm[2]?.toLowerCase() as 'on' | 'off' | 'toggle') ?? 'toggle'); return }
 
-    const line = expandAlias(cmd, aliasesRef.current, disabledRef.current)
+    // Client-side variables: `#var [name [value]]`, `#unvar name`. Never sent.
+    const vm = cmd.trim().match(/^#(unvar|var)\b\s*(.*)$/i)
+    if (vm) { applyVarCommand(vm[2], vm[1].toLowerCase() === 'unvar'); return }
+
+    // Expand aliases (args %1..%9), then substitute named %vars, then route.
+    const line = substituteVars(expandAlias(cmd, aliasesRef.current, disabledRef.current), varsRef.current)
     const t = line.trimStart()
     if (t.startsWith('.')) {
       const [name, ...args] = t.slice(1).trim().split(/\s+/)
@@ -85,7 +122,7 @@ export function useGameConnection(charName = '') {
       return
     }
     window.dr.game.send(line)
-  }, [applyClassCommand])
+  }, [applyClassCommand, applyVarCommand])
 
   // Outbound chokepoint for USER input. Handles multi-boxing on top of runLocal:
   //   `// cmd` → run here AND broadcast to my other windows

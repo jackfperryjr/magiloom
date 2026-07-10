@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useAtomValue } from 'jotai'
 import { convLinesAtom, outputLinesAtom, presenceModeAtom } from '../../store/game'
 import type { ConnectionStatus, OutputLine } from '../../store/game'
+import { speak } from '../../lib/tts'
 
 export type NotifKind = 'mention' | 'whisper' | 'disconnect'
 
@@ -11,10 +12,13 @@ export interface NotifSettings {
   mention:    boolean
   whisper:    boolean
   disconnect: boolean
+  ttsMention?: boolean   // speak mentions aloud
+  ttsWhisper?: boolean   // speak whispers aloud
 }
 
 export const DEFAULT_NOTIF: NotifSettings = {
   sound: true, desktop: true, mention: true, whisper: true, disconnect: true,
+  ttsMention: false, ttsWhisper: false,
 }
 
 // A user-defined "watch" alert. Matches incoming game text (substring, or /regex/
@@ -28,12 +32,13 @@ export interface NotifRule {
   toast:   boolean
   desktop: boolean
   sound:   boolean
+  tts?:    boolean   // speak the matched line aloud
   enabled: boolean
 }
 
 export function makeNameRule(name: string): NotifRule {
   const n = name.trim()
-  return { id: Math.random().toString(36).slice(2, 9), label: n, pattern: n, isRegex: false, toast: true, desktop: true, sound: true, enabled: true }
+  return { id: Math.random().toString(36).slice(2, 9), label: n, pattern: n, isRegex: false, toast: true, desktop: true, sound: true, tts: false, enabled: true }
 }
 
 const TITLES: Record<NotifKind, string> = {
@@ -115,12 +120,13 @@ export function NotificationCenter({ charName, status }: { charName: string; sta
   }, [])
 
   // Low-level emit: passive toast always shows; Do Not Disturb silences sound + popups.
-  const emit = useCallback((kind: string, title: string, text: string, sound: boolean, desktop: boolean, freq: number) => {
+  const emit = useCallback((kind: string, title: string, text: string, sound: boolean, desktop: boolean, freq: number, tts = false) => {
     const dnd = presenceRef.current === 'dnd'
     const id = Date.now() + Math.random()
     setToasts(t => [...t.slice(-3), { id, kind, title, text }])
     window.setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 6000)
     if (sound && !dnd) playPing(freq)
+    if (tts && !dnd) speak(text)
     if (desktop && !dnd && !document.hasFocus()) {
       try { new Notification(title, { body: text, silent: true }) } catch { /* not permitted */ }
     }
@@ -131,10 +137,11 @@ export function NotificationCenter({ charName, status }: { charName: string; sta
   const fire = useCallback((kind: NotifKind, text: string) => {
     const c = cfgRef.current
     if (!c[kind]) return
-    emit(kind, TITLES[kind], text, c.sound, c.desktop, KIND_FREQ[kind])
+    const tts = kind === 'whisper' ? !!c.ttsWhisper : kind === 'mention' ? !!c.ttsMention : false
+    emit(kind, TITLES[kind], text, c.sound, c.desktop, KIND_FREQ[kind], tts)
   }, [emit])
 
-  // Custom watch alerts — each rule carries its own toast/desktop/sound channels.
+  // Custom watch alerts — each rule carries its own toast/desktop/sound/speak channels.
   const scanRules = useCallback((text: string) => {
     const now = Date.now()
     for (const { rule, test } of matchersRef.current) {
@@ -142,7 +149,7 @@ export function NotificationCenter({ charName, status }: { charName: string; sta
       const last = ruleCooldown.current.get(rule.id) ?? 0
       if (now - last < RULE_COOLDOWN_MS) continue
       ruleCooldown.current.set(rule.id, now)
-      emit('custom', rule.label || rule.pattern, text, rule.sound, rule.desktop, 460)
+      emit('custom', rule.label || rule.pattern, text, rule.sound, rule.desktop, 460, !!rule.tts)
     }
   }, [emit])
 
