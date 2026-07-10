@@ -87,7 +87,10 @@ body {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  border-top: 3px solid var(--border);
+  border-top: none;
+  /* Darker "frame" behind the columns — makes the sidebar's rounded corner and
+     the separator groove read. Overlay derives it from each theme's shell. */
+  background: var(--bg-shell);
 }
 
 /* Game column */
@@ -98,6 +101,7 @@ body {
   flex-direction: column;
   overflow: hidden;
   background: var(--bg-shell);
+  border-top-right-radius: 8px;
 }
 
 .game-output-wrap {
@@ -107,6 +111,8 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  /* Discord "message area": a lighter content surface, square and edge-to-separator */
+  background: var(--bg-panel);
 }
 
 /* ── Status bar / integrated title bar ───────────────────────────────────── */
@@ -117,8 +123,8 @@ body {
   padding: 6px 12px;
   height: 40px;
   /* Darken the title bar relative to the panel in every theme (incl. light/gradient ones) */
-  background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), var(--bg-panel);
-  border-bottom: 3px solid var(--border);
+  background: var(--bg-shell);
+  border: none;
   flex-shrink: 0;
   font-size: 14px;
   font-family: var(--font-ui);
@@ -321,7 +327,7 @@ body[data-platform="darwin"] .status-bar {
 /* ── Lich drawer ─────────────────────────────────────────────────────────── */
 .lich-drawer {
   background: var(--bg-panel);
-  border-bottom: 3px solid var(--border);
+  border-bottom: 1px solid var(--border-soft);
   flex-shrink: 0;
   max-height: 140px;
   display: flex;
@@ -439,12 +445,14 @@ body[data-platform="darwin"] .status-bar {
 }
 
 .panel-sidebar-header {
+  background: var(--bg-shell);
   padding: 6px 8px;
-  border-bottom: 3px solid var(--border);
+  border-bottom: none;
   flex-shrink: 0;
 }
 
 .panel-sidebar-scroll {
+  background: var(--bg-shell);
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
@@ -468,7 +476,8 @@ body[data-platform="darwin"] .status-bar {
 .panel-manager-backdrop { position: fixed; inset: 0; z-index: 99; }
 .panel-manager-popup {
   background: var(--bg-panel);
-  border: 3px solid var(--border-accent);
+  border:none;
+  border-radius: 8px;
   box-shadow: inset 0 0 0 1px var(--bg-input), 0 8px 32px rgba(0,0,0,0.8);
   padding: 8px;
   z-index: 100;
@@ -817,7 +826,8 @@ body[data-platform="darwin"] .status-bar {
   flex-direction: column;
   flex-shrink: 0;
   background: var(--bg-shell);
-  border-top: 3px solid var(--border);
+  /* No seam — the floating game panel above provides the separation */
+  border-top: none;
 }
 
 /* Full-width bottom row: character bar (left) + command line (fills the rest),
@@ -829,7 +839,7 @@ body[data-platform="darwin"] .status-bar {
   padding: 8px;
   flex-shrink: 0;
   background: var(--bg-shell);
-  border-top: 3px solid var(--border);
+  border-top: none;
 }
 
 /* Command line — fills the row; status icons + roundtime embedded on its right. */
@@ -842,8 +852,11 @@ body[data-platform="darwin"] .status-bar {
   min-width: 0;
   min-height: 50px;
   padding: 0 14px;
-  background: var(--bg-input);
+  /* Same surface color as the game window ("message area") so they read as one
+     material; the resting shadow lifts the input so it floats over the top. */
+  background: var(--bg-panel);
   border-radius: 9px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
   transition: box-shadow .1s;
 }
 
@@ -991,6 +1004,7 @@ body[data-platform="darwin"] .status-bar {
   padding: 6px 12px;
   background: var(--bg-panel);
   border-radius: 9px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
 }
 
 .char-avatar {
@@ -1545,7 +1559,6 @@ body[data-platform="darwin"] .status-bar {
 }
 .avatar-modal-share input { cursor: pointer; }
 
-/* ── Game top bar (lich log + hands, above the output) ───────────────────── */
 /* HUD bar (posture/status + roundtime + hands) — sits just above the command row. */
 .hud-bar {
   display: flex;
@@ -1553,8 +1566,8 @@ body[data-platform="darwin"] .status-bar {
   gap: 14px;
   min-height: 30px;
   padding: 3px 10px;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-shell);
+  border: none;
   flex-shrink: 0;
   font-family: var(--font-ui);
   font-size: 14px;
@@ -1755,8 +1768,9 @@ body[data-platform="darwin"] .status-bar {
 .panel-manager-toggle {
   width: 100%;
   padding: 4px 8px;
-  background: none;
-  border: 1px dashed var(--border-soft);
+  background: var(--bg-input);
+  border-radius: 6px;
+  border: none;
   color: var(--text-dim);
   font-size: 13px;
   cursor: pointer;
@@ -1765,7 +1779,7 @@ body[data-platform="darwin"] .status-bar {
   font-family: var(--font-ui);
   transition: color .1s, border-color .1s;
 }
-.panel-manager-toggle:hover { color: var(--text-main); border-color: var(--border); }
+.panel-manager-toggle:hover { color: var(--text-main); border-color: var(--border); background: var(--bg-input); border-radius: 6px; }
 
 .panel-collapse-btn {
   background: none; border: none;
@@ -2399,16 +2413,16 @@ body[data-platform="darwin"] .status-bar {
 
 /* ── Column resize handle ────────────────────────────────────────────────── */
 .col-resize-handle {
-  width: 6px;
+  width: 4px;
   cursor: col-resize;
   background: transparent;
   flex-shrink: 0;
-  border-left: 2px solid var(--border);
-  border-right: 2px solid var(--border);
+  /* Single thin hairline seam (Discord separates columns with contrast, not a bar) */
+  border: none;
   transition: background .15s, border-color .15s;
   z-index: 10;
 }
-.col-resize-handle:hover { background: var(--accent-dim); border-left-color: var(--border-accent); border-right-color: var(--border-accent); }
+.col-resize-handle:hover { background: var(--accent-dim); border-left-color: var(--border-accent); }
 
 /* ── Vital numeric display ───────────────────────────────────────────────── */
 /* ── Combat panel ────────────────────────────────────────────────────────── */
