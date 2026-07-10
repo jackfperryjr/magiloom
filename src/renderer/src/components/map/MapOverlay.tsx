@@ -171,6 +171,8 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
               <div key={r.id} className="map-search-item" onClick={() => focusResult(r)}>
                 <span className="map-search-room">{r.title || '(unnamed)'}</span>
                 <span className="map-search-zone">{r.zoneName}</span>
+                <button className="map-search-walk" data-tooltip="Walk here"
+                        onClick={e => { e.stopPropagation(); onWalkTo(r.id); setQuery('') }}>▸ walk</button>
               </div>
             ))}
           </div>
@@ -207,7 +209,7 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
                 <div className="map-ctx-edit">
                   <input
                     autoFocus className="map-ctx-input"
-                    placeholder={edit!.field === 'tag' ? 'Short label (3 chars shown)' : 'Note'}
+                    placeholder={edit!.field === 'tag' ? 'Label — shown in the legend (first 3 chars on the node)' : 'Note'}
                     value={edit!.value}
                     onChange={e => setEdit({ ...edit!, value: e.target.value })}
                     onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEdit(null) }}
@@ -223,9 +225,13 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
                     {NODE_COLORS.map(c => (
                       <button key={c || 'none'} className="map-ctx-swatch" data-tooltip={c || 'default'}
                               style={{ background: c || 'var(--panel-border, #444)' }}
-                              onClick={() => { patchNode(ctx.id, { color: c || undefined }); setCtx(null) }} />
+                              onClick={() => patchNode(ctx.id, { color: c || undefined })} />
                     ))}
+                    <input type="color" className="map-ctx-colorpick" data-tooltip="Custom colour"
+                           value={node?.color ?? '#9a95ff'}
+                           onChange={e => patchNode(ctx.id, { color: e.target.value })} />
                   </div>
+                  <div className="map-ctx-hint">Give a room a colour + a label to add your own category to the legend.</div>
                   <div className="map-ctx-item map-ctx-danger" onClick={() => { deleteNode(ctx.id); setCtx(null) }}>Delete room</div>
                 </>
               )}

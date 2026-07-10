@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { MapDB, MapNode, Zone } from '../../lib/mapModel'
+import { roomType, nodeFill, ROOM_TYPE_META, type RoomType } from '../../lib/roomType'
 
 // Grid spacing (px) between adjacent rooms at zoom 1, and node radius.
 const GRID = 46
@@ -115,6 +116,22 @@ export function MapView({
     return Array.from(new Set(Object.values(zone.nodes).map(n => n.z))).sort((a, b) => b - a)
   }, [zone])
 
+  // Legend: auto-classified room types + the user's own custom categories. A node
+  // with a manual colour AND a label (tag) is a custom category (label → colour);
+  // nodes without a manual colour fall back to auto room-type classification.
+  const legend = useMemo(() => {
+    const autoSeen = new Set<RoomType>()
+    const custom = new Map<string, string>()   // label → colour
+    for (const n of levelNodes) {
+      if (n.color) { const label = n.tag?.trim(); if (label) custom.set(label, n.color) }
+      else { const t = roomType(n); if (t) autoSeen.add(t) }
+    }
+    const auto = (Object.keys(ROOM_TYPE_META) as RoomType[])
+      .filter(t => autoSeen.has(t))
+      .map(t => ({ label: ROOM_TYPE_META[t].label, color: ROOM_TYPE_META[t].color }))
+    return [...auto, ...[...custom.entries()].map(([label, color]) => ({ label, color }))]
+  }, [levelNodes])
+
   // ── Interaction (background pan + node drag/click share the pointer stream) ───
   const bgDrag   = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null)
   const nodeDrag = useRef<{ id: string; px: number; py: number; ox: number; oy: number; moved: boolean } | null>(null)
@@ -197,7 +214,7 @@ export function MapView({
               >
                 {isCurrent && <circle className="map-node-ring" cx={0} cy={0} r={NODE_R + 4} />}
                 <circle className="map-node-box" cx={0} cy={0} r={NODE_R}
-                        style={n.color ? { fill: n.color } : undefined} />
+                        style={!isCurrent && nodeFill(n) ? { fill: nodeFill(n) } : undefined} />
                 {n.tag && <text className="map-node-tag" x={0} y={3} textAnchor="middle">{n.tag.slice(0, 3)}</text>}
                 {mark?.up && <text className="map-node-chev up" x={NODE_R} y={-NODE_R + 3}>▲</text>}
                 {mark?.down && <text className="map-node-chev down" x={NODE_R} y={NODE_R + 4}>▼</text>}
@@ -210,6 +227,16 @@ export function MapView({
       {hasNodes && (
         <div className="map-stats">
           {Object.keys(zone!.nodes).length} rooms · {zone!.arcs.length} links
+        </div>
+      )}
+      {legend.length > 0 && (
+        <div className="map-legend">
+          {legend.map(e => (
+            <span key={e.label} className="map-legend-item">
+              <span className="map-legend-dot" style={{ background: e.color }} />
+              {e.label}
+            </span>
+          ))}
         </div>
       )}
 

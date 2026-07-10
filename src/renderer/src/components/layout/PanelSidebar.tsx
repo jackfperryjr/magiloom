@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Tooltip } from '../ui/Tooltip'
 
-export type PanelId = 'room' | 'map' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'scripts' | 'lich'
+export type PanelId = 'room' | 'map' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'connections' | 'scripts' | 'lich'
 
 export interface PanelConfig {
   id:      PanelId
@@ -19,6 +19,7 @@ const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'conversation', label: 'Conversation',  visible: true },
   { id: 'inventory',    label: 'Inventory',     visible: false },
   { id: 'deaths',       label: 'Deaths',        visible: false },
+  { id: 'connections',  label: 'Connections',   visible: false },
   { id: 'scripts',      label: 'Scripts',       visible: false },
   { id: 'lich',         label: 'Lich Log',      visible: false },
 ]
@@ -223,11 +224,12 @@ function PanelManager({
 }
 
 // ── Main sidebar ───────────────────────────────────────────────────────────────
-export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName = '' }: {
+export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName = '', footer }: {
   renderPanel:   (id: PanelId) => React.ReactNode
   getClearFn?:   (id: PanelId) => (() => void) | undefined
   sidebarWidth?: number | null
   charName?:     string
+  footer?:       React.ReactNode   // docked at the bottom of the sidebar (e.g. status bar)
 }) {
   const [panels,      setPanels]      = useState<PanelConfig[]>(DEFAULT_PANELS)
   const [heights,     setHeights]     = useState<Record<string, number>>({})
@@ -298,6 +300,7 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
           <div className="panel-sidebar-empty">No panels — click ⊞ Panels to add some.</div>
         )}
       </div>
+      {footer && <div className="panel-sidebar-footer">{footer}</div>}
       {showManager && (
         <PanelManager
           panels={panels} onToggle={togglePanel}

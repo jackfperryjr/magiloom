@@ -22,6 +22,7 @@ interface AppSettings {
   triggers?:        { id: string; pattern: string; isRegex: boolean; command: string; enabled: boolean; class?: string }[]
   highlights:       unknown[]
   classes?:         Record<string, boolean>
+  vars?:            Record<string, string>
   passwords:        Record<string, string>
   avatars?:         Record<string, string>
   avatarCrops?:     Record<string, { zoom: number; px: number; py: number }>
@@ -34,13 +35,17 @@ interface AppSettings {
     mention:    boolean
     whisper:    boolean
     disconnect: boolean
+    ttsMention?: boolean
+    ttsWhisper?: boolean
   }
-  // User-defined "watch" alerts: fire toast/desktop/sound when incoming game text
-  // matches. Global (shared across characters). See components/ui/Notifications.tsx.
+  // User-defined "watch" alerts: fire toast/desktop/sound/speak when incoming game
+  // text matches. Global (shared across characters). See components/ui/Notifications.tsx.
   notifRules?:      {
     id: string; label: string; pattern: string; isRegex: boolean
-    toast: boolean; desktop: boolean; sound: boolean; enabled: boolean
+    toast: boolean; desktop: boolean; sound: boolean; tts?: boolean; enabled: boolean
   }[]
+  // Write game output to a per-character log file (default off). See main/log-store.ts.
+  logging?:         boolean
 }
 
 interface CharSettings {
@@ -49,6 +54,7 @@ interface CharSettings {
   triggers:     NonNullable<AppSettings['triggers']>
   highlights:   unknown[]
   classes:      Record<string, boolean>
+  vars:         Record<string, string>
   appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact' }
   panels?:       { id: string; label: string; visible: boolean }[]
   panelHeights?: Record<string, number>

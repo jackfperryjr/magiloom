@@ -7,6 +7,7 @@ import { GameConnection } from './game-connection'
 import { CmdScriptEngine } from './cmd-script-engine'
 import { BroadcastBus } from './broadcast-bus'
 import { MapStore, type StoredZone } from './map-store'
+import { LogStore, stripToLines } from './log-store'
 import { SettingsStore } from './settings-store'
 import { sgeAuth } from './sge-auth'
 import type { SGELaunchKey } from './sge-auth'
@@ -91,6 +92,9 @@ const broadcastBus = new BroadcastBus(SHARED_DIR)
 // Shared world-map database (automapper). Lives in the SHARED dir so every
 // character's exploration accumulates into one map.
 const mapStore = new MapStore(SHARED_DIR)
+// Optional per-character game-output logging (off by default; toggled in Settings).
+const logStore = new LogStore(SHARED_DIR)
+logStore.setEnabled(!!settings.get('logging'))
 
 const lichLogBuffer: string[] = []
 
@@ -260,7 +264,7 @@ function setupIpcHandlers(): void {
     autoUpdater.quitAndInstall(true, true)
   })
   ipcMain.handle('settings:get-all', () => settings.getAll())
-  ipcMain.handle('settings:patch',   (_e, p) => settings.patch(p))
+  ipcMain.handle('settings:patch',   (_e, p) => { settings.patch(p); if (p && 'logging' in p) logStore.setEnabled(!!p.logging) })
   ipcMain.handle('settings:get-char',   (_e, name: string) => settings.getCharSettings(name))
   ipcMain.handle('settings:patch-char', (_e, name: string, partial) => settings.patchCharSettings(name, partial))
 
@@ -429,6 +433,7 @@ function setupIpcHandlers(): void {
   gameConn.on('data',         (r: string) => {
     send('game:data', r)
     cmdEngine.feed(r)   // drive waitfor/matchwait in running .cmd scripts
+    if (logStore.isEnabled()) for (const line of stripToLines(r)) logStore.writeLine(line)
     if (!lichReadyDetected) {
       // <app char="Name"> appears in the game stream once Lich has connected
       // to the game server and parsed the character name from the initial XML.
@@ -436,6 +441,7 @@ function setupIpcHandlers(): void {
       const charMatch = /<app[^>]+char=["']([^"']+)["']/.exec(r)
       if (charMatch) {
         lichReadyDetected = true
+        logStore.setChar(charMatch[1])                     // per-character log file naming
         cmdEngine.setContext({ charname: charMatch[1] })   // $charname for .cmd scripts
         lichLog('[lich] Character data received -- Lich ready')
         mainWindow?.webContents.send('lich:status', 'ready')

@@ -18,6 +18,9 @@ import {
 } from '../ui/Icons'
 import { Tooltip } from '../ui/Tooltip'
 import { BroadcastModal } from '../ui/BroadcastModal'
+import { startDictation, sttAvailable, type DictationHandle } from '../../lib/stt'
+import { IconMic } from '../ui/Icons'
+import { PostureIcon, CONDITIONS, currentPosture } from './StatusIcons'
 
 // ── Command autocomplete ──────────────────────────────────────────────────────
 // Curated common DragonRealms verbs/commands. Can be augmented at runtime via the
@@ -36,6 +39,11 @@ const COMMON_VERBS = [
   'say', 'whisper', 'ask', 'tell', 'shout', 'yell', 'think', 'roleplay',
   'deposit', 'withdraw', 'buy', 'sell', 'order', 'appraise',
 ]
+
+// Speech-to-text is shelved: the Web Speech API is blocked in Electron (no Google
+// key → `network` error). All the mic wiring below stays intact; flip this to true
+// once a real STT backend (Vosk offline model or a cloud API) is added.
+const MIC_ENABLED = false
 
 interface Suggestion { text: string; tag: string }
 
@@ -61,10 +69,11 @@ function buildSuggestions(
 }
 
 // ── CommandInput ──────────────────────────────────────────────────────────────
-export function CommandInput({ onSend, onEcho, functionKeys = {} }: {
+export function CommandInput({ onSend, onEcho, functionKeys = {}, status }: {
   onSend: (cmd: string) => void
   onEcho: (cmd: string) => void
   functionKeys?: Record<string, string>
+  status?: ConnectionStatus
 }) {
   const inputRef   = useRef<HTMLInputElement>(null)
   const historyRef = useRef<string[]>([])
@@ -72,9 +81,18 @@ export function CommandInput({ onSend, onEcho, functionKeys = {} }: {
   const [value, setValue] = useState('')
   const [open,  setOpen]  = useState(false)
   const [sel,   setSel]   = useState(0)
+  // Click-to-toggle dictation. recRef holds the live recognizer; onRef is the
+  // intended on/off state (so we can auto-restart when the recognizer times out on
+  // silence, keeping it "on" until the user clicks off).
+  const [listening, setListening] = useState(false)
+  const [micMsg,    setMicMsg]    = useState('')
+  const recRef = useRef<DictationHandle | null>(null)
+  const onRef  = useRef(false)
+  const micOn  = sttAvailable()
   const gameVerbs    = useAtomValue(verbsAtom)
   const verbsWithInfo = useAtomValue(verbsWithInfoAtom)
   const verbInfo     = useAtomValue(verbInfoAtom)
+  const rt           = useAtomValue(roundtimeSecondsAtom)  // roundtime badge in the input
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
@@ -145,6 +163,34 @@ export function CommandInput({ onSend, onEcho, functionKeys = {} }: {
     }
   }
 
+  // Click the mic to toggle dictation on/off. While on it listens continuously and
+  // fills the input with what it hears; you review and press Enter to send.
+  const startMic = () => {
+    setMicMsg('')
+    onRef.current = true
+    recRef.current = startDictation({
+      continuous: true,
+      onText: (t) => { setValue(t); setOpen(false) },
+      onError: (err) => {
+        onRef.current = false; setListening(false); recRef.current = null
+        setMicMsg(
+          err === 'not-allowed' || err === 'service-not-allowed' ? 'Microphone permission denied'
+          : err === 'network' || err === 'unavailable' ? 'Speech recognition unavailable in this build'
+          : err === 'no-speech' ? '' : 'Dictation error',
+        )
+      },
+      // The recognizer stops itself after long silence — restart (briefly delayed to
+      // avoid a hot loop) while still toggled on.
+      onEnd: () => { recRef.current = null; if (onRef.current) setTimeout(startMic, 300); else { setListening(false); inputRef.current?.focus() } },
+    })
+    if (recRef.current) setListening(true)
+  }
+  const toggleMic = () => {
+    if (!micOn) { setMicMsg('Speech recognition unavailable in this build'); return }
+    if (onRef.current) { onRef.current = false; recRef.current?.stop() }
+    else startMic()
+  }
+
   return (
     <div className="command-input-wrap">
       {showSug && (
@@ -188,6 +234,18 @@ export function CommandInput({ onSend, onEcho, functionKeys = {} }: {
         onBlur={() => setOpen(false)}
         placeholder="Send Commands"
       />
+      {rt > 0 && <span className="command-rt" data-tooltip="Roundtime">RT {rt}s</span>}
+      {MIC_ENABLED && (
+        <button
+          type="button"
+          className={'command-mic ' + (listening ? 'mic-on' : 'mic-off')}
+          data-tooltip={listening ? 'Listening — click to turn off' : micMsg || 'Click to speak commands'}
+          onClick={toggleMic}
+        >
+          <IconMic size={18} />
+        </button>
+      )}
+      <StatusPanel status={status ?? 'disconnected'} />
     </div>
   )
 }
@@ -207,39 +265,41 @@ function HandDisplay() {
   )
 }
 
-// ── Posture / status indicators ──────────────────────────────────────────────
-// 'hidden' isn't a body posture, but it's grouped here so it gets the same
-// yellow/black posture-pill styling and sorts to the front with the postures.
-const POSTURE_IDS = new Set(['standing', 'kneeling', 'sitting', 'prone', 'lying', 'hidden'])
-const DANGER_IDS  = new Set(['dead', 'stunned', 'bleeding', 'poisoned', 'diseased', 'webbed'])
+// ── Status panel (posture + condition icons, beside the command line) ─────────
+// A posture stick-figure that changes with your body position, plus one icon per
+// danger/state condition — dimmed when clear, lit (red, or green for Hidden) when
+// active. Icons carry tooltips instead of text badges.
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-// Show posture first, then everything else; skip flags that add no signal.
-const HIDDEN_IDS = new Set(['joined'])
-
-function StatusIndicators() {
+// Posture + condition icons, embedded on the right of the command input (like the
+// roundtime badge). Inline icon group — no card of its own.
+export function StatusPanel({ status }: { status: ConnectionStatus }) {
   const indicators = useAtomValue(indicatorsAtom)
-  const active = Object.entries(indicators)
-    .filter(([id, on]) => on && !HIDDEN_IDS.has(id))
-    .map(([id]) => id)
-    .sort((a, b) => (POSTURE_IDS.has(b) ? 1 : 0) - (POSTURE_IDS.has(a) ? 1 : 0))
-
-  if (active.length === 0) return null
+  if (status !== 'connected') return null
+  const posture = currentPosture(indicators)
   return (
-    <div className="status-pills">
-      {active.map(id => (
-        <span
-          key={id}
-          className={'status-pill' +
-            (DANGER_IDS.has(id) ? ' status-pill-danger' : POSTURE_IDS.has(id) ? ' status-pill-posture' : '')}
-        >
-          {id}
-        </span>
-      ))}
+    <div className="status-icons">
+      <span className="status-icon status-posture" data-tooltip={cap(posture)}>
+        <PostureIcon posture={posture} />
+      </span>
+      <span className="status-panel-sep" />
+      {CONDITIONS.map(c => {
+        const on = !!indicators[c.id]
+        return (
+          <span
+            key={c.id}
+            className={`status-icon status-cond-${c.id}` + (on ? (c.danger ? ' active-danger' : ' active-good') : '')}
+            data-tooltip={on ? c.label : `Not ${c.label}`}
+          >
+            {c.icon}
+          </span>
+        )
+      })}
     </div>
   )
 }
 
-// ── Vitals (compact bars in the top bar) ──────────────────────────────────────
+// ── Vitals (compact bars) ─────────────────────────────────────────────────────
 const VITALS: { key: 'health' | 'mana' | 'stamina' | 'spirit'; label: string; color: string }[] = [
   { key: 'health',  label: 'HP', color: 'var(--health-color)' },
   { key: 'mana',    label: 'MP', color: 'var(--mana-color)' },
@@ -247,11 +307,10 @@ const VITALS: { key: 'health' | 'mana' | 'stamina' | 'spirit'; label: string; co
   { key: 'spirit',  label: 'SP', color: 'var(--spirit-color)' },
 ]
 
-// Thin vitals strip shown under the game top bar
-export function VitalsBar() {
+function VitalsGroup() {
   const vitals = useAtomValue(vitalsAtom)
   return (
-    <div className="vitals-bar">
+    <div className="hud-vitals">
       {VITALS.map(v => {
         const st  = vitals[v.key]
         const pct = st.max > 0 ? Math.max(0, Math.min(100, (st.value / st.max) * 100)) : 0
@@ -269,21 +328,18 @@ export function VitalsBar() {
   )
 }
 
-// ── Roundtime badge ───────────────────────────────────────────────────────────
-function RoundtimeBadge() {
-  const rt = useAtomValue(roundtimeSecondsAtom)
-  if (rt <= 0) return null
-  return <div className="roundtime-badge">RT: {rt}s</div>
-}
-
-// ── Game top bar (vitals + status + roundtime + hands) ────────────────────────
-export function GameTopBar({ status }: { status: ConnectionStatus }) {
+// ── HUD bar — one thin strip directly above the command line ──────────────────
+// Vitals on the left; posture/condition pills + hands on the right. Roundtime now
+// lives in the command line instead (see CommandInput).
+// ── HUD bar — one thin strip directly above the command line ──────────────────
+// Vitals fill the width; hands are pinned to a fixed slot on the right. Posture and
+// conditions now live in the StatusPanel beside the command line; roundtime in it.
+export function HudBar({ status }: { status: ConnectionStatus }) {
+  if (status !== 'connected') return null
   return (
-    <div className="game-topbar">
-      {status === 'connected' && <StatusIndicators />}
-      <div className="game-topbar-spacer" />
-      {status === 'connected' && <RoundtimeBadge />}
-      {status === 'connected' && <HandDisplay />}
+    <div className="hud-bar">
+      <VitalsGroup />
+      <HandDisplay />
     </div>
   )
 }

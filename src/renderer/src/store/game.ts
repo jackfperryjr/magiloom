@@ -126,6 +126,32 @@ export const convLinesAtom    = atom<OutputLine[]>([])
 export const deathsAtom       = atom<OutputLine[]>([])
 export const lichMsgAtom      = atom<string[]>([])
 
+// ── Connections (logon / logoff / disconnect monitor) ──────────────────────────
+// A timestamped feed of connection events: this character's own connect/disconnect
+// (fed from GameLayout) plus game lines announcing others logging on/off or link-
+// dying. Shown in the Connections panel; matched lines also stay in main output.
+export interface LogonEntry { id: number; text: string; timestamp: number; kind: 'on' | 'off' }
+export const logonLinesAtom = atom<LogonEntry[]>([])
+
+// DR's "* …" adventure broadcasts announcing players coming online / going offline.
+// NOTE: DR declares a `logons` streamWindow ("Arrivals") at login but NEVER routes
+// text to it — verified across the raw Lich .xml logs, `pushStream id="logons"` never
+// appears. These broadcasts arrive as bare "* NAME …" MAIN-stream text, so matching
+// on wording (below) is the only option; there is no stream tag to key off.
+// Arrivals all read "… joins the adventure." or "just <verb> into the adventure …"
+//   (sauntered / crawled / "was just deposited into the adventure by a mighty dragon").
+// Departures are more varied (real examples harvested from the logs):
+//   "retires from the adventure for now." / "retires from the lands to enjoy a nice
+//   long catnap." / "returns home from a hard day of adventuring." / "has disconnected."
+//   / "wanders off, muttering something about spiders." / "The mournful cry of a battle
+//   horn sounds as NAME heads off toward home." / "just found a shadow to hide out in."
+const LOGON_RE  = /\b(?:joins|into) the adventure\b|\bhas reconnected\b|\bhas logged (?:on|in)\b/i
+const LOGOFF_RE = /\bretires from the (?:adventure|lands)\b|\breturns home from a hard day\b|\bheads off toward home\b|\bwanders off, muttering something about spiders\b|\bhas disconnected\b|\bfound a shadow to hide out in\b|\bhas logged o(?:ff|ut)\b|\bhas gone link-?dead\b/i
+
+export const appendLogonAtom = atom(null, (get, set, e: { text: string; kind: 'on' | 'off' }) => {
+  set(logonLinesAtom, [...get(logonLinesAtom).slice(-199), { id: lineId++, text: e.text, timestamp: Date.now(), kind: e.kind }])
+})
+
 // ── Vitals ────────────────────────────────────────────────────────────────────
 export interface VitalState { value: number; max: number }
 
@@ -443,6 +469,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(atmoLinesAtom, [])
   set(convLinesAtom, [])
   set(deathsAtom, [])
+  set(logonLinesAtom, [])
   set(lichMsgAtom, [])
   set(inventoryLinesAtom, [])
   set(roomAtom, { name: '', description: '', exits: [], objs: '', players: [], playerNames: [] })
@@ -690,6 +717,12 @@ export const dispatchGameEventAtom = atom(
               } else if (DEATH_RE.test(event.text)) {
                 // Deaths live only in the Deaths panel — suppress from main output.
                 set(deathsAtom, [...get(deathsAtom).slice(-199), line])
+              } else if (LOGON_RE.test(event.text) || LOGOFF_RE.test(event.text)) {
+                // Logon/logoff/disconnect "* …" broadcasts live only in the
+                // Connections panel — suppress from main output (they're spammy).
+                const kind = LOGOFF_RE.test(event.text) ? 'off' : 'on'
+                const text = event.text.replace(/^\*\s+/, '')   // drop the "* " broadcast prefix
+                set(logonLinesAtom, [...get(logonLinesAtom).slice(-199), { id: lineId++, text, timestamp: Date.now(), kind }])
               } else {
                 set(outputLinesAtom, appendDedup(get(outputLinesAtom), line))
                 _outputDirty = true

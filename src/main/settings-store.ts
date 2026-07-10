@@ -14,6 +14,7 @@ export interface AppSettings {
   triggers?:    { id: string; pattern: string; isRegex: boolean; command: string; enabled: boolean; class?: string }[]
   highlights?:  unknown[]              // global default set; per-character overrides live in `characters`
   classes?:     Record<string, boolean> // Genie-style class on/off (global default)
+  vars?:        Record<string, string>  // Genie-style #var named variables (global default)
   // Per-character overrides for gameplay settings. Missing keys fall back to the
   // matching global value above, so existing setups become each character's
   // default until it customises. Keyed by lowercased character name.
@@ -21,6 +22,7 @@ export interface AppSettings {
   avatars?:      Record<string, string> // lowercased character name → data URL
   avatarTokens?: Record<string, string> // account name → avatar-service bearer token
   avatarShare?:  boolean                // consent to publish avatars to the shared service
+  logging?:      boolean                // write game output to a per-character log file
 }
 
 // The subset of settings that can be overridden per character.
@@ -30,6 +32,7 @@ export interface CharScopedSettings {
   triggers?:     AppSettings['triggers']
   highlights?:   unknown[]
   classes?:      Record<string, boolean>  // Genie-style class on/off, per character
+  vars?:         Record<string, string>   // Genie-style #var named variables, per character
   // Appearance + panel layout — previously kept per-character in the renderer's
   // localStorage, now unified here so they follow the character across windows.
   appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact' }
@@ -46,6 +49,7 @@ export interface ResolvedCharSettings {
   triggers:     NonNullable<AppSettings['triggers']>
   highlights:   unknown[]
   classes:      Record<string, boolean>
+  vars:         Record<string, string>
   appearance?:   CharScopedSettings['appearance']
   panels?:       CharScopedSettings['panels']
   panelHeights?: CharScopedSettings['panelHeights']
@@ -101,6 +105,7 @@ export class SettingsStore {
       triggers:     c.triggers     ?? this.data.triggers     ?? [],
       highlights:   c.highlights   ?? this.data.highlights   ?? [],
       classes:      c.classes      ?? this.data.classes      ?? {},
+      vars:         c.vars         ?? this.data.vars         ?? {},
       appearance:   c.appearance,
       panels:       c.panels,
       panelHeights: c.panelHeights,

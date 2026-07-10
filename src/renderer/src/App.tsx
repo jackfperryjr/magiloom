@@ -3,7 +3,7 @@ import { Provider, useSetAtom, useAtomValue } from 'jotai'
 import { useGameConnection }  from './hooks/useGameConnection'
 import { useAutomapper }       from './hooks/useAutomapper'
 import { GameOutput, setHighlights, setSendFn, setOutputBuffer, setPlayerName, setDisabledClasses } from './components/game/GameOutput'
-import { CommandInput, StatusBar, WindowControls, GameTopBar, CharacterBar, VitalsBar } from './components/game'
+import { CommandInput, StatusBar, WindowControls, HudBar, CharacterBar } from './components/game'
 import { LoginFlow }          from './components/ui/LoginFlow'
 import { SettingsModal }      from './components/ui/SettingsModal'
 import { HighlightsModal }    from './components/ui/HighlightsModal'
@@ -13,7 +13,7 @@ import type { PanelId }       from './components/layout/PanelSidebar'
 import {
   RoomPanel, SpellsPanel,
   ExperiencePanel, ConversationPanel, InventoryPanel,
-  CombatPanel, AtmoPanel, DeathsPanel,
+  CombatPanel, AtmoPanel, DeathsPanel, ConnectionsPanel,
 } from './components/layout/PanelContent'
 import { MapPanel } from './components/map/MapPanel'
 import { MapOverlay } from './components/map/MapOverlay'
@@ -23,6 +23,7 @@ import {
   verbRawAtom, beginVerbCapture, endVerbCapture,
   avatarsAtom, avatarCropsAtom, selfNameAtom, resetSessionAtom,
   classStatesAtom, disabledClassesAtom, setGagSubRules,
+  logonLinesAtom, appendLogonAtom,
 } from './store/game'
 import { DEFAULT_HIGHLIGHTS, type Highlight } from './lib/themes'
 import { loadCharAppearance, applyAppearance } from './lib/charSettings'
@@ -45,6 +46,7 @@ function renderPanel(id: PanelId) {
     case 'conversation': return <ConversationPanel />
     case 'inventory':    return <InventoryPanel />
     case 'deaths':       return <DeathsPanel />
+    case 'connections':  return <ConnectionsPanel />
     case 'scripts':      return <ScriptsPanel />
     default:             return null
   }
@@ -191,6 +193,16 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
   const setSelfName = useSetAtom(selfNameAtom)
   useEffect(() => { setPlayerName(charName); setSelfName(charName) }, [charName, setSelfName])
 
+  // Log this character's own connect/disconnect into the Connections panel feed.
+  const appendLogon = useSetAtom(appendLogonAtom)
+  const prevConnRef = useRef(status)
+  useEffect(() => {
+    const prev = prevConnRef.current
+    prevConnRef.current = status
+    if (status === 'connected' && prev !== 'connected') appendLogon({ kind: 'on', text: `${charName || 'You'} connected` })
+    else if ((status === 'disconnected' || status === 'error') && prev === 'connected') appendLogon({ kind: 'off', text: `${charName || 'You'} disconnected` })
+  }, [status, charName, appendLogon])
+
   // Verb autocomplete: load cached verbs, or silently sweep `VERB LIST a..z` once.
   const setVerbs   = useSetAtom(verbRawAtom)
   const verbsVal   = useAtomValue(verbRawAtom)
@@ -224,6 +236,7 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
   const setAtmo      = useSetAtom(atmoLinesAtom)
   const setConv      = useSetAtom(convLinesAtom)
   const setDeaths    = useSetAtom(deathsAtom)
+  const setLogon     = useSetAtom(logonLinesAtom)
   const setInventory = useSetAtom(inventoryLinesAtom)
   const setAvatars   = useSetAtom(avatarsAtom)
   const setAvatarCrops = useSetAtom(avatarCropsAtom)
@@ -249,6 +262,7 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
       case 'atmo':         return () => setAtmo([])
       case 'conversation': return () => setConv([])
       case 'deaths':       return () => setDeaths([])
+      case 'connections':  return () => setLogon([])
       case 'inventory':    return () => setInventory([])
       case 'lich':         return () => setLichLog([])
       default:             return undefined
@@ -404,8 +418,6 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
       <StatusBar updateSlot={updateSlot} />
       <div className="main-area" ref={mainAreaRef}>
         <div className="game-col">
-          <GameTopBar status={status} />
-          {status === 'connected' && <VitalsBar />}
           <main className="game-output-wrap" onClick={() => {
             if (window.getSelection()?.toString()) return
             document.querySelector<HTMLInputElement>('.command-input')?.focus()
@@ -413,20 +425,24 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
             <GameOutput />
           </main>
           <footer className="bottom-bar">
-            <CharacterBar
-              charName={charName}
-              accountName={accountName}
-              status={status}
-              onHighlights={() => setShowHighlights(true)}
-              onSettings={onOpenSettings}
-              onDisconnect={disconnect}
-              onConnect={onRequestConnect}
-            />
-            <CommandInput onSend={send} onEcho={echoCommand} functionKeys={functionKeys} />
+            <HudBar status={status} />
           </footer>
         </div>
         <ColResize onDrag={handleColDrag} />
         <PanelSidebar renderPanel={renderPanelWithLich} getClearFn={getClearFn} sidebarWidth={sidebarWidth} charName={charName} />
+      </div>
+      {/* Full-width bottom row: character bar (left) + command line (fills, status icons on its right). */}
+      <div className="command-row">
+        <CharacterBar
+          charName={charName}
+          accountName={accountName}
+          status={status}
+          onHighlights={() => setShowHighlights(true)}
+          onSettings={onOpenSettings}
+          onDisconnect={disconnect}
+          onConnect={onRequestConnect}
+        />
+        <CommandInput onSend={send} onEcho={echoCommand} functionKeys={functionKeys} status={status} />
       </div>
       {showHighlights && <HighlightsModal onClose={handleHighlightsClose} charName={charName} />}
       {showMap && <MapOverlay onClose={() => setShowMap(false)} onWalkTo={automap.walkTo} onStopWalk={automap.stopWalk} />}
