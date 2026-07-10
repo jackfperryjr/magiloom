@@ -224,7 +224,7 @@ export const THEMES: Theme[] = [
     id: 'ff4',
     name: 'Final Fantasy IV',
     vars: {
-      '--bg-shell':      '#000018',
+      '--bg-shell':      '#020233',
       '--bg-panel':      'linear-gradient(180deg, #0000A8 0%, #000050 100%)',
       '--bg-input':      '#000048',
       '--bg-sidebar':    'linear-gradient(180deg, #0000A8 0%, #000050 100%)',
