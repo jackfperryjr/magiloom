@@ -446,7 +446,7 @@ body[data-platform="darwin"] .status-bar {
 
 .panel-sidebar-header {
   background: var(--bg-shell);
-  padding: 6px 8px;
+  padding: 0 8px 6px 8px;
   border-bottom: none;
   flex-shrink: 0;
 }
@@ -1768,7 +1768,7 @@ body[data-platform="darwin"] .status-bar {
 .panel-manager-toggle {
   width: 100%;
   padding: 4px 8px;
-  background: var(--bg-input);
+  background: var(--bg-panel);
   border-radius: 6px;
   border: none;
   color: var(--text-dim);
