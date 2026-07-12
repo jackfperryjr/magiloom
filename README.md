@@ -10,7 +10,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/github/v/release/jackfperryjr/magiloom?style=flat-square&color=4a90d9&label=latest" alt="Latest Release" />
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-4a90d9?style=flat-square" alt="Platform" />
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-4a90d9?style=flat-square" alt="Platform" />
   <img src="https://img.shields.io/badge/built%20with-Electron%20%2B%20React-764abc?style=flat-square" alt="Built with Electron + React" />
 </p>
 
@@ -40,9 +40,17 @@
 
 ---
 
+## Play in Your Browser
+
+No install required — Magiloom also runs as a **web app** at **[magiloom.com/app](https://magiloom.com/app)**. It works in any modern desktop or mobile browser, and on your phone you can use **Add to Home Screen** to install it as a full-screen PWA (with push notifications for your alerts).
+
+The web app connects to a hosted Magiloom server that manages the DragonRealms connection — and optionally Lich — so there's nothing to set up: just sign in and play. Your game session even survives briefly minimizing the app, so a quick switch away won't drop your character.
+
+---
+
 ## Download
 
-Grab the latest installer from the [Releases page](https://github.com/jackfperryjr/magiloom/releases/latest).
+Prefer a native desktop app? Grab the latest installer from the [Releases page](https://github.com/jackfperryjr/magiloom/releases/latest).
 
 | Platform | File |
 |----------|------|

@@ -219,20 +219,24 @@ function RailIcon({ id, label }: { id: PanelId; label: string }) {
   )
 }
 
-function PanelRail({ panels, scrollRef, onSelect }: {
+function PanelRail({ panels, scrollRef, onSelect, openPanel }: {
   panels:    PanelConfig[]                       // visible panels, in order
   scrollRef: React.RefObject<HTMLDivElement>     // the .panel-sidebar-scroll container
   onSelect:  (id: PanelId) => void               // desktop: scroll to it; mobile: open overlay
+  openPanel: PanelId | null                      // mobile: which panel overlay is open
 }) {
+  const isMobile = useIsMobile()
   const convCount = useAtomValue(convLinesAtom).length
   const [convUnread, setConvUnread] = useState(false)
   const convVisibleRef = useRef(true)
   const prevCount      = useRef(convCount)
   const ids = panels.map(p => p.id).join(',')
 
-  // Track whether the conversation panel is on-screen within the scroll area.
-  // Re-attaches only when the set of panels changes (not on every parent render).
+  // Desktop: track whether the conversation panel is on-screen within the scroll
+  // area (re-attaches only when the panel set changes). Skipped on mobile, where
+  // the sidebar is hidden and the observer can't fire.
   useEffect(() => {
+    if (isMobile) return
     const root   = scrollRef.current
     const target = root?.querySelector('[data-panel-id="conversation"]')
     if (!root || !target) { convVisibleRef.current = false; return }
@@ -242,7 +246,16 @@ function PanelRail({ panels, scrollRef, onSelect }: {
     }, { root, threshold: 0.3 })
     io.observe(target)
     return () => io.disconnect()
-  }, [ids, scrollRef])
+  }, [ids, scrollRef, isMobile])
+
+  // Mobile: the conversation "panel" is an overlay — count it visible only while
+  // open, so unread accrues when it's closed and clears when opened.
+  useEffect(() => {
+    if (!isMobile) return
+    const open = openPanel === 'conversation'
+    convVisibleRef.current = open
+    if (open) setConvUnread(false)
+  }, [isMobile, openPanel])
 
   // A new conversation line while the panel is off-screen → show the dot.
   useEffect(() => {
@@ -399,7 +412,7 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
         />
       )}
       </aside>
-      {visible.length > 0 && <PanelRail panels={visible} scrollRef={scrollRef} onSelect={selectPanel} />}
+      {visible.length > 0 && <PanelRail panels={visible} scrollRef={scrollRef} onSelect={selectPanel} openPanel={mobilePanel} />}
       {mobileCfg && (
         <div className="panel-mobile-overlay" onClick={e => e.target === e.currentTarget && setMobilePanel(null)}>
           <div className="panel-mobile-sheet">
