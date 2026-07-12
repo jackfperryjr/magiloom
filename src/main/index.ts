@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, screen, shell } from 'electron'
-import { join } from 'path'
+import { join, dirname } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
+import * as lichFiles from './lich-files'
 import { autoUpdater } from 'electron-updater'
 import { LichManager, LichConnection } from './lich-manager'
 import { GameConnection } from './game-connection'
@@ -357,6 +358,22 @@ function setupIpcHandlers(): void {
   ipcMain.handle('lich:launch-sidecar', (_e, _charName: string) => {
     return { ok: false, error: 'Use the Lich path in Settings to enable Lich at login.' }
   })
+
+  // Lich file editor — edits profiles/ + custom/ in the local Lich install's
+  // scripts dir (…/Lich5/scripts). Path-jailed in lich-files.ts.
+  const lichScriptsDir = (): string | null => {
+    const rbw = lichManager.getLichPath(settings.get('lichPath') || undefined)
+    return rbw ? join(dirname(rbw), 'scripts') : null
+  }
+  const requireLichDir = (): string => {
+    const d = lichScriptsDir()
+    if (!d) throw new Error('Lich not found. Set the Lich path in Settings.')
+    return d
+  }
+  ipcMain.handle('lich:list-files',  () => { const d = lichScriptsDir(); return d ? lichFiles.listFiles(d) : [] })
+  ipcMain.handle('lich:read-file',   (_e, rel: string) => lichFiles.readFile(requireLichDir(), rel))
+  ipcMain.handle('lich:write-file',  (_e, rel: string, content: string) => lichFiles.writeFile(requireLichDir(), rel, content))
+  ipcMain.handle('lich:delete-file', (_e, rel: string) => lichFiles.deleteFile(requireLichDir(), rel))
 
   lichManager.on('log',    (l: string) => lichLog(l))
   lichManager.on('status', (s: string) => send('lich:status', s))

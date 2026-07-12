@@ -5,6 +5,7 @@ node_modules/
 dist/
 dist-electron/
 out/
+docs/app/            # web/PWA build (built in CI for Pages, not committed)
 
 # Electron-vite cache
 .vite/

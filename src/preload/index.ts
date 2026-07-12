@@ -33,6 +33,10 @@ contextBridge.exposeInMainWorld('dr', {
     getLog:     ()                  => ipcRenderer.invoke('lich:get-log'),
     stop:         ()                  => ipcRenderer.invoke('lich:stop'),
     launchSidecar: (charName: string) => ipcRenderer.invoke('lich:launch-sidecar', charName),
+    listFiles:  ()                             => ipcRenderer.invoke('lich:list-files'),
+    readFile:   (rel: string)                  => ipcRenderer.invoke('lich:read-file', rel),
+    writeFile:  (rel: string, content: string) => ipcRenderer.invoke('lich:write-file', rel, content),
+    deleteFile: (rel: string)                  => ipcRenderer.invoke('lich:delete-file', rel),
     onLog:    (cb: (l: string) => void) => { const h = (_e: unknown, l: string) => cb(l); ipcRenderer.on('lich:log', h);    return () => ipcRenderer.removeListener('lich:log', h) },
     onStatus: (cb: (s: string) => void) => { const h = (_e: unknown, s: string) => cb(s); ipcRenderer.on('lich:status', h); return () => ipcRenderer.removeListener('lich:status', h) },
     onError:  (cb: (m: string) => void) => { const h = (_e: unknown, m: string) => cb(m); ipcRenderer.on('lich:error', h);  return () => ipcRenderer.removeListener('lich:error', h) }

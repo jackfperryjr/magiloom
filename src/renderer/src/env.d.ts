@@ -96,6 +96,10 @@ interface DrAPI {
     detectPath: () => Promise<string>
     stop:          () => Promise<void>
     launchSidecar: (charName: string) => Promise<{ ok: boolean; error?: string }>
+    listFiles:  () => Promise<{ dir: 'profiles' | 'custom'; name: string; size: number; mtime: number }[]>
+    readFile:   (rel: string) => Promise<{ path: string; content: string }>
+    writeFile:  (rel: string, content: string) => Promise<{ path: string }>
+    deleteFile: (rel: string) => Promise<{ path: string }>
     onLog:    (cb: (l: string) => void) => () => void
     onStatus: (cb: (s: string) => void) => () => void
     onError:  (cb: (m: string) => void) => () => void

@@ -130,11 +130,19 @@ export class LichManager extends EventEmitter {
     this.process = spawn(rubyPath, args, { stdio: ['pipe', 'pipe', 'pipe'] })
     this.process.stdin?.end()
 
+    // Lich's own logging (Lich.log) goes to STDERR, so this is where the "why did
+    // it quit" detail lives. Keep a tail so we can replay it on exit — a fast/quiet
+    // exit can flush its final stderr AFTER the 'exit' event, which would otherwise
+    // be lost.
+    const tail: string[] = []
+    const record = (l: string) => { tail.push(l); if (tail.length > 80) tail.shift() }
+
     this.process.stdout?.on('data', (d: Buffer) => {
-      d.toString().split('\n').filter(Boolean).forEach(l => this.emit('log', l))
+      d.toString().split('\n').filter(Boolean).forEach(l => { record(l); this.emit('log', l) })
     })
     this.process.stderr?.on('data', (d: Buffer) => {
       d.toString().split('\n').filter(Boolean).forEach(l => {
+        record(`[stderr] ${l}`)
         this.emit('log', `[stderr] ${l}`)
         if (/error|failed|invalid|no such|cannot/i.test(l) && this.status !== 'ready') {
           this.setStatus('error')
@@ -142,18 +150,28 @@ export class LichManager extends EventEmitter {
         }
       })
     })
-    this.process.on('exit', (code, signal) => {
-      this.clearPoll()
-      if (this.status === 'ready') {
-        this.setStatus('stopped')
+
+    // Record the exit code, but do the diagnostic on 'close' — it fires only after
+    // stdout/stderr have fully drained, so we never miss Lich's final words.
+    let exited: { code: number | null; signal: NodeJS.Signals | null } | null = null
+    this.process.on('exit', (code, signal) => { exited = { code, signal }; this.clearPoll() })
+    this.process.on('close', () => {
+      if (this.status === 'ready') { this.setStatus('stopped'); this.process = null; return }
+      const code = exited?.code ?? null
+      const signal = exited?.signal ?? null
+      const reason = signal
+        ? `terminated by signal ${signal}`
+        : code !== null ? `exited with code ${code}` : 'terminated unexpectedly'
+      if (tail.length) {
+        this.emit('log', '[lich] ── Lich output before exit ──')
+        for (const l of tail) this.emit('log', l)
+        this.emit('log', '[lich] ── end Lich output ──')
       } else {
-        const reason = signal
-          ? `terminated by signal ${signal}`
-          : code !== null ? `exited with code ${code}` : 'terminated unexpectedly'
-        this.emit('log', `[lich] Process ${reason}`)
-        this.setStatus('error')
-        this.emit('error', `Lich ${reason}. Check the log above for details.`)
+        this.emit('log', '[lich] Lich produced no output before exiting (silent exit — likely the wrong headless launch mode).')
       }
+      this.emit('log', `[lich] Process ${reason}`)
+      this.setStatus('error')
+      this.emit('error', `Lich ${reason}. Check the log for details.`)
       this.process = null
     })
   }

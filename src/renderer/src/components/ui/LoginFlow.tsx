@@ -225,8 +225,21 @@ function ConnectingScreen({ characterName, logLines, error, onBack }: {
     {!error && <div className="login-connecting-dots"><span /><span /><span /></div>}
     {!error && <p className="login-hint">Connecting to DragonRealms…</p>}
     {error && <div className="login-error">{error}</div>}
+    {logLines.length > 0 && <LoginLog lines={logLines} />}
     {error && <button className="login-btn-secondary" onClick={onBack}>← Back</button>}
   </>
+}
+
+// Live connection log (SGE / Lich / game output). Surfaced so failures like
+// "Lich exited with code 0" are diagnosable without the desktop dev tools.
+function LoginLog({ lines }: { lines: string[] }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => { const el = ref.current; if (el) el.scrollTop = el.scrollHeight }, [lines])
+  return (
+    <div className="login-log" ref={ref}>
+      {lines.map((l, i) => <div key={i} className="login-log-line">{l}</div>)}
+    </div>
+  )
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────

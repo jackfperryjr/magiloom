@@ -3,6 +3,7 @@ import { THEMES, applyTheme } from '../../lib/themes'
 import { setOutputBuffer } from '../game/GameOutput'
 import { loadCharAppearance, saveCharAppearance, applyAppearance } from '../../lib/charSettings'
 import { DEFAULT_NOTIF, makeNameRule, type NotifSettings, type NotifRule } from './Notifications'
+import { LichFilesEditor } from './LichFilesEditor'
 import type { Alias, Trigger } from '../../lib/automation'
 import { parseGenieConfig, mergeAliases, mergeTriggers, mergeVars } from '../../lib/genieImport'
 import { ClassToggleStrip, distinctClasses, toggleClassState } from './ClassToggleStrip'
@@ -657,6 +658,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                   Point this at your <code>lich.rbw</code> (or <code>lich.rb</code>) to launch Lich at login.
                   Leave blank to connect directly without Lich.
                 </div>
+                <LichFilesEditor />
               </div>
             )}
           </div>

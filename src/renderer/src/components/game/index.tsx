@@ -3,13 +3,14 @@ import { useAtomValue, useAtom } from 'jotai'
 import {
   handsAtom, indicatorsAtom, roundtimeSecondsAtom, vitalsAtom,
   verbsAtom, verbsWithInfoAtom, verbInfoAtom, beginVerbInfoCapture,
-  presenceModeAtom, avatarsAtom, avatarCropsAtom, linkModeAtom, broadcastReceiveAtom,
+  presenceModeAtom, avatarsAtom, avatarCropsAtom, serverAvatarsAtom, linkModeAtom, broadcastReceiveAtom,
 } from '../../store/game'
 import type { PresenceMode, ProfileInfo } from '../../store/game'
 import type { AvatarCrop } from '../../lib/avatar'
 import { CircleAvatar } from '../ui/CircleAvatar'
 import { downscaleToFit } from '../../lib/image'
 import { useProfile } from '../../hooks/useProfile'
+import { useEnsureAvatars } from '../../hooks/useAvatars'
 export type { ConnectionStatus } from '../../store/game'
 import type { ConnectionStatus } from '../../store/game'
 import {
@@ -559,9 +560,16 @@ export function CharacterBar({
   // single source of truth so the conversation panel reflects saves live.
   const [avatars, setAvatars] = useAtom(avatarsAtom)
   const [avatarCrops, setAvatarCrops] = useAtom(avatarCropsAtom)
+  const serverAvatars = useAtomValue(serverAvatarsAtom)
   const avatarKey = charName.toLowerCase()
-  const avatar = avatars[avatarKey] ?? null
-  const avatarCrop = avatarCrops[avatarKey]
+  // Fetch our own character's shared avatar so it shows even with no local upload
+  // (e.g. the web client, whose per-device settings bucket starts empty).
+  useEnsureAvatars(charName ? [charName] : [])
+  const localAvatar = avatars[avatarKey] ?? null
+  // Display precedence: local upload, then the shared (Supabase) image. The saved
+  // crop only applies to a local upload; a server image is shown cover-fit.
+  const avatar = localAvatar ?? serverAvatars[avatarKey] ?? null
+  const avatarCrop = localAvatar ? avatarCrops[avatarKey] : undefined
 
   // Shared-avatar publishing is opt-in and only surfaced once the service is
   // configured (MAGILOOM_AVATAR_URL set); otherwise avatars stay purely local.
