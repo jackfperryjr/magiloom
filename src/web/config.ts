@@ -37,9 +37,21 @@ export function deviceId(): string {
   return id
 }
 
-/** Full gateway URL: wss://host/ws?user=<device>&token=<token>. */
+// A per-page-load connection id, distinct from the (persisted, per-install) device
+// id. The device id names the shared DATA bucket (settings/accounts) — several
+// clients can legitimately share it — while this id names THIS running client so
+// the server never routes one character's game stream to another. Deliberately
+// in-memory: a reconnect from the same live page (network blip, backgrounded PWA)
+// keeps the id and resumes its session; a full reload starts fresh. See the
+// magiserver gateway's session keying.
+const CONN_ID =
+  crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)
+
+export function connId(): string { return CONN_ID }
+
+/** Full gateway URL: wss://host/ws?user=<device>&conn=<page>&token=<token>. */
 export function wsUrl(): string {
-  const params = new URLSearchParams({ user: deviceId() })
+  const params = new URLSearchParams({ user: deviceId(), conn: connId() })
   const t = token()
   if (t) params.set('token', t)
   return `${serverBase()}/ws?${params.toString()}`
