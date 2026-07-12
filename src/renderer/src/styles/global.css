@@ -80,7 +80,15 @@ body {
 }
 
 /* ── App shell ───────────────────────────────────────────────────────────── */
-.app-shell { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.app-shell {
+  display: flex; flex-direction: column;
+  height: 100vh;   /* fallback */
+  height: 100dvh;  /* iOS: the actually-visible viewport (excludes Safari toolbars) */
+  overflow: hidden;
+  /* Respect the notch / Dynamic Island (top) and home indicator (bottom) so
+     content isn't clipped or floated off the edge. No-ops on desktop (insets 0). */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
 
 .main-area {
   display: flex;
@@ -1785,6 +1793,10 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
 
   /* Tighter command row on small screens. */
   .command-row { padding: 6px; gap: 6px; }
+
+  /* iOS auto-zooms when focusing an input under 16px — keep it ≥16px to stop that
+     (still honours a larger user font size). */
+  .command-input { font-size: max(16px, var(--font-size-game)); }
 
   /* The character bar is docked inside the command input as one bar — reduce it
      to just the avatar (which still opens the character menu) and strip its card. */
