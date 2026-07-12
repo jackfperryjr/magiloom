@@ -21,8 +21,8 @@ contextBridge.exposeInMainWorld('dr', {
       ipcRenderer.invoke('auth:login', account, password),
     selectInstance: (instanceCode: string) =>
       ipcRenderer.invoke('auth:select-instance', instanceCode),
-    selectCharacter: (characterId: string, characterName: string, accountName: string) =>
-      ipcRenderer.invoke('auth:select-character', characterId, characterName, accountName),
+    selectCharacter: (characterId: string, characterName: string, accountName: string, useLich?: boolean) =>
+      ipcRenderer.invoke('auth:select-character', characterId, characterName, accountName, useLich),
     savePassword:   (account: string, password: string) => ipcRenderer.invoke('auth:save-password', account, password),
     getPassword:    (account: string)                   => ipcRenderer.invoke('auth:get-password', account),
     forgetPassword: (account: string)                   => ipcRenderer.invoke('auth:forget-password', account),

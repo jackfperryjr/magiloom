@@ -23,6 +23,7 @@ export interface MapNode {
   note?:        string      // freeform user note
   tag?:         string      // short waypoint label drawn on the node
   color?:       string      // node accent (room type / user highlight)
+  pin?:         { x: number; y: number }  // manual layout override (drag-to-place); Tidy clears it
 }
 
 export interface MapArc {

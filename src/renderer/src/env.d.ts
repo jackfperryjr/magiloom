@@ -8,6 +8,7 @@ interface SavedAccount  { name: string; lastCharacter?: string }
 
 interface AppSettings {
   lichPath:         string
+  connectWithLich?: boolean            // login toggle: route this session through Lich
   scriptDir:        string
   accounts:         SavedAccount[]
   lastAccount:      string
@@ -83,7 +84,7 @@ interface DrAPI {
     selectInstance: (instanceCode: string) => Promise<
       { ok: true; characters: SGECharacter[] } | { ok: false; error: string }
     >
-    selectCharacter: (characterId: string, characterName: string, accountName: string) => Promise<
+    selectCharacter: (characterId: string, characterName: string, accountName: string, useLich?: boolean) => Promise<
       { ok: true } | { ok: false; error: string }
     >
     savePassword:   (account: string, password: string) => Promise<void>

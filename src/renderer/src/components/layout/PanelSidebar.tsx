@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { useAtomValue } from 'jotai'
 import { Tooltip } from '../ui/Tooltip'
+import { convLinesAtom } from '../../store/game'
 
 export type PanelId = 'room' | 'map' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'connections' | 'scripts' | 'lich'
 
@@ -137,7 +139,7 @@ function Panel({
   }, [])
 
   return (
-    <div className="panel-card">
+    <div className="panel-card" data-panel-id={config.id}>
       {onResizeTop && (
         <div
           className="panel-resize-handle panel-resize-handle-top"
@@ -192,6 +194,83 @@ function Panel({
   )
 }
 
+// ── Discord-style panel rail ────────────────────────────────────────────────────
+// A narrow full-height rail beside the sidebar with one icon per open panel.
+// Clicking an icon scrolls that panel into view. The conversation icon shows an
+// unread dot when new lines arrive while its panel is off-screen; the dot clears
+// once the panel scrolls back into view (by click or manual scroll).
+// Every panel button auto-uses a custom image at public/panels/<id>.jpg if one
+// exists (cover-cropped to fill the tile), else falls back to the panel's capital
+// initial. So to give any panel a real icon, just drop `<panel-id>.jpg` into
+// public/panels — no code change. Panel ids: room, map, experience, spells,
+// combat, atmo, conversation, inventory, deaths, connections, scripts, lich.
+function RailIcon({ id, label }: { id: PanelId; label: string }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return <span className="panel-rail-icon">{label.charAt(0).toUpperCase()}</span>
+  return (
+    <img
+      className="panel-rail-img"
+      src={`./panels/${id}.jpg`}
+      alt=""
+      draggable={false}
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
+function PanelRail({ panels, scrollRef }: {
+  panels:    PanelConfig[]                       // visible panels, in order
+  scrollRef: React.RefObject<HTMLDivElement>     // the .panel-sidebar-scroll container
+}) {
+  const convCount = useAtomValue(convLinesAtom).length
+  const [convUnread, setConvUnread] = useState(false)
+  const convVisibleRef = useRef(true)
+  const prevCount      = useRef(convCount)
+  const ids = panels.map(p => p.id).join(',')
+
+  // Track whether the conversation panel is on-screen within the scroll area.
+  // Re-attaches only when the set of panels changes (not on every parent render).
+  useEffect(() => {
+    const root   = scrollRef.current
+    const target = root?.querySelector('[data-panel-id="conversation"]')
+    if (!root || !target) { convVisibleRef.current = false; return }
+    const io = new IntersectionObserver(([entry]) => {
+      convVisibleRef.current = entry.isIntersecting
+      if (entry.isIntersecting) setConvUnread(false)
+    }, { root, threshold: 0.3 })
+    io.observe(target)
+    return () => io.disconnect()
+  }, [ids, scrollRef])
+
+  // A new conversation line while the panel is off-screen → show the dot.
+  useEffect(() => {
+    if (convCount > prevCount.current && !convVisibleRef.current) setConvUnread(true)
+    prevCount.current = convCount
+  }, [convCount])
+
+  const scrollTo = (id: PanelId) => {
+    scrollRef.current
+      ?.querySelector(`[data-panel-id="${id}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (id === 'conversation') setConvUnread(false)
+  }
+
+  return (
+    <nav className="panel-rail">
+      {panels.map(p => (
+        <Tooltip key={p.id} text={p.label} placement="left">
+          <span className="panel-rail-slot">
+            <button className="panel-rail-btn" onClick={() => scrollTo(p.id)} aria-label={p.label}>
+              <RailIcon id={p.id} label={p.label} />
+              {p.id === 'conversation' && convUnread && <span className="panel-rail-dot" />}
+            </button>
+          </span>
+        </Tooltip>
+      ))}
+    </nav>
+  )
+}
+
 // ── Panel manager popup ────────────────────────────────────────────────────────
 function PanelManager({
   panels, onToggle, onClose, anchorRef
@@ -235,6 +314,7 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
   const [heights,     setHeights]     = useState<Record<string, number>>({})
   const [showManager, setShowManager] = useState(false)
   const managerBtnRef = useRef<HTMLButtonElement>(null)
+  const scrollRef     = useRef<HTMLDivElement>(null)
 
   // Load this character's layout (async, from settings.json) when the active
   // character changes. charRef tracks whose layout is loaded so the persist
@@ -270,13 +350,14 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
   const visible = panels.filter(p => p.visible)
 
   return (
-    <aside className="panel-sidebar" style={sidebarWidth ? { width: sidebarWidth, flex: 'none', maxWidth: 'none', minWidth: 0 } : {}}>
+    <div className="panel-sidebar-wrap" style={sidebarWidth ? { width: sidebarWidth, flex: 'none' } : {}}>
+      <aside className="panel-sidebar">
       <div className="panel-sidebar-header">
         <button ref={managerBtnRef} className="panel-manager-toggle" onClick={() => setShowManager(v => !v)}>
           ⊞ Panels
         </button>
       </div>
-      <div className="panel-sidebar-scroll">
+      <div className="panel-sidebar-scroll" ref={scrollRef}>
         {visible.map((panel, i) => (
           <Panel
             key={panel.id}
@@ -307,6 +388,8 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
           onClose={() => setShowManager(false)} anchorRef={managerBtnRef}
         />
       )}
-    </aside>
+      </aside>
+      {visible.length > 0 && <PanelRail panels={visible} scrollRef={scrollRef} />}
+    </div>
   )
 }

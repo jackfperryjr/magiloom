@@ -155,14 +155,40 @@ function InstanceSelectScreen({ instances, onSelect, onBack, error, loading }: {
   </>
 }
 
+// ─── Connect-with-Lich toggle ─────────────────────────────────────────────────
+// Decides, per login, whether this session routes through Lich (scripts +
+// automation) or connects directly. Applies to both the desktop app and the
+// web/PWA client — the backend launches or skips Lich based on this flag.
+function LichToggle({ on, available, onChange }: {
+  on: boolean; available: boolean; onChange: (on: boolean) => void
+}) {
+  const sub = on
+    ? (available ? 'Lich enabled' : 'No Lich detected — direct connection')
+    : 'Direct connection'
+  return (
+    <label className="login-lich-toggle">
+      <div className="login-lich-text">
+        <span className="login-lich-title">Connect with Lich</span>
+        <span className="login-lich-sub">{sub}</span>
+      </div>
+      <input type="checkbox" className="broadcast-switch"
+        checked={on} onChange={e => onChange(e.target.checked)} />
+    </label>
+  )
+}
+
 // ─── Screen 4: Character select ───────────────────────────────────────────────
-function CharacterSelectScreen({ characters, lastCharId, onSelect, onBack, error, loading }: {
+function CharacterSelectScreen({ characters, lastCharId, onSelect, onBack, error, loading,
+  useLich, lichAvailable, onToggleLich }: {
   characters: SGECharacter[]
   lastCharId?: string
   onSelect:   (c: SGECharacter) => void
   onBack:     () => void
   error:      string
   loading:    boolean
+  useLich:       boolean
+  lichAvailable: boolean
+  onToggleLich:  (on: boolean) => void
 }) {
   return <>
     <Back onClick={onBack} />
@@ -180,6 +206,7 @@ function CharacterSelectScreen({ characters, lastCharId, onSelect, onBack, error
         </button>
       ))}
     </div>
+    <LichToggle on={useLich} available={lichAvailable} onChange={onToggleLich} />
     {error && <div className="login-error">{error}</div>}
   </>
 }
@@ -240,15 +267,32 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
   const [error,         setError]         = useState('')
   const [loading,       setLoading]       = useState(false)
   const [detectedPath,  setDetectedPath]  = useState('')
+  const [useLich,       setUseLich]       = useState(false)
+  const [lichAvailable, setLichAvailable] = useState(false)
+  const useLichRef = useRef(false)
 
   useEffect(() => {
     Promise.all([window.dr.settings.getAll(), window.dr.lich.detectPath()])
       .then(([s, detected]) => {
         setSavedAccounts(s.accounts ?? [])
         setDetectedPath(detected || '')
+        // Lich is available when a path is configured or auto-detected (desktop),
+        // or the server reports a shared install (web/PWA). Default the toggle to
+        // the user's last choice, else to whether Lich is available at all.
+        const available = !!(s.lichPath || detected)
+        setLichAvailable(available)
+        const initial = s.connectWithLich ?? available
+        setUseLich(initial); useLichRef.current = initial
         if (!s.accounts?.length) setScreen('credentials')
       })
   }, [])
+
+  // Persist the toggle so it's remembered next login; keep a ref so the character
+  // handler reads the current value without re-creating listeners.
+  const toggleLich = (on: boolean) => {
+    setUseLich(on); useLichRef.current = on
+    window.dr.settings.patch({ connectWithLich: on })
+  }
 
   // Keep a ref of the active account so the connection listeners (registered
   // once) always read the current value rather than a stale closure.
@@ -307,7 +351,7 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
     selectedCharRef.current = char
     setLoading(true); setError(''); setLogLines([])
     setScreen('connecting')
-    const result = await window.dr.auth.selectCharacter(char.id, char.name, activeAccount)
+    const result = await window.dr.auth.selectCharacter(char.id, char.name, activeAccount, useLichRef.current)
     setLoading(false)
     if (!result.ok) setError(result.error ?? 'Failed to connect.')
   }
@@ -350,6 +394,9 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
           onBack={() => setScreen(instances.length > 1 ? 'instance-select' : 'credentials')}
           error={error}
           loading={loading}
+          useLich={useLich}
+          lichAvailable={lichAvailable}
+          onToggleLich={toggleLich}
         />
       )}
       {screen === 'connecting' && (

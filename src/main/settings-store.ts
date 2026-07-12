@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 
 export interface AppSettings {
   lichPath:    string
+  connectWithLich?: boolean            // login toggle: route this session through Lich
   scriptDir:   string                  // folder holding native .cmd scripts ('' → default)
   accounts:    { name: string; lastCharacter?: string }[]
   lastAccount: string

@@ -312,7 +312,7 @@ function setupIpcHandlers(): void {
   })
 
   ipcMain.handle('auth:select-character', async (
-    _e, characterId: string, characterName: string, accountName: string
+    _e, characterId: string, characterName: string, accountName: string, useLich?: boolean
   ) => {
     if (!pendingSelectCharacter) return { ok: false, error: 'Session expired.' }
 
@@ -326,18 +326,28 @@ function setupIpcHandlers(): void {
     pendingSelectCharacter = null
     settings.saveAccount(accountName, characterName)
 
-    const lichPath = settings.get('lichPath')
-    if (lichPath) {
-      // Lich mode: launch with --frostbite -g host:port (exactly like Frostbite)
-      // Then connect to Lich's port 4901 and send the key — Lich forwards it to game
+    // The "Connect with Lich" login toggle decides this per session. When omitted
+    // (older renderer), fall back to the previous behaviour: Lich iff a path is set.
+    const wantsLich = useLich ?? !!settings.get('lichPath')
+    settings.patch({ connectWithLich: wantsLich })
+
+    if (wantsLich) {
+      // Lich mode: launch with --frostbite -g host:port (exactly like Frostbite),
+      // then connect to Lich's port 11024 and send the key — Lich forwards to game.
+      // getLichPath auto-detects when the setting is blank; if Lich isn't found,
+      // spawnOnly reports it and we fall back to a direct connection.
       lichLog('[sge] Launching Lich (frostbite mode) for ' + characterName + '...')
-      lichManager.spawnOnly(key.host, key.port, lichPath)
-      lichLog('[sge] Connecting to Lich on port 11024...')
-      gameConn.connectWithKey('127.0.0.1', 11024, key.key)
-    } else {
-      lichLog('[sge] Connecting directly to ' + key.host + ':' + key.port)
-      gameConn.connectDirect(key.host, key.port, key.key)
+      const res = lichManager.spawnOnly(key.host, key.port, settings.get('lichPath') || undefined)
+      if (res.ok) {
+        lichLog('[sge] Connecting to Lich on port 11024...')
+        gameConn.connectWithKey('127.0.0.1', 11024, key.key)
+        return { ok: true }
+      }
+      lichLog('[sge] ' + (res.error ?? 'Lich unavailable') + ' — connecting directly instead.')
     }
+
+    lichLog('[sge] Connecting directly to ' + key.host + ':' + key.port)
+    gameConn.connectDirect(key.host, key.port, key.key)
     return { ok: true }
   })
 
