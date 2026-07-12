@@ -134,7 +134,7 @@ body {
   background: var(--bg-shell);
   border: none;
   flex-shrink: 0;
-  font-size: 14px;
+  font-size: 16px;
   font-family: var(--font-ui);
   -webkit-app-region: drag;
 }
@@ -1771,12 +1771,20 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
 .status-pop-row.active-good  { color: var(--color-bonus); opacity: 1; }
 .status-pop-icon { display: flex; width: 18px; justify-content: center; }
 
+/* Slide-up / rise motion shared by bottom sheets, mobile modals, and the
+   character menu. `slide-up` travels the sheet's full height (bottom sheets);
+   `rise` is a short lift for the desktop popovers. */
+@keyframes magiloom-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes magiloom-rise     { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes magiloom-fade     { from { opacity: 0; } to { opacity: 1; } }
+
 /* Mobile: a rail tap opens the panel as a bottom-sheet overlay. */
-.panel-mobile-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, 0.5); display: flex; align-items: flex-end; }
+.panel-mobile-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, 0.5); display: flex; align-items: flex-end; animation: magiloom-fade .18s ease; }
 .panel-mobile-sheet {
   width: 100%; max-height: 76vh; display: flex; flex-direction: column;
   background: var(--bg-sidebar); border-top: 1px solid var(--border-soft);
   border-radius: 14px 14px 0 0; overflow: hidden;
+  animation: magiloom-slide-up .28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .panel-mobile-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -1826,6 +1834,21 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
   .status-conds-inline { display: none; }
   .hud-bar .hand-display { display: none; }
 
+  /* Modals become full-width bottom sheets that slide up (like the panel sheets).
+     The portrait lightbox keeps its centered zoom — exclude it. */
+  .modal-overlay:not(.look-lightbox) { align-items: flex-end; justify-content: center; padding: 0; }
+  /* Popovers (broadcast/highlights) rejoin the standard dimmed bottom-sheet look. */
+  .modal-overlay.modal-overlay-popover { background: var(--bg-overlay); backdrop-filter: blur(2px); }
+  .modal-overlay > .modal-card,
+  .modal-overlay > .modal-box,
+  .modal-overlay > .broadcast-modal,
+  .modal-overlay > .avatar-modal {
+    width: 100%; max-width: 100%; max-height: 94dvh;
+    border-radius: 16px 16px 0 0;
+    animation: magiloom-slide-up .28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  /* The character menu rises from the avatar with the same motion. */
+  .char-menu { animation: magiloom-slide-up .24s cubic-bezier(0.16, 1, 0.3, 1); }
 }
 
 /* Hover: pop to full opacity and bounce up a touch. Each icon then plays a
@@ -1897,6 +1920,10 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
   .status-icon:hover { transform: none !important; animation: none !important; }
   .status-posture:hover .wave-arm,
   .status-icon:hover svg { animation: none !important; }
+  /* Bottom sheets, mobile modals, and the character/popover menus appear instantly. */
+  .panel-mobile-sheet, .panel-mobile-overlay, .char-menu,
+  .modal-card, .modal-box, .broadcast-modal, .avatar-modal,
+  .modal-overlay-popover > * { animation: none !important; }
 }
 
 .status-pills { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
@@ -2270,7 +2297,7 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
     0 0 0 1px var(--border-soft),
     0 20px 60px rgba(0,0,0,0.85);
   width: 600px;
-  max-height: 85vh;
+  max-height: 95vh;
   display: flex; flex-direction: column;
   overflow: hidden;
 }
@@ -2299,6 +2326,21 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
 }
 .modal-footer .login-btn, .modal-footer .login-btn-secondary { width: auto; }
 
+/* Broadcast + Highlights open as a lightweight popover anchored just above the
+   character bar (bottom-left) — the same feel as the character menu — rather than
+   a heavy centered/blurred modal. Mobile turns these back into full bottom sheets
+   (see the phone @media block). */
+.modal-overlay-popover {
+  align-items: flex-end; justify-content: flex-start;
+  padding: 0 0 76px 14px;
+  background: transparent; backdrop-filter: none;
+}
+.modal-overlay-popover > .broadcast-modal,
+.modal-overlay-popover > .modal-box {
+  animation: magiloom-rise .16s ease-out;
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--border-soft);
+}
+
 /* Login buttons follow the active theme (accent). A couple of themes need a
    text/background correction so the accent button stays legible. */
 /* Parchment is a light theme with a dark sienna accent — keep the softer
@@ -2313,7 +2355,7 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
 }
 
 /* Tabbed settings (Discord-style left nav) */
-.settings-modal { width: 780px; height: 620px; max-height: 86vh; }
+.settings-modal { width: 100vw; height: 100vh; max-height: 90vh; border-radius: 0; }
 .settings-content { overflow-x: hidden; }
 .settings-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 .settings-nav {

@@ -203,7 +203,7 @@ export function HighlightsModal({ onClose, charName = '' }: { onClose: () => voi
   }
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="modal-overlay modal-overlay-popover" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-box modal-highlights">
         <div className="modal-header">
           <span className="modal-title">Highlights</span>

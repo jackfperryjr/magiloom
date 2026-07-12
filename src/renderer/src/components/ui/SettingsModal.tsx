@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { THEMES, applyTheme } from '../../lib/themes'
 import { setOutputBuffer } from '../game/GameOutput'
 import { loadCharAppearance, saveCharAppearance, applyAppearance } from '../../lib/charSettings'
-import { DEFAULT_NOTIF, makeNameRule, type NotifSettings, type NotifRule } from './Notifications'
+import { DEFAULT_NOTIF, DEFAULT_PUSH, makeNameRule, type NotifSettings, type NotifRule, type PushSettings } from './Notifications'
 import { LichFilesEditor } from './LichFilesEditor'
 import type { Alias, Trigger } from '../../lib/automation'
 import { parseGenieConfig, mergeAliases, mergeTriggers, mergeVars } from '../../lib/genieImport'
@@ -46,6 +46,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [vars,            setVars]            = useState<{ name: string; value: string }[]>([])
   const [importMsg,       setImportMsg]       = useState('')
   const [notif,           setNotif]           = useState<NotifSettings>(DEFAULT_NOTIF)
+  const [push,            setPush]            = useState<PushSettings>(DEFAULT_PUSH)
   const [notifRules,      setNotifRules]      = useState<NotifRule[]>([])
   const [watchName,       setWatchName]       = useState('')
   const [version,         setVersion]         = useState('')
@@ -97,6 +98,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setOutputBufferSize(s.outputBufferSize || 5000)
       setLogging(!!s.logging)
       setNotif({ ...DEFAULT_NOTIF, ...(s.notifications ?? {}) })
+      setPush({ ...DEFAULT_PUSH, ...(s.push ?? {}) })
       setNotifRules(s.notifRules ?? [])
     })
     // Function keys / aliases / triggers are per-character (fall back to globals).
@@ -124,7 +126,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
     // Per-character appearance + gameplay → settings.json; the rest is global.
     saveCharAppearance(charName, { theme, fontSize, fontFamily, density })
     await window.dr.settings.patch({
-      lichPath, scriptDir, outputBufferSize, logging, notifications: notif, notifRules,
+      lichPath, scriptDir, outputBufferSize, logging, notifications: notif, push, notifRules,
     })
     const varsRecord = Object.fromEntries(
       vars.map(v => [v.name.trim(), v.value]).filter(([n]) => n) as [string, string][]
@@ -319,6 +321,39 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                       onChange={e => setNotif(n => ({ ...n, ttsWhisper: e.target.checked }))} />
                   </label>
                   <div className="settings-hint">Reads the line aloud using your system voice. Custom alerts have their own “Speak” option below.</div>
+                </div>
+
+                <div className="settings-section">
+                  <div className="settings-section-label">Push notifications</div>
+                  <label className="settings-row">
+                    <span className="settings-label">Notify me when the app is closed</span>
+                    <input type="checkbox" checked={push.enabled} style={{ width: 'auto' }}
+                      onChange={e => setPush(p => ({ ...p, enabled: e.target.checked }))} />
+                  </label>
+                  <label className="settings-row" style={push.enabled ? undefined : { opacity: 0.5 }}>
+                    <span className="settings-label">Mentions of my name</span>
+                    <input type="checkbox" checked={push.mention} disabled={!push.enabled} style={{ width: 'auto' }}
+                      onChange={e => setPush(p => ({ ...p, mention: e.target.checked }))} />
+                  </label>
+                  <label className="settings-row" style={push.enabled ? undefined : { opacity: 0.5 }}>
+                    <span className="settings-label">Whispers</span>
+                    <input type="checkbox" checked={push.whisper} disabled={!push.enabled} style={{ width: 'auto' }}
+                      onChange={e => setPush(p => ({ ...p, whisper: e.target.checked }))} />
+                  </label>
+                  <label className="settings-row" style={push.enabled ? undefined : { opacity: 0.5 }}>
+                    <span className="settings-label">Room speech (says)</span>
+                    <input type="checkbox" checked={push.speech} disabled={!push.enabled} style={{ width: 'auto' }}
+                      onChange={e => setPush(p => ({ ...p, speech: e.target.checked }))} />
+                  </label>
+                  <label className="settings-row" style={push.enabled ? undefined : { opacity: 0.5 }}>
+                    <span className="settings-label">Thoughts (ESP)</span>
+                    <input type="checkbox" checked={push.thought} disabled={!push.enabled} style={{ width: 'auto' }}
+                      onChange={e => setPush(p => ({ ...p, thought: e.target.checked }))} />
+                  </label>
+                  <div className="settings-hint">
+                    Sent by the Magiloom server to your phone or desktop even when the app is closed — like a messaging app.
+                    Web app only; on mobile, use <strong>Add to Home Screen</strong> and allow notifications first. Room speech can be noisy in a crowded room.
+                  </div>
                 </div>
 
                 <div className="settings-section">

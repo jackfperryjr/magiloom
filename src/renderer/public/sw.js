@@ -14,14 +14,18 @@ self.addEventListener('fetch', () => { /* default network handling */ })
 self.addEventListener('push', (event) => {
   let data = { title: 'Magiloom', body: '' }
   try { if (event.data) data = event.data.json() } catch { /* keep default */ }
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'Magiloom', {
+  event.waitUntil((async () => {
+    // Don't double-notify: if a window is focused, the in-app toast already
+    // covers this (mentions/whispers/custom alerts all show live in the app).
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    if (clients.some((c) => c.focused || c.visibilityState === 'visible')) return
+    await self.registration.showNotification(data.title || 'Magiloom', {
       body: data.body || '',
       tag: data.tag,
       icon: './android-chrome-192x192.png',
       badge: './android-chrome-192x192.png',
-    }),
-  )
+    })
+  })())
 })
 
 self.addEventListener('notificationclick', (event) => {
