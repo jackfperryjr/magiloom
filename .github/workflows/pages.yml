@@ -3,7 +3,13 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: [main]
-    paths: [docs/**]
+    paths:
+      - docs/**
+      - src/**
+      - vite.web.config.ts
+      - package.json
+      - package-lock.json
+      - .github/workflows/pages.yml
   workflow_dispatch:
 
 permissions:
@@ -23,6 +29,25 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Skip Electron's ~100MB binary download — the web build doesn't need it.
+      - name: Install dependencies
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+
+      # Builds the PWA into docs/app (git-ignored; produced fresh here). The server
+      # URL defaults to the Railway host; the gateway token comes from a secret so
+      # it isn't committed. Add it under Settings → Secrets → Actions.
+      - name: Build web client
+        run: npm run web:build
+        env:
+          VITE_MAGILOOM_TOKEN: ${{ secrets.MAGILOOM_WEB_TOKEN }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

@@ -10,6 +10,15 @@ export function IconCog({ size = 16, className, style }: IconProps) {
   )
 }
 
+export function IconDocument({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path fillRule="evenodd" clipRule="evenodd" d="M5.625 1.5H9a3.75 3.75 0 013.75 3.75v1.875c0 1.036.84 1.875 1.875 1.875H16.5a3.75 3.75 0 013.75 3.75v7.875c0 1.035-.84 1.875-1.875 1.875H5.625a1.875 1.875 0 01-1.875-1.875V3.375c0-1.036.84-1.875 1.875-1.875zm5.925 8.175a.75.75 0 00-1.05 0l-.375.375a.75.75 0 000 1.05l.675.675H8.25a.75.75 0 000 1.5h2.925l-.675.675a.75.75 0 101.05 1.06l1.95-1.95a.75.75 0 000-1.06l-1.95-1.95z" />
+      <path d="M14.25 5.25a5.23 5.23 0 00-1.279-3.434 9.768 9.768 0 016.963 6.963A5.23 5.23 0 0016.5 7.5h-1.875a.375.375 0 01-.375-.375V5.25z" />
+    </svg>
+  )
+}
+
 export function IconMic({ size = 16, className, style }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
