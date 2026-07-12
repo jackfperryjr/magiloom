@@ -38,7 +38,9 @@ export class GameConnection extends EventEmitter {
     if (this.socket) return
     const s = new Socket()
     s.setEncoding('latin1')
+    let connected = false
     s.on('connect', () => {
+      connected = true
       this.socket = s
       this.emit('log', 'Connected to Lich on port ' + port + ', sending key + FE token...')
       s.write(key + '\n', 'latin1')
@@ -46,7 +48,9 @@ export class GameConnection extends EventEmitter {
       this.emit('connected')
     })
     s.on('data',  (c: string) => { this.buffer += c; this.flush() })
-    s.on('close', ()          => { if (this.socket === s) { this.emit('disconnected'); this.socket = null } })
+    // Emit 'disconnected' only for a socket that actually connected — not a failed
+    // retry, and even after disconnect() has already nulled this.socket.
+    s.on('close', ()          => { if (connected) this.emit('disconnected'); if (this.socket === s) this.socket = null })
     s.on('error', (err) => {
       s.destroy()
       if (err.message.includes('ECONNREFUSED') && attempts < 240) {
@@ -68,13 +72,15 @@ export class GameConnection extends EventEmitter {
     if (this.socket) return
     const s = new Socket()
     s.setEncoding('latin1')
+    let connected = false
     s.on('connect', () => {
+      connected = true
       this.socket = s
       this.emit('log', 'Connected to ' + host + ':' + port)
       this.emit('connected')
     })
     s.on('data',  (c: string) => { this.buffer += c; this.flush() })
-    s.on('close', ()          => { if (this.socket === s) { this.emit('disconnected'); this.socket = null } })
+    s.on('close', ()          => { if (connected) this.emit('disconnected'); if (this.socket === s) this.socket = null })
     s.on('error', (err) => {
       s.destroy()
       if (err.message.includes('ECONNREFUSED') && attempts < 240) {

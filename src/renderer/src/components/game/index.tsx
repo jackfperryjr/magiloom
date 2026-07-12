@@ -11,6 +11,7 @@ import { CircleAvatar } from '../ui/CircleAvatar'
 import { downscaleToFit } from '../../lib/image'
 import { useProfile } from '../../hooks/useProfile'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
+import { useIsMobile } from '../../hooks/useIsMobile'
 export type { ConnectionStatus } from '../../store/game'
 import type { ConnectionStatus } from '../../store/game'
 import {
@@ -70,11 +71,12 @@ function buildSuggestions(
 }
 
 // ── CommandInput ──────────────────────────────────────────────────────────────
-export function CommandInput({ onSend, onEcho, functionKeys = {}, status }: {
+export function CommandInput({ onSend, onEcho, functionKeys = {}, status, leading }: {
   onSend: (cmd: string) => void
   onEcho: (cmd: string) => void
   functionKeys?: Record<string, string>
   status?: ConnectionStatus
+  leading?: React.ReactNode   // mobile: the character avatar/menu, docked in the bar
 }) {
   const inputRef   = useRef<HTMLInputElement>(null)
   const historyRef = useRef<string[]>([])
@@ -194,6 +196,7 @@ export function CommandInput({ onSend, onEcho, functionKeys = {}, status }: {
 
   return (
     <div className="command-input-wrap">
+      {leading}
       {showSug && (
         <div className="cmd-popup">
           {activeInfo && activeInfo.length > 0 && (
@@ -276,26 +279,54 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 // roundtime badge). Inline icon group — no card of its own.
 export function StatusPanel({ status }: { status: ConnectionStatus }) {
   const indicators = useAtomValue(indicatorsAtom)
+  const [showConds, setShowConds] = useState(false)
   if (status !== 'connected') return null
   const posture = currentPosture(indicators)
+  const hasDanger = CONDITIONS.some(c => c.danger && indicators[c.id])
   return (
     <div className="status-icons">
-      <span className="status-icon status-posture" data-tooltip={cap(posture)}>
+      {/* Posture stick-figure — click to pop up the full condition list. On mobile
+          this is the only status shown inline (conditions collapse into the popup). */}
+      <button
+        className="status-icon status-posture"
+        data-tooltip={cap(posture) + ' · click for status'}
+        onClick={() => setShowConds(v => !v)}
+      >
         <PostureIcon posture={posture} />
+        {hasDanger && <span className="status-posture-alert" />}
+      </button>
+      <span className="status-conds-inline">
+        <span className="status-panel-sep" />
+        {CONDITIONS.map(c => {
+          const on = !!indicators[c.id]
+          return (
+            <span
+              key={c.id}
+              className={`status-icon status-cond-${c.id}` + (on ? (c.danger ? ' active-danger' : ' active-good') : '')}
+              data-tooltip={on ? c.label : `Not ${c.label}`}
+            >
+              {c.icon}
+            </span>
+          )
+        })}
       </span>
-      <span className="status-panel-sep" />
-      {CONDITIONS.map(c => {
-        const on = !!indicators[c.id]
-        return (
-          <span
-            key={c.id}
-            className={`status-icon status-cond-${c.id}` + (on ? (c.danger ? ' active-danger' : ' active-good') : '')}
-            data-tooltip={on ? c.label : `Not ${c.label}`}
-          >
-            {c.icon}
-          </span>
-        )
-      })}
+      {showConds && <>
+        <div className="status-pop-backdrop" onClick={() => setShowConds(false)} />
+        <div className="status-pop">
+          <span className="status-pop-posture"><PostureIcon posture={posture} /> {cap(posture)}</span>
+          <div className="status-pop-grid">
+            {CONDITIONS.map(c => {
+              const on = !!indicators[c.id]
+              return (
+                <div key={c.id} className={'status-pop-row' + (on ? (c.danger ? ' active-danger' : ' active-good') : '')}>
+                  <span className="status-pop-icon">{c.icon}</span>
+                  <span className="status-pop-label">{on ? c.label : `Not ${c.label}`}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </>}
     </div>
   )
 }
@@ -463,7 +494,8 @@ function useAutoIdle(): boolean {
 }
 
 function CharacterMenu({
-  status, presenceMode, onSetPresence, onEditAvatar, avatar, crop, initial, charName, profile, onDisconnect, onConnect, onClose,
+  status, presenceMode, onSetPresence, onEditAvatar, avatar, crop, initial, charName, profile,
+  onDisconnect, onConnect, onClose, showActions, onBroadcast, onHighlights, onSettings,
 }: {
   status:        ConnectionStatus
   presenceMode:  PresenceMode
@@ -477,6 +509,10 @@ function CharacterMenu({
   onDisconnect:  () => void
   onConnect:     () => void
   onClose:       () => void
+  showActions:   boolean        // mobile: quick actions live here instead of the bar
+  onBroadcast:   () => void
+  onHighlights:  () => void
+  onSettings:    () => void
 }) {
   const run = (fn: () => void) => () => { onClose(); fn() }
   return (
@@ -500,6 +536,14 @@ function CharacterMenu({
           </div>
         </div>
         <div className="char-menu-sep" />
+        {showActions && (
+          <>
+            <button className="char-menu-item" onClick={run(onBroadcast)}><IconBroadcast size={15} /> Broadcast</button>
+            <button className="char-menu-item" onClick={run(onHighlights)}><IconPaintBrush size={15} /> Highlights</button>
+            <button className="char-menu-item" onClick={run(onSettings)}><IconCog size={15} /> Settings</button>
+            <div className="char-menu-sep" />
+          </>
+        )}
         {status === 'connected' && (
           <>
             {(['online', 'idle', 'dnd'] as PresenceMode[]).map(m => (
@@ -539,6 +583,7 @@ export function CharacterBar({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [showBroadcast, setShowBroadcast] = useState(false)
+  const isMobile = useIsMobile()
   const linkMode = useAtomValue(linkModeAtom)
   const receive  = useAtomValue(broadcastReceiveAtom)
   const [showAvatar, setShowAvatar] = useState(false)
@@ -694,6 +739,10 @@ export function CharacterBar({
           onDisconnect={onDisconnect}
           onConnect={onConnect}
           onClose={() => setMenuOpen(false)}
+          showActions={isMobile}
+          onBroadcast={() => setShowBroadcast(true)}
+          onHighlights={onHighlights}
+          onSettings={onSettings}
         />
       )}
       {showAvatar && (
