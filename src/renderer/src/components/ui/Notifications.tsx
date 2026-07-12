@@ -21,6 +21,21 @@ export const DEFAULT_NOTIF: NotifSettings = {
   ttsMention: false, ttsWhisper: false,
 }
 
+// Opt-in Web Push for conversation/mentions. Evaluated server-side (magiserver's
+// trigger-engine) so it fires even when the PWA is closed — the in-app toasts
+// above can't, since a closed page runs no JS. Off by default; web app only.
+export interface PushSettings {
+  enabled: boolean   // master
+  mention: boolean   // your character's name spoken
+  whisper: boolean
+  speech:  boolean   // room "says"
+  thought: boolean
+}
+
+export const DEFAULT_PUSH: PushSettings = {
+  enabled: false, mention: false, whisper: false, speech: false, thought: false,
+}
+
 // A user-defined "watch" alert. Matches incoming game text (substring, or /regex/
 // when isRegex) and fires the channels checked on the rule. Stored globally in
 // settings.json `notifRules`; edited in the Settings → Notifications tab.

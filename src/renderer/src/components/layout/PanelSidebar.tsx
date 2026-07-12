@@ -275,8 +275,10 @@ function PanelRail({ panels, scrollRef, onSelect, openPanel }: {
           <span className="panel-rail-slot">
             <button className="panel-rail-btn" onClick={() => select(p.id)} aria-label={p.label}>
               <RailIcon id={p.id} label={p.label} />
-              {p.id === 'conversation' && convUnread && <span className="panel-rail-dot" />}
             </button>
+            {/* Outside the (overflow-hidden) button so it sits on top of the edge,
+                like the character avatar's status dot. */}
+            {p.id === 'conversation' && convUnread && <span className="panel-rail-dot" />}
           </span>
         </Tooltip>
       ))}

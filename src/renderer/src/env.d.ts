@@ -45,6 +45,16 @@ interface AppSettings {
     id: string; label: string; pattern: string; isRegex: boolean
     toast: boolean; desktop: boolean; sound: boolean; tts?: boolean; enabled: boolean
   }[]
+  // Opt-in Web Push for conversation/mentions, evaluated server-side so it fires
+  // even when the PWA is closed. Only effective on the hosted web app (the desktop
+  // app has no server). See magiserver/src/trigger-engine.ts.
+  push?:            {
+    enabled: boolean
+    mention: boolean
+    whisper: boolean
+    speech:  boolean
+    thought: boolean
+  }
   // Write game output to a per-character log file (default off). See main/log-store.ts.
   logging?:         boolean
 }

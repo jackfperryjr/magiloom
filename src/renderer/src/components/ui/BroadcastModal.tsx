@@ -11,7 +11,7 @@ export function BroadcastModal({ charName, onClose }: { charName: string; onClos
   const [receive,  setReceive]  = useAtom(broadcastReceiveAtom)
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="modal-overlay modal-overlay-popover" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="broadcast-modal">
         <div className="broadcast-modal-header">
           <span className={'broadcast-modal-icon' + (linkMode ? ' live' : '')}>
