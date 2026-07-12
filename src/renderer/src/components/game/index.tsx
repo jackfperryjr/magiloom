@@ -625,6 +625,20 @@ export function CharacterBar({
     window.dr.settings.getAll().then(s => setShare(!!s.avatarShare))
   }, [])
 
+  // Keep the shared copy in sync on login: if this character has a local avatar and
+  // sharing is on, (re)publish it so OTHER players (and our other characters) resolve
+  // it in conversation. Publishing otherwise only happened on an explicit save/toggle,
+  // so an avatar set before sharing — or on another device's settings bucket — would
+  // never reach the bucket and stayed invisible to everyone else. Once per image.
+  const publishedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!svcEnabled || !share || !charName || !localAvatar) return
+    const stamp = `${avatarKey}:${localAvatar.length}`
+    if (publishedRef.current === stamp) return
+    publishedRef.current = stamp
+    window.dr.avatar.publish(charName, localAvatar).catch(() => {})
+  }, [svcEnabled, share, charName, localAvatar, avatarKey])
+
   const presence = presenceFor(status, presenceMode, autoIdle)
   const initial  = charName.trim().charAt(0).toUpperCase() || '?'
 
