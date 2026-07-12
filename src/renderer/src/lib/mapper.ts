@@ -372,6 +372,14 @@ export function componentLayout(db: MapDB, rootId: string | null, maxNodes = 200
     }
   }
 
+  // Manual overrides: a hand-dragged room carries a `pin` (layout-space x/y).
+  // Honour it — applied after auto-placement so tidied positions persist — while
+  // keeping the auto-computed level (z). Tidy clears pins to revert to auto.
+  for (const id of comp) {
+    const n = findNode(db, id)
+    if (n?.pin && pos.has(id)) { const p = pos.get(id)!; pos.set(id, { x: n.pin.x, y: n.pin.y, z: p.z }) }
+  }
+
   const nodes: Record<string, MapNode> = {}
   for (const [id, p] of pos) { const n = findNode(db, id)!; nodes[id] = { ...n, x: p.x, y: p.y, z: p.z } }
   const arcs: MapArc[] = []

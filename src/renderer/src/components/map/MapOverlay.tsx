@@ -87,6 +87,28 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
     })
   }
 
+  // Drag-to-place stores a manual `pin` on the room (grid-snapped); Tidy clears the
+  // pins of the currently-shown rooms so they snap back to the auto layout.
+  const hasPins = Object.values(zone.nodes).some(n => n.pin)
+  const tidy = () => {
+    const shown = Object.keys(zone.nodes)
+    setDb(prev => {
+      const zones = { ...prev.zones }
+      const touched = new Set<string>()
+      for (const id of shown) {
+        const zid = nodeZoneId(prev, id); if (!zid) continue
+        const z = zones[zid]; const n = z?.nodes[id]
+        if (!n?.pin) continue
+        const { pin: _drop, ...rest } = n
+        zones[zid] = { ...z, nodes: { ...z.nodes, [id]: rest } }
+        touched.add(zid)
+      }
+      if (touched.size === 0) return prev
+      for (const zid of touched) persist(zones[zid])
+      return { ...prev, zones }
+    })
+  }
+
   // ── Import / export / clear ─────────────────────────────────────────────────
   const doImport = async () => {
     const file = await window.dr.app.openTextFile([{ name: 'Map', extensions: ['xml', 'map'] }])
@@ -149,6 +171,7 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
             <input type="checkbox" checked={autoRecord} onChange={e => setAutoRecord(e.target.checked)} />
             Auto-record
           </label>
+          <button className="map-tb-btn map-text-btn" data-tooltip="Snap dragged rooms back to the auto layout" onClick={tidy} disabled={!hasPins}>Tidy</button>
           <button className="map-tb-btn map-text-btn" onClick={doImport}>Import</button>
           <button className="map-tb-btn map-text-btn" onClick={doExport} disabled={zones.length === 0}>Export</button>
           <button className="map-tb-btn map-text-btn" onClick={() => zoneId && setConfirmState({ kind: 'zone', label: `Delete the recorded map for "${db.zones[zoneId]?.name ?? 'this zone'}"?` })} disabled={!zoneId}>Clear zone</button>
@@ -187,6 +210,7 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
             focusId={focusId}
             onNodeClick={id => { setFocusId(id); setCtx(null) }}
             onNodeContext={(id, e) => setCtx({ id, x: e.clientX, y: e.clientY })}
+            onNodeDrag={(id, x, y) => patchNode(id, { pin: { x: Math.round(x), y: Math.round(y) } })}
             walkActive={walk.active}
             onStopWalk={onStopWalk}
             className="map-view-large"
