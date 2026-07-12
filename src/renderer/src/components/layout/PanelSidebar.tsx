@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useAtomValue } from 'jotai'
 import { Tooltip } from '../ui/Tooltip'
 import { convLinesAtom } from '../../store/game'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 export type PanelId = 'room' | 'map' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'connections' | 'scripts' | 'lich'
 
@@ -218,9 +219,10 @@ function RailIcon({ id, label }: { id: PanelId; label: string }) {
   )
 }
 
-function PanelRail({ panels, scrollRef }: {
+function PanelRail({ panels, scrollRef, onSelect }: {
   panels:    PanelConfig[]                       // visible panels, in order
   scrollRef: React.RefObject<HTMLDivElement>     // the .panel-sidebar-scroll container
+  onSelect:  (id: PanelId) => void               // desktop: scroll to it; mobile: open overlay
 }) {
   const convCount = useAtomValue(convLinesAtom).length
   const [convUnread, setConvUnread] = useState(false)
@@ -248,11 +250,9 @@ function PanelRail({ panels, scrollRef }: {
     prevCount.current = convCount
   }, [convCount])
 
-  const scrollTo = (id: PanelId) => {
-    scrollRef.current
-      ?.querySelector(`[data-panel-id="${id}"]`)
-      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const select = (id: PanelId) => {
     if (id === 'conversation') setConvUnread(false)
+    onSelect(id)
   }
 
   return (
@@ -260,7 +260,7 @@ function PanelRail({ panels, scrollRef }: {
       {panels.map(p => (
         <Tooltip key={p.id} text={p.label} placement="left">
           <span className="panel-rail-slot">
-            <button className="panel-rail-btn" onClick={() => scrollTo(p.id)} aria-label={p.label}>
+            <button className="panel-rail-btn" onClick={() => select(p.id)} aria-label={p.label}>
               <RailIcon id={p.id} label={p.label} />
               {p.id === 'conversation' && convUnread && <span className="panel-rail-dot" />}
             </button>
@@ -349,8 +349,18 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
 
   const visible = panels.filter(p => p.visible)
 
+  // On mobile the panel list is hidden and a rail tap opens the panel as an
+  // overlay; on desktop it scrolls the panel into view within the sidebar.
+  const isMobile = useIsMobile()
+  const [mobilePanel, setMobilePanel] = useState<PanelId | null>(null)
+  const selectPanel = useCallback((id: PanelId) => {
+    if (isMobile) { setMobilePanel(id); return }
+    scrollRef.current?.querySelector(`[data-panel-id="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [isMobile])
+  const mobileCfg = mobilePanel ? visible.find(p => p.id === mobilePanel) : undefined
+
   return (
-    <div className="panel-sidebar-wrap" style={sidebarWidth ? { width: sidebarWidth, flex: 'none' } : {}}>
+    <div className="panel-sidebar-wrap" style={sidebarWidth && !isMobile ? { width: sidebarWidth, flex: 'none' } : {}}>
       <aside className="panel-sidebar">
       <div className="panel-sidebar-header">
         <button ref={managerBtnRef} className="panel-manager-toggle" onClick={() => setShowManager(v => !v)}>
@@ -389,7 +399,18 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
         />
       )}
       </aside>
-      {visible.length > 0 && <PanelRail panels={visible} scrollRef={scrollRef} />}
+      {visible.length > 0 && <PanelRail panels={visible} scrollRef={scrollRef} onSelect={selectPanel} />}
+      {mobileCfg && (
+        <div className="panel-mobile-overlay" onClick={e => e.target === e.currentTarget && setMobilePanel(null)}>
+          <div className="panel-mobile-sheet">
+            <div className="panel-mobile-head">
+              <span className="panel-title">{mobileCfg.label}</span>
+              <button className="modal-close" onClick={() => setMobilePanel(null)}>×</button>
+            </div>
+            <div className="panel-mobile-body">{renderPanel(mobileCfg.id)}</div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

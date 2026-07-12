@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Provider, useSetAtom, useAtomValue } from 'jotai'
 import { useGameConnection }  from './hooks/useGameConnection'
+import { useIsMobile }         from './hooks/useIsMobile'
 import { useAutomapper }       from './hooks/useAutomapper'
 import { GameOutput, setHighlights, setSendFn, setOutputBuffer, setPlayerName, setDisabledClasses } from './components/game/GameOutput'
 import { CommandInput, StatusBar, WindowControls, HudBar, CharacterBar } from './components/game'
@@ -171,6 +172,7 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
   // Automapper: records rooms into the shared world map (movement is captured
   // universally via dr.game.onSent inside the hook).
   const automap = useAutomapper()
+  const isMobile = useIsMobile()
   const { status, disconnect, send } = useGameConnection(charName)
   // Give the walker the game send fn (walk steps flow through the same path the
   // mapper observes, so click-walking also confirms/records arcs).
@@ -432,17 +434,25 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
         <PanelSidebar renderPanel={renderPanelWithLich} getClearFn={getClearFn} sidebarWidth={sidebarWidth} charName={charName} />
       </div>
       {/* Full-width bottom row: character bar (left) + command line (fills, status icons on its right). */}
-      <div className="command-row">
-        <CharacterBar
-          charName={charName}
-          accountName={accountName}
-          status={status}
-          onHighlights={() => setShowHighlights(true)}
-          onSettings={onOpenSettings}
-          onDisconnect={disconnect}
-          onConnect={onRequestConnect}
-        />
-        <CommandInput onSend={send} onEcho={echoCommand} functionKeys={functionKeys} status={status} />
+      <div className={'command-row' + (isMobile ? ' command-row-mobile' : '')}>
+        {(() => {
+          const bar = (
+            <CharacterBar
+              charName={charName}
+              accountName={accountName}
+              status={status}
+              onHighlights={() => setShowHighlights(true)}
+              onSettings={onOpenSettings}
+              onDisconnect={disconnect}
+              onConnect={onRequestConnect}
+            />
+          )
+          // Mobile: dock the avatar/menu inside the command input as one bar.
+          // Desktop: character bar and command input sit side by side.
+          return isMobile
+            ? <CommandInput onSend={send} onEcho={echoCommand} functionKeys={functionKeys} status={status} leading={bar} />
+            : <>{bar}<CommandInput onSend={send} onEcho={echoCommand} functionKeys={functionKeys} status={status} /></>
+        })()}
       </div>
       {showHighlights && <HighlightsModal onClose={handleHighlightsClose} charName={charName} />}
       {showMap && <MapOverlay onClose={() => setShowMap(false)} onWalkTo={automap.walkTo} onStopWalk={automap.stopWalk} />}
