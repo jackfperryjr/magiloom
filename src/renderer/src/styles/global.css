@@ -577,7 +577,9 @@ body[data-platform="darwin"] .status-bar {
   bottom: -2px; right: -2px;
   width: 15px; height: 15px;
   border-radius: 50%;
-  background: var(--color-roomname, #ff5820);
+  /* Fixed unread red — the old --color-roomname read near-white on some themes and
+     vanished. The bg-shell ring keeps it legible on every theme. */
+  background: #ff3b30;
   border: 2px solid var(--bg-shell);
 }
 
