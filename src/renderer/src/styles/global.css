@@ -574,8 +574,8 @@ body[data-platform="darwin"] .status-bar {
 }
 .panel-rail-dot {
   position: absolute;
-  top: -2px; right: -2px;
-  width: 10px; height: 10px;
+  bottom: -2px; right: -2px;
+  width: 15px; height: 15px;
   border-radius: 50%;
   background: var(--color-roomname, #ff5820);
   border: 2px solid var(--bg-shell);
@@ -1786,13 +1786,20 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
 
 /* ── Mobile layout (phones) ─────────────────────────────────────────────────── */
 @media (max-width: 768px) {
+  /* Hide the desktop title/status bar — empty in the browser and reclaims space. */
+  .status-bar { display: none; }
+  /* Sit content nearer the bottom edge (the home indicator overlays this small
+     margin) instead of reserving the full safe-area inset. */
+  .app-shell { padding-bottom: max(6px, calc(env(safe-area-inset-bottom) - 14px)); }
+
   /* Drop the panel list + its resize handle; keep the rail, game fills the width. */
   .col-resize-handle { display: none; }
   .panel-sidebar-wrap { flex: none; }
   .panel-sidebar { display: none; }
 
-  /* Tighter command row on small screens. */
-  .command-row { padding: 6px; gap: 6px; }
+  /* Floating command pill — wider side margins, rounder corners, near the bottom. */
+  .command-row { padding: 4px 14px; gap: 6px; }
+  .command-input-wrap { border-radius: 20px; }
 
   /* iOS auto-zooms when focusing an input under 16px — keep it ≥16px to stop that
      (still honours a larger user font size). */
@@ -1818,6 +1825,7 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
      .hud-bar prefix beats the later base .hand-display rule's specificity. */
   .status-conds-inline { display: none; }
   .hud-bar .hand-display { display: none; }
+
 }
 
 /* Hover: pop to full opacity and bounce up a touch. Each icon then plays a
