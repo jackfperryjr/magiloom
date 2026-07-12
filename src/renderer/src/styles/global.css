@@ -1796,9 +1796,9 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
 @media (max-width: 768px) {
   /* Hide the desktop title/status bar — empty in the browser and reclaims space. */
   .status-bar { display: none; }
-  /* Sit content nearer the bottom edge (the home indicator overlays this small
-     margin) instead of reserving the full safe-area inset. */
-  .app-shell { padding-bottom: max(6px, calc(env(safe-area-inset-bottom) - 14px)); }
+  /* Sit the command pill right at the bottom edge — the home indicator overlays
+     this sliver, so reserve only a hair above the safe-area inset. */
+  .app-shell { padding-bottom: max(2px, calc(env(safe-area-inset-bottom) - 34px)); }
 
   /* Drop the panel list + its resize handle; keep the rail, game fills the width. */
   .col-resize-handle { display: none; }
