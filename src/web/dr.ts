@@ -1,4 +1,6 @@
 import { wsUrl } from './config'
+import * as account from './auth'
+import { enablePush } from './push'
 
 // ── WebSocket transport ─────────────────────────────────────────────────────────
 // Speaks the server's JSON envelope (see magiserver gateway.ts):
@@ -66,6 +68,17 @@ class Transport {
     if (!set) { set = new Set(); this.listeners.set(channel, set) }
     set.add(cb)
     return () => { set!.delete(cb) }
+  }
+
+  /** Drop and immediately re-open the socket — used after sign-in/out so the server
+   *  re-buckets this client under its new identity (?auth=). */
+  reconnect(): void {
+    const ws = this.ws
+    this.ws = null
+    if (ws) { ws.onclose = null; try { ws.close() } catch { /* already closing */ } }
+    for (const [, p] of this.pending) p.reject(new Error('reconnecting'))
+    this.pending.clear()
+    this.connect()
   }
 }
 
@@ -199,6 +212,24 @@ export function installDr(): void {
       send:       (cmd: string) => t.invoke('broadcast:send', cmd),
       setReceive: (on: boolean) => t.invoke('broadcast:set-receive', on),
       onIncoming: (cb: (cmd: string) => void) => t.on('broadcast:incoming', cb),
+    },
+    // Magiloom account (web only — desktop's preload has no `account`, so the UI
+    // gates on its presence). Signing in/out re-buckets the connection on the server,
+    // so we reconnect the socket and re-point the push subscription afterward.
+    account: {
+      isSignedIn: () => account.isSignedIn(),
+      current:    () => account.currentAccount(),
+      signUp: async (email: string, password: string) => {
+        const r = await account.register(email, password)
+        if (r.ok) { t.reconnect(); void enablePush() }
+        return r
+      },
+      signIn: async (email: string, password: string) => {
+        const r = await account.login(email, password)
+        if (r.ok) { t.reconnect(); void enablePush() }
+        return r
+      },
+      signOut: () => { account.logout(); t.reconnect(); void enablePush() },
     },
   }
   ;(window as unknown as { dr: typeof dr }).dr = dr

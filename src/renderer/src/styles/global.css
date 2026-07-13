@@ -83,11 +83,15 @@ body {
 .app-shell {
   display: flex; flex-direction: column;
   height: 100vh;   /* fallback */
-  height: 100dvh;  /* iOS: the actually-visible viewport (excludes Safari toolbars) */
+  height: 100%;    /* fills #root (= the full screen in a viewport-fit=cover PWA) —
+                      more reliable than 100dvh in an installed iOS PWA, where dvh
+                      could leave a strip below the last row. */
   overflow: hidden;
-  /* Respect the notch / Dynamic Island (top) and home indicator (bottom) so
-     content isn't clipped or floated off the edge. No-ops on desktop (insets 0). */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Notch / Dynamic Island (top) + side insets. The BOTTOM inset is deliberately
+     NOT reserved here: the command row's own background bleeds to the very bottom
+     edge and adds just enough bottom padding to lift the input above the home
+     indicator — so there's no empty gap under it. No-ops on desktop (insets 0). */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
 }
 
 .main-area {
@@ -572,6 +576,19 @@ body[data-platform="darwin"] .status-bar {
   filter: none;
   /* opacity: 1; */
 }
+/* Login: "sync across devices" badge for the Magiloom account (web only). */
+.login-sync-badge {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 8px 12px; margin-top: 2px;
+  background: var(--bg-input); border: 1px solid var(--border-soft);
+  border-radius: 8px; cursor: pointer; font-family: var(--font-ui); font-size: 13px;
+  color: var(--text-muted);
+}
+.login-sync-badge:hover { border-color: var(--border); color: var(--text-main); }
+.login-sync-on { color: var(--color-bonus); font-weight: 600; flex-shrink: 0; }
+.login-sync-email { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.login-sync-action { color: var(--text-dim); flex-shrink: 0; }
+
 .panel-rail-dot {
   position: absolute;
   bottom: -2px; right: -2px;
@@ -1798,17 +1815,16 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
 @media (max-width: 768px) {
   /* Hide the desktop title/status bar — empty in the browser and reclaims space. */
   .status-bar { display: none; }
-  /* Sit the command pill right at the bottom edge — the home indicator overlays
-     this sliver, so reserve only a hair above the safe-area inset. */
-  .app-shell { padding-bottom: max(2px, calc(env(safe-area-inset-bottom) - 34px)); }
 
   /* Drop the panel list + its resize handle; keep the rail, game fills the width. */
   .col-resize-handle { display: none; }
   .panel-sidebar-wrap { flex: none; }
   .panel-sidebar { display: none; }
 
-  /* Floating command pill — wider side margins, rounder corners, near the bottom. */
-  .command-row { padding: 4px 14px; gap: 6px; }
+  /* Floating command pill — wider side margins, rounder corners. The row's bg bleeds
+     to the screen bottom (app-shell reserves no bottom inset); the bottom padding
+     lifts the input just above the home indicator with no empty gap beneath. */
+  .command-row { padding: 4px 14px max(6px, calc(env(safe-area-inset-bottom) - 18px)) 14px; gap: 6px; }
   .command-input-wrap { border-radius: 20px; }
 
   /* iOS auto-zooms when focusing an input under 16px — keep it ≥16px to stop that
@@ -2015,7 +2031,10 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
 
 /* ── Login ───────────────────────────────────────────────────────────────── */
 .login-screen {
-  min-height: 100vh;
+  min-height: 100vh;   /* fallback */
+  min-height: 100%;    /* fill #root exactly — the gradient covers to the true screen
+                          edges (no bare-body strip under the home indicator). */
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;

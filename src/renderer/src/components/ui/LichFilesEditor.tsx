@@ -13,7 +13,7 @@ const GROUPS: { dir: 'profiles' | 'custom'; label: string; ext: RegExp; suffix: 
   { dir: 'custom',   label: 'Custom scripts',   ext: /\.lic$/i,   suffix: '.lic',  hint: 'script.lic' },
 ]
 
-export function LichFilesEditor() {
+export function LichFilesEditor({ charName }: { charName?: string }) {
   const [files, setFiles]     = useState<LichFileEntry[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [content, setContent] = useState('')
@@ -80,7 +80,17 @@ export function LichFilesEditor() {
   }
 
   const renderGroup = (g: typeof GROUPS[number]) => {
-    const items = files.filter(f => f.dir === g.dir)
+    // A Lich home is shared across every character run from this bucket, so its
+    // profiles/ holds ALL characters' <Char>-setup.yaml. Only surface the current
+    // character's setup(s) here — seeing another character's setup while playing
+    // Conradio is confusing (it's yours, but not relevant). Custom scripts are
+    // character-agnostic, so they always show.
+    const char = charName?.trim().toLowerCase()
+    const items = files.filter(f => {
+      if (f.dir !== g.dir) return false
+      if (g.dir === 'profiles' && char) return f.name.toLowerCase().startsWith(char + '-')
+      return true
+    })
     return (
       <div className="lf-group" key={g.dir}>
         <div className="lf-group-head">
