@@ -9,6 +9,7 @@ type Screen =
   | 'instance-select'
   | 'character-select'
   | 'connecting'
+  | 'magiloom-account'
 
 interface SGECharacter  { id: string; name: string }
 interface SGEInstance   { code: string; name: string }
@@ -33,13 +34,30 @@ function Back({ onClick }: { onClick: () => void }) {
 }
 
 // ─── Screen 1: Saved accounts ─────────────────────────────────────────────────
-function AccountListScreen({ accounts, onSelect, onForget, onForgetAccount, onAddNew, onSettings }: {
+function SyncBadge({ account, onSignIn, onSignOut }: {
+  account: MagiloomAccount | null
+  onSignIn: () => void
+  onSignOut: () => void
+}) {
+  // Web only — desktop's preload has no `account` API (desktop stays local + free).
+  if (!window.dr.account) return null
+  return account
+    ? <button className="login-sync-badge" onClick={onSignOut}>
+        <span className="login-sync-on">● Synced</span>
+        <span className="login-sync-email">{account.email}</span>
+        <span className="login-sync-action">Sign out</span>
+      </button>
+    : <button className="login-btn-secondary" onClick={onSignIn}>☁ Sign in to sync across devices</button>
+}
+
+function AccountListScreen({ accounts, onSelect, onForget, onForgetAccount, onAddNew, onSettings, syncBadge }: {
   accounts:        SavedAccount[]
   onSelect:        (a: SavedAccount) => void
   onForget:        (name: string) => void
   onForgetAccount: (name: string) => void
   onAddNew:        () => void
   onSettings:      () => void
+  syncBadge:       React.ReactNode
 }) {
   return <>
     <div className="login-screen-title">Welcome back</div>
@@ -70,16 +88,18 @@ function AccountListScreen({ accounts, onSelect, onForget, onForgetAccount, onAd
     </div>
     <button className="login-btn-secondary" onClick={onAddNew}>+ Add account</button>
     <button className="login-btn-secondary" onClick={onSettings}>⚙ Settings</button>
+    {syncBadge}
   </>
 }
 
 // ─── Screen 2: Credentials ────────────────────────────────────────────────────
-function CredentialsScreen({ initialAccount, onSubmit, onBack, error, loading }: {
+function CredentialsScreen({ initialAccount, onSubmit, onBack, error, loading, syncBadge }: {
   initialAccount: string
   onSubmit:       (account: string, password: string) => void
   onBack?:        () => void
   error:          string
   loading:        boolean
+  syncBadge?:     React.ReactNode
 }) {
   const [account,  setAccount]  = useState(initialAccount)
   const [password, setPassword] = useState('')
@@ -109,6 +129,7 @@ function CredentialsScreen({ initialAccount, onSubmit, onBack, error, loading }:
       disabled={loading || !account || !password}>
       {loading ? 'Signing in…' : 'Sign in'}
     </button>
+    {syncBadge}
   </>
 }
 
@@ -265,6 +286,59 @@ function SettingsScreen({ initialPath, detectedPath, onSave, onBack }: {
   </>
 }
 
+// ─── Magiloom account (web only) ──────────────────────────────────────────────
+// A real Magiloom account (email + password), separate from the DragonRealms
+// account. Signing in syncs your settings + Lich profiles/custom scripts across
+// devices — so you can upload a setup.yaml on your computer and use it on your
+// phone. (Intentionally says nothing about the paid tier yet.)
+function MagiloomAccountScreen({ onDone, onBack }: {
+  onDone: (account: MagiloomAccount) => void
+  onBack: () => void
+}) {
+  const [mode,     setMode]     = useState<'signin' | 'signup'>('signin')
+  const [email,    setEmail]    = useState('')
+  const [password, setPassword] = useState('')
+  const [error,    setError]    = useState('')
+  const [loading,  setLoading]  = useState(false)
+
+  const submit = async () => {
+    if (!email || !password || loading) return
+    setLoading(true); setError('')
+    const api = window.dr.account!
+    const r = await (mode === 'signup' ? api.signUp(email, password) : api.signIn(email, password))
+    setLoading(false)
+    if (r.ok) onDone(r.account)
+    else setError(r.error)
+  }
+
+  return <>
+    <Back onClick={onBack} />
+    <div className="login-screen-title">{mode === 'signup' ? 'Create account' : 'Sign in to Magiloom'}</div>
+    <p className="login-hint" style={{ marginTop: 0 }}>
+      Sync your settings and Lich setups across your devices.
+    </p>
+    <div className="login-fields">
+      <label className="login-label">Email
+        <input className="login-input" type="email" autoComplete="email"
+          value={email} onChange={e => setEmail(e.target.value)} disabled={loading} />
+      </label>
+      <label className="login-label">Password
+        <input className="login-input" type="password"
+          autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+          value={password} onChange={e => setPassword(e.target.value)} disabled={loading}
+          onKeyDown={e => e.key === 'Enter' && submit()} />
+      </label>
+    </div>
+    {error && <div className="login-error">{error}</div>}
+    <button className="login-btn" onClick={submit} disabled={loading || !email || !password}>
+      {loading ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in'}
+    </button>
+    <button className="login-btn-secondary" onClick={() => { setError(''); setMode(mode === 'signup' ? 'signin' : 'signup') }}>
+      {mode === 'signup' ? 'Have an account? Sign in' : 'New here? Create an account'}
+    </button>
+  </>
+}
+
 // ─── Root controller ──────────────────────────────────────────────────────────
 export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
   const [screen,        setScreen]        = useState<Screen>('account-list')
@@ -283,6 +357,7 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
   const [useLich,       setUseLich]       = useState(false)
   const [lichAvailable, setLichAvailable] = useState(false)
   const useLichRef = useRef(false)
+  const [magiAccount,   setMagiAccount]   = useState<MagiloomAccount | null>(null)
 
   useEffect(() => {
     Promise.all([window.dr.settings.getAll(), window.dr.lich.detectPath()])
@@ -299,6 +374,20 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
         if (!s.accounts?.length) setScreen('credentials')
       })
   }, [])
+
+  // Reflect an existing Magiloom sign-in (web only) in the sync badge.
+  useEffect(() => {
+    if (window.dr.account?.isSignedIn()) window.dr.account.current().then(a => { if (a) setMagiAccount(a) })
+  }, [])
+
+  // After signing in/out, the socket re-buckets to the account (or device); pull the
+  // now-current saved DR accounts for this identity and return to the list.
+  const onMagiloomSignedIn = async (a: MagiloomAccount) => {
+    setMagiAccount(a); await refreshSettings(); setScreen('account-list')
+  }
+  const onMagiloomSignOut = async () => {
+    window.dr.account?.signOut(); setMagiAccount(null); await refreshSettings()
+  }
 
   // Persist the toggle so it's remembered next login; keep a ref so the character
   // handler reads the current value without re-creating listeners.
@@ -379,7 +468,17 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
           onForgetAccount={async name => { await window.dr.auth.forgetAccount(name); await refreshSettings() }}
           onAddNew={() => { setActiveAccount(''); setError(''); setScreen('credentials') }}
           onSettings={onOpenSettings}
+          syncBadge={
+            <SyncBadge
+              account={magiAccount}
+              onSignIn={() => { setError(''); setScreen('magiloom-account') }}
+              onSignOut={onMagiloomSignOut}
+            />
+          }
         />
+      )}
+      {screen === 'magiloom-account' && (
+        <MagiloomAccountScreen onDone={onMagiloomSignedIn} onBack={() => setScreen('account-list')} />
       )}
       {screen === 'credentials' && (
         <CredentialsScreen
@@ -388,6 +487,13 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
           onBack={savedAccounts.length > 0 ? () => setScreen('account-list') : undefined}
           error={error}
           loading={loading}
+          syncBadge={
+            <SyncBadge
+              account={magiAccount}
+              onSignIn={() => { setError(''); setScreen('magiloom-account') }}
+              onSignOut={onMagiloomSignOut}
+            />
+          }
         />
       )}
       {screen === 'instance-select' && (

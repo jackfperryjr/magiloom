@@ -168,7 +168,23 @@ interface DrAPI {
     export:     (content: string, defaultName: string) => Promise<{ ok: boolean; path?: string; error?: string }>
     onZoneChanged: (cb: (zone: Zone) => void) => () => void
   }
+  // Magiloom account — WEB CLIENT ONLY (the Electron preload omits it). Gate any
+  // usage on `window.dr.account` being present. Signing in syncs a user's settings,
+  // Lich profiles/custom scripts and avatars across their devices.
+  account?: {
+    isSignedIn: () => boolean
+    current:    () => Promise<MagiloomAccount | null>
+    signUp:  (email: string, password: string) => Promise<AccountAuthResult>
+    signIn:  (email: string, password: string) => Promise<AccountAuthResult>
+    signOut: () => void
+  }
 }
 
-declare global { interface Window { dr: DrAPI } }
+declare global {
+  interface Window { dr: DrAPI }
+  interface MagiloomAccount { id: string; email: string; tier: 'free' | 'paid' }
+  type AccountAuthResult =
+    | { ok: true; account: MagiloomAccount; token: string }
+    | { ok: false; error: string }
+}
 export {}

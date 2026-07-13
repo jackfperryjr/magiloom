@@ -37,22 +37,46 @@ export function deviceId(): string {
   return id
 }
 
-// A per-page-load connection id, distinct from the (persisted, per-install) device
-// id. The device id names the shared DATA bucket (settings/accounts) — several
-// clients can legitimately share it — while this id names THIS running client so
-// the server never routes one character's game stream to another. Deliberately
-// in-memory: a reconnect from the same live page (network blip, backgrounded PWA)
-// keeps the id and resumes its session; a full reload starts fresh. See the
-// magiserver gateway's session keying.
-const CONN_ID =
-  crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)
+// A stable connection id, distinct from the (also per-install) device id. It names
+// THIS client's server-side session, so a reconnect — a network blip, a backgrounded
+// PWA, or a full reopen after iOS kills the page — reattaches to the SAME running
+// session instead of starting a new one and dropping the character. Persisted (not
+// per-page) so it survives a reload/kill; that's what lets you close the app and
+// resume/"watch" the still-running DR connection when you come back. Two tabs in the
+// same browser share it (and the session) by design; separate devices get their own.
+export function connId(): string {
+  let id = localStorage.getItem('magiloom-conn-id')
+  if (!id) {
+    id = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)
+    localStorage.setItem('magiloom-conn-id', id)
+  }
+  return id
+}
 
-export function connId(): string { return CONN_ID }
+// Magiloom-account auth token + id, if the user has signed in. Kept separate from
+// the shared bearer `token()`. When present, the server keys this client's DATA
+// bucket (and, for paid, its live session) to the account instead of the device.
+export function authToken(): string { return localStorage.getItem('magiloom-auth-token') || '' }
+export function accountId(): string { return localStorage.getItem('magiloom-account-id') || '' }
+export function setAuth(token: string | null, id: string | null): void {
+  if (token) localStorage.setItem('magiloom-auth-token', token); else localStorage.removeItem('magiloom-auth-token')
+  if (id)    localStorage.setItem('magiloom-account-id', id);    else localStorage.removeItem('magiloom-account-id')
+}
 
-/** Full gateway URL: wss://host/ws?user=<device>&conn=<page>&token=<token>. */
+// The push subscription must land in the SAME bucket the server routes the session
+// to: the account when signed in (so a signed-in user's devices are pinged), else
+// the device. Mirrors the gateway's `acct-<id>` scheme.
+export function pushBucket(): string {
+  const id = accountId()
+  return id ? `acct-${id}` : deviceId()
+}
+
+/** Full gateway URL: wss://host/ws?user=<device>&conn=<page>&token=<token>[&auth=…]. */
 export function wsUrl(): string {
   const params = new URLSearchParams({ user: deviceId(), conn: connId() })
   const t = token()
   if (t) params.set('token', t)
+  const a = authToken()
+  if (a) params.set('auth', a)   // account identity → server keys the session to it
   return `${serverBase()}/ws?${params.toString()}`
 }

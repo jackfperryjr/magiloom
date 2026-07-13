@@ -693,7 +693,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                   Point this at your <code>lich.rbw</code> (or <code>lich.rb</code>) to launch Lich at login.
                   Leave blank to connect directly without Lich.
                 </div>
-                <LichFilesEditor />
+                <LichFilesEditor charName={charName} />
               </div>
             )}
           </div>

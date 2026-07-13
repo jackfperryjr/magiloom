@@ -1,4 +1,4 @@
-import { deviceId, httpBase } from './config'
+import { pushBucket, httpBase } from './config'
 
 // ── PWA install + Web Push ───────────────────────────────────────────────────────
 // Registers the service worker and subscribes this device to Web Push so the
@@ -44,7 +44,7 @@ export async function enablePush(): Promise<boolean> {
     await fetch(`${httpBase()}/push/subscribe`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ userId: deviceId(), subscription: sub.toJSON() }),
+      body: JSON.stringify({ userId: pushBucket(), subscription: sub.toJSON() }),
     })
     return true
   } catch {
