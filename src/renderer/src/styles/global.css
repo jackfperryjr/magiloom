@@ -71,7 +71,11 @@
 }
 
 /* ── Base ────────────────────────────────────────────────────────────────── */
-html, body, #root { height: 100%; overflow: hidden; }
+/* Height via the viewport unit (100vh), NOT `height: 100%`. On iOS an
+   `overflow:hidden` + `height:100%` chain can resolve shorter than the real screen,
+   which floats a bottom-pinned row up (leaving a gap). 100vh is measured against the
+   viewport directly — the approach a working sibling PWA uses. */
+html, body, #root { height: 100vh; overflow: hidden; }
 body {
   background: var(--bg-shell);
   color: var(--text-main);
@@ -82,10 +86,8 @@ body {
 /* ── App shell ───────────────────────────────────────────────────────────── */
 .app-shell {
   display: flex; flex-direction: column;
-  height: 100vh;   /* fallback */
-  height: 100%;    /* fills #root (= the full screen in a viewport-fit=cover PWA) —
-                      more reliable than 100dvh in an installed iOS PWA, where dvh
-                      could leave a strip below the last row. */
+  height: 100vh;   /* viewport unit — full screen in a standalone PWA (matches the
+                      working sibling app); avoids the short `height:100%` chain. */
   overflow: hidden;
   /* Notch / Dynamic Island (top) + side insets. The BOTTOM inset is deliberately
      NOT reserved here: the command row's own background bleeds to the very bottom
@@ -2031,10 +2033,8 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
 
 /* ── Login ───────────────────────────────────────────────────────────────── */
 .login-screen {
-  min-height: 100vh;   /* fallback */
-  min-height: 100%;    /* fill #root exactly — the gradient covers to the true screen
-                          edges (no bare-body strip under the home indicator). */
-  height: 100%;
+  min-height: 100vh;   /* viewport unit — gradient covers to the true screen edges
+                          (no bare-body strip); matches the working sibling PWA. */
   display: flex;
   align-items: center;
   justify-content: center;
