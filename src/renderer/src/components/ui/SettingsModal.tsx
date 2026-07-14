@@ -11,9 +11,12 @@ import { ClassToggleStrip, distinctClasses, toggleClassState } from './ClassTogg
 interface SettingsModalProps {
   charName?: string
   onClose: () => void
+  /** Web only: called after signing out of the Magiloom account so the app can
+   *  disconnect from DR and return to the login screen. */
+  onSignedOut?: () => void
 }
 
-type TabId = 'appearance' | 'notifications' | 'keybinds' | 'aliases' | 'triggers' | 'scripts' | 'lich'
+type TabId = 'appearance' | 'notifications' | 'keybinds' | 'aliases' | 'triggers' | 'scripts' | 'lich' | 'account'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'appearance',    label: 'Appearance' },
@@ -27,7 +30,13 @@ const TABS: { id: TabId; label: string }[] = [
 
 function uid() { return Math.random().toString(36).slice(2, 9) }
 
-export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
+export function SettingsModal({ charName = '', onClose, onSignedOut }: SettingsModalProps) {
+  // Magiloom account (web only). The tab appears when signed in so the user can
+  // sign out from here (which disconnects DR and returns to the login screen).
+  const acctApi = window.dr.account
+  const [acct, setAcct] = useState<MagiloomAccount | null>(null)
+  useEffect(() => { if (acctApi?.isSignedIn()) void acctApi.current().then(a => setAcct(a)) }, [acctApi])
+  const tabs = acct ? [...TABS, { id: 'account' as TabId, label: 'Account' }] : TABS
   const [lichPath,        setLichPath]        = useState('')
   const [scriptDir,       setScriptDir]       = useState('')
   const [defaultScriptDir, setDefaultScriptDir] = useState('')
@@ -156,7 +165,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
 
         <div className="settings-layout">
           <nav className="settings-nav">
-            {TABS.map(t => (
+            {tabs.map(t => (
               <button
                 key={t.id}
                 className={'settings-nav-item' + (tab === t.id ? ' active' : '')}
@@ -694,6 +703,29 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                   Leave blank to connect directly without Lich.
                 </div>
                 <LichFilesEditor charName={charName} />
+              </div>
+            )}
+
+            {tab === 'account' && acct && (
+              <div className="settings-section">
+                <div className="settings-section-label">Magiloom account</div>
+                <label className="settings-row">
+                  <span className="settings-label">Signed in as</span>
+                  <span className="settings-value">{acct.email}</span>
+                </label>
+                <div className="settings-hint">
+                  Your settings and Lich setups sync across devices while signed in.
+                </div>
+                <button
+                  className="login-btn-secondary"
+                  style={{ marginTop: 12, color: 'var(--color-warning)' }}
+                  onClick={() => { onClose(); onSignedOut?.() }}
+                >
+                  Sign out
+                </button>
+                <div className="settings-hint">
+                  Signing out disconnects from DragonRealms and returns to the login screen.
+                </div>
               </div>
             )}
           </div>

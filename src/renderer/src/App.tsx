@@ -546,7 +546,19 @@ function AppInner() {
           <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} />
         </div>
       )}
-      {showSettings && <SettingsModal charName={charName} onClose={() => setShowSettings(false)} />}
+      {showSettings && (
+        <SettingsModal
+          charName={charName}
+          onClose={() => setShowSettings(false)}
+          onSignedOut={async () => {
+            // Order matters: end the DR session on the signed-in bucket FIRST, then
+            // sign out (which reconnects the socket anonymously), then show login.
+            try { await window.dr.game.disconnect() } catch { /* ignore */ }
+            window.dr.account?.signOut()
+            setInGame(false)
+          }}
+        />
+      )}
     </>
   )
 }

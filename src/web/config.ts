@@ -71,12 +71,21 @@ export function pushBucket(): string {
   return id ? `acct-${id}` : deviceId()
 }
 
-/** Full gateway URL: wss://host/ws?user=<device>&conn=<page>&token=<token>[&auth=…]. */
+// Transient "watch" target — the conn of another of this account's live sessions to
+// attach to (paid watch mode). In-memory: watching is an explicit, per-session action,
+// not something to persist across reloads.
+let _watchConn: string | null = null
+export function watchConn(): string { return _watchConn ?? '' }
+export function setWatch(conn: string | null): void { _watchConn = conn }
+
+/** Full gateway URL: wss://host/ws?user=<device>&conn=<page>&token=<token>[&auth=…][&watch=…]. */
 export function wsUrl(): string {
   const params = new URLSearchParams({ user: deviceId(), conn: connId() })
   const t = token()
   if (t) params.set('token', t)
   const a = authToken()
   if (a) params.set('auth', a)   // account identity → server keys the session to it
+  const w = watchConn()
+  if (w) params.set('watch', w)  // attach to another of this account's sessions
   return `${serverBase()}/ws?${params.toString()}`
 }

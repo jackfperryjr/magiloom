@@ -10,6 +10,7 @@ type Screen =
   | 'character-select'
   | 'connecting'
   | 'magiloom-account'
+  | 'watch-select'
 
 interface SGECharacter  { id: string; name: string }
 interface SGEInstance   { code: string; name: string }
@@ -339,6 +340,41 @@ function MagiloomAccountScreen({ onDone, onBack }: {
   </>
 }
 
+// ─── Watch a running session (paid) ───────────────────────────────────────────
+// Attach to another of the account's live sessions and mirror its stream — e.g.
+// check on a character running on your desktop from your phone.
+function WatchSelectScreen({ onWatch, onBack }: {
+  onWatch: (s: WatchSession) => void
+  onBack:  () => void
+}) {
+  const [sessions, setSessions] = useState<WatchSession[] | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    window.dr.account?.sessions()
+      .then(list => setSessions(list.filter(s => s.connected && !s.current)))
+      .catch(() => setError('Could not load your running sessions.'))
+  }, [])
+  return <>
+    <Back onClick={onBack} />
+    <div className="login-screen-title">Watch a session</div>
+    <p className="login-hint" style={{ marginTop: 0 }}>Attach to a character already running on your account.</p>
+    {sessions === null && !error && <p className="login-hint">Loading…</p>}
+    {sessions && sessions.length === 0 && <p className="login-hint">No running sessions to watch.</p>}
+    <div className="login-accounts-list">
+      {sessions?.map(s => (
+        <button key={s.conn} className="login-account-btn" onClick={() => onWatch(s)}>
+          <div className="login-account-info">
+            <span className="login-account-name">{s.charName || 'Unknown character'}</span>
+            <span className="login-account-last">● Live</span>
+          </div>
+          <span className="login-account-arrow">›</span>
+        </button>
+      ))}
+    </div>
+    {error && <div className="login-error">{error}</div>}
+  </>
+}
+
 // ─── Root controller ──────────────────────────────────────────────────────────
 export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
   const [screen,        setScreen]        = useState<Screen>('account-list')
@@ -388,6 +424,25 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
   const onMagiloomSignOut = async () => {
     window.dr.account?.signOut(); setMagiAccount(null); await refreshSettings()
   }
+
+  // Watch a running session: attach to it (reconnects with ?watch=) and enter game
+  // mirroring it. We know the character from the picker; the server replays its state.
+  const onWatchSession = (s: WatchSession) => {
+    window.dr.account?.watch(s.conn)
+    onEnterGame(s.charName, '')
+  }
+
+  // Account footer shown on the entry screens: sync status + (paid) a watch entry.
+  const accountFooter = (
+    <>
+      <SyncBadge account={magiAccount} onSignIn={() => { setError(''); setScreen('magiloom-account') }} onSignOut={onMagiloomSignOut} />
+      {magiAccount?.tier === 'paid' && (
+        <button className="login-btn-secondary" onClick={() => { setError(''); setScreen('watch-select') }}>
+          👁 Watch a running session
+        </button>
+      )}
+    </>
+  )
 
   // Persist the toggle so it's remembered next login; keep a ref so the character
   // handler reads the current value without re-creating listeners.
@@ -468,17 +523,14 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
           onForgetAccount={async name => { await window.dr.auth.forgetAccount(name); await refreshSettings() }}
           onAddNew={() => { setActiveAccount(''); setError(''); setScreen('credentials') }}
           onSettings={onOpenSettings}
-          syncBadge={
-            <SyncBadge
-              account={magiAccount}
-              onSignIn={() => { setError(''); setScreen('magiloom-account') }}
-              onSignOut={onMagiloomSignOut}
-            />
-          }
+          syncBadge={accountFooter}
         />
       )}
       {screen === 'magiloom-account' && (
         <MagiloomAccountScreen onDone={onMagiloomSignedIn} onBack={() => setScreen('account-list')} />
+      )}
+      {screen === 'watch-select' && (
+        <WatchSelectScreen onWatch={onWatchSession} onBack={() => setScreen('account-list')} />
       )}
       {screen === 'credentials' && (
         <CredentialsScreen
@@ -487,13 +539,7 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
           onBack={savedAccounts.length > 0 ? () => setScreen('account-list') : undefined}
           error={error}
           loading={loading}
-          syncBadge={
-            <SyncBadge
-              account={magiAccount}
-              onSignIn={() => { setError(''); setScreen('magiloom-account') }}
-              onSignOut={onMagiloomSignOut}
-            />
-          }
+          syncBadge={accountFooter}
         />
       )}
       {screen === 'instance-select' && (
