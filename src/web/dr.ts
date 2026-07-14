@@ -1,4 +1,4 @@
-import { wsUrl } from './config'
+import { wsUrl, setWatch } from './config'
 import * as account from './auth'
 import { enablePush } from './push'
 
@@ -229,7 +229,13 @@ export function installDr(): void {
         if (r.ok) { t.reconnect(); void enablePush() }
         return r
       },
-      signOut: () => { account.logout(); t.reconnect(); void enablePush() },
+      signOut: () => { account.logout(); setWatch(null); t.reconnect(); void enablePush() },
+      // Paid watch mode: list this account's live sessions, and attach to / detach
+      // from one (reconnects the socket with ?watch=, so the server mirrors that
+      // session's stream to this client too instead of starting a fresh one).
+      sessions: () => t.invoke('session:list'),
+      watch:   (conn: string) => { setWatch(conn); t.reconnect() },
+      unwatch: () => { setWatch(null); t.reconnect() },
     },
   }
   ;(window as unknown as { dr: typeof dr }).dr = dr

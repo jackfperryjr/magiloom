@@ -177,6 +177,10 @@ interface DrAPI {
     signUp:  (email: string, password: string) => Promise<AccountAuthResult>
     signIn:  (email: string, password: string) => Promise<AccountAuthResult>
     signOut: () => void
+    // Paid watch mode.
+    sessions: () => Promise<WatchSession[]>
+    watch:    (conn: string) => void
+    unwatch:  () => void
   }
 }
 
@@ -186,5 +190,6 @@ declare global {
   type AccountAuthResult =
     | { ok: true; account: MagiloomAccount; token: string }
     | { ok: false; error: string }
+  interface WatchSession { conn: string; charName: string; connected: boolean; current: boolean }
 }
 export {}

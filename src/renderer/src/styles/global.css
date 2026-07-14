@@ -1827,7 +1827,7 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
      to the screen bottom (app-shell reserves no bottom inset); the bottom padding
      lifts the input just above the home indicator with no empty gap beneath. */
   .command-row { padding: 4px 14px max(6px, calc(env(safe-area-inset-bottom) - 18px)) 14px; gap: 6px; }
-  .command-input-wrap { border-radius: 20px; }
+  .command-input-wrap { border-radius: 26px; }
 
   /* iOS auto-zooms when focusing an input under 16px — keep it ≥16px to stop that
      (still honours a larger user font size). */
@@ -1841,13 +1841,16 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
     flex: 0 0 auto;
     min-height: 0;
     padding: 0;
-    margin-right: 6px;
+    /* Negative top/bottom margins let the enlarged avatar overflow the pill's height
+       instead of stretching it — the avatar reads as a prominent circle overlapping
+       the input's edges. */
+    margin: -7px 9px -7px 0;
     background: none;
     box-shadow: none;
     border-radius: 0;
   }
   .command-input-wrap > .character-bar .char-identity { flex: 0 0 auto; padding: 0; }
-  .char-avatar { width: 36px; height: 36px; }
+  .char-avatar { width: 54px; height: 54px; }
 
   /* Only the posture shows inline; conditions live in its popup. Hands are hidden.
      .hud-bar prefix beats the later base .hand-display rule's specificity. */
@@ -2415,6 +2418,7 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
 }
 .settings-row { display: flex; align-items: center; gap: 12px; }
 .settings-label { font-size: 15px; color: var(--text-dim); min-width: 88px; font-family: var(--font-ui); }
+.settings-value { font-size: 15px; color: var(--text-main); font-family: var(--font-ui); overflow: hidden; text-overflow: ellipsis; }
 .settings-input {
   flex: 1;
   min-width: 0;
