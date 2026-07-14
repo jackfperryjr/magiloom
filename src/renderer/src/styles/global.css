@@ -550,9 +550,19 @@ body[data-platform="darwin"] .status-bar {
 }
 /* "Add panel" button — the SAME squircle as the other rail buttons; the filled
    plus-circle icon is what sets it apart. Hover highlights a muted accent. */
-.panel-rail-add { color: var(--text-main); }
+.panel-rail-add { color: var(--text-bright); }
 .panel-rail-add:hover { background: color-mix(in srgb, var(--accent) 100%, transparent); }
 .panel-rail-add-icon { display: block; pointer-events: none; }
+/* FF IV: --accent-dim is near-black navy (button reads too dark) and --accent is
+   near-white (hover was white-on-white). Lift the resting bg and darken the icon on
+   hover so the circle stays visible. */
+[data-theme="ff4"] .panel-rail-add { background: color-mix(in srgb, var(--accent) 22%, var(--accent-dim)); }
+[data-theme="ff4"] .panel-rail-btn:hover { background: var(--border); }
+/* Parchment: --text-main is a very dark brown, so the resting circle read too dark.
+   Use the sienna accent at rest; keep the (fine) dark icon on the sienna hover. */
+[data-theme="parchment"] .panel-rail-btn { background: var(--text-dim); }
+[data-theme="parchment"] .panel-rail-btn:hover { background: var(--accent); }
+[data-theme="parchment"] .panel-rail-add { color: var(--accent-dim); }
 
 /* "Update available" button — pinned to the very bottom of the rail; a green
    download icon that pulses for attention. Tap reloads into the new build. */
