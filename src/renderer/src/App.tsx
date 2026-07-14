@@ -168,7 +168,7 @@ function LichLogPanel({ lines, status }: { lines: string[]; status: LichStatus }
 }
 
 // ── Game layout ───────────────────────────────────────────────────────────────
-function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, updateSlot }: { charName: string; accountName: string; onOpenSettings: () => void; onRequestConnect: () => void; updateSlot: React.ReactNode }) {
+function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSettings, onRequestConnect, updateSlot }: { charName: string; accountName: string; watching: boolean; onLeaveWatch: () => void; onOpenSettings: () => void; onRequestConnect: () => void; updateSlot: React.ReactNode }) {
   // Automapper: records rooms into the shared world map (movement is captured
   // universally via dr.game.onSent inside the hook).
   const automap = useAutomapper()
@@ -441,6 +441,8 @@ function GameLayout({ charName, accountName, onOpenSettings, onRequestConnect, u
               charName={charName}
               accountName={accountName}
               status={status}
+              watching={watching}
+              onLeaveWatch={onLeaveWatch}
               onHighlights={() => setShowHighlights(true)}
               onSettings={onOpenSettings}
               onDisconnect={disconnect}
@@ -504,6 +506,7 @@ function UpdateIcon({ version, ready, offline }: { version: string; ready: boole
 
 function AppInner() {
   const [inGame,        setInGame]        = useState(false)
+  const [watching,      setWatching]      = useState(false)   // viewing another device's session
   const [showReconnect, setShowReconnect] = useState(false)
   const [charName,      setCharName]      = useState('')
   const [accountName,   setAccountName]   = useState('')
@@ -531,14 +534,17 @@ function AppInner() {
 
   const updateSlot = <UpdateIcon version={updateVersion} ready={updateReady} offline={offline} />
 
-  const enterGame = (name: string, account: string) => { setCharName(name); setAccountName(account); setInGame(true); setShowReconnect(false) }
+  const enterGame = (name: string, account: string, watch = false) => { setCharName(name); setAccountName(account); setWatching(watch); setInGame(true); setShowReconnect(false) }
+  // Leave a watched session: detach (reconnect to our own bucket) and return to the
+  // login screen WITHOUT disconnecting DR — the session keeps running for its owner.
+  const leaveWatch = () => { window.dr.account?.unwatch(); setWatching(false); setInGame(false) }
 
   return (
     <>
       {!inGame && <div className="app-titlebar-shell">{updateSlot}<WindowControls /></div>}
       {!inGame
         ? <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} />
-        : <GameLayout charName={charName} accountName={accountName} onOpenSettings={() => setShowSettings(true)} onRequestConnect={() => setShowReconnect(true)} updateSlot={updateSlot} />
+        : <GameLayout charName={charName} accountName={accountName} watching={watching} onLeaveWatch={leaveWatch} onOpenSettings={() => setShowSettings(true)} onRequestConnect={() => setShowReconnect(true)} updateSlot={updateSlot} />
       }
       {inGame && showReconnect && (
         <div className="reconnect-overlay">

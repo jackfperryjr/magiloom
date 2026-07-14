@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useAtomValue } from 'jotai'
 import { Tooltip } from '../ui/Tooltip'
+import { IconArrowDownTray } from '../ui/Icons'
 import { convLinesAtom } from '../../store/game'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -219,11 +220,13 @@ function RailIcon({ id, label }: { id: PanelId; label: string }) {
   )
 }
 
-function PanelRail({ panels, scrollRef, onSelect, openPanel }: {
+function PanelRail({ panels, scrollRef, onSelect, openPanel, onManage, manageBtnRef }: {
   panels:    PanelConfig[]                       // visible panels, in order
   scrollRef: React.RefObject<HTMLDivElement>     // the .panel-sidebar-scroll container
   onSelect:  (id: PanelId) => void               // desktop: scroll to it; mobile: open overlay
   openPanel: PanelId | null                      // mobile: which panel overlay is open
+  onManage:  () => void                          // open the add/remove-panels manager
+  manageBtnRef: React.RefObject<HTMLButtonElement>  // anchors the manager popup
 }) {
   const isMobile = useIsMobile()
   const convCount = useAtomValue(convLinesAtom).length
@@ -268,6 +271,12 @@ function PanelRail({ panels, scrollRef, onSelect, openPanel }: {
     onSelect(id)
   }
 
+  // "Update available" indicator — mobile only, since the desktop keeps its title-bar
+  // icon (hidden on phones). Driven by the same window.dr.updater the desktop uses;
+  // on the web build that's a version-check (src/web/updater.ts). Tap → reload.
+  const [updateReady, setUpdateReady] = useState(false)
+  useEffect(() => window.dr.updater.onReady(() => setUpdateReady(true)), [])
+
   return (
     <nav className="panel-rail">
       {panels.map(p => (
@@ -282,6 +291,29 @@ function PanelRail({ panels, scrollRef, onSelect, openPanel }: {
           </span>
         </Tooltip>
       ))}
+      {/* Discord-style "add" button — opens the add/remove-panels manager. Always
+          present, so panels can be re-added even when none are showing (and it works
+          on mobile, where the sidebar header is hidden). */}
+      <Tooltip text="Add or remove panels" placement="left">
+        <span className="panel-rail-slot">
+          <button ref={manageBtnRef} className="panel-rail-btn panel-rail-add" onClick={onManage} aria-label="Add or remove panels">
+            <svg className="panel-rail-add-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+              <path fillRule="evenodd" clipRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm.75 6.75a.75.75 0 0 0-1.5 0v2.25H9a.75.75 0 0 0 0 1.5h2.25V15a.75.75 0 0 0 1.5 0v-2.25H15a.75.75 0 0 0 0-1.5h-2.25V9Z" />
+            </svg>
+          </button>
+        </span>
+      </Tooltip>
+      {/* Update available (mobile) — pinned to the very bottom of the rail. Tap to
+          reload into the freshly deployed build. */}
+      {isMobile && updateReady && (
+        <Tooltip text="Update available — tap to refresh" placement="left">
+          <span className="panel-rail-slot panel-rail-update-slot">
+            <button className="panel-rail-btn panel-rail-update" onClick={() => window.dr.updater.install()} aria-label="Update available — tap to refresh">
+              <IconArrowDownTray size={20} />
+            </button>
+          </span>
+        </Tooltip>
+      )}
     </nav>
   )
 }
@@ -293,18 +325,20 @@ function PanelManager({
   panels: PanelConfig[]; onToggle: (id: PanelId) => void
   onClose: () => void; anchorRef: React.RefObject<HTMLButtonElement>
 }) {
-  const [pos, setPos] = useState({ top: 0, right: 0 })
+  const [pos, setPos] = useState({ bottom: 0, right: 0 })
   useEffect(() => {
     const el = anchorRef.current
     if (!el) return
     const r = el.getBoundingClientRect()
-    setPos({ top: r.bottom + 4, right: window.innerWidth - r.right })
+    // Open up-and-left of the rail's add button (it sits at the bottom-right edge),
+    // so the popup never runs off the bottom or right of the screen.
+    setPos({ bottom: window.innerHeight - r.top + 6, right: window.innerWidth - r.left + 6 })
   }, [anchorRef])
 
   return (
     <>
       <div className="panel-manager-backdrop" onClick={onClose} />
-      <div className="panel-manager-popup" style={{ top: pos.top, right: pos.right, position: 'fixed' }}>
+      <div className="panel-manager-popup" style={{ bottom: pos.bottom, right: pos.right, position: 'fixed' }}>
         <div className="panel-manager-title">Panels</div>
         {panels.map(p => (
           <label key={p.id} className="panel-manager-item">
@@ -377,11 +411,6 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
   return (
     <div className="panel-sidebar-wrap" style={sidebarWidth && !isMobile ? { width: sidebarWidth, flex: 'none' } : {}}>
       <aside className="panel-sidebar">
-      <div className="panel-sidebar-header">
-        <button ref={managerBtnRef} className="panel-manager-toggle" onClick={() => setShowManager(v => !v)}>
-          ⊞ Panels
-        </button>
-      </div>
       <div className="panel-sidebar-scroll" ref={scrollRef}>
         {visible.map((panel, i) => (
           <Panel
@@ -403,18 +432,27 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
           </Panel>
         ))}
         {visible.length === 0 && (
-          <div className="panel-sidebar-empty">No panels — click ⊞ Panels to add some.</div>
+          <div className="panel-sidebar-empty">No panels — click the <strong>+</strong> in the rail to add some.</div>
         )}
       </div>
       {footer && <div className="panel-sidebar-footer">{footer}</div>}
+      </aside>
+      <PanelRail
+        panels={visible}
+        scrollRef={scrollRef}
+        onSelect={selectPanel}
+        openPanel={mobilePanel}
+        onManage={() => setShowManager(v => !v)}
+        manageBtnRef={managerBtnRef}
+      />
+      {/* Rendered at the wrap level (not inside the aside, which is display:none on
+          mobile) so the manager popup works on mobile too. */}
       {showManager && (
         <PanelManager
           panels={panels} onToggle={togglePanel}
           onClose={() => setShowManager(false)} anchorRef={managerBtnRef}
         />
       )}
-      </aside>
-      {visible.length > 0 && <PanelRail panels={visible} scrollRef={scrollRef} onSelect={selectPanel} openPanel={mobilePanel} />}
       {mobileCfg && (
         <div className="panel-mobile-overlay" onClick={e => e.target === e.currentTarget && setMobilePanel(null)}>
           <div className="panel-mobile-sheet">

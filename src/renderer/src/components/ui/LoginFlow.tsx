@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Tooltip } from './Tooltip'
 
-interface LoginFlowProps { onEnterGame: (characterName: string, accountName: string) => void; onOpenSettings: () => void }
+interface LoginFlowProps { onEnterGame: (characterName: string, accountName: string, watching?: boolean) => void; onOpenSettings: () => void }
 
 type Screen =
   | 'account-list'
@@ -429,7 +429,7 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
   // mirroring it. We know the character from the picker; the server replays its state.
   const onWatchSession = (s: WatchSession) => {
     window.dr.account?.watch(s.conn)
-    onEnterGame(s.charName, '')
+    onEnterGame(s.charName, '', true)   // watch mode → enables the "Leave session" menu item
   }
 
   // Account footer shown on the entry screens: sync status + (paid) a watch entry.

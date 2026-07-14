@@ -36,7 +36,9 @@ export function SettingsModal({ charName = '', onClose, onSignedOut }: SettingsM
   const acctApi = window.dr.account
   const [acct, setAcct] = useState<MagiloomAccount | null>(null)
   useEffect(() => { if (acctApi?.isSignedIn()) void acctApi.current().then(a => setAcct(a)) }, [acctApi])
-  const tabs = acct ? [...TABS, { id: 'account' as TabId, label: 'Account' }] : TABS
+  // Show the Account tab on any WEB client (desktop or mobile) for consistency; the
+  // Electron desktop app has no `account` API, so it never appears there (free/local).
+  const tabs = acctApi ? [...TABS, { id: 'account' as TabId, label: 'Account' }] : TABS
   const [lichPath,        setLichPath]        = useState('')
   const [scriptDir,       setScriptDir]       = useState('')
   const [defaultScriptDir, setDefaultScriptDir] = useState('')
@@ -706,26 +708,35 @@ export function SettingsModal({ charName = '', onClose, onSignedOut }: SettingsM
               </div>
             )}
 
-            {tab === 'account' && acct && (
+            {tab === 'account' && (
               <div className="settings-section">
                 <div className="settings-section-label">Magiloom account</div>
-                <label className="settings-row">
-                  <span className="settings-label">Signed in as</span>
-                  <span className="settings-value">{acct.email}</span>
-                </label>
-                <div className="settings-hint">
-                  Your settings and Lich setups sync across devices while signed in.
-                </div>
-                <button
-                  className="login-btn-secondary"
-                  style={{ marginTop: 12, color: 'var(--color-warning)' }}
-                  onClick={() => { onClose(); onSignedOut?.() }}
-                >
-                  Sign out
-                </button>
-                <div className="settings-hint">
-                  Signing out disconnects from DragonRealms and returns to the login screen.
-                </div>
+                {acct ? (
+                  <>
+                    <label className="settings-row">
+                      <span className="settings-label">Signed in as</span>
+                      <span className="settings-value">{acct.email}</span>
+                    </label>
+                    <div className="settings-hint">
+                      Your settings and Lich setups sync across devices while signed in.
+                    </div>
+                    <button
+                      className="login-btn-secondary"
+                      style={{ marginTop: 12, color: 'var(--color-warning)' }}
+                      onClick={() => { onClose(); onSignedOut?.() }}
+                    >
+                      Sign out
+                    </button>
+                    <div className="settings-hint">
+                      Signing out disconnects from DragonRealms and returns to the login screen.
+                    </div>
+                  </>
+                ) : (
+                  <div className="settings-hint">
+                    Not signed in on this device. Use <strong>“Sign in to sync”</strong> on the login
+                    screen to sync your settings and Lich setups across devices.
+                  </div>
+                )}
               </div>
             )}
           </div>

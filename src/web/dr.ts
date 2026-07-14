@@ -1,6 +1,7 @@
 import { wsUrl, setWatch } from './config'
 import * as account from './auth'
 import { enablePush } from './push'
+import { webUpdater } from './updater'
 
 // ── WebSocket transport ─────────────────────────────────────────────────────────
 // Speaks the server's JSON envelope (see magiserver gateway.ts):
@@ -182,14 +183,9 @@ export function installDr(): void {
       isMaximized:      () => Promise.resolve(false),
       onMaximizeChange: (_cb: (m: boolean) => void) => () => {},
     },
-    // Auto-update is desktop-only; the PWA updates via its service worker.
-    updater: {
-      check:       () => Promise.resolve(),
-      install:     () => Promise.resolve(),
-      onAvailable: (_cb: (v: string) => void) => () => {},
-      onReady:     (_cb: () => void) => () => {},
-      onError:     (_cb: (m: string) => void) => () => {},
-    },
+    // Web "auto-update": a version-check (updater.ts) drives the same indicator the
+    // desktop uses; install() reloads to pick up the freshly deployed bundle.
+    updater: webUpdater,
     game: {
       getStatus:  () => t.invoke('game:get-status'),
       disconnect: () => t.invoke('game:disconnect'),

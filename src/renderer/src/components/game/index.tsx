@@ -495,7 +495,7 @@ function useAutoIdle(): boolean {
 
 function CharacterMenu({
   status, presenceMode, onSetPresence, onEditAvatar, avatar, crop, initial, charName, profile,
-  onDisconnect, onConnect, onClose, showActions, onBroadcast, onHighlights, onSettings,
+  onDisconnect, onConnect, watching, onLeaveWatch, onClose, showActions, onBroadcast, onHighlights, onSettings,
 }: {
   status:        ConnectionStatus
   presenceMode:  PresenceMode
@@ -508,6 +508,8 @@ function CharacterMenu({
   profile:       ProfileInfo | null
   onDisconnect:  () => void
   onConnect:     () => void
+  watching?:     boolean
+  onLeaveWatch?: () => void
   onClose:       () => void
   showActions:   boolean        // mobile: quick actions live here instead of the bar
   onBroadcast:   () => void
@@ -565,17 +567,26 @@ function CharacterMenu({
             <IconBolt size={15} /> Connect
           </button>
         )}
+        {watching && onLeaveWatch && (
+          // Watch mode: leave the view without ending the session (it keeps running
+          // for its owner). Sits just under Disconnect.
+          <button className="char-menu-item" onClick={run(onLeaveWatch)}>
+            <IconPower size={15} /> Leave session
+          </button>
+        )}
       </div>
     </>
   )
 }
 
 export function CharacterBar({
-  charName, accountName, status, onHighlights, onSettings, onDisconnect, onConnect,
+  charName, accountName, status, watching = false, onLeaveWatch, onHighlights, onSettings, onDisconnect, onConnect,
 }: {
   charName:     string
   accountName:  string
   status:       ConnectionStatus
+  watching?:    boolean
+  onLeaveWatch?: () => void
   onHighlights: () => void
   onSettings:   () => void
   onDisconnect: () => void
@@ -752,6 +763,8 @@ export function CharacterBar({
           profile={profile}
           onDisconnect={onDisconnect}
           onConnect={onConnect}
+          watching={watching}
+          onLeaveWatch={onLeaveWatch}
           onClose={() => setMenuOpen(false)}
           showActions={isMobile}
           onBroadcast={() => setShowBroadcast(true)}
