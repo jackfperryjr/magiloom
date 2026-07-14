@@ -472,7 +472,7 @@ body[data-platform="darwin"] .status-bar {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 6px 6px 6px 2px;
+  padding: 0 6px 6px 2px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -540,7 +540,7 @@ body[data-platform="darwin"] .status-bar {
   display: flex; align-items: center; justify-content: center;
   border: 1px solid transparent;
   border-radius: 14px;
-  background: var(--accent-dim);
+  background: var(--bg-input);
   cursor: pointer;
   overflow: hidden;
   transition: background .15s, border-color .15s, border-radius .15s;
@@ -548,6 +548,11 @@ body[data-platform="darwin"] .status-bar {
 .panel-rail-btn:hover {
   border-radius: 16px;
 }
+/* "Add panel" button — the SAME squircle as the other rail buttons; the filled
+   plus-circle icon is what sets it apart. Hover highlights a muted accent. */
+.panel-rail-add { color: var(--text-main); }
+.panel-rail-add:hover { background: color-mix(in srgb, var(--accent) 100%, transparent); }
+.panel-rail-add-icon { display: block; pointer-events: none; }
 /* Oversize the emoji so it fills the tile edge-to-edge like a server icon —
    emoji carry built-in padding, so we scale up and clip the overflow.
    Desaturate a touch so the rail reads calmer than raw full-colour emoji; hover
