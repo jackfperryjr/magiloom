@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useAtomValue } from 'jotai'
 import { Tooltip } from '../ui/Tooltip'
+import { IconArrowDownTray } from '../ui/Icons'
 import { convLinesAtom } from '../../store/game'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -270,6 +271,12 @@ function PanelRail({ panels, scrollRef, onSelect, openPanel, onManage, manageBtn
     onSelect(id)
   }
 
+  // "Update available" indicator — mobile only, since the desktop keeps its title-bar
+  // icon (hidden on phones). Driven by the same window.dr.updater the desktop uses;
+  // on the web build that's a version-check (src/web/updater.ts). Tap → reload.
+  const [updateReady, setUpdateReady] = useState(false)
+  useEffect(() => window.dr.updater.onReady(() => setUpdateReady(true)), [])
+
   return (
     <nav className="panel-rail">
       {panels.map(p => (
@@ -284,10 +291,9 @@ function PanelRail({ panels, scrollRef, onSelect, openPanel, onManage, manageBtn
           </span>
         </Tooltip>
       ))}
-      {/* Discord-style "add" button — opens the add/remove-panels manager. Docked at
-          the bottom of the rail (margin-top:auto). Always present, so panels can be
-          re-added even when none are showing (and it works on mobile, where the
-          sidebar header is hidden). */}
+      {/* Discord-style "add" button — opens the add/remove-panels manager. Always
+          present, so panels can be re-added even when none are showing (and it works
+          on mobile, where the sidebar header is hidden). */}
       <Tooltip text="Add or remove panels" placement="left">
         <span className="panel-rail-slot">
           <button ref={manageBtnRef} className="panel-rail-btn panel-rail-add" onClick={onManage} aria-label="Add or remove panels">
@@ -297,6 +303,17 @@ function PanelRail({ panels, scrollRef, onSelect, openPanel, onManage, manageBtn
           </button>
         </span>
       </Tooltip>
+      {/* Update available (mobile) — pinned to the very bottom of the rail. Tap to
+          reload into the freshly deployed build. */}
+      {isMobile && updateReady && (
+        <Tooltip text="Update available — tap to refresh" placement="left">
+          <span className="panel-rail-slot panel-rail-update-slot">
+            <button className="panel-rail-btn panel-rail-update" onClick={() => window.dr.updater.install()} aria-label="Update available — tap to refresh">
+              <IconArrowDownTray size={20} />
+            </button>
+          </span>
+        </Tooltip>
+      )}
     </nav>
   )
 }
