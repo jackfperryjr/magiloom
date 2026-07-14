@@ -28,7 +28,7 @@ import {
 } from './store/game'
 import { DEFAULT_HIGHLIGHTS, type Highlight } from './lib/themes'
 import { loadCharAppearance, applyAppearance } from './lib/charSettings'
-import { IconArrowDownTray, IconArrowPath, IconExclamationTriangle } from './components/ui/Icons'
+import { IconExclamationTriangle } from './components/ui/Icons'
 import { Tooltip } from './components/ui/Tooltip'
 import { GlobalTooltip } from './components/ui/GlobalTooltip'
 import './styles/global.css'
@@ -464,41 +464,16 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
   )
 }
 
-// ── Update icon (title bar) ───────────────────────────────────────────────────
-// The red triangle means "no internet connection" (driven by navigator.onLine) —
-// NOT update errors, which fail silently and retry on the next poll (see main).
-function UpdateIcon({ version, ready, offline }: { version: string; ready: boolean; offline: boolean }) {
-  if (offline) return (
+// ── Offline icon (title bar) ──────────────────────────────────────────────────
+// The red triangle means "no internet connection" (driven by navigator.onLine).
+// "Update available" now lives at the bottom of the panel rail on every platform
+// (see PanelSidebar), so the title bar only carries the offline indicator.
+function UpdateIcon({ offline }: { offline: boolean }) {
+  if (!offline) return null
+  return (
     <Tooltip text="No internet connection">
       <button className="update-icon-btn update-error" disabled aria-label="Offline">
         <IconExclamationTriangle size={15} />
-      </button>
-    </Tooltip>
-  )
-  if (ready) return (
-    <Tooltip text={`v${version} ready — click to restart and install`}>
-      <button
-        className="update-icon-btn update-ready"
-        onClick={() => window.dr.updater.install()}
-      >
-        <IconArrowDownTray size={15} />
-      </button>
-    </Tooltip>
-  )
-  if (version) return (
-    <Tooltip text={`Downloading v${version}…`}>
-      <button className="update-icon-btn update-downloading" disabled>
-        <IconArrowPath size={15} className="update-spin" />
-      </button>
-    </Tooltip>
-  )
-  // In dev there's never a real update — render an inert preview so the icon
-  // (and its hover animation) stays visible while working on the title bar.
-  if (!import.meta.env.DEV) return null
-  return (
-    <Tooltip text="Update icon (dev preview)">
-      <button className="update-icon-btn update-ready" aria-label="Update preview">
-        <IconArrowDownTray size={15} />
       </button>
     </Tooltip>
   )
@@ -511,18 +486,7 @@ function AppInner() {
   const [charName,      setCharName]      = useState('')
   const [accountName,   setAccountName]   = useState('')
   const [showSettings,  setShowSettings]  = useState(false)
-  const [updateVersion, setUpdateVersion] = useState('')
-  const [updateReady,   setUpdateReady]   = useState(false)
   const [offline,       setOffline]       = useState(!navigator.onLine)
-
-  useEffect(() => {
-    // Update availability/readiness (errors are handled silently in main).
-    const unsubs = [
-      window.dr.updater.onAvailable((v: string) => setUpdateVersion(v)),
-      window.dr.updater.onReady(()              => setUpdateReady(true)),
-    ]
-    return () => unsubs.forEach(fn => fn())
-  }, [])
 
   useEffect(() => {
     // Connectivity indicator: the red triangle shows only when actually offline.
@@ -532,7 +496,7 @@ function AppInner() {
     return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update) }
   }, [])
 
-  const updateSlot = <UpdateIcon version={updateVersion} ready={updateReady} offline={offline} />
+  const updateSlot = <UpdateIcon offline={offline} />
 
   const enterGame = (name: string, account: string, watch = false) => { setCharName(name); setAccountName(account); setWatching(watch); setInGame(true); setShowReconnect(false) }
   // Leave a watched session: detach (reconnect to our own bucket) and return to the

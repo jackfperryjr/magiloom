@@ -271,9 +271,9 @@ function PanelRail({ panels, scrollRef, onSelect, openPanel, onManage, manageBtn
     onSelect(id)
   }
 
-  // "Update available" indicator — mobile only, since the desktop keeps its title-bar
-  // icon (hidden on phones). Driven by the same window.dr.updater the desktop uses;
-  // on the web build that's a version-check (src/web/updater.ts). Tap → reload.
+  // "Update available" indicator — on every platform now (the title bar carries only
+  // the offline icon). Driven by window.dr.updater: the desktop auto-updater, or the
+  // web build's version-check (src/web/updater.ts). Click → apply (install/reload).
   const [updateReady, setUpdateReady] = useState(false)
   useEffect(() => window.dr.updater.onReady(() => setUpdateReady(true)), [])
 
@@ -303,12 +303,12 @@ function PanelRail({ panels, scrollRef, onSelect, openPanel, onManage, manageBtn
           </button>
         </span>
       </Tooltip>
-      {/* Update available (mobile) — pinned to the very bottom of the rail. Tap to
-          reload into the freshly deployed build. */}
-      {isMobile && updateReady && (
-        <Tooltip text="Update available — tap to refresh" placement="left">
+      {/* Update available — pinned to the very bottom of the rail on every platform.
+          Click to apply: reload (web/PWA) or restart-and-install (desktop). */}
+      {updateReady && (
+        <Tooltip text="Update available — click to apply" placement="left">
           <span className="panel-rail-slot panel-rail-update-slot">
-            <button className="panel-rail-btn panel-rail-update" onClick={() => window.dr.updater.install()} aria-label="Update available — tap to refresh">
+            <button className="panel-rail-btn panel-rail-update" onClick={() => window.dr.updater.install()} aria-label="Update available — click to apply">
               <IconArrowDownTray size={20} />
             </button>
           </span>
