@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Tooltip } from './Tooltip'
+import { CodeEditor } from './CodeEditor'
 
 // Editor for a user's Lich profiles (<Char>-setup.yaml) and custom scripts (.lic),
 // embedded in Settings → Lich. Backed by the path-jailed dr.lich.* file API — on
@@ -144,8 +145,7 @@ export function LichFilesEditor({ charName }: { charName?: string }) {
               <span className="lf-editor-name">{selected}{dirty ? ' •' : ''}</span>
               <button className="login-btn" style={{ width: 'auto', padding: '5px 14px' }} disabled={!dirty} onClick={() => void save()}>Save</button>
             </div>
-            <textarea className="lf-textarea" spellCheck={false} value={content}
-              onChange={e => { setContent(e.target.value); setDirty(true) }} />
+            <CodeEditor value={content} onChange={v => { setContent(v); setDirty(true) }} />
           </> : <div className="lf-empty">Select a file to edit, or use + / ↑ to create or upload one.</div>}
         </div>
       </div>

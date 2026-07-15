@@ -222,18 +222,18 @@ function setupUpdater(): void {
   autoUpdater.on('error', (err) => {
     // Update checks fail for all sorts of transient reasons (offline, DNS blip,
     // GitHub 5xx, rate limit). None of these are actionable by the user and the
-    // poll below retries, so fail silently — just log. The renderer shows a
-    // connectivity indicator from navigator.onLine instead of surfacing these.
-    lichLog('[updater] check failed (will retry): ' + err.message)
+    // poll below retries, so fail silently. Kept off the in-app output (which is
+    // the game panel now) — console only. The renderer shows a connectivity
+    // indicator from navigator.onLine instead of surfacing these.
+    console.error('[updater] check failed (will retry):', err.message)
   })
 
-  // Poll for updates every 30 minutes in packaged mode, every 10 seconds in dev for testing
+  // Poll for updates every 30 minutes in packaged mode, every 10 seconds in dev for
+  // testing. The updater is silent in-app — only 'available'/'ready' surface, via the
+  // update indicator (updater:available / updater:ready), not the game output.
   const UPDATE_POLL_INTERVAL = app.isPackaged ? 30 * 60 * 1000 : 10 * 1000
   autoUpdater.checkForUpdates()
-  setInterval(() => {
-    lichLog('[updater] Checking for updates...')
-    autoUpdater.checkForUpdates()
-  }, UPDATE_POLL_INTERVAL)
+  setInterval(() => autoUpdater.checkForUpdates(), UPDATE_POLL_INTERVAL)
 }
 
 function setupIpcHandlers(): void {
@@ -390,6 +390,9 @@ function setupIpcHandlers(): void {
   ipcMain.handle('script:default-dir', () => join(SHARED_DIR, 'scripts'))
   ipcMain.handle('script:run',     (_e, name: string, args: string[] = []) => cmdEngine.run(name, args))
   ipcMain.handle('script:stop',    (_e, id?: number) => cmdEngine.stop(id))
+  ipcMain.handle('script:read-file',   (_e, name: string) => cmdEngine.read(name))
+  ipcMain.handle('script:write-file',  (_e, name: string, content: string) => cmdEngine.write(name, content))
+  ipcMain.handle('script:delete-file', (_e, name: string) => cmdEngine.remove(name))
   ipcMain.handle('dialog:choose-folder', async () => {
     if (!mainWindow) return null
     const res = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] })

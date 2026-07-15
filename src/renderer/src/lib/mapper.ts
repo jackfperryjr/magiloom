@@ -315,48 +315,67 @@ export function relayoutZone(zone: Zone): Zone {
  * the renderer; storage/identity/zones are untouched.
  */
 export function componentLayout(db: MapDB, rootId: string | null, maxNodes = 2000): Zone {
-  let root = rootId && findNode(db, rootId) ? rootId : null
-  if (!root) {
-    for (const z of Object.values(db.zones)) { const k = Object.keys(z.nodes)[0]; if (k) { root = k; break } }
-  }
+  // Index every node once (id → node) so the placement passes below don't each
+  // re-scan all zones (findNode is a full scan; doing it per node was O(n²)).
+  const nodeIndex = new Map<string, MapNode>()
+  for (const z of Object.values(db.zones)) for (const id in z.nodes) nodeIndex.set(id, z.nodes[id])
+
+  let root = rootId && nodeIndex.has(rootId) ? rootId : null
+  if (!root) { for (const id of nodeIndex.keys()) { root = id; break } }
   if (!root) return { id: 'component', name: 'Map', nodes: {}, arcs: [] }
-  const zoneName = db.zones[findNode(db, root)!.zoneId]?.name ?? 'Map'
+  const zoneName = db.zones[nodeIndex.get(root)!.zoneId]?.name ?? 'Map'
 
   // Directed layout adjacency across every zone, BOTH ways per arc (a cardinal arc
   // auto-records its reverse; specials don't, so synthesize the reverse) — this lets
-  // one BFS lay out the whole component from any anchor and grid-lay every compass
-  // step wherever it occurs, not just from the root.
+  // one BFS grid-lay every compass step wherever it occurs, not just from the root.
   const adj = new Map<string, { to: string; dir: string }[]>()
   const add = (f: string, t: string, d: string) => { (adj.get(f) ?? adj.set(f, []).get(f)!).push({ to: t, dir: d }) }
   for (const z of Object.values(db.zones)) {
     for (const a of z.arcs) {
-      if (!findNode(db, a.to)) continue
+      if (!nodeIndex.has(a.to)) continue
       add(a.from, a.to, a.dir)
       add(a.to, a.from, DIR_OPPOSITE[a.dir] ?? 'special')
     }
   }
 
-  // Gather the connected component around root (bounded, nearest-first), then lay it
-  // out from a STABLE anchor (smallest id in the component) so the map doesn't shift
-  // as you walk (the current room only changes the highlight, not the layout).
+  // Gather the connected component around root (bounded, nearest-first).
   const comp = new Set<string>([root])
   const gq = [root]
   while (gq.length && comp.size < maxNodes) {
     const c = gq.shift()!
     for (const { to } of adj.get(c) ?? []) if (!comp.has(to)) { comp.add(to); gq.push(to) }
   }
-  const anchor = [...comp].sort()[0]
 
   const pos = new Map<string, { x: number; y: number; z: number }>()
   const occupied = new Set<string>()
   const key = (x: number, y: number, z: number) => `${x},${y},${z}`
   const place = (id: string, x: number, y: number, z: number) => {
     if (occupied.has(key(x, y, z))) ({ x, y, z } = nearestFreeCell(occupied, x, y, z))
-    pos.set(id, { x, y, z }); occupied.add(key(x, y, z))
+    const p = { x, y, z }
+    pos.set(id, p); occupied.add(key(x, y, z)); _layoutCache.set(id, p)
   }
 
-  place(anchor, 0, 0, 0)
-  const queue = [anchor]
+  // Sticky positions: a room that already has a position (a hand-dragged `pin`, or a
+  // cached auto position from an earlier render) KEEPS it — this is the core of a
+  // stable map. Genie 5 stores each room's coords and never re-lays them; we mirror
+  // that so exploring only ever appends new rooms and never reshuffles the ones you
+  // can already see. Pins win over the cache; the cached z carries a pin's level.
+  for (const id of comp) {
+    const n = nodeIndex.get(id)
+    const cached = _layoutCache.get(id)
+    if (n?.pin) place(id, n.pin.x, n.pin.y, cached?.z ?? n.z ?? 0)
+    else if (cached) place(id, cached.x, cached.y, cached.z)
+  }
+
+  // Fresh component with nothing known yet: drop a deterministic anchor at the origin
+  // (smallest id) so the first render is reproducible. Absolute origin is irrelevant —
+  // the view recenters on the current room.
+  if (pos.size === 0) place([...comp].sort()[0], 0, 0, 0)
+
+  // BFS out from every already-placed room, laying only NOT-yet-placed neighbours on
+  // the grid by their travel direction. Because the seeds above are fixed, this pass
+  // can only append the newly-discovered rooms — it never moves an existing one.
+  const queue = [...pos.keys()]
   while (queue.length) {
     const cur = queue.shift()!
     const cp = pos.get(cur)!
@@ -366,26 +385,29 @@ export function componentLayout(db: MapDB, rootId: string | null, maxNodes = 200
         const v = DIR_VECTORS[dir]
         place(to, cp.x + v.dx, cp.y + v.dy, cp.z + v.dz)   // compass step → grid
       } else {
-        place(to, cp.x + 0.5, cp.y + 0.5, cp.z)            // special hop (gate/in/out) → single off-grid step
+        // Special hop (gate/in/out) has no compass direction: land it on a whole
+        // grid cell beside the source so the map stays gridded — place() spirals to
+        // the nearest free cell when that one's taken.
+        place(to, cp.x + 1, cp.y, cp.z)
       }
       queue.push(to)
     }
   }
 
-  // Manual overrides: a hand-dragged room carries a `pin` (layout-space x/y).
-  // Honour it — applied after auto-placement so tidied positions persist — while
-  // keeping the auto-computed level (z). Tidy clears pins to revert to auto.
-  for (const id of comp) {
-    const n = findNode(db, id)
-    if (n?.pin && pos.has(id)) { const p = pos.get(id)!; pos.set(id, { x: n.pin.x, y: n.pin.y, z: p.z }) }
-  }
-
   const nodes: Record<string, MapNode> = {}
-  for (const [id, p] of pos) { const n = findNode(db, id)!; nodes[id] = { ...n, x: p.x, y: p.y, z: p.z } }
+  for (const [id, p] of pos) { const n = nodeIndex.get(id)!; nodes[id] = { ...n, x: p.x, y: p.y, z: p.z } }
   const arcs: MapArc[] = []
   for (const z of Object.values(db.zones)) for (const a of z.arcs) if (nodes[a.from] && nodes[a.to]) arcs.push(a)
   return { id: 'component', name: zoneName, nodes, arcs }
 }
+
+// Sticky layout cache: node id → its assigned unified grid position. Once a room is
+// placed it keeps that position for the rest of the session, so exploring never
+// reshuffles the existing map (mirrors Genie 5, which stores each room's coords and
+// never re-lays them). resetLayoutCache() forces a clean re-lay — the Tidy button,
+// and whenever the whole map is cleared.
+const _layoutCache = new Map<string, { x: number; y: number; z: number }>()
+export function resetLayoutCache(): void { _layoutCache.clear() }
 
 function nearestFreeCell(occupied: Set<string>, x: number, y: number, z: number): { x: number; y: number; z: number } {
   const key = (a: number, b: number) => `${a},${b},${z}`

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync } from 'fs'
 import { join } from 'path'
 import { parseCmd, ParsedCmd, CmdInstruction } from './cmd-parser'
 
@@ -116,6 +116,37 @@ export class CmdScriptEngine extends EventEmitter {
     if (!base || /[\\/]/.test(base)) return null
     const p = join(this.scriptDir(), base + '.cmd')
     return existsSync(p) ? p : null
+  }
+
+  // ── User file editing (powers the in-app .cmd editor) ─────────────────────────
+  // Sanitize a script name to a `<base>.cmd` path inside the scripts folder,
+  // rejecting path separators so a name can never escape the folder (same guard as
+  // resolvePath, minus the must-exist check so we can create new files).
+  private editPath(name: string): string {
+    const base = name.trim().replace(/\.cmd$/i, '')
+    if (!base || /[\\/]/.test(base)) throw new Error('Invalid script name')
+    return join(this.scriptDir(), base + '.cmd')
+  }
+
+  /** Read a script's source. Throws if the name is invalid or the file is missing. */
+  read(name: string): { name: string; content: string } {
+    const p = this.editPath(name)
+    if (!existsSync(p)) throw new Error('Not found: ' + name)
+    return { name: name.trim().replace(/\.cmd$/i, ''), content: readFileSync(p, 'utf8') }
+  }
+
+  /** Create or overwrite a script's source. */
+  write(name: string, content: string): { name: string } {
+    const p = this.editPath(name)
+    writeFileSync(p, content, 'utf8')
+    return { name: name.trim().replace(/\.cmd$/i, '') }
+  }
+
+  /** Delete a script file (no-op if it's already gone). */
+  remove(name: string): { name: string } {
+    const p = this.editPath(name)
+    if (existsSync(p)) rmSync(p)
+    return { name: name.trim().replace(/\.cmd$/i, '') }
   }
 
   run(name: string, args: string[] = []): { ok: boolean; error?: string } {

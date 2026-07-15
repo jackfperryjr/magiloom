@@ -41,6 +41,7 @@ function parseInfoPairs(text: string): ParsedInfoPair[] {
 const PRESET_CLASS: Record<string, string> = {
   echo:           'preset-echo',
   'echo-script':  'preset-echo-script',
+  system:         'preset-system',
   roomname:       'preset-roomname',
   roomdesc:       'preset-roomdesc',
   roomexits:      'preset-roomexits',
