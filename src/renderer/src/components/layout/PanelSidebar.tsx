@@ -5,7 +5,7 @@ import { IconArrowDownTray } from '../ui/Icons'
 import { convLinesAtom } from '../../store/game'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
-export type PanelId = 'room' | 'map' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'connections' | 'scripts' | 'lich'
+export type PanelId = 'room' | 'map' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'connections' | 'scripts'
 
 export interface PanelConfig {
   id:      PanelId
@@ -25,7 +25,6 @@ const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'deaths',       label: 'Deaths',        visible: false },
   { id: 'connections',  label: 'Connections',   visible: false },
   { id: 'scripts',      label: 'Scripts',       visible: false },
-  { id: 'lich',         label: 'Lich Log',      visible: false },
 ]
 
 // Panel layout is per-character, stored in the shared settings.json under the

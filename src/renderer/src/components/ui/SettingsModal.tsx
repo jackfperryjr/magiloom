@@ -4,6 +4,7 @@ import { setOutputBuffer } from '../game/GameOutput'
 import { loadCharAppearance, saveCharAppearance, applyAppearance } from '../../lib/charSettings'
 import { DEFAULT_NOTIF, DEFAULT_PUSH, makeNameRule, type NotifSettings, type NotifRule, type PushSettings } from './Notifications'
 import { LichFilesEditor } from './LichFilesEditor'
+import { CmdFilesEditor } from './CmdFilesEditor'
 import type { Alias, Trigger } from '../../lib/automation'
 import { parseGenieConfig, mergeAliases, mergeTriggers, mergeVars } from '../../lib/genieImport'
 import { ClassToggleStrip, distinctClasses, toggleClassState } from './ClassToggleStrip'
@@ -187,6 +188,7 @@ export function SettingsModal({ charName = '', onClose, onSignedOut }: SettingsM
                     {THEMES.map(t => (
                       <button
                         key={t.id}
+                        data-theme-id={t.id}
                         className={'theme-swatch' + (theme === t.id ? ' active' : '')}
                         style={{
                           background:  t.vars['--bg-panel'],
@@ -671,6 +673,7 @@ export function SettingsModal({ charName = '', onClose, onSignedOut }: SettingsM
                   type <code>.name</code> in the command bar to run one (<code>.stop</code> halts all).
                   If no folder is set, Magiloom uses <code>{defaultScriptDir}</code>.
                 </div>
+                <CmdFilesEditor />
               </div>
             )}
 

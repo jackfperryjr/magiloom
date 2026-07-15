@@ -47,6 +47,9 @@ contextBridge.exposeInMainWorld('dr', {
     defaultDir: ()                          => ipcRenderer.invoke('script:default-dir'),
     run:     (name: string, args: string[] = []) => ipcRenderer.invoke('script:run', name, args),
     stop:    (id?: number)                  => ipcRenderer.invoke('script:stop', id),
+    readFile:   (name: string)                  => ipcRenderer.invoke('script:read-file', name),
+    writeFile:  (name: string, content: string) => ipcRenderer.invoke('script:write-file', name, content),
+    deleteFile: (name: string)                  => ipcRenderer.invoke('script:delete-file', name),
     onOutput: (cb: (l: string) => void)      => { const h = (_e: unknown, l: string) => cb(l); ipcRenderer.on('script:output', h); return () => ipcRenderer.removeListener('script:output', h) },
     onStatus: (cb: (s: unknown) => void)     => { const h = (_e: unknown, s: unknown) => cb(s); ipcRenderer.on('script:status', h); return () => ipcRenderer.removeListener('script:status', h) }
   },

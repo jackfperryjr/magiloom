@@ -120,6 +120,9 @@ interface DrAPI {
     defaultDir: () => Promise<string>
     run:      (name: string, args?: string[]) => Promise<{ ok: boolean; error?: string }>
     stop:     (id?: number) => Promise<void>
+    readFile:   (name: string) => Promise<{ name: string; content: string }>
+    writeFile:  (name: string, content: string) => Promise<{ name: string }>
+    deleteFile: (name: string) => Promise<{ name: string }>
     onOutput: (cb: (line: string) => void) => () => void
     onStatus: (cb: (info: { id: number; name: string; state: string }) => void) => () => void
   }

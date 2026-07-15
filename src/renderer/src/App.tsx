@@ -19,7 +19,7 @@ import {
 import { MapPanel } from './components/map/MapPanel'
 import { MapOverlay } from './components/map/MapOverlay'
 import {
-  echoCommandAtom, beginSilentExpAtom, lichMsgAtom, tickAtom,
+  echoCommandAtom, beginSilentExpAtom, appendSystemLineAtom, tickAtom,
   combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom, inventoryLinesAtom,
   verbRawAtom, beginVerbCapture, endVerbCapture,
   avatarsAtom, avatarCropsAtom, selfNameAtom, resetSessionAtom,
@@ -72,13 +72,18 @@ function ScriptsPanel() {
     window.dr.script.running().then(setRunning)
     const onSaved = () => refresh()          // script folder may have changed
     window.addEventListener('settings:saved', onSaved)
+    window.addEventListener('scripts:changed', onSaved)   // a script was created/deleted in the editor
     const unsub = window.dr.script.onStatus((s: ScriptStatus) => {
       setRunning(prev => {
         const rest = prev.filter(p => p.id !== s.id)
         return s.state === 'stopped' ? rest : [...rest, s]
       })
     })
-    return () => { window.removeEventListener('settings:saved', onSaved); unsub() }
+    return () => {
+      window.removeEventListener('settings:saved', onSaved)
+      window.removeEventListener('scripts:changed', onSaved)
+      unsub()
+    }
   }, [refresh])
 
   return (
@@ -144,28 +149,6 @@ function ColResize({ onDrag }: { onDrag: (dx: number) => void }) {
   return <div className="col-resize-handle" onMouseDown={onMouseDown} />
 }
 
-// ── Lich log side panel ───────────────────────────────────────────────────────
-type LichStatus = 'stopped' | 'starting' | 'ready' | 'error'
-
-function LichLogPanel({ lines, status }: { lines: string[]; status: LichStatus }) {
-  const bottomRef = useRef<HTMLDivElement>(null)
-  useEffect(() => { bottomRef.current?.scrollIntoView({ block: 'nearest' }) }, [lines])
-  return (
-    <div className="lich-panel">
-      <div className="lich-panel-status">
-        <span className={`lich-status-dot lich-status-dot-${status}`} />
-        <span>{status}</span>
-        {lines.length > 0 && <span className="lich-log-count">{lines.length}</span>}
-      </div>
-      {lines.length === 0
-        ? <div className="lich-panel-empty">No Lich output yet.</div>
-        : lines.map((l, i) => (
-            <div key={i} className={`lich-log-line${l.startsWith('[error]') ? ' lich-log-error' : ''}`}>{l}</div>
-          ))}
-      <div ref={bottomRef} />
-    </div>
-  )
-}
 
 // ── Game layout ───────────────────────────────────────────────────────────────
 function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSettings, onRequestConnect, updateSlot }: { charName: string; accountName: string; watching: boolean; onLeaveWatch: () => void; onOpenSettings: () => void; onRequestConnect: () => void; updateSlot: React.ReactNode }) {
@@ -266,7 +249,6 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
       case 'deaths':       return () => setDeaths([])
       case 'connections':  return () => setLogon([])
       case 'inventory':    return () => setInventory([])
-      case 'lich':         return () => setLichLog([])
       default:             return undefined
     }
   }
@@ -287,25 +269,12 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
   }, [status, send, beginSilentExp])
 
 
-  const [lichStatus,     setLichStatus]     = useState<LichStatus>('stopped')
-  const [lichLog,        setLichLog]        = useState<string[]>([])
-  const lichMsgs = useAtomValue(lichMsgAtom)
   const [showHighlights, setShowHighlights] = useState(false)
   const [showMap,        setShowMap]        = useState(false)
   const [sidebarWidth,   setSidebarWidth]   = useState<number | null>(null)
   const [functionKeys,   setFunctionKeys]   = useState<Record<string, string>>({})
+  const appendSystemLine = useSetAtom(appendSystemLineAtom)
   const mainAreaRef = useRef<HTMLDivElement>(null)
-
-  // Merge in-game Lich script messages into the log drawer
-  useEffect(() => {
-    if (lichMsgs.length > 0) {
-      const last = lichMsgs[lichMsgs.length - 1]
-      setLichLog(prev => {
-        if (prev.length > 0 && prev[prev.length - 1] === last) return prev
-        return [...prev.slice(-199), last]
-      })
-    }
-  }, [lichMsgs])
 
   // Load global settings (avatars / buffer) on mount. Function keys and
   // highlights are per-character (loaded in the charName effect below); appearance
@@ -352,14 +321,16 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
     return () => { cancelled = true }
   }, [charName])
 
+  // Route the main-process Lich/client diagnostic log (SGE auth, Lich manager,
+  // connection, script errors) into the main game panel as dim system notices —
+  // the dedicated Lich log side panel has been retired.
   useEffect(() => {
-    const unsubs = [
-      window.dr.lich.onStatus((s: string) => setLichStatus(s as LichStatus)),
-      window.dr.lich.onError(() => setLichStatus('error')),
-      window.dr.lich.onLog((line: string) => setLichLog(prev => [...prev.slice(-199), line.trimEnd()]))
-    ]
-    return () => unsubs.forEach(fn => fn())
-  }, [])
+    const unsub = window.dr.lich.onLog((line: string) => {
+      const l = line.trimEnd()
+      if (l) appendSystemLine(l)
+    })
+    return () => unsub()
+  }, [appendSystemLine])
 
   // Function key hotkeys — re-register whenever bindings change
   useEffect(() => {
@@ -395,15 +366,12 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
     })
   }
 
-  // Lich log is rendered as an optional side panel; inject it here so it can
-  // read this layout's live lich state while other panels use the shared renderer.
+  // The map panel is injected here (not in the module-level renderPanel) so it can
+  // receive layout-local handlers: click-to-walk and the pop-out toggle.
   const renderPanelWithLich = useCallback((id: PanelId) => {
-    if (id === 'lich') return <LichLogPanel lines={lichLog} status={lichStatus} />
-    // The map panel is injected here (not in the module-level renderPanel) so it
-    // can receive layout-local handlers: click-to-walk and the pop-out toggle.
     if (id === 'map') return <MapPanel onNodeClick={automap.walkTo} onStopWalk={automap.stopWalk} onExpand={() => setShowMap(true)} />
     return renderPanel(id)
-  }, [lichLog, lichStatus, automap])
+  }, [automap])
 
   const handleColDrag = useCallback((dx: number) => {
     const el = mainAreaRef.current

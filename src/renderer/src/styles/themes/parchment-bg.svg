@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="260" height="260" viewBox="0 0 260 260">
+  <defs>
+    <!-- Horizontal papyrus fibres: turbulence stretched along X (low X freq, high Y). -->
+    <filter id="hfibre" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018 0.55" numOctaves="3" seed="4" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+    <!-- Vertical fibres: the second layer of the papyrus weave, at right angles. -->
+    <filter id="vfibre" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.55 0.018" numOctaves="3" seed="11" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+    <!-- Low-frequency mottling for uneven, aged tone. -->
+    <filter id="mottle" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.016" numOctaves="2" seed="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+  </defs>
+  <!-- Grayscale noise at low opacity darkens the warm base beneath it → subtle paper
+       texture. Stitched turbulence tiles seamlessly when this SVG is repeated. -->
+  <rect width="260" height="260" filter="url(#mottle)" opacity="0.05"/>
+  <rect width="260" height="260" filter="url(#hfibre)" opacity="0.055"/>
+  <rect width="260" height="260" filter="url(#vfibre)" opacity="0.04"/>
+</svg>

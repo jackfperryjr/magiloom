@@ -129,6 +129,151 @@ body {
   background: var(--bg-panel);
 }
 
+/* ── Themed backdrops: game window + every modal / overlay ─────────────────────
+   The Default (Magiloom) starfield and the Parchment papyrus surface extend to the
+   modals (settings, highlights, broadcast, avatar/user, panel manager, map) so a
+   theme reads as one continuous world. Each surface paints its art on a ::before
+   layer behind its content: the surface owns a stacking context (isolation) and the
+   art sits at z-index:-1 above the surface's own background but below everything
+   else — no z-index bumps needed on the content or the "jump to present" button.
+   border-radius:inherit keeps the art within a rounded modal's corners. Scoped by
+   [data-theme] (set by applyTheme in lib/themes.ts); other themes are untouched.
+
+   The shared surface list — keep the two ::before rules and the base rule in sync. */
+
+/* Default (Magiloom): darken only the game window so the stars pop; modals keep
+   their panel colour and just gain the starfield overlay. */
+:root[data-theme="magiloom"] .game-output-wrap { background: #100b2b; }
+:root[data-theme="magiloom"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay) {
+  position: relative;
+  isolation: isolate;
+}
+:root[data-theme="magiloom"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(150,146,255,0.12) 0%, transparent 60%),
+    url('./themes/magiloom-bg.svg') center / cover no-repeat;
+  opacity: 0.85;
+}
+
+/* Parchment: warm the game window; modals keep their cream panel and gain the
+   papyrus texture (aged-edge vignette + two age blotches + tiled fibre weave). */
+:root[data-theme="parchment"] .game-output-wrap { background: #eee1c2; }
+:root[data-theme="parchment"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay) {
+  position: relative;
+  isolation: isolate;
+}
+:root[data-theme="parchment"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 56%, rgba(120,84,36,0.13) 100%),
+    radial-gradient(ellipse at 22% 18%, rgba(150,110,50,0.08), transparent 42%),
+    radial-gradient(ellipse at 82% 80%, rgba(130,95,45,0.07), transparent 46%),
+    url('./themes/parchment-bg.svg');
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-size: cover, cover, cover, 260px 260px;
+}
+
+/* Bloodstone & Thornwood use a real silhouette image (sword.png / trees.png — the
+   source black-on-white art baked to a transparent, theme-coloured PNG). The theme's
+   corner-glow gradient stays on the shared ::before of every surface; the big
+   silhouette rides a game-window-only ::after so it never dominates a small modal.
+   Both pseudo-elements sit at z-index:-1 inside the surface's isolation, behind text. */
+
+/* Bloodstone: darkened game window + red corner glow; a large crimson blade pinned
+   into the lower-right, enlarged enough to run off the edge. */
+:root[data-theme="bloodstone"] .game-output-wrap { background: #0a0605; }
+:root[data-theme="bloodstone"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay) {
+  position: relative;
+  isolation: isolate;
+}
+:root[data-theme="bloodstone"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 80% 20%, rgba(120,20,20,0.18) 0%, transparent 60%);
+  opacity: 0.9;
+}
+:root[data-theme="bloodstone"] .game-output-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url('./themes/sword.png') right bottom / auto 122% no-repeat;
+  opacity: 0.2;
+}
+
+/* Thornwood (id: forest): deepened game window + green corner glow; a green pine
+   tree-line spread across the bottom. */
+:root[data-theme="forest"] .game-output-wrap { background: #060a06; }
+:root[data-theme="forest"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay) {
+  position: relative;
+  isolation: isolate;
+}
+:root[data-theme="forest"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 20% 80%, rgba(20,60,20,0.22) 0%, transparent 60%);
+  opacity: 0.9;
+}
+:root[data-theme="forest"] .game-output-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url('./themes/trees.png') center bottom / cover no-repeat;
+  opacity: 0.22;
+}
+
+/* Theme-preview tiles (Settings → Appearance) preview their OWN theme's art via
+   the data-theme-id on each swatch — independent of the active theme. */
+.theme-swatch { position: relative; isolation: isolate; overflow: hidden; }
+.theme-swatch[data-theme-id="magiloom"]::before,
+.theme-swatch[data-theme-id="parchment"]::before,
+.theme-swatch[data-theme-id="bloodstone"]::before,
+.theme-swatch[data-theme-id="forest"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.theme-swatch[data-theme-id="magiloom"]::before {
+  background: url('./themes/magiloom-bg.svg') center / cover no-repeat;
+  opacity: 0.7;
+}
+.theme-swatch[data-theme-id="parchment"]::before {
+  background: url('./themes/parchment-bg.svg') 0 0 / 130px 130px repeat;
+}
+/* Bloodstone / Thornwood tiles preview their coloured silhouette. */
+.theme-swatch[data-theme-id="bloodstone"]::before {
+  background: url('./themes/sword.png') right bottom / auto 125% no-repeat;
+  opacity: 0.5;
+}
+.theme-swatch[data-theme-id="forest"]::before {
+  background: url('./themes/trees.png') center bottom / cover no-repeat;
+  opacity: 0.55;
+}
+
 /* ── Status bar / integrated title bar ───────────────────────────────────── */
 .status-bar {
   display: flex;
@@ -762,6 +907,15 @@ body[data-platform="darwin"] .status-bar {
 .vital-mana    { background: linear-gradient(90deg, #081038, var(--mana-color)); }
 .vital-stamina { background: linear-gradient(90deg, #302000, var(--stamina-color)); }
 .vital-spirit  { background: linear-gradient(90deg, #200640, var(--spirit-color)); }
+/* Parchment: the near-black left stops read as heavy dark blobs on a light theme.
+   Swap in lighter, warmer tints of each colour so the bars look like coloured ink
+   washed across the page — still distinct (HP red / MP blue / ST green / SP plum),
+   and dark enough to contrast the cream track. Applies to both the panel bars and
+   the HUD mini-bars (they share these classes). */
+:root[data-theme="parchment"] .vital-health  { background: linear-gradient(90deg, #e0977f, #b2352a); }
+:root[data-theme="parchment"] .vital-mana    { background: linear-gradient(90deg, #90a4d6, #2f4fa0); }
+:root[data-theme="parchment"] .vital-stamina { background: linear-gradient(90deg, #8cc084, #2b7d3b); }
+:root[data-theme="parchment"] .vital-spirit  { background: linear-gradient(90deg, #c29acb, #7e2f8f); }
 .vital-value { font-size: 14px; color: var(--text-muted); min-width: 30px; text-align: right; font-family: var(--font-ui); }
 .vital-enc-text { font-size: 14px; color: var(--text-muted); flex: 1; text-align: right; font-family: var(--font-ui); }
 .vitals-panel { display: flex; flex-direction: column; gap: 4px; }
@@ -975,6 +1129,10 @@ body[data-platform="darwin"] .status-bar {
 .preset-penalty   { color: var(--color-penalty); }
 .preset-echo      { color: var(--text-dim); font-style: italic; opacity: 0.7; }
 .preset-echo-script { color: var(--accent); font-style: italic; opacity: 0.85; }
+/* Client/Lich diagnostic notices routed into the main output (SGE auth, Lich
+   status, connection, script errors) — dim + italic so they read as system chatter,
+   not game text. */
+.preset-system    { color: var(--text-dim); font-style: italic; opacity: 0.6; }
 /* Monospace ASCII blocks (guild/hall registers, maps, tables): preserve their
    alignment at normal widths, but wrap rather than scroll sideways when the panel
    is too narrow to fit them (no horizontal scrollbar). */
@@ -2587,6 +2745,31 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
   color: var(--text-main); font-family: var(--font-mono, monospace);
   font-size: 13px; line-height: 1.55;
 }
+
+/* Line-numbered code editor (CodeEditor.tsx) — a gutter + textarea that share the
+   exact font metrics below so the numbers line up with the text rows. The gutter's
+   scroll is synced to the textarea in JS; lines don't wrap so each row is one line. */
+.code-editor {
+  flex: 1; min-height: 0; display: flex;
+  border-radius: 8px; overflow: hidden;
+  background: var(--bg-input); border: 1px solid var(--border-soft);
+  font-family: var(--font-mono, monospace); font-size: 13px; line-height: 1.55;
+}
+.code-gutter {
+  flex-shrink: 0; overflow: hidden;
+  padding: 10px 8px; box-sizing: border-box;
+  text-align: right; user-select: none;
+  color: var(--text-dim); background: var(--bg-shell);
+  border-right: 1px solid var(--border-soft);
+}
+.code-gutter-num { min-width: 1.5em; }
+.code-textarea {
+  flex: 1; min-width: 0; resize: none;
+  padding: 10px 12px; border: none; outline: none;
+  background: transparent; color: var(--text-main);
+  font: inherit; line-height: inherit;
+  white-space: pre; overflow: auto;
+}
 .lf-empty {
   flex: 1; display: flex; align-items: center; justify-content: center;
   color: var(--text-dim); font-size: 14px; text-align: center; padding: 20px;
@@ -3209,7 +3392,7 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
 .map-svg { display: block; cursor: grab; }
 .map-svg:active { cursor: grabbing; }
 
-.map-edge { stroke: var(--border); stroke-width: 2; }
+.map-edge { fill: none; stroke: var(--border); stroke-width: 2; }
 .map-node { cursor: pointer; }
 .map-node-box {
   fill: var(--bg-panel);
@@ -3219,19 +3402,23 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
 }
 .map-node:hover .map-node-box { fill: var(--bg-sidebar); stroke: var(--accent); }
 .map-node.is-selected .map-node-box { stroke: var(--color-warning); stroke-width: 2; }
-/* "You are here": a distinct bright green so the player marker never blends with a
-   node's type/custom colour. */
-.map-node.is-current .map-node-box { fill: var(--color-bonus); stroke: #fff; }
-.map-node-ring {
-  fill: none;
+/* "You are here": the room square keeps its own colour but gets a soft green glow,
+   and a bright green circle (the player marker) sits on top so it never blends with
+   a node's type/custom colour. */
+.map-node.is-current .map-node-box {
   stroke: var(--color-bonus);
-  stroke-width: 1.5;
-  opacity: 0.9;
+  filter: drop-shadow(0 0 3px var(--color-bonus)) drop-shadow(0 0 6px var(--color-bonus));
+}
+.map-node-player {
+  fill: var(--color-bonus);
+  stroke: #fff;
+  stroke-width: 0.75;
+  pointer-events: none;
   animation: map-pulse 1.6s ease-in-out infinite;
 }
 @keyframes map-pulse {
-  0%, 100% { opacity: 0.85; }
-  50%      { opacity: 0.25; }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
 }
 .map-node-tag { fill: var(--text-main); font-size: 8px; font-family: var(--font-ui); pointer-events: none; }
 .map-node-chev { fill: var(--text-dim); font-size: 7px; pointer-events: none; }

@@ -212,12 +212,14 @@ export function MapView({
                 onPointerDown={e => onNodePointerDown(e, n)}
                 onContextMenu={e => { if (onNodeContext) { e.preventDefault(); onNodeContext(n.id, e) } }}
               >
-                {isCurrent && <circle className="map-node-ring" cx={0} cy={0} r={NODE_R + 4} />}
-                <circle className="map-node-box" cx={0} cy={0} r={NODE_R}
-                        style={!isCurrent && nodeFill(n) ? { fill: nodeFill(n) } : undefined} />
-                {n.tag && <text className="map-node-tag" x={0} y={3} textAnchor="middle">{n.tag.slice(0, 3)}</text>}
+                {/* Rooms are squares; the player is a circle sitting on the current room's
+                    (glowing) square — see the .is-current rules in global.css. */}
+                <rect className="map-node-box" x={-NODE_R} y={-NODE_R} width={NODE_R * 2} height={NODE_R * 2} rx={2}
+                      style={nodeFill(n) ? { fill: nodeFill(n) } : undefined} />
+                {n.tag && !isCurrent && <text className="map-node-tag" x={0} y={3} textAnchor="middle">{n.tag.slice(0, 3)}</text>}
                 {mark?.up && <text className="map-node-chev up" x={NODE_R} y={-NODE_R + 3}>▲</text>}
                 {mark?.down && <text className="map-node-chev down" x={NODE_R} y={NODE_R + 4}>▼</text>}
+                {isCurrent && <circle className="map-node-player" cx={0} cy={0} r={NODE_R - 2.5} />}
               </g>
             )
           })}

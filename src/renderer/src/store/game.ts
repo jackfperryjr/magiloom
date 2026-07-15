@@ -124,7 +124,6 @@ export const combatLinesAtom  = atom<OutputLine[]>([])
 export const atmoLinesAtom    = atom<OutputLine[]>([])
 export const convLinesAtom    = atom<OutputLine[]>([])
 export const deathsAtom       = atom<OutputLine[]>([])
-export const lichMsgAtom      = atom<string[]>([])
 
 // ── Connections (logon / logoff / disconnect monitor) ──────────────────────────
 // A timestamped feed of connection events: this character's own connect/disconnect
@@ -134,19 +133,28 @@ export interface LogonEntry { id: number; text: string; timestamp: number; kind:
 export const logonLinesAtom = atom<LogonEntry[]>([])
 
 // DR's "* …" adventure broadcasts announcing players coming online / going offline.
-// NOTE: DR declares a `logons` streamWindow ("Arrivals") at login but NEVER routes
-// text to it — verified across the raw Lich .xml logs, `pushStream id="logons"` never
-// appears. These broadcasts arrive as bare "* NAME …" MAIN-stream text, so matching
-// on wording (below) is the only option; there is no stream tag to key off.
-// Arrivals all read "… joins the adventure." or "just <verb> into the adventure …"
-//   (sauntered / crawled / "was just deposited into the adventure by a mighty dragon").
-// Departures are more varied (real examples harvested from the logs):
+// These almost always arrive as bare "* NAME …" MAIN-stream text, so matching on
+// wording (below) is how we route them to the Connections panel and out of the main
+// output. (A `pushStream id="logons"` tag very occasionally wraps a logon — seen in
+// the Lich logs — but it's rare, and the wording match catches those too.)
+// Arrivals read "… joins the adventure." / "just <verb> into the adventure …"
+//   (sauntered / crawled / stumbled / teetered / "deposited into the adventure by a
+//   mighty dragon"), plus reconnect/return-style broadcasts: "waking from a long
+//   catnap, NAME once again prowls the lands.", "comes out from within the shadows
+//   with renewed vigor.", horn/bell arrivals ("… heralding the arrival of NAME.",
+//   "plaintive bell-tolls … harbinger NAME arrival.").
+// Departures are more varied (all harvested from real Lich logs):
 //   "retires from the adventure for now." / "retires from the lands to enjoy a nice
-//   long catnap." / "returns home from a hard day of adventuring." / "has disconnected."
-//   / "wanders off, muttering something about spiders." / "The mournful cry of a battle
-//   horn sounds as NAME heads off toward home." / "just found a shadow to hide out in."
-const LOGON_RE  = /\b(?:joins|into) the adventure\b|\bhas reconnected\b|\bhas logged (?:on|in)\b/i
-const LOGOFF_RE = /\bretires from the (?:adventure|lands)\b|\breturns home from a hard day\b|\bheads off toward home\b|\bwanders off, muttering something about spiders\b|\bhas disconnected\b|\bfound a shadow to hide out in\b|\bhas logged o(?:ff|ut)\b|\bhas gone link-?dead\b/i
+//   long catnap." / "returns home from a hard day…" / "returned home to work on a new
+//   tune." / "has disconnected." / "wanders off, muttering something about spiders." /
+//   "saunters off, muttering prayers under his breath." / "The mournful cry of a battle
+//   horn sounds as NAME heads off toward home." / "just found a shadow to hide out
+//   in." / "went home to take a nap." / "leaves, looking for more excitement." / "has
+//   left to contemplate the life of a warrior." / "just sauntered off-duty to get some
+//   rest." Death broadcasts ("struck down", etc.) are caught earlier by DEATH_RE, so
+//   they never reach these patterns.
+const LOGON_RE  = /\b(?:joins|into) the adventure\b|\bhas reconnected\b|\bhas logged (?:on|in)\b|\bwaking from a long catnap\b|\bcomes out from within the shadows with renewed vigor\b|\bheralding the arrival of\b|\bplaintive bell-tolls\b/i
+const LOGOFF_RE = /\bretires from the (?:adventure|lands)\b|\breturn(?:s|ed) home\b|\bheads off toward home\b|\bwanders off, muttering something about spiders\b|\bsaunters off, muttering prayers\b|\bhas disconnected\b|\bfound a shadow to hide out in\b|\bhas logged o(?:ff|ut)\b|\bhas gone link-?dead\b|\bwent home to take a nap\b|\bleaves, looking for more excitement\b|\bhas left to contemplate the life of a\b|\bsauntered off-duty\b/i
 
 export const appendLogonAtom = atom(null, (get, set, e: { text: string; kind: 'on' | 'off' }) => {
   set(logonLinesAtom, [...get(logonLinesAtom).slice(-199), { id: lineId++, text: e.text, timestamp: Date.now(), kind: e.kind }])
@@ -442,6 +450,17 @@ export const appendScriptOutputAtom = atom(
   }
 )
 
+// Append a client/Lich diagnostic line (SGE auth, Lich manager status, connection,
+// script-engine errors, the main-process log) to the main output, styled as a dim
+// system notice. This is where the old dedicated Lich log side panel now flows.
+export const appendSystemLineAtom = atom(
+  null,
+  (get, set, text: string) => {
+    const line = mkLine(text, [{ preset: 'system' }], 'main')
+    set(outputLinesAtom, appendMain(get(outputLinesAtom), line))
+  }
+)
+
 // ── Silent exp poll ───────────────────────────────────────────────────────────
 // Called by the background poller before sending "exp". Marks the upcoming
 // batch as silent so the report text is suppressed from the main game panel.
@@ -470,7 +489,6 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(convLinesAtom, [])
   set(deathsAtom, [])
   set(logonLinesAtom, [])
-  set(lichMsgAtom, [])
   set(inventoryLinesAtom, [])
   set(roomAtom, { name: '', description: '', exits: [], objs: '', players: [], playerNames: [] })
   set(vitalsAtom, {
@@ -681,8 +699,9 @@ export const dispatchGameEventAtom = atom(
             break
           }
           case 'lich':
-            // Lich script output — append to lich log, don't show in game panel
-            set(lichMsgAtom, [...get(lichMsgAtom).slice(-499), event.text])
+            // Lich script output — show inline in the main game panel (styled like a
+            // script echo) now that the separate Lich log side panel is gone.
+            set(outputLinesAtom, appendMain(get(outputLinesAtom), mkLine(event.text, [{ preset: 'echo-script' }], 'main')))
             break
           case 'combat':
             // Combat lives only in the Combat panel — don't echo to main output.

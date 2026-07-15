@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAtom, useAtomValue } from 'jotai'
 import { mapDbAtom, currentNodeIdAtom, walkStateAtom, autoRecordAtom } from '../../store/map'
-import { nodeZoneId, componentLayout } from '../../lib/mapper'
+import { nodeZoneId, componentLayout, resetLayoutCache } from '../../lib/mapper'
 import { emptyDb, type MapNode, type Zone } from '../../lib/mapModel'
 import { parseGenieMap, mergeZones, exportGenieMap } from '../../lib/mapImport'
 import { MapView } from './MapView'
@@ -92,6 +92,10 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
   const hasPins = Object.values(zone.nodes).some(n => n.pin)
   const tidy = () => {
     const shown = Object.keys(zone.nodes)
+    // Drop the sticky auto-layout cache so the next render re-lays every shown room
+    // fresh from the grid — otherwise cleared pins would snap back to their old
+    // cached positions instead of a clean layout.
+    resetLayoutCache()
     setDb(prev => {
       const zones = { ...prev.zones }
       const touched = new Set<string>()
@@ -132,6 +136,7 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
 
   // Destructive actions go through an inline confirm bar (no native confirm()).
   const runConfirm = () => {
+    resetLayoutCache()   // deleted rooms shouldn't leave stale positions behind
     if (confirmState?.kind === 'zone' && zoneId) {
       window.dr.map.deleteZone(zoneId).catch(() => {})
       setDb(prev => { const zones = { ...prev.zones }; delete zones[zoneId]; return { ...prev, zones } })

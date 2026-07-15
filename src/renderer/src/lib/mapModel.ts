@@ -71,8 +71,8 @@ export const DIR_VECTORS: Record<string, DirVec> = {
   northwest: { dx: -1, dy: -1, dz: 0 },
   southeast: { dx:  1, dy:  1, dz: 0 },
   southwest: { dx: -1, dy:  1, dz: 0 },
-  up:        { dx:  1, dy: -1, dz:  1 },
-  down:      { dx: -1, dy:  1, dz: -1 },
+  up:        { dx:  0, dy:  0, dz:  1 },
+  down:      { dx:  0, dy:  0, dz: -1 },
   out:       { dx:  0, dy:  1, dz: 0 },
   in:        { dx:  0, dy: -1, dz: 0 },
 }
