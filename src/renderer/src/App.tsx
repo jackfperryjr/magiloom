@@ -327,7 +327,10 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
   useEffect(() => {
     const unsub = window.dr.lich.onLog((line: string) => {
       const l = line.trimEnd()
-      if (l) appendSystemLine(l)
+      // Connection-plumbing chatter ([sge] auth steps, [game] connect/disconnect,
+      // [lich] proxy status) is noise in the game panel — drop it. Genuinely useful
+      // notices ([error], [script], …) still flow through.
+      if (l && !/^\[(?:sge|game|lich)\]/.test(l)) appendSystemLine(l)
     })
     return () => unsub()
   }, [appendSystemLine])
