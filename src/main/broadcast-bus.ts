@@ -106,8 +106,3 @@ export class BroadcastBus extends EventEmitter {
 // Re-exported for tests / callers that want the message shape.
 export type { BusMessage }
 export { MSG_TTL_MS }
-
-// Guard so an import cycle or a missing dir surfaces clearly in dev.
-export function busDirExists(sharedDir: string): boolean {
-  return existsSync(join(sharedDir, 'bus'))
-}

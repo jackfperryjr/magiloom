@@ -1,0 +1,87 @@
+/* base.css — part of the app stylesheet. Imported (in cascade order) from
+   global.css. Split out of the former monolith for navigability; order matters. */
+
+/* ── Reset ────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Custom scrollbars — thin, rounded pill thumbs. Styled via the webkit
+   pseudo-elements only; the standard scrollbar-width/scrollbar-color props are
+   avoided app-wide because in modern Chromium they suppress ::-webkit-scrollbar
+   and can't be given a border-radius. */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+/* ── Design tokens ────────────────────────────────────────────────────────── */
+:root {
+  /* Backgrounds — deep indigo (matches the Default theme) */
+  --bg-shell:      #1a1540;
+  --bg-panel:      #221c50;
+  --bg-input:      #15103a;
+  --bg-sidebar:    #1d1848;
+  --bg-overlay:    rgba(10, 8, 24, 0.92);
+
+  /* Borders */
+  --border:        #544e96;
+  --border-soft:   #2c2658;
+  --border-accent: #9a95ff;
+
+  /* Text */
+  --text-main:     #c8c4e8;
+  --text-dim:      #645d8e;
+  --text-bright:   #f0eeff;
+  --text-muted:    #8b86cc;
+
+  /* Game presets */
+  --color-roomname:  #ffffff;
+  --color-roomdesc:  #a29ecc;
+  --color-speech:    #58e058;
+  --color-whisper:   #6f9dff;
+  --color-thought:   #e058d8;
+  --color-warning:   #ff5820;
+  --color-bonus:     #38d838;
+  --color-penalty:   #e83838;
+  --color-black:     #000000;
+  --color-bold:      #f0d84a;   /* monsterbold / emphasized text (yellow on dark themes) */
+
+  /* Vitals */
+  --health-color:    #dd1818;
+  --mana-color:      #1850d0;
+  --stamina-color:   #40b8e0;
+  --spirit-color:    #8828b8;
+
+  /* Accent */
+  --accent:          #9a95ff;
+  --accent-glow:     rgba(139, 134, 248, 0.24);
+  --accent-dim:      #241d54;
+
+  /* Scrollbar */
+  --scrollbar:       #2c2658;
+  --scrollbar-hover: #3a3470;
+
+  /* Typography */
+  --font-game:       'VT323', 'Consolas', monospace;
+  --font-ui:         'VT323', 'Courier New', monospace;
+  --font-pixel:      'Press Start 2P', monospace;
+  --font-size-game:  17px;
+  --line-height-game: 1.35;
+
+  /* Radii — FF4 has no rounded corners */
+  --r-sm: 0px;
+  --r-md: 0px;
+  --r-lg: 0px;
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
+/* Height via the viewport unit (100vh), NOT `height: 100%`. On iOS an
+   `overflow:hidden` + `height:100%` chain can resolve shorter than the real screen,
+   which floats a bottom-pinned row up (leaving a gap). 100vh is measured against the
+   viewport directly — the approach a working sibling PWA uses. */
+html, body, #root { height: 100vh; overflow: hidden; }
+body {
+  background: var(--bg-shell);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}

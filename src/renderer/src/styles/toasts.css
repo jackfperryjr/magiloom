@@ -1,0 +1,284 @@
+/* toasts.css — part of the app stylesheet. Imported (in cascade order) from
+   global.css. Split out of the former monolith for navigability; order matters. */
+
+/* ── Toasts (notifications) ──────────────────────────────────────────────── */
+.toast-stack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 340px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 10px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  animation: toast-in .18s ease-out;
+}
+.toast-mention    { border-left-color: var(--accent); }
+.toast-whisper    { border-left-color: var(--color-whisper); }
+.toast-disconnect { border-left-color: var(--color-warning); }
+.toast-custom     { border-left-color: #f5b544; }
+.toast-custom .toast-title { color: #f5b544; }
+.toast-title {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 3px;
+}
+.toast-disconnect .toast-title { color: var(--color-warning); }
+.toast-body {
+  font-family: var(--font-game);
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--text-main);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Avatar modal (view / replace / remove) */
+.avatar-modal {
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: none;
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 1px var(--border-soft),
+    0 20px 60px rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+}
+.avatar-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(192, 152, 40, 0.06) 0%, transparent 100%);
+}
+.avatar-modal-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 26px;
+}
+/* Interactive crop: drag to pan, slider/scroll to zoom */
+.avatar-cropper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 26px 8px;
+}
+.avatar-cropper-frame {
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  overflow: hidden;
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+  background: var(--bg-input);
+}
+.avatar-cropper-frame:active { cursor: grabbing; }
+.avatar-cropper-frame img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+.avatar-cropper-zoom { width: 240px; accent-color: var(--accent); }
+.avatar-cropper-hint { font-size: 12px; color: var(--text-dim); font-family: var(--font-ui); }
+
+/* Circular avatar that clips a panned/zoomed image (see CircleAvatar) */
+.circle-avatar { position: relative; overflow: hidden; display: inline-block; }
+.circle-avatar > img { display: block; }
+.avatar-modal-facewrap { display: flex; align-items: center; justify-content: center; padding: 26px; }
+.avatar-modal-face { width: 240px; height: 240px; border-radius: 50%; border: 3px solid var(--border); }
+.avatar-modal-preview img,
+.avatar-modal-initial {
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+}
+.avatar-modal-preview img { object-fit: cover; }
+.avatar-modal-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-family: var(--font-ui);
+  font-size: 96px;
+  font-weight: 600;
+}
+.avatar-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  padding: 0 16px 20px;
+}
+.avatar-modal-actions .login-btn,
+.avatar-modal-actions .login-btn-secondary { width: auto; }
+.avatar-modal-share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  padding: 0 16px 18px;
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.avatar-modal-share input { cursor: pointer; }
+
+/* HUD bar (posture/status + roundtime + hands) — sits just above the command row. */
+.hud-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 30px;
+  padding: 3px 10px;
+  background: var(--bg-shell);
+  border: none;
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+  font-size: 14px;
+}
+/* Vitals fill the bar; hands are pinned to a fixed slot on the right. */
+.hud-vitals { display: flex; align-items: center; gap: 18px; flex: 1 1 auto; min-width: 0; }
+
+/* Thin vitals strip — top of the bottom cluster. */
+.vitals-bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 5px 12px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+.vital-mini { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+.vital-mini-label {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  flex-shrink: 0;
+}
+.vital-mini-track {
+  flex: 1;
+  min-width: 0;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+}
+.vital-mini-fill { height: 100%; transition: width .2s ease; }
+.vital-mini-num {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 26px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Posture / status indicators in the top bar */
+/* Status bar docked at the bottom of the side-panel column: posture stick-figure +
+   condition icons. Not a panel itself — pinned below the scrolling panel stack.
+   Styled as a card matching the command input / character bar (bg-input, rounded). */
+/* Status icons embedded on the right of the command line: a posture stick-figure +
+   condition icons. Light by default, coloured when active. */
+.status-icons { display: flex; align-items: center; gap: 11px; flex-shrink: 0; position: relative; }
+.status-conds-inline { display: flex; align-items: center; gap: 11px; }
+.status-panel-sep { width: 1px; height: 20px; background: var(--border-soft); opacity: 0.6; margin: 0 3px; flex-shrink: 0; }
+.status-icon {
+  display: flex; align-items: center; color: var(--text-main); opacity: 0.5;
+  transform-origin: center bottom;
+  transition: color .12s, opacity .12s, transform .16s cubic-bezier(.34, 1.56, .64, 1);
+}
+.status-icon.status-posture { opacity: 0.72; }
+/* Active: light up AND stay enlarged so a live status stands out on its own. */
+.status-icon.active-danger { color: var(--color-bold); opacity: 1; transform: scale(1.22); }
+.status-icon.active-good  { color: var(--color-bonus); opacity: 1; transform: scale(1.22); }
+/* Dead reads as red (penalty) rather than the amber shared by other dangers. */
+.status-icon.status-cond-dead.active-danger { color: var(--color-penalty); }
+
+/* Posture is now a button (opens the status popup) — strip the button chrome. */
+button.status-icon.status-posture { background: none; border: none; padding: 0; position: relative; cursor: pointer; }
+.status-posture-alert {
+  position: absolute; top: -1px; right: -3px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--color-bold); border: 1px solid var(--bg-shell);
+}
+/* Conditions popup (opened by tapping/clicking the posture figure) */
+.status-pop-backdrop { position: fixed; inset: 0; z-index: 200; }
+.status-pop {
+  position: absolute; bottom: calc(100% + 10px); right: 0; z-index: 201;
+  min-width: 190px; padding: 10px;
+  background: var(--bg-panel); border: 1px solid var(--border-soft);
+  border-radius: 10px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+}
+.status-pop-posture {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text-main); font-family: var(--font-ui);
+  padding-bottom: 8px; margin-bottom: 6px; border-bottom: 1px solid var(--border-soft);
+}
+.status-pop-grid { display: flex; flex-direction: column; gap: 3px; }
+.status-pop-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text-dim); opacity: 0.6; font-family: var(--font-ui);
+}
+.status-pop-row.active-danger { color: var(--color-bold); opacity: 1; }
+.status-pop-row.active-good  { color: var(--color-bonus); opacity: 1; }
+.status-pop-icon { display: flex; width: 18px; justify-content: center; }
+
+/* Slide-up / rise motion shared by bottom sheets, mobile modals, and the
+   character menu. `slide-up` travels the sheet's full height (bottom sheets);
+   `rise` is a short lift for the desktop popovers. */
+@keyframes magiloom-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes magiloom-rise     { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes magiloom-fade     { from { opacity: 0; } to { opacity: 1; } }
+
+/* Mobile: a rail tap opens the panel as a bottom-sheet overlay. */
+.panel-mobile-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, 0.5); display: flex; align-items: flex-end; animation: magiloom-fade .18s ease; }
+.panel-mobile-sheet {
+  /* At least 25% of the screen (so short panels aren't a sliver), capped at 75%
+     (taller content scrolls inside .panel-mobile-body). */
+  width: 100%; min-height: 25vh; max-height: 75vh; display: flex; flex-direction: column;
+  background: var(--bg-sidebar); border-top: 1px solid var(--border-soft);
+  border-radius: 14px 14px 0 0; overflow: hidden;
+  animation: magiloom-slide-up .28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.panel-mobile-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; background: var(--bg-shell); border-bottom: 1px solid var(--border-soft);
+}
+/* 20px of clear space below the content (plus the home-indicator inset) so nothing
+   sits under the screen edge. */
+.panel-mobile-body { flex: 1; overflow-y: auto; padding: 8px 10px calc(20px + env(safe-area-inset-bottom)); }

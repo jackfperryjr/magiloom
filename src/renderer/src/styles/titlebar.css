@@ -1,0 +1,115 @@
+/* titlebar.css — part of the app stylesheet. Imported (in cascade order) from
+   global.css. Split out of the former monolith for navigability; order matters. */
+
+/* ── Status bar / integrated title bar ───────────────────────────────────── */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  height: 40px;
+  /* Darken the title bar relative to the panel in every theme (incl. light/gradient ones) */
+  background: var(--bg-shell);
+  border: none;
+  flex-shrink: 0;
+  font-size: 16px;
+  font-family: var(--font-ui);
+  -webkit-app-region: drag;
+}
+/* All interactive descendants must opt out of drag */
+.status-bar button,
+.status-bar input,
+.status-bar select { -webkit-app-region: no-drag; }
+
+/* Title-bar help link (question-mark circle) + divider before window controls */
+.titlebar-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-right: 3px;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  transition: transform .12s, filter .12s;
+}
+.titlebar-help:hover { transform: scale(1.12); filter: brightness(1.1); }
+.titlebar-help-icon { display: block; width: 20px; height: 20px; }
+/* Shift the divider toward the minimize button (right gap −6) while adding the
+   same amount back on the left, so the help/update icons to its left don't move. */
+.titlebar-sep { width: 1px; height: 18px; flex-shrink: 0; background: var(--border); margin-left: 6px; margin-right: -6px; }
+
+/* macOS: pad left so content clears the traffic-light buttons */
+body[data-platform="darwin"] .status-bar {
+  padding-left: 80px;
+}
+
+/* ── Pre-login draggable title bar shell (holds window controls before game loads) */
+.app-titlebar-shell {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 34px;
+  z-index: 100;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  -webkit-app-region: drag;
+}
+
+/* ── Custom window controls ──────────────────────────────────────────────── */
+.window-controls {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+}
+/* When inside the status bar, extend flush to the right window edge */
+.status-bar .window-controls { margin-right: -12px; }
+/* Web/PWA build: no OS window to minimize/maximize/close — hide the controls. */
+[data-platform="web"] .window-controls { display: none; }
+
+.wc-btn {
+  width: 46px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background .1s, color .1s;
+}
+.wc-btn:hover   { background: rgba(255,255,255,0.08); color: var(--text-bright); }
+.wc-close:hover { background: #c42b1c; color: #fff; }
+
+.app-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  user-select: none;
+  pointer-events: none;
+}
+
+.app-title {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: .1em;
+  color: var(--accent);
+  text-shadow: 0 0 8px var(--accent-glow), 2px 2px 0 rgba(0, 0, 0, 0.55);
+  user-select: none;
+}
+/* The hard dark pixel-offset shadow reads as ghosting on light themes — drop it
+   on Parchment so the brand stays crisp on the pale title bar. */
+[data-theme="parchment"] .app-title { text-shadow: 0 0 6px var(--accent-glow); }
+
+.status-bar-spacer { flex: 1; }
+
+/* Pulse for the "connecting" presence dot (.status-connecting). */
+@keyframes lichPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}

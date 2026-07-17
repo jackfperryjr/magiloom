@@ -3,6 +3,11 @@ import * as account from './auth'
 import { enablePush } from './push'
 import { webUpdater } from './updater'
 
+// App version, baked in at build time from package.json (vite.web.config.ts) — the
+// same source the desktop ships. Avoids a manually-maintained server-side version var.
+declare const __APP_VERSION__: string
+const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'
+
 // ── WebSocket transport ─────────────────────────────────────────────────────────
 // Speaks the server's JSON envelope (see magiserver gateway.ts):
 //   invoke → { t:'invoke', id, channel, args }  ← { t:'result', id, ok, result|error }
@@ -171,7 +176,7 @@ export function installDr(): void {
       onStatus: (cb: (s: unknown) => void) => t.on('script:status', cb),
     },
     app: {
-      getVersion:   () => t.invoke('app:version'),
+      getVersion:   () => Promise.resolve(APP_VERSION),
       openExternal: (url: string) => { window.open(url, '_blank', 'noopener'); return Promise.resolve() },
       chooseFolder: () => Promise.resolve(null),
       chooseFile:   () => Promise.resolve(null),

@@ -84,6 +84,54 @@ export class LichManager extends EventEmitter {
   }
 
   /**
+   * Launch Lich fully headless: it self-authenticates from its saved-login file
+   * (data/entry.yaml — see lich-entry.ts writeLichEntry) via `--login <Char>`,
+   * connects to the game itself, and exposes a detachable client on `listenPort`
+   * (`--headless=PORT` expands to `--without-frontend --detachable-client=PORT`).
+   * No frostbite frontend and no game key forwarded from us; the caller's
+   * GameConnection attaches to `listenPort` with a plain connect (no handshake) and
+   * Lich streams StormFront XML to it. Credentials live in entry.yaml, not on the
+   * command line, so the launch line is safe to log verbatim.
+   */
+  spawnHeadless(
+    characterName: string,
+    listenPort: number,
+    lichPathOverride?: string
+  ): { ok: boolean; error?: string } {
+    if (this.process) this.stop()
+
+    const lichPath = this.getLichPath(lichPathOverride)
+    if (!lichPath) {
+      this.setStatus('error')
+      return { ok: false, error: 'Lich not found. Set the path in Settings.' }
+    }
+    const rubyPath = this.getRubyPath()
+
+    const args = [
+      lichPath,
+      '--dragonrealms',
+      '--login', characterName,
+      `--headless=${listenPort}`,
+    ]
+
+    this.emit('log', `Launching Lich (headless, port ${listenPort}): ${rubyPath} ${args.join(' ')}`)
+    this.setStatus('starting')
+    this._spawn(rubyPath, args)
+
+    // Lich self-login (SGE + game connect) then opens the detachable port; the
+    // GameConnection retry loop attaches once it's up. Signal ready after 8s like
+    // spawnOnly so scripts don't start before the initial XML is parsed.
+    setTimeout(() => {
+      if (this.status === 'starting') {
+        this.setStatus('ready')
+        this.emit('ready', listenPort)
+      }
+    }, 8000)
+
+    return { ok: true }
+  }
+
+  /**
    * Launch Lich in detachable-client mode for script execution only.
    * Uses port polling since this mode doesn't broker the game connection.
    */

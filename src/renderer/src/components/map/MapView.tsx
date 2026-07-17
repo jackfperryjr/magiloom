@@ -2,9 +2,11 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { MapDB, MapNode, Zone } from '../../lib/mapModel'
 import { roomType, nodeFill, ROOM_TYPE_META, type RoomType } from '../../lib/roomType'
 
-// Grid spacing (px) between adjacent rooms at zoom 1, and node radius.
-const GRID = 46
-const NODE_R = 9
+// Grid spacing (px) between adjacent rooms at zoom 1, and node radius. Small squares
+// on an airy grid (ratio ≈ 0.28) keep connectors long and legible — the clean look
+// DR's own map viewer uses, where diagonals read as crisp 45° lines.
+const GRID = 50
+const NODE_R = 7
 const ZOOM_MIN = 0.35
 const ZOOM_MAX = 2.6
 const DRAG_THRESHOLD = 4   // px of movement before a node press becomes a drag

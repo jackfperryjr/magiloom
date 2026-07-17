@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events'
 import { join } from 'path'
 import {
-  existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync,
+  mkdirSync, writeFileSync, readFileSync, readdirSync,
   unlinkSync, renameSync,
 } from 'fs'
 import { watch } from 'fs'
@@ -124,7 +124,3 @@ export class MapStore extends EventEmitter {
 }
 
 export type { StoredZone, StoredDb }
-
-export function mapsDirExists(sharedDir: string): boolean {
-  return existsSync(join(sharedDir, 'maps'))
-}
