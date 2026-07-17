@@ -1,0 +1,587 @@
+/* command-bar.css — part of the app stylesheet. Imported (in cascade order) from
+   global.css. Split out of the former monolith for navigability; order matters. */
+
+/* ── Command input ───────────────────────────────────────────────────────── */
+/* Game-column footer: the HUD strip (vitals + hands) only. The character bar +
+   command line live in a full-width row (.command-row) below the whole main-area. */
+.bottom-bar {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: var(--bg-shell);
+  /* No seam — the floating game panel above provides the separation */
+  border-top: none;
+}
+
+/* Full-width bottom row: character bar (left) + command line (fills the rest),
+   spanning the whole app below the main area. */
+.command-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px;
+  flex-shrink: 0;
+  background: var(--bg-shell);
+  border-top: none;
+}
+
+/* Command line — fills the row; status icons + roundtime embedded on its right. */
+.command-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  min-height: 50px;
+  padding: 0 14px;
+  /* Same surface color as the game window ("message area") so they read as one
+     material; the resting shadow lifts the input so it floats over the top. */
+  background: var(--bg-input);
+  border-radius: 9px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  transition: box-shadow .1s;
+}
+
+/* Command autocomplete popup */
+.cmd-popup {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cmd-suggest {
+  padding: 4px;
+  background: var(--bg-panel);
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* Verb-info detail panel (above the suggestion list) */
+.cmd-verbinfo {
+  padding: 8px 10px;
+  background: var(--bg-panel);
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65);
+  max-height: 220px;
+  overflow-y: auto;
+}
+.cmd-verbinfo-title {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.cmd-verbinfo-row { margin-bottom: 6px; }
+.cmd-verbinfo-row:last-child { margin-bottom: 0; }
+.cmd-verbinfo-syntax {
+  font-family: var(--font-game);
+  font-size: 14px;
+  color: var(--text-bright);
+}
+.cmd-verbinfo-desc {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
+.cmd-suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-game);
+  font-size: 15px;
+  color: var(--text-main);
+}
+.cmd-suggest-item.active { background: var(--accent-dim); color: var(--accent); }
+.cmd-suggest-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmd-suggest-tag {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.command-input-wrap:focus-within {
+  box-shadow: 0 0 0 2px var(--accent-glow), 0 0 12px var(--accent-glow);
+}
+.command-prompt {
+  color: var(--accent);
+  font-family: var(--font-game);
+  font-size: var(--font-size-game);
+  user-select: none;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+.command-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-bright);
+  font-family: var(--font-game);
+  font-size: var(--font-size-game);
+  padding: 10px 0;
+  outline: none;
+  caret-color: var(--accent);
+}
+.command-input::placeholder { color: var(--text-dim); opacity: 0.5; }
+/* Roundtime badge embedded in the command line (right) — appears only during RT. */
+.command-rt {
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+  font-size: 16px; font-weight: 600; letter-spacing: 0.02em;
+  color: var(--color-warning); background: rgba(255, 88, 32, 0.14);
+  padding: 8px 4px; border-radius: 6px;
+  animation: rt-pop 0.15s ease-out;
+}
+@keyframes rt-pop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+/* Mic dictation toggle — green when on, red with a diagonal slash when off
+   (mirrors the broadcast icon). */
+.command-mic {
+  position: relative; flex-shrink: 0;
+  background: none; border: none; cursor: pointer;
+  display: flex; align-items: center; padding: 6px; border-radius: 6px;
+}
+.command-mic:hover { filter: brightness(1.2); }
+.command-mic:hover svg { animation: mic-bounce 0.45s ease; }
+.command-mic.mic-on  { color: var(--color-bonus); background: rgba(56, 216, 56, 0.14); }
+.command-mic.mic-on svg { animation: mic-pulse 1.4s ease-in-out infinite; }
+@keyframes mic-bounce { 0%, 100% { transform: scale(1); } 45% { transform: scale(1.22); } }
+.command-mic.mic-off { color: var(--color-warning); background: rgba(255, 88, 32, 0.14); }
+.command-mic.mic-off::after {
+  content: '';
+  position: absolute; left: 50%; top: 50%;
+  box-sizing: content-box;
+  width: 20px; height: 2px; border-radius: 3px;
+  background: currentColor;
+  border: 2px solid var(--bg-input);
+  transform: translate(-50%, -50%) rotate(-45deg);
+  pointer-events: none;
+}
+@keyframes mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* ── Character bar (bottom-left, ~34%) ───────────────────────────────────── */
+.character-bar {
+  position: relative;
+  flex: 0 1 320px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 6px 12px;
+  background: var(--bg-panel);
+  border-radius: 9px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+.char-avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent-dim);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color .16s ease;
+}
+.char-avatar-img {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.char-avatar-initial {
+  font-family: var(--font-ui);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+}
+.char-status-dot {
+  position: absolute;
+  right: -1px; bottom: -1px;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-panel);
+}
+.status-online     { background: var(--color-bonus); }
+.status-connecting { background: #e0d040; animation: lichPulse 1.2s ease-in-out infinite; }
+.status-offline    { background: var(--color-penalty); }
+.status-idle       { background: #e0a020; }
+.status-dnd        { background: #f04747; }
+/* FF IV theme's --bg-panel is a gradient, which makes the whole `border`
+   shorthand invalid (dropping width + style too), so the dot loses its ring.
+   Re-declare the full border with a solid navy matching the panel. */
+[data-theme="ff4"] .char-status-dot { border: 2px solid #000050; }
+
+.char-identity {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background .1s;
+}
+.char-identity-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+.char-identity:hover { background: rgba(255, 255, 255, 0.05); }
+.char-identity:hover .char-avatar { border-color: var(--border-accent); }
+.char-identity:hover .char-name { color: var(--text-bright); }
+/* Discord-style: the sub-line slides from presence up to the account name */
+.char-identity:hover .char-sub.has-account .char-sub-track { transform: translateY(-16px); }
+.char-name {
+  max-width: 100%;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color .12s;
+}
+.char-sub {
+  display: block;
+  height: 16px;
+  overflow: hidden;
+  max-width: 100%;
+}
+.char-sub-track {
+  display: flex;
+  flex-direction: column;
+  transition: transform .22s ease;
+}
+.char-sub-track > span {
+  height: 16px;
+  line-height: 16px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+.char-presence { color: var(--text-muted); }
+.char-account { color: var(--text-dim); }
+
+/* Discord-style icon buttons in the character bar */
+.char-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.char-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color .12s, background .12s;
+}
+.char-action-btn:hover { color: var(--text-bright); background: rgba(255, 255, 255, 0.06); }
+.char-action-btn svg { transform-box: fill-box; transform-origin: center; }
+.char-action-gear:hover svg  { animation: gear-spin 0.7s ease-in-out; }
+.char-action-brush:hover svg { animation: brush-wiggle 0.55s ease-in-out; }
+
+@keyframes gear-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes brush-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  20%      { transform: rotate(-16deg) translateY(1px); }
+  50%      { transform: rotate(10deg) translateY(-1px); }
+  80%      { transform: rotate(-6deg); }
+}
+
+/* Broadcast (multi-boxing) action button — signal pulse on hover, and a steady
+   "on air" pulse while link mode is live. */
+.char-action-broadcast { position: relative; }
+.char-action-broadcast:hover svg { animation: signal-ping 0.7s ease-out; }
+/* Link/receive state: green when either is on, red with a slash when both off. */
+.char-action-broadcast.bc-on  { color: var(--color-bonus); background: rgba(56, 216, 56, 0.14); }
+.char-action-broadcast.bc-off { color: var(--color-warning); background: rgba(255, 88, 32, 0.14); }
+.char-action-broadcast.bc-off::after {
+  content: '';
+  position: absolute; left: 50%; top: 50%;
+  /* content-box so the border adds AROUND the red core (border-box would eat
+     the 2px core down to nothing). The border matches the button surface, so
+     the slash reads as a cut-out gap over the icon — Discord muted-mic style. */
+  box-sizing: content-box;
+  width: 22px; height: 2px; border-radius: 3px;
+  background: currentColor;
+  border: 2px solid var(--bg-panel);
+  transform: translate(-50%, -50%) rotate(-45deg);   /* forward slash */
+  pointer-events: none;
+}
+.char-action-broadcast.live svg { animation: signal-live 1.8s ease-in-out infinite; }
+@keyframes signal-ping {
+  0%   { transform: scale(0.82); opacity: 0.6; }
+  60%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes signal-live {
+  0%, 100% { opacity: 0.65; transform: scale(0.92); }
+  50%      { opacity: 1;    transform: scale(1.06); }
+}
+
+/* ── Broadcast modal ─────────────────────────────────────────────────────────*/
+.broadcast-modal {
+  width: 420px; max-width: calc(100vw - 32px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.broadcast-modal-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.broadcast-modal-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; flex-shrink: 0;
+  border-radius: 10px;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.04);
+  transition: color .2s, background .2s;
+}
+.broadcast-modal-icon.live {
+  color: var(--accent);
+  background: var(--accent-glow);
+  box-shadow: 0 0 0 1px var(--border-accent) inset;
+}
+.broadcast-modal-icon.live svg { animation: signal-live 1.8s ease-in-out infinite; }
+.broadcast-modal-titles { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.broadcast-modal-sub { font-size: 12px; color: var(--text-dim); }
+.broadcast-modal-body { padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+
+.broadcast-toggle {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.broadcast-toggle:hover { border-color: var(--border); background: rgba(255, 255, 255, 0.02); }
+.broadcast-toggle-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.broadcast-toggle-label { font-size: 14px; color: var(--text-bright); }
+.broadcast-toggle-hint  { font-size: 12px; color: var(--text-dim); line-height: 1.35; }
+
+/* Pill switch — restyles the native checkbox */
+.broadcast-switch {
+  appearance: none; -webkit-appearance: none;
+  position: relative; flex-shrink: 0;
+  width: 38px; height: 22px; margin: 0;
+  border-radius: 999px;
+  background: var(--accent-dim);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .18s, border-color .18s;
+}
+.broadcast-switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform .18s, background .18s;
+}
+.broadcast-switch:checked { background: var(--accent-glow); border-color: var(--border-accent); }
+.broadcast-switch:checked::after { transform: translateX(16px); background: var(--accent); }
+
+.broadcast-help {
+  margin-top: 4px; padding: 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--border-soft);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.broadcast-help-title {
+  font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-dim); margin-bottom: 2px;
+}
+.broadcast-help-row { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--text-main); }
+.broadcast-key {
+  flex-shrink: 0; min-width: 22px; text-align: center;
+  padding: 1px 6px; border-radius: 5px;
+  background: var(--accent-dim); border: 1px solid var(--border-soft);
+  color: var(--accent); font-family: var(--font-mono, monospace); font-size: 13px;
+}
+.broadcast-help-note { margin-top: 4px; font-size: 12px; color: var(--text-dim); line-height: 1.4; }
+
+/* ── Automation class toggle strip + per-rule class field ─────────────────────*/
+.class-strip {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  padding: 8px 2px 10px;
+}
+.class-strip-label {
+  font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-dim); margin-right: 2px;
+}
+.class-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--accent-dim);
+  color: var(--text-dim);
+  font-size: 11px; cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s, opacity .15s;
+}
+.class-pill:hover { border-color: var(--border); }
+.class-pill.on { color: var(--text-bright); border-color: var(--border-accent); }
+.class-pill:not(.on) { opacity: 0.55; text-decoration: line-through; }
+.class-pill-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text-dim); flex-shrink: 0;
+}
+.class-pill.on .class-pill-dot { background: var(--accent); box-shadow: 0 0 5px var(--accent-glow); }
+
+/* Narrow class field appended to each alias/trigger row */
+.rule-class { flex: 0 0 74px !important; min-width: 0; }
+/* Class row inside a highlight's options panel */
+.hl-class-row { display: flex; align-items: center; gap: 8px; }
+.hl-class-label { font-size: 12px; color: var(--text-dim); min-width: 42px; }
+.hl-class-input {
+  flex: 1; min-width: 0;
+  padding: 4px 8px; border-radius: 6px;
+  background: var(--accent-dim);
+  border: 1px solid var(--border-soft);
+  color: var(--text-main); font-size: 12px;
+  font-family: var(--font-mono, monospace);
+}
+.hl-class-input:focus { outline: none; border-color: var(--border-accent); }
+
+/* Gag/Sub action badge on a highlight row */
+.hl-action-badge {
+  flex-shrink: 0;
+  font-size: 9px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 4px;
+  font-family: var(--font-ui);
+}
+
+/* Character user menu (pops above the bar) */
+.char-menu-backdrop { position: fixed; inset: 0; z-index: 199; }
+.char-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 8px;
+  min-width: 300px;
+  padding: 10px 8px 8px;
+  background: var(--bg-panel);
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.6);
+  z-index: 200;
+}
+.char-menu-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 6px 8px;
+}
+.char-menu-avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 120px;
+  height: 120px;
+  padding: 0;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent-dim);
+  color: var(--accent);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color .12s, box-shadow .12s;
+}
+.char-menu-avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.char-menu-avatar-initial {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  font-family: var(--font-ui); font-size: 34px; font-weight: 600;
+}
+.char-menu-avatar-edit {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.55); color: #fff;
+  opacity: 0; transition: opacity .12s;
+}
+.char-menu-avatar:hover .char-menu-avatar-edit { opacity: 1; }
+.char-menu-profile { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.char-menu-name {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 2px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.char-menu-field { display: flex; gap: 6px; font-family: var(--font-ui); font-size: 12px; line-height: 1.35; }
+.char-menu-k { color: var(--text-dim); flex-shrink: 0; }
+.char-menu-v { color: var(--text-main); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.char-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  cursor: pointer;
+  text-align: left;
+  transition: color .1s, background .1s;
+}
+.char-menu-item:hover { background: var(--bg-input); color: var(--text-bright); }
+.char-menu-item-danger { color: var(--color-warning); }
+.char-menu-item-danger:hover { background: rgba(200, 40, 20, 0.18); color: #fff; }
+.char-menu-item-connect { color: var(--color-bonus); }
+.char-menu-item-connect:hover { background: rgba(38, 216, 38, 0.15); color: #fff; }
+.char-menu-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.char-menu-check { margin-left: auto; color: var(--accent); }
+.char-menu-sep { height: 1px; margin: 4px 6px; background: var(--border-soft); }

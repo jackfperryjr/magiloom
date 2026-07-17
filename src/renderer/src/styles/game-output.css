@@ -1,0 +1,181 @@
+/* game-output.css — part of the app stylesheet. Imported (in cascade order) from
+   global.css. Split out of the former monolith for navigability; order matters. */
+
+/* ── Game output ─────────────────────────────────────────────────────────── */
+.game-output {
+  flex: 1;
+  overflow-y: scroll;
+  overflow-x: hidden;   /* main panel never scrolls sideways; wide mono blocks scroll within themselves (.preset-mono) */
+  padding: 10px 14px 6px;
+  font-family: var(--font-game);
+  font-size: var(--font-size-game);
+  line-height: var(--line-height-game);
+  color: var(--text-main);
+  scroll-behavior: auto;
+}
+.game-output::-webkit-scrollbar { width: 6px; }
+.game-output::-webkit-scrollbar-track { background: transparent; }
+.game-output::-webkit-scrollbar-thumb { background: var(--scrollbar); }
+.game-output::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+.game-line {
+  position: relative;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;   /* break long unbreakable tokens instead of overflowing the panel */
+  min-height: 1em;
+  padding: 1px;
+}
+
+/* Row hover highlight */
+.game-line:hover { background: rgba(255, 255, 255, 0.035); }
+
+/* @mention — this character's name appears on the line */
+.game-line.mention {
+  padding-left: 8px;
+  background: var(--accent-glow);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.game-line.mention:hover { background: var(--accent-glow); }
+
+/* Blank line between command-response chunks */
+.game-separator {
+  height: 0.85em;
+}
+
+/* LOOK-at-player portrait card — avatar on the left of the description text */
+.look-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 3px 2px 5px;
+}
+.look-avatar {
+  width: 84px;
+  height: 108px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-input);
+}
+.look-card-text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.look-card-line { min-height: 1em; }
+.look-avatar-zoomable { cursor: zoom-in; }
+.look-avatar-zoomable:hover { border-color: var(--accent); }
+
+/* Click-to-enlarge portrait lightbox (portaled onto .modal-overlay) */
+.look-lightbox { cursor: zoom-out; }
+.look-lightbox-img {
+  max-width: min(90vw, 640px);
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px var(--border-soft), 0 24px 70px rgba(0, 0, 0, 0.9);
+}
+
+/* Density — compact tightens line spacing */
+[data-density="compact"] .game-output { line-height: 1.15; }
+[data-density="compact"] .game-line { min-height: 0; }
+[data-density="compact"] .game-separator { height: 0.4em; }
+
+/* Labeled divider (Discord "new messages" style) — a line with a label at the
+   right end. The "Disconnected" variant is themed red. */
+.game-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-family: var(--font-ui);
+}
+.game-divider-line {
+  flex: 1;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.5;
+}
+.game-divider-time {
+  flex-shrink: 0;
+  font-size: 11px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.game-divider-badge {
+  flex-shrink: 0;
+  background: var(--color-penalty);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 3px 12px 3px 18px;
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%);
+}
+.game-divider-error { color: var(--color-penalty); }
+
+/* Jump-to-present pill */
+.jump-present {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 5;
+  padding: 8px 18px;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: #ffffff;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  opacity: 1;
+  transition: opacity .12s, transform .12s;
+}
+.jump-present:hover { opacity: 1; transform: translateX(-50%) translateY(-1px); }
+
+/* Default: match the login "Sign in" button (periwinkle) with white text. */
+[data-theme="magiloom"] .jump-present {
+  background: linear-gradient(180deg, #524fb6 0%, #423ea0 100%);
+  color: #ffffff;
+}
+
+/* Final Fantasy IV's accent is near-white, so an accent fill reads as a white
+   blob — fill with the theme's blue and keep white text, borderless. */
+[data-theme="ff4"] .jump-present {
+  background: #0000A8; /* the lighter blue from the theme's panel gradient */
+  color: var(--text-bright);
+}
+
+/* SGE presets */
+.preset-roomname {
+  color: var(--color-roomname);
+  display: block;
+  margin-top: 4px;
+  letter-spacing: .01em;
+}
+.preset-roomdesc  { color: var(--color-roomdesc); }
+.preset-whisper   { color: var(--color-whisper); font-style: italic; }
+.preset-speech    { color: var(--color-speech); }
+.preset-thought   { color: var(--color-thought); font-style: italic; }
+.preset-warning   { color: var(--color-warning); }
+.preset-bonus     { color: var(--color-bonus); }
+.preset-penalty   { color: var(--color-penalty); }
+.preset-echo      { color: var(--text-dim); font-style: italic; opacity: 0.7; }
+.preset-echo-script { color: var(--accent); font-style: italic; opacity: 0.85; }
+/* Client/Lich diagnostic notices routed into the main output (SGE auth, Lich
+   status, connection, script errors) — dim + italic so they read as system chatter,
+   not game text. */
+.preset-system    { color: var(--text-dim); font-style: italic; opacity: 0.6; }
+/* Monospace ASCII blocks (guild/hall registers, maps, tables): preserve their
+   alignment at normal widths, but wrap rather than scroll sideways when the panel
+   is too narrow to fit them (no horizontal scrollbar). */
+.preset-mono      { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-game); }
+.text-bold        { color: var(--color-bold); }

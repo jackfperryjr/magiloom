@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
+import { readFileSync } from 'fs'
 
 // Web / PWA build of the same React renderer used by the desktop app. Instead of
 // the Electron preload, src/web/main.tsx installs a WebSocket-backed window.dr
@@ -15,12 +16,17 @@ import { resolve } from 'path'
 // notice a newer deploy and offer to reload (see updater.ts).
 const buildId = process.env.GITHUB_SHA?.slice(0, 7) || Date.now().toString(36)
 
+// App version baked from package.json at build time — the SAME source the desktop
+// ships. So bumping package.json + deploying the PWA updates the version the web
+// client shows, with no manual server variable to keep in sync.
+const appVersion = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')).version as string
+
 export default defineConfig({
   root: resolve(__dirname, 'src/web'),
   base: './',
   // Reuse the desktop renderer's static assets (icon.png, panels/*.jpg, …).
   publicDir: resolve(__dirname, 'src/renderer/public'),
-  define: { __BUILD_ID__: JSON.stringify(buildId) },
+  define: { __BUILD_ID__: JSON.stringify(buildId), __APP_VERSION__: JSON.stringify(appVersion) },
   plugins: [
     react(),
     {

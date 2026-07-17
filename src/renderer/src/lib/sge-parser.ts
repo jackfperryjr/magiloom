@@ -370,6 +370,11 @@ export function parseLine(raw: string): GameEvent[] {
       return events
     }
 
+    // Lich's script auto-updater chatter ([lich5-update: …]) — including the GitHub
+    // rate-limit 403s the server's datacenter IP hits (harmless, cosmetic) — carries
+    // no game value, so drop it entirely rather than echoing it to the output.
+    if (/^\[lich\d*-update:/i.test(text)) return events
+
     // Lich script output — route to lich stream so it can be styled/suppressed
     const lichOutput = (
       /^--- Lich[: ]/.test(text) ||

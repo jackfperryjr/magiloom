@@ -20,10 +20,6 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
   try { window.speechSynthesis.onvoiceschanged = () => { _voice = null } } catch { /* ignore */ }
 }
 
-export function ttsAvailable(): boolean {
-  return typeof window !== 'undefined' && !!window.speechSynthesis
-}
-
 export function speak(text: string, rate = 1.05): void {
   const synth = typeof window !== 'undefined' ? window.speechSynthesis : null
   const clean = text.replace(/\s+/g, ' ').trim()
@@ -35,8 +31,4 @@ export function speak(text: string, rate = 1.05): void {
     u.rate = rate
     synth.speak(u)
   } catch { /* TTS unavailable */ }
-}
-
-export function stopSpeaking(): void {
-  try { window.speechSynthesis?.cancel() } catch { /* ignore */ }
 }

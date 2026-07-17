@@ -12,6 +12,7 @@ import { LogStore, stripToLines } from './log-store'
 import { SettingsStore } from './settings-store'
 import { sgeAuth } from './sge-auth'
 import type { SGELaunchKey } from './sge-auth'
+import { writeLichEntry } from './lich-entry'
 import { getAvatar, publishAvatar, deleteAvatar, isAvatarServiceEnabled } from './avatar-service'
 import { ensurePortrait } from './portrait-service'
 
@@ -113,6 +114,9 @@ function lichLog(line: string) {
 
 let pendingSelectInstance:  ((code: string) => Promise<unknown>) | null = null
 let pendingSelectCharacter: ((id: string)   => Promise<SGELaunchKey>) | null = null
+// Held between login and character-select so headless Lich can write it into
+// entry.yaml (it self-authenticates via --login). Cleared once consumed.
+let pendingPassword: string | null = null
 
 function createWindow(): void {
   const saved  = loadWindowState()
@@ -297,6 +301,9 @@ function setupIpcHandlers(): void {
     const result = await sgeAuth(account, password, (l) => lichLog('[sge] ' + l))
     if (!result.ok) return result
     pendingSelectInstance = result.selectInstance
+    // Headless Lich self-logs-in from entry.yaml, so keep the password until the
+    // character is picked (then it's written masked and cleared).
+    pendingPassword = password
     settings.saveAccount(account)
     return { ok: true, instances: result.instances }
   })
@@ -333,18 +340,28 @@ function setupIpcHandlers(): void {
     settings.patch({ connectWithLich: wantsLich })
 
     if (wantsLich) {
-      // Lich mode: launch with --frostbite -g host:port (exactly like Frostbite),
-      // then connect to Lich's port 11024 and send the key — Lich forwards to game.
-      // getLichPath auto-detects when the setting is blank; if Lich isn't found,
-      // spawnOnly reports it and we fall back to a direct connection.
-      lichLog('[sge] Launching Lich (frostbite mode) for ' + characterName + '...')
-      const res = lichManager.spawnOnly(key.host, key.port, settings.get('lichPath') || undefined)
-      if (res.ok) {
-        lichLog('[sge] Connecting to Lich on port 11024...')
-        gameConn.connectWithKey('127.0.0.1', 11024, key.key)
-        return { ok: true }
+      // Headless Lich mode: Lich authenticates itself from its saved-login file and
+      // exposes a detachable client port we attach to (no frostbite, no key forwarded).
+      // Requires the Lich install + the password captured at login. Any failure
+      // (Lich not found, no password) falls through to a direct connection.
+      const lichRbw = lichManager.getLichPath(settings.get('lichPath') || undefined)
+      if (!lichRbw) {
+        lichLog('[sge] Lich not found — connecting directly instead.')
+      } else if (!pendingPassword) {
+        lichLog('[sge] No password available for headless Lich — connecting directly instead.')
+      } else {
+        // Write Lich's saved login (masked with its :standard cipher) so --login works.
+        writeLichEntry(join(dirname(lichRbw), 'data'), accountName, pendingPassword, characterName)
+        pendingPassword = null
+        lichLog('[sge] Launching Lich (headless mode) for ' + characterName + '...')
+        const res = lichManager.spawnHeadless(characterName, 11024, settings.get('lichPath') || undefined)
+        if (res.ok) {
+          lichLog('[sge] Attaching to Lich detachable client on port 11024...')
+          gameConn.connect('127.0.0.1', 11024)
+          return { ok: true }
+        }
+        lichLog('[sge] ' + (res.error ?? 'Lich unavailable') + ' — connecting directly instead.')
       }
-      lichLog('[sge] ' + (res.error ?? 'Lich unavailable') + ' — connecting directly instead.')
     }
 
     lichLog('[sge] Connecting directly to ' + key.host + ':' + key.port)

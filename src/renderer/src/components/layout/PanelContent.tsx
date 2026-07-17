@@ -1,5 +1,5 @@
 import { useAtomValue } from 'jotai'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import {
   roomAtom, activeSpellAtom, activeSpellsAtom, inventoryLinesAtom,
@@ -8,6 +8,7 @@ import {
   type OutputLine,
 } from '../../store/game'
 import { resolveAvatarSrc } from '../../lib/avatar'
+import { groupExpSkills } from '../../lib/expGroups'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
 import { useProfile } from '../../hooks/useProfile'
 import { Tooltip } from '../ui/Tooltip'
@@ -93,15 +94,20 @@ export function ExperiencePanel() {
       )}
       <table className="exp-table">
         <tbody>
-          {activeSkills.map(s => (
-            <tr key={s.name} className="exp-row">
-              <td className="exp-skill">{s.name}</td>
-              <td className="exp-rank">{s.rank}</td>
-              <td className="exp-pct">{s.pct}%</td>
-              <td className="exp-mind" style={{ color: mindColor(s.mindWord) }}>
-                {s.mind}
-              </td>
-            </tr>
+          {groupExpSkills(activeSkills).map(group => (
+            <Fragment key={group.name}>
+              <tr className="exp-group-head"><td colSpan={4}>{group.name}</td></tr>
+              {group.skills.map(s => (
+                <tr key={s.name} className="exp-row">
+                  <td className="exp-skill">{s.name}</td>
+                  <td className="exp-rank">{s.rank}</td>
+                  <td className="exp-pct">{s.pct}%</td>
+                  <td className="exp-mind" style={{ color: mindColor(s.mindWord) }}>
+                    {s.mind}
+                  </td>
+                </tr>
+              ))}
+            </Fragment>
           ))}
         </tbody>
       </table>

@@ -58,8 +58,8 @@ export function emptyZone(id: string, name: string): Zone {
 
 // ── Directions ──────────────────────────────────────────────────────────────
 // Canonical direction → unit grid offset (screen coords: +y is DOWN). Diagonals
-// combine cardinals. up/down move a level (dz) with a small xy nudge so a stacked
-// room doesn't render exactly on top of the one below it.
+// combine cardinals. up/down are a pure level change (dz only, no x/y) so a room
+// stacks directly above/below the one below it — same as Genie's mapper.
 export interface DirVec { dx: number; dy: number; dz: number }
 
 export const DIR_VECTORS: Record<string, DirVec> = {
@@ -172,12 +172,6 @@ function normExits(exits: string[]): string {
  */
 export function roomSignature(title: string, description: string, exits: string[]): string {
   return `${title.trim().toLowerCase()}|${hashDesc(description)}|${normExits(exits)}`
-}
-
-// A looser key (title + description only) used to find candidate matches when
-// exits differ slightly (a room can gain/lose a searched exit between visits).
-export function roomKeyLoose(title: string, description: string): string {
-  return `${title.trim().toLowerCase()}|${hashDesc(description)}`
 }
 
 // ── Zone derivation ─────────────────────────────────────────────────────────
