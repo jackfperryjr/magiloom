@@ -196,7 +196,8 @@
 .map-ctx-colorpick::-webkit-color-swatch-wrapper { padding: 0; }
 .map-ctx-colorpick::-webkit-color-swatch { border: none; border-radius: 3px; }
 .map-ctx-hint { padding: 2px 12px 6px; font-size: 10px; color: var(--text-dim); max-width: 210px; line-height: 1.35; }
-.map-ctx-edit { display: flex; gap: 5px; padding: 6px 10px; }
+.map-ctx-edit { display: flex; flex-direction: column; gap: 6px; padding: 6px 10px; }
+.map-ctx-edit-actions { display: flex; gap: 5px; }
 .map-ctx-input {
   flex: 1; min-width: 150px;
   background: var(--bg-shell); border: 1px solid var(--border-soft);

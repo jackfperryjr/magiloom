@@ -5,6 +5,7 @@ import { useIsMobile }         from './hooks/useIsMobile'
 import { useAutomapper }       from './hooks/useAutomapper'
 import { GameOutput, setHighlights, setSendFn, setOutputBuffer, setPlayerName, setDisabledClasses } from './components/game/GameOutput'
 import { CommandInput, StatusBar, WindowControls, HudBar, CharacterBar } from './components/game'
+import { AmbientOverlay } from './components/game/AmbientOverlay'
 import { LoginFlow }          from './components/ui/LoginFlow'
 import { SettingsModal }      from './components/ui/SettingsModal'
 import { HighlightsModal }    from './components/ui/HighlightsModal'
@@ -17,9 +18,11 @@ import {
   CombatPanel, AtmoPanel, DeathsPanel, ConnectionsPanel,
 } from './components/layout/PanelContent'
 import { MapPanel } from './components/map/MapPanel'
+import { SkyPanel } from './components/layout/SkyPanel'
 import { MapOverlay } from './components/map/MapOverlay'
 import {
   echoCommandAtom, beginSilentExpAtom, appendSystemLineAtom, tickAtom,
+  beginSilentSkySeedAtom, endSilentSkySeedAtom,
   combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom, inventoryLinesAtom,
   verbRawAtom, beginVerbCapture, endVerbCapture,
   avatarsAtom, avatarCropsAtom, selfNameAtom, resetSessionAtom,
@@ -40,6 +43,7 @@ const EXP_POLL_ENABLED = false
 function renderPanel(id: PanelId) {
   switch (id) {
     case 'room':         return <RoomPanel />
+    case 'sky':          return <SkyPanel />
     case 'spells':       return <SpellsPanel />
     case 'experience':   return <ExperiencePanel />
     case 'combat':       return <CombatPanel />
@@ -215,6 +219,8 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
   }, [status, send, setVerbs])
   const echoCommand      = useSetAtom(echoCommandAtom)
   const beginSilentExp   = useSetAtom(beginSilentExpAtom)
+  const beginSilentSkySeed = useSetAtom(beginSilentSkySeedAtom)
+  const endSilentSkySeed   = useSetAtom(endSilentSkySeedAtom)
   const setTick          = useSetAtom(tickAtom)
 
   const setCombat    = useSetAtom(combatLinesAtom)
@@ -267,6 +273,34 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
     const id = window.setInterval(() => { beginSilentExp(); send('exp') }, 30_000)
     return () => window.clearInterval(id)
   }, [status, send, beginSilentExp])
+
+  // Ambient seed: on connect, silently fetch `weather` (current precipitation) and
+  // `time` (calibrates the deterministic day/night clock) once. Both are RT-free;
+  // their report lines are suppressed from the main output during the seed window.
+  const skySeeded = useRef(false)
+  useEffect(() => {
+    if (status !== 'connected') { skySeeded.current = false; return }
+    if (skySeeded.current) return
+    skySeeded.current = true
+    const timers = [
+      window.setTimeout(() => { beginSilentSkySeed(); send('weather'); send('time') }, 1500),
+      window.setTimeout(() => endSilentSkySeed(), 4500),
+    ]
+    return () => timers.forEach(window.clearTimeout)
+  }, [status, send, beginSilentSkySeed, endSilentSkySeed])
+
+  // Poll `weather` every minute so the overlay self-heals if an ambient transition
+  // message was missed (e.g. it was already snowing when you stepped outdoors). RT-
+  // free; the report is fetched silently and suppressed from the main output.
+  useEffect(() => {
+    if (status !== 'connected') return
+    const id = window.setInterval(() => {
+      beginSilentSkySeed()
+      send('weather')
+      window.setTimeout(() => endSilentSkySeed(), 2000)
+    }, 60_000)
+    return () => window.clearInterval(id)
+  }, [status, send, beginSilentSkySeed, endSilentSkySeed])
 
 
   const [showHighlights, setShowHighlights] = useState(false)
@@ -396,6 +430,7 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
             document.querySelector<HTMLInputElement>('.command-input')?.focus()
           }}>
             <GameOutput />
+            <AmbientOverlay />
           </main>
           <footer className="bottom-bar">
             <HudBar status={status} />

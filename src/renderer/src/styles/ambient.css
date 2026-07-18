@@ -1,0 +1,101 @@
+/* ambient.css — immersive day/night sky tint + animated weather over the game
+   panel. Imported (in cascade order) from global.css.
+
+   HARD RULE: this file contains ONLY .ambient-* selectors. It must never restyle
+   .game-output (owned by game-output.css) or .game-output-wrap (owned by
+   shell.css). The overlay layers purely through its own absolutely-positioned
+   elements: they are children of .game-output-wrap (already position:relative),
+   and positioned children paint above the in-flow game text on their own — so no
+   z-index / position changes are needed on the scroll container. Keeping this file
+   self-contained is what keeps it from disturbing the game window's layout. */
+
+/* Self-clipping layer that holds the whole overlay. CRITICAL: it is inset:0 (exactly
+   the wrap's size) with overflow:hidden, so the oversized/rotated weather field
+   inside it can never extend past the wrap. Without this, an overlay element that
+   sticks out beyond .game-output-wrap gives the wrap *scrollable overflow* — and
+   because overflow:hidden is still programmatically scrollable, GameOutput's
+   auto-scroll (bottomRef.scrollIntoView) then scrolls the wrap too, shoving the
+   game output up and opening a gap at the bottom. Clipping here prevents that. */
+.ambient-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Sky tint (faint full-panel wash) → weather veil → corner label, in paint order. */
+.ambient-sky {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  transition: background 2s linear;   /* ease between dayparts / weather shifts */
+}
+
+/* Oversized + overflow-hidden so the intensity slant can rotate the field without
+   exposing its edges. Absolute + overflow-hidden means it never contributes to
+   layout or scroll of anything around it. */
+.ambient-weather {
+  position: absolute;
+  inset: -25%;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+  transition: opacity 1s ease;   /* ease the field in on appearance / out on clear */
+}
+.ambient-rain { opacity: .5; }
+.ambient-snow { opacity: .8; }
+/* Fade target: the component mounts the field with .is-hidden, then removes it a
+   frame later (fade in); on clear it re-adds .is-hidden, then unmounts after the
+   transition (fade out). Two classes → beats the base .ambient-rain/.snow opacity. */
+.ambient-weather.is-hidden { opacity: 0; }
+
+.ambient-particle {
+  position: absolute;
+  top: 0;
+  will-change: transform;
+}
+.ambient-rain .ambient-particle {
+  width: 1px;
+  background: linear-gradient(to bottom, rgba(190, 205, 255, 0), rgba(190, 205, 255, .55));
+  animation: ambient-fall var(--fall, 1s) linear var(--delay, 0s) infinite;
+}
+.ambient-snow .ambient-particle {
+  color: rgba(255, 255, 255, .92);
+  text-shadow: 0 0 4px rgba(200, 225, 255, .5);
+  line-height: 1;
+  user-select: none;
+  /* Fall (transform) + a gentle wobble via the independent `rotate` property, so the
+     wobble composes with the fall instead of overwriting its translate. `alternate`
+     is on the wobble ONLY — the fall never reverses (never travels upward). */
+  animation: ambient-fall var(--fall, 6s) linear var(--delay, 0s) infinite,
+             ambient-wobble var(--spin, 8s) ease-in-out var(--delay, 0s) infinite alternate;
+}
+/* Straight-line diagonal fall: each particle drifts sideways by its own --drift over
+   the descent (0 for rain → pure vertical; small per-flake value for snow). */
+@keyframes ambient-fall {
+  from { transform: translate(0, -15vh); }
+  to   { transform: translate(var(--drift, 0), 110vh); }
+}
+@keyframes ambient-wobble {
+  from { rotate: -16deg; }
+  to   { rotate: 16deg; }
+}
+
+.ambient-label {
+  position: absolute;
+  top: 6px;
+  right: 12px;
+  z-index: 3;
+  pointer-events: none;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  opacity: .5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-particle { animation: none; }
+}

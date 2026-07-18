@@ -234,33 +234,44 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
           return (
             <div className="map-ctx-menu" style={{ left: ctx.x, top: ctx.y }} onClick={e => e.stopPropagation()}>
               <div className="map-ctx-title">{node?.title || 'Room'}</div>
-              {editing ? (
-                <div className="map-ctx-edit">
-                  <input
-                    autoFocus className="map-ctx-input"
-                    placeholder={edit!.field === 'tag' ? 'Label — shown in the legend (first 3 chars on the node)' : 'Note'}
-                    value={edit!.value}
-                    onChange={e => setEdit({ ...edit!, value: e.target.value })}
-                    onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEdit(null) }}
-                  />
-                  <button className="map-tb-btn map-text-btn" onClick={commitEdit}>Save</button>
-                </div>
-              ) : (
+              {editing ? (() => {
+                const hasValue = edit!.field === 'tag' ? !!node?.tag : !!node?.note
+                const removeField = () => {
+                  patchNode(edit!.id, edit!.field === 'tag' ? { tag: undefined } : { note: undefined })
+                  setEdit(null); setCtx(null)
+                }
+                return (
+                  <div className="map-ctx-edit">
+                    <input
+                      autoFocus className="map-ctx-input"
+                      placeholder={edit!.field === 'tag' ? 'Label — shown in the legend (first 3 chars on the node)' : 'Note'}
+                      value={edit!.value}
+                      onChange={e => setEdit({ ...edit!, value: e.target.value })}
+                      onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEdit(null) }}
+                    />
+                    <div className="map-ctx-edit-actions">
+                      <button className="map-tb-btn map-text-btn" onClick={commitEdit}>Save</button>
+                      {hasValue && <button className="map-tb-btn map-text-btn map-ctx-danger" onClick={removeField}>Remove</button>}
+                      <button className="map-tb-btn map-text-btn" onClick={() => setEdit(null)}>Cancel</button>
+                    </div>
+                  </div>
+                )
+              })() : (
                 <>
                   <div className="map-ctx-item" onClick={() => { onWalkTo(ctx.id); setCtx(null) }}>Walk here</div>
-                  <div className="map-ctx-item" onClick={() => setEdit({ id: ctx.id, field: 'tag', value: node?.tag ?? '' })}>Set label…</div>
-                  <div className="map-ctx-item" onClick={() => setEdit({ id: ctx.id, field: 'note', value: node?.note ?? '' })}>Edit note…</div>
+                  <div className="map-ctx-item" onClick={() => setEdit({ id: ctx.id, field: 'tag', value: node?.tag ?? '' })}>{node?.tag ? 'Edit label…' : 'Set label…'}</div>
+                  <div className="map-ctx-item" onClick={() => setEdit({ id: ctx.id, field: 'note', value: node?.note ?? '' })}>{node?.note ? 'Edit note…' : 'Add note…'}</div>
                   <div className="map-ctx-colors">
                     {NODE_COLORS.map(c => (
-                      <button key={c || 'none'} className="map-ctx-swatch" data-tooltip={c || 'default'}
+                      <button key={c || 'none'} className="map-ctx-swatch" data-tooltip={c || 'default (plain)'}
                               style={{ background: c || 'var(--panel-border, #444)' }}
-                              onClick={() => patchNode(ctx.id, { color: c || undefined })} />
+                              onClick={() => patchNode(ctx.id, { color: c || 'none' })} />
                     ))}
                     <input type="color" className="map-ctx-colorpick" data-tooltip="Custom colour"
-                           value={node?.color ?? '#9a95ff'}
+                           value={node?.color && node.color !== 'none' ? node.color : '#9a95ff'}
                            onChange={e => patchNode(ctx.id, { color: e.target.value })} />
                   </div>
-                  <div className="map-ctx-hint">Give a room a colour + a label to add your own category to the legend.</div>
+                  <div className="map-ctx-hint">Give a room a colour + a label to add your own category to the legend. The first swatch resets to plain (no colour, even if auto-classified).</div>
                   <div className="map-ctx-item map-ctx-danger" onClick={() => { deleteNode(ctx.id); setCtx(null) }}>Delete room</div>
                 </>
               )}
