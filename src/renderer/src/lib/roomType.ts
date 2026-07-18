@@ -52,8 +52,10 @@ export function roomType(n: TypeableRoom): RoomType | null {
 }
 
 // The fill colour for a node: an explicit user colour wins, else the derived
-// room-type colour, else undefined (default node style).
+// room-type colour, else undefined (default node style). The sentinel 'none' is an
+// explicit "plain" override that suppresses the auto room-type colour too.
 export function nodeFill(n: TypeableRoom & { color?: string }): string | undefined {
+  if (n.color === 'none') return undefined
   if (n.color) return n.color
   const t = roomType(n)
   return t ? ROOM_TYPE_META[t].color : undefined

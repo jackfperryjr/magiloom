@@ -2,6 +2,8 @@ import { atom } from 'jotai'
 import type { GameEvent, LinkSpan, TextStyle, VitalField, StreamId } from '../lib/sge-parser'
 import { parseExpSkills } from '../lib/exp-parser'
 import { isAtmospheric } from '../lib/atmospherics'
+import { feedTimeLine, computeSky, isTimeReportLine, type SkyCalibration, type SkyState } from '../lib/elanthianTime'
+import { weatherFromLine, CLEAR, type WeatherState } from '../lib/weather'
 import type { AvatarCrop } from '../lib/avatar'
 
 export type { StreamId }
@@ -383,6 +385,25 @@ export const roundtimeSecondsAtom = atom(get => {
   return Math.max(0, Math.ceil((get(roundtimeAtom) - Date.now()) / 1000))
 })
 
+// ── Ambient: weather + Elanthian sky (day/night) ────────────────────────────────
+// weatherAtom is driven by ambient weather messages + the `weather` command
+// (lib/weather.ts). skyCalibrationAtom holds the deterministic-clock anchor seeded
+// from one `TIME` report (lib/elanthianTime.ts); skyAtom recomputes the live
+// day/night state off tickAtom each second — no polling. Both feed AmbientOverlay.
+export const weatherAtom = atom<WeatherState>(CLEAR)
+export const skyCalibrationAtom = atom<SkyCalibration | null>(null)
+export const skyAtom = atom<SkyState | null>(get => {
+  get(tickAtom)  // re-evaluate every second so day/night advances live
+  const cal = get(skyCalibrationAtom)
+  return cal ? computeSky(Date.now(), cal) : null
+})
+
+// True while the connect-time seed is fetching TIME/weather silently, so their
+// report lines are suppressed from the main output (set/cleared from App).
+let _skySeedSilent = false
+export const beginSilentSkySeedAtom = atom(null, () => { _skySeedSilent = true })
+export const endSilentSkySeedAtom   = atom(null, () => { _skySeedSilent = false })
+
 // ── Experience ────────────────────────────────────────────────────────────────
 export interface ExpSkill { name: string; rank: number; pct: number; mind: string; mindWord?: string }
 export interface ExpState  { skills: ExpSkill[]; tdps: number; favors: number }
@@ -504,6 +525,8 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(activeSpellsAtom, [])
   set(roundtimeAtom, 0)
   set(castTimeAtom, 0)
+  set(weatherAtom, CLEAR)
+  set(skyCalibrationAtom, null)
   set(profilesAtom, {})
   set(selfNameAtom, '')
   set(serverAvatarsAtom, {})
@@ -530,6 +553,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _expBatchNames     = null
   _silentExpBatch    = false
   _spellBatch        = null
+  _skySeedSilent     = false
   _gameMove          = null
 })
 
@@ -639,6 +663,26 @@ export const dispatchGameEventAtom = atom(
           const subbed = applyGagSub(event.text, get(disabledClassesAtom))
           if (subbed === null) return                 // gagged
           event.text = subbed                          // sub rewrite (no-op if unchanged)
+        }
+        // Ambient weather + Elanthian clock. Weather transition/report lines drive
+        // the overlay (and stay visible in main); a TIME report (re)calibrates the
+        // deterministic day/night clock. During the silent connect-time seed the
+        // report lines are suppressed from the main output.
+        if (event.stream === 'main') {
+          const w = weatherFromLine(event.text)
+          if (w) set(weatherAtom, w)
+          // Indoors, `weather` replies "That's a bit hard to do while inside." — there's
+          // no sky to read, so fade the weather overlay out (set clear).
+          const inside = /hard to do while inside|can't (?:do that|see the sky) (?:while |from )?inside/i.test(event.text)
+          if (inside) set(weatherAtom, CLEAR)
+          const cal = feedTimeLine(event.text)
+          if (cal) set(skyCalibrationAtom, cal)
+          // Suppress the silent connect-seed / background weather-poll output from the
+          // main window: the weather/time report lines, the "glance up" header, and the
+          // indoors reply.
+          if (_skySeedSilent && (w || inside || isTimeReportLine(event.text) || /You glance up at the sky\./i.test(event.text))) {
+            return
+          }
         }
         // Active-spell list ("Name (N roisaen)"): accumulate into the current
         // snapshot and suppress from main — it shows only in the Spells panel.

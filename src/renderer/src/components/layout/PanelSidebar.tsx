@@ -5,7 +5,7 @@ import { IconArrowDownTray } from '../ui/Icons'
 import { convLinesAtom } from '../../store/game'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
-export type PanelId = 'room' | 'map' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'connections' | 'scripts'
+export type PanelId = 'room' | 'map' | 'sky' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'connections' | 'scripts'
 
 export interface PanelConfig {
   id:      PanelId
@@ -16,6 +16,7 @@ export interface PanelConfig {
 const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'room',         label: 'Room',          visible: true  },
   { id: 'map',          label: 'Map',           visible: true  },
+  { id: 'sky',          label: 'Sky',           visible: false },
   { id: 'experience',   label: 'Experience',    visible: true  },
   { id: 'spells',       label: 'Active Spells', visible: false  },
   { id: 'combat',       label: 'Combat',        visible: true },

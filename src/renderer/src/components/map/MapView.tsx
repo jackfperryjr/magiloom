@@ -125,6 +125,7 @@ export function MapView({
     const autoSeen = new Set<RoomType>()
     const custom = new Map<string, string>()   // label → colour
     for (const n of levelNodes) {
+      if (n.color === 'none') continue   // explicit plain — no colour, no auto room-type
       if (n.color) { const label = n.tag?.trim(); if (label) custom.set(label, n.color) }
       else { const t = roomType(n); if (t) autoSeen.add(t) }
     }

@@ -7,6 +7,7 @@
 @import './titlebar.css';
 @import './sidebar-panels.css';
 @import './game-output.css';
+@import './ambient.css';
 @import './command-bar.css';
 @import './toasts.css';
 @import './mobile.css';

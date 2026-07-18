@@ -509,12 +509,30 @@ export function findRoute(db: MapDB, fromId: string, toId: string): { nodes: str
 
 function buildAdjacency(db: MapDB): Map<string, MapArc[]> {
   const adj = new Map<string, MapArc[]>()
+  const push = (from: string, arc: MapArc) => {
+    const list = adj.get(from) ?? []
+    list.push(arc)
+    adj.set(from, list)
+  }
+  // Directed (from|to) pairs that actually exist, so we only synthesize a reverse
+  // edge where the map doesn't already record one.
+  const pairs = new Set<string>()
+  for (const z of Object.values(db.zones)) for (const a of z.arcs) pairs.add(a.from + '|' + a.to)
+
   for (const z of Object.values(db.zones)) {
     for (const a of z.arcs) {
-      if (!a.move) continue   // connectivity-only link (Lich-walked, unknown command) — not walkable
-      const list = adj.get(a.from) ?? []
-      list.push(a)
-      adj.set(a.from, list)
+      // Walkable command: the recorded move, else the direction word — DR accepts a
+      // bare compass/up/down/in/out as a movement command, so a connectivity-only
+      // arc (no captured command) is still walkable when its direction is known.
+      const move = a.move || (a.dir && a.dir !== 'special' ? a.dir : '')
+      if (move) push(a.from, { ...a, move })
+      // Synthesize the return trip for standard directions when the map only recorded
+      // one way (common in imported maps), so a corridor is walkable both ways. If the
+      // reverse move is actually blocked, the walk executor stops when it doesn't arrive.
+      const opp = DIR_OPPOSITE[a.dir]
+      if (opp && !pairs.has(a.to + '|' + a.from)) {
+        push(a.to, { from: a.to, to: a.from, dir: opp, move: opp })
+      }
     }
   }
   return adj
