@@ -386,6 +386,12 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
   const [selectedChar,  setSelectedChar]  = useState<SGECharacter | null>(null)
   const selectedCharRef = useRef<SGECharacter | null>(null)
   const activeAccountRef = useRef('')
+  // Last-played account + character, recovered from settings on mount. On a COLD
+  // resume (a page reload / update that reconnects to a still-running server session)
+  // the user never walked through character-select, so selectedCharRef is null — these
+  // stand in so we re-enter the game as the right character instead of a blank one.
+  const lastAccountRef  = useRef('')
+  const lastCharNameRef = useRef('')
   const [logLines,      setLogLines]      = useState<string[]>([])
   const [error,         setError]         = useState('')
   const [loading,       setLoading]       = useState(false)
@@ -400,6 +406,9 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
       .then(([s, detected]) => {
         setSavedAccounts(s.accounts ?? [])
         setDetectedPath(detected || '')
+        // Remember the last-played identity for the cold-resume fallback below.
+        lastAccountRef.current  = s.lastAccount ?? ''
+        lastCharNameRef.current = s.accounts?.find(a => a.name === s.lastAccount)?.lastCharacter ?? ''
         // Lich is available when a path is configured or auto-detected (desktop),
         // or the server reports a shared install (web/PWA). Default the toggle to
         // the user's last choice, else to whether Lich is available at all.
@@ -456,9 +465,14 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
   useEffect(() => { activeAccountRef.current = activeAccount }, [activeAccount])
 
   useEffect(() => {
+    // Which character/account to enter as. A fresh login has selectedCharRef set (the
+    // user just picked); a cold resume falls back to the last-played identity so the
+    // reconnect lands back in-game as the right character.
+    const resumeName = () => selectedCharRef.current?.name ?? lastCharNameRef.current
+    const resumeAcct = () => activeAccountRef.current || lastAccountRef.current
     const unsubs = [
-      window.dr.lich.onStatus((s: string) => { if (s === 'ready') onEnterGame(selectedCharRef.current?.name ?? '', activeAccountRef.current) }),
-      window.dr.game.onConnected(() => onEnterGame(selectedCharRef.current?.name ?? '', activeAccountRef.current)),
+      window.dr.lich.onStatus((s: string) => { if (s === 'ready') onEnterGame(resumeName(), resumeAcct()) }),
+      window.dr.game.onConnected(() => onEnterGame(resumeName(), resumeAcct())),
       window.dr.lich.onError((msg: string) => setError(msg)),
       window.dr.lich.onLog((l: string) =>
         setLogLines(prev => [...prev.slice(-99), l.trimEnd()])
