@@ -23,7 +23,10 @@ export interface AppSettings {
   avatars?:      Record<string, string> // lowercased character name → data URL
   avatarTokens?: Record<string, string> // account name → avatar-service bearer token
   avatarShare?:  boolean                // consent to publish avatars to the shared service
-  logging?:      boolean                // write game output to a per-character log file
+  // Legacy global logging flag. Logging is now per character (see
+  // CharScopedSettings.logging); this survives only as the fallback default so an
+  // existing setup keeps logging until each character sets its own preference.
+  logging?:      boolean
 }
 
 // The subset of settings that can be overridden per character.
@@ -34,6 +37,7 @@ export interface CharScopedSettings {
   highlights?:   unknown[]
   classes?:      Record<string, boolean>  // Genie-style class on/off, per character
   vars?:         Record<string, string>   // Genie-style #var named variables, per character
+  logging?:      boolean                  // write this character's output to a log file
   // Appearance + panel layout — previously kept per-character in the renderer's
   // localStorage, now unified here so they follow the character across windows.
   appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact' }
@@ -51,6 +55,7 @@ export interface ResolvedCharSettings {
   highlights:   unknown[]
   classes:      Record<string, boolean>
   vars:         Record<string, string>
+  logging:      boolean
   appearance?:   CharScopedSettings['appearance']
   panels?:       CharScopedSettings['panels']
   panelHeights?: CharScopedSettings['panelHeights']
@@ -107,6 +112,7 @@ export class SettingsStore {
       highlights:   c.highlights   ?? this.data.highlights   ?? [],
       classes:      c.classes      ?? this.data.classes      ?? {},
       vars:         c.vars         ?? this.data.vars         ?? {},
+      logging:      c.logging      ?? !!this.data.logging,
       appearance:   c.appearance,
       panels:       c.panels,
       panelHeights: c.panelHeights,

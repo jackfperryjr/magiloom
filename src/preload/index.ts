@@ -41,6 +41,10 @@ contextBridge.exposeInMainWorld('dr', {
     onStatus: (cb: (s: string) => void) => { const h = (_e: unknown, s: string) => cb(s); ipcRenderer.on('lich:status', h); return () => ipcRenderer.removeListener('lich:status', h) },
     onError:  (cb: (m: string) => void) => { const h = (_e: unknown, m: string) => cb(m); ipcRenderer.on('lich:error', h);  return () => ipcRenderer.removeListener('lich:error', h) }
   },
+  logs: {
+    list: ()             => ipcRenderer.invoke('logs:list'),
+    read: (name: string) => ipcRenderer.invoke('logs:read', name)
+  },
   script: {
     list:       ()                          => ipcRenderer.invoke('script:list'),
     running:    ()                          => ipcRenderer.invoke('script:running'),

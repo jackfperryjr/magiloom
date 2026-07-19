@@ -1,10 +1,12 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { THEMES } from '../../../lib/themes'
 
-// Settings → Appearance: theme picker, layout density, display (font/buffer/logging).
+// Settings → Appearance: theme picker, layout density, display (font/buffer).
+// Game-output logging used to live here as a global toggle; it's per character now
+// and moved to Settings → Lich → Logs, next to the log files themselves.
 export function AppearanceTab({
   theme, previewTheme, density, setDensity, fontFamily, setFontFamily,
-  fontSize, setFontSize, outputBufferSize, setOutputBufferSize, logging, setLogging,
+  fontSize, setFontSize, outputBufferSize, setOutputBufferSize,
 }: {
   theme:               string
   previewTheme:        (id: string) => void
@@ -16,8 +18,6 @@ export function AppearanceTab({
   setFontSize:         Dispatch<SetStateAction<number>>
   outputBufferSize:    number
   setOutputBufferSize: Dispatch<SetStateAction<number>>
-  logging:             boolean
-  setLogging:          Dispatch<SetStateAction<boolean>>
 }) {
   return (
     <>
@@ -111,15 +111,6 @@ export function AppearanceTab({
           <option value={10000}>10,000 lines</option>
         </select>
       </label>
-      <label className="settings-row">
-        <span className="settings-label">Log game output to file</span>
-        <input type="checkbox" checked={logging} style={{ width: 'auto' }}
-          onChange={e => setLogging(e.target.checked)} />
-      </label>
-      <div className="settings-hint">
-        Saves the visible game text to a per-character, per-day file under the app's
-        data folder (<code>logs/</code>). Off by default.
-      </div>
       </div>
     </>
   )
