@@ -196,18 +196,13 @@ export function installDr(): void {
       onMaximizeChange: (_cb: (m: boolean) => void) => () => {},
     },
     // Web "auto-update": a version-check (updater.ts) drives the same indicator the
-    // desktop uses; install() reloads to pick up the freshly deployed bundle. We end
-    // the DR session first so the reload lands on the LOGIN screen rather than an auto-
-    // resumed game session — otherwise the resumed DR login competes with the Magiloom
-    // account and you can't reach "Sign in to sync" (same disconnect→login the sign-out
-    // flow uses).
-    updater: {
-      ...webUpdater,
-      install: async () => {
-        try { await t.invoke('game:disconnect') } catch { /* ignore */ }
-        return webUpdater.install()
-      },
-    },
+    // desktop uses; install() reloads to pick up the freshly deployed bundle. The DR
+    // session is deliberately LEFT RUNNING across the reload — the server holds it
+    // (persisted connId + grace/keepalive), so the fresh page reconnects with the same
+    // conn and resumes straight back into the character instead of forcing a re-login.
+    // (An earlier version disconnected here to land on login; that dropped the
+    // character on every update, which is the opposite of what you want.)
+    updater: webUpdater,
     game: {
       getStatus:  () => t.invoke('game:get-status'),
       disconnect: () => t.invoke('game:disconnect'),
