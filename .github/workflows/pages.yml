@@ -1,15 +1,9 @@
 name: Deploy GitHub Pages
 
+# Manual web-only redeploy. The automatic web deploy on every release lives in the
+# "Tag and Release" workflow (the `pages` job) so the PWA is stamped with the same
+# version tag as the desktop build. This manual run stamps from the latest tag too.
 on:
-  push:
-    branches: [main]
-    paths:
-      - docs/**
-      - src/**
-      - vite.web.config.ts
-      - package.json
-      - package-lock.json
-      - .github/workflows/pages.yml
   workflow_dispatch:
 
 permissions:
@@ -19,7 +13,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false   # never cancel an in-progress Pages deploy
 
 jobs:
   deploy:
@@ -29,6 +23,8 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need the tags to stamp the version
 
       - uses: actions/setup-node@v4
         with:
@@ -40,6 +36,15 @@ jobs:
         run: npm ci
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+
+      # Match the desktop: stamp package.json from the latest release tag so the PWA
+      # reports the same version. (Releases deploy via the release workflow; this is
+      # for manual re-deploys.)
+      - name: Stamp version from latest release tag
+        run: |
+          git fetch --tags --force
+          TAG=$(git tag -l "v*" --sort=-version:refname | head -1)
+          if [ -n "$TAG" ]; then echo "Stamping web build as $TAG"; npm version "$TAG" --no-git-tag-version --allow-same-version; fi
 
       # Builds the PWA into docs/app (git-ignored; produced fresh here). The server
       # URL defaults to the Railway host; the gateway token comes from a secret so
