@@ -163,6 +163,10 @@ export function installDr(): void {
       onStatus: (cb: (s: string) => void) => t.on('lich:status', cb),
       onError:  (cb: (m: string) => void) => t.on('lich:error', cb),
     },
+    logs: {
+      list: ()             => t.invoke('logs:list'),
+      read: (name: string) => t.invoke('logs:read', name),
+    },
     script: {
       list:       () => t.invoke('script:list'),
       running:    () => t.invoke('script:running'),

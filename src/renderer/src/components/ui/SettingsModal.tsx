@@ -4,6 +4,7 @@ import { setOutputBuffer } from '../game/GameOutput'
 import { loadCharAppearance, saveCharAppearance, applyAppearance } from '../../lib/charSettings'
 import { DEFAULT_NOTIF, DEFAULT_PUSH, makeNameRule, type NotifSettings, type NotifRule, type PushSettings } from './Notifications'
 import { LichFilesEditor } from './LichFilesEditor'
+import { LogFilesViewer } from './LogFilesViewer'
 import { CmdFilesEditor } from './CmdFilesEditor'
 import type { Alias, Trigger } from '../../lib/automation'
 import { parseGenieConfig, mergeAliases, mergeTriggers, mergeVars } from '../../lib/genieImport'
@@ -38,6 +39,7 @@ const TABS: { id: TabId; label: string }[] = [
 ]
 
 export function SettingsModal({ charName = '', onClose, onSignedOut, onReturnToLogin }: SettingsModalProps) {
+  const isWeb = window.dr.app.platform === 'web'
   // Magiloom account (web only). The tab appears when signed in so the user can
   // sign out from here (which disconnects DR and returns to the login screen).
   const acctApi = window.dr.account
@@ -114,7 +116,6 @@ export function SettingsModal({ charName = '', onClose, onSignedOut, onReturnToL
       setLichPath(s.lichPath || '')
       setScriptDir(s.scriptDir || '')
       setOutputBufferSize(s.outputBufferSize || 5000)
-      setLogging(!!s.logging)
       setNotif({ ...DEFAULT_NOTIF, ...(s.notifications ?? {}) })
       setPush({ ...DEFAULT_PUSH, ...(s.push ?? {}) })
       setNotifRules(s.notifRules ?? [])
@@ -126,6 +127,7 @@ export function SettingsModal({ charName = '', onClose, onSignedOut, onReturnToL
       setTriggers(c.triggers || [])
       setClasses(c.classes || {})
       setVars(Object.entries(c.vars || {}).map(([name, value]) => ({ name, value })))
+      setLogging(!!c.logging)
     })
   }, [charName])
 
@@ -144,12 +146,12 @@ export function SettingsModal({ charName = '', onClose, onSignedOut, onReturnToL
     // Per-character appearance + gameplay → settings.json; the rest is global.
     saveCharAppearance(charName, { theme, fontSize, fontFamily, density })
     await window.dr.settings.patch({
-      lichPath, scriptDir, outputBufferSize, logging, notifications: notif, push, notifRules,
+      lichPath, scriptDir, outputBufferSize, notifications: notif, push, notifRules,
     })
     const varsRecord = Object.fromEntries(
       vars.map(v => [v.name.trim(), v.value]).filter(([n]) => n) as [string, string][]
     )
-    await window.dr.settings.patchChar(charName, { functionKeys, aliases, triggers, classes, vars: varsRecord })
+    await window.dr.settings.patchChar(charName, { functionKeys, aliases, triggers, classes, vars: varsRecord, logging })
     window.dispatchEvent(new CustomEvent('settings:saved'))
     applyAppearance({ theme, fontSize, fontFamily, density })
     setOutputBuffer(outputBufferSize)
@@ -193,7 +195,6 @@ export function SettingsModal({ charName = '', onClose, onSignedOut, onReturnToL
                 fontFamily={fontFamily} setFontFamily={setFontFamily}
                 fontSize={fontSize} setFontSize={setFontSize}
                 outputBufferSize={outputBufferSize} setOutputBufferSize={setOutputBufferSize}
-                logging={logging} setLogging={setLogging}
               />
             )}
 
@@ -286,34 +287,42 @@ export function SettingsModal({ charName = '', onClose, onSignedOut, onReturnToL
             {tab === 'lich' && (
               <div className="settings-section">
                 <div className="settings-section-label">Lich</div>
-                <div className="settings-label">Lich path</div>
-                <div className="settings-path-row">
-                  <input
-                    className="settings-input settings-input-mono"
-                    type="text"
-                    placeholder="C:\Ruby4Lich5\Lich5\lich.rbw"
-                    value={lichPath}
-                    onChange={e => setLichPath(e.target.value)}
-                  />
-                  <button
-                    className="login-btn-secondary"
-                    style={{ minWidth: 84 }}
-                    onClick={async () => {
-                      const f = await window.dr.app.chooseFile([
-                        { name: 'Lich', extensions: ['rbw', 'rb'] },
-                        { name: 'All Files', extensions: ['*'] },
-                      ])
-                      if (f) setLichPath(f)
-                    }}
-                  >
-                    Browse…
-                  </button>
-                </div>
-                <div className="settings-hint">
-                  Point this at your <code>lich.rbw</code> (or <code>lich.rb</code>) to launch Lich at login.
-                  Leave blank to connect directly without Lich.
-                </div>
+                {/* The Lich path points at a LOCAL Lich install, which only the
+                    desktop app has — the web client's Lich runs server-side, so
+                    there is nothing for the user to locate. */}
+                {!isWeb && (
+                  <>
+                    <div className="settings-label">Lich path</div>
+                    <div className="settings-path-row">
+                      <input
+                        className="settings-input settings-input-mono"
+                        type="text"
+                        placeholder="C:\Ruby4Lich5\Lich5\lich.rbw"
+                        value={lichPath}
+                        onChange={e => setLichPath(e.target.value)}
+                      />
+                      <button
+                        className="login-btn-secondary"
+                        style={{ minWidth: 84 }}
+                        onClick={async () => {
+                          const f = await window.dr.app.chooseFile([
+                            { name: 'Lich', extensions: ['rbw', 'rb'] },
+                            { name: 'All Files', extensions: ['*'] },
+                          ])
+                          if (f) setLichPath(f)
+                        }}
+                      >
+                        Browse…
+                      </button>
+                    </div>
+                    <div className="settings-hint">
+                      Point this at your <code>lich.rbw</code> (or <code>lich.rb</code>) to launch Lich at login.
+                      Leave blank to connect directly without Lich.
+                    </div>
+                  </>
+                )}
                 <LichFilesEditor charName={charName} />
+                <LogFilesViewer charName={charName} logging={logging} setLogging={setLogging} />
               </div>
             )}
 

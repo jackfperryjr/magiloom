@@ -8,7 +8,7 @@ import { GameConnection } from './game-connection'
 import { CmdScriptEngine } from './cmd-script-engine'
 import { BroadcastBus } from './broadcast-bus'
 import { MapStore, type StoredZone } from './map-store'
-import { LogStore, stripToLines } from './log-store'
+import { LogStore, logSlug, stripToLines } from './log-store'
 import { SettingsStore } from './settings-store'
 import { sgeAuth } from './sge-auth'
 import type { SGELaunchKey } from './sge-auth'
@@ -94,9 +94,15 @@ const broadcastBus = new BroadcastBus(SHARED_DIR)
 // Shared world-map database (automapper). Lives in the SHARED dir so every
 // character's exploration accumulates into one map.
 const mapStore = new MapStore(SHARED_DIR)
-// Optional per-character game-output logging (off by default; toggled in Settings).
+// Optional game-output logging (off by default; toggled per character in
+// Settings → Lich → Logs). The flag is resolved per character, so it's applied
+// whenever the active character becomes known and whenever it's re-saved.
 const logStore = new LogStore(SHARED_DIR)
-logStore.setEnabled(!!settings.get('logging'))
+
+function applyLoggingFor(charName: string): void {
+  logStore.setChar(charName)
+  logStore.setEnabled(settings.getCharSettings(charName).logging)
+}
 
 const lichLogBuffer: string[] = []
 
@@ -269,9 +275,22 @@ function setupIpcHandlers(): void {
     autoUpdater.quitAndInstall(true, true)
   })
   ipcMain.handle('settings:get-all', () => settings.getAll())
-  ipcMain.handle('settings:patch',   (_e, p) => { settings.patch(p); if (p && 'logging' in p) logStore.setEnabled(!!p.logging) })
+  ipcMain.handle('settings:patch',   (_e, p) => settings.patch(p))
   ipcMain.handle('settings:get-char',   (_e, name: string) => settings.getCharSettings(name))
-  ipcMain.handle('settings:patch-char', (_e, name: string, partial) => settings.patchCharSettings(name, partial))
+  ipcMain.handle('settings:patch-char', (_e, name: string, partial) => {
+    settings.patchCharSettings(name, partial)
+    // Toggling logging takes effect immediately, but only for the character
+    // actually being played — saving Settings while logged in as someone else
+    // must not start or stop this session's log.
+    if (partial && 'logging' in partial && logStore.currentChar() === logSlug(name)) {
+      logStore.setEnabled(settings.getCharSettings(name).logging)
+    }
+  })
+
+  // Game logs (Settings → Lich → Logs): list what's on disk and read one back
+  // for viewing/downloading. Name-jailed in log-store.ts.
+  ipcMain.handle('logs:list', () => logStore.listFiles())
+  ipcMain.handle('logs:read', (_e, name: string) => logStore.readFile(name))
 
   ipcMain.handle('avatar:enabled', () => isAvatarServiceEnabled())
   ipcMain.handle('avatar:get',     (_e, name: string) => getAvatar(name))
@@ -333,6 +352,10 @@ function setupIpcHandlers(): void {
     }
     pendingSelectCharacter = null
     settings.saveAccount(accountName, characterName)
+    // Direct (non-Lich) connections never hit the <app char=…> branch below, so
+    // resolve this character's logging flag here — for Lich sessions the same
+    // call runs again once Lich reports the character.
+    applyLoggingFor(characterName)
 
     // The "Connect with Lich" login toggle decides this per session. When omitted
     // (older renderer), fall back to the previous behaviour: Lich iff a path is set.
@@ -488,7 +511,7 @@ function setupIpcHandlers(): void {
       const charMatch = /<app[^>]+char=["']([^"']+)["']/.exec(r)
       if (charMatch) {
         lichReadyDetected = true
-        logStore.setChar(charMatch[1])                     // per-character log file naming
+        applyLoggingFor(charMatch[1])                      // per-character log file + flag
         cmdEngine.setContext({ charname: charMatch[1] })   // $charname for .cmd scripts
         lichLog('[lich] Character data received -- Lich ready')
         mainWindow?.webContents.send('lich:status', 'ready')

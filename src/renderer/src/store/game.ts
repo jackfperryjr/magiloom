@@ -532,7 +532,12 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(skyCalibrationAtom, null)
   set(profilesAtom, {})
   set(selfNameAtom, '')
-  set(serverAvatarsAtom, {})
+  // Note: serverAvatarsAtom is NOT reset — it's a name-keyed cache of shared
+  // (bucket) images, account-global like `avatars`, and useEnsureAvatars only
+  // requests each name once per session. Clearing it here emptied the cache
+  // without clearing that request set, so a character seen before the switch
+  // was never re-fetched and fell back to a letter avatar — most visible in the
+  // web client, whose local `avatars` bucket is empty so every image is shared.
   set(aiAvatarsAtom, {})
   set(presenceModeAtom, 'online')
   // Note: verbRawAtom / verbInfoAtom are game-global (same for every character)

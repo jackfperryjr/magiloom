@@ -55,9 +55,11 @@ interface AppSettings {
     speech:  boolean
     thought: boolean
   }
-  // Write game output to a per-character log file (default off). See main/log-store.ts.
+  // Legacy global logging flag — now per character (CharSettings.logging); kept
+  // only as the fallback default for setups saved before the split.
   logging?:         boolean
 }
+
 
 interface CharSettings {
   functionKeys: Record<string, string>
@@ -66,6 +68,7 @@ interface CharSettings {
   highlights:   unknown[]
   classes:      Record<string, boolean>
   vars:         Record<string, string>
+  logging:      boolean
   appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact' }
   panels?:       { id: string; label: string; visible: boolean }[]
   panelHeights?: Record<string, number>
@@ -113,6 +116,10 @@ interface DrAPI {
     onLog:    (cb: (l: string) => void) => () => void
     onStatus: (cb: (s: string) => void) => () => void
     onError:  (cb: (m: string) => void) => () => void
+  }
+  logs: {
+    list: () => Promise<LogFileEntry[]>
+    read: (name: string) => Promise<{ name: string; content: string; size: number; truncated: boolean }>
   }
   script: {
     list:       () => Promise<string[]>
@@ -189,6 +196,8 @@ interface DrAPI {
 
 declare global {
   interface Window { dr: DrAPI }
+  // One game-output log file on disk, e.g. refia-2026-07-09.log (see main/log-store.ts).
+  interface LogFileEntry { name: string; char: string; day: string; size: number; mtime: number }
   interface MagiloomAccount { id: string; email: string; tier: 'free' | 'paid' }
   type AccountAuthResult =
     | { ok: true; account: MagiloomAccount; token: string }
