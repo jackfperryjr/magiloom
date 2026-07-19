@@ -66,6 +66,57 @@ jobs:
           git tag ${{ steps.new_tag.outputs.tag }}
           git push origin ${{ steps.new_tag.outputs.tag }}
 
+  # Deploy the web/PWA client stamped with the SAME tag as the desktop release, so
+  # both report one version. Runs off `tag` only (not the desktop build), so the web
+  # ships as soon as the tag is computed and isn't blocked by a desktop build failure.
+  pages:
+    needs: tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      # Skip Electron's ~100MB binary — the web build doesn't need it.
+      - name: Install dependencies
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+
+      # Same stamping the desktop build uses, so the PWA reports the release version.
+      - name: Stamp version from release tag
+        run: npm version ${{ needs.tag.outputs.new_tag }} --no-git-tag-version --allow-same-version
+
+      - name: Build web client
+        run: npm run web:build
+        env:
+          VITE_MAGILOOM_TOKEN: ${{ secrets.MAGILOOM_WEB_TOKEN }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+
   build:
     needs: tag
     strategy:

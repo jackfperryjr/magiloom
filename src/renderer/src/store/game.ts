@@ -403,6 +403,9 @@ export const skyAtom = atom<SkyState | null>(get => {
 let _skySeedSilent = false
 export const beginSilentSkySeedAtom = atom(null, () => { _skySeedSilent = true })
 export const endSilentSkySeedAtom   = atom(null, () => { _skySeedSilent = false })
+// True on the line immediately after `weather`'s "You glance up at the sky." header —
+// that line is the weather state, whose clear-sky wording varies too much to enumerate.
+let _weatherReportNext = false
 
 // ── Experience ────────────────────────────────────────────────────────────────
 export interface ExpSkill { name: string; rank: number; pct: number; mind: string; mindWord?: string }
@@ -554,6 +557,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _silentExpBatch    = false
   _spellBatch        = null
   _skySeedSilent     = false
+  _weatherReportNext = false
   _gameMove          = null
 })
 
@@ -669,18 +673,34 @@ export const dispatchGameEventAtom = atom(
         // deterministic day/night clock. During the silent connect-time seed the
         // report lines are suppressed from the main output.
         if (event.stream === 'main') {
-          const w = weatherFromLine(event.text)
+          const text = event.text
+          const w = weatherFromLine(text)
           if (w) set(weatherAtom, w)
           // Indoors, `weather` replies "That's a bit hard to do while inside." — there's
           // no sky to read, so fade the weather overlay out (set clear).
-          const inside = /hard to do while inside|can't (?:do that|see the sky) (?:while |from )?inside/i.test(event.text)
+          const inside = /hard to do while inside|can't (?:do that|see the sky) (?:while |from )?inside/i.test(text)
           if (inside) set(weatherAtom, CLEAR)
-          const cal = feedTimeLine(event.text)
+          const cal = feedTimeLine(text)
           if (cal) set(skyCalibrationAtom, cal)
+
+          // The `weather` command prints "You glance up at the sky." then a state line
+          // whose clear-sky wording varies a lot ("The sky is a sharp, clear blue."). We
+          // handle THAT line by position: if it isn't a recognized precipitation report,
+          // default it to clear — and flag it so it's suppressed during a silent poll
+          // whatever it says.
+          let reportLine = false
+          if (_weatherReportNext) {
+            _weatherReportNext = false
+            reportLine = true
+            const isPrecip = /\b(rain|snow|sleet|hail|storm|downpour|blizzard|drizzl|flurr|precipitat|thunder|lightning)\b/i.test(text)
+            if (!w && !inside && !isPrecip) set(weatherAtom, CLEAR)
+          }
+          if (/^\s*You glance up at the sky\.?/i.test(text)) _weatherReportNext = true
+
           // Suppress the silent connect-seed / background weather-poll output from the
-          // main window: the weather/time report lines, the "glance up" header, and the
-          // indoors reply.
-          if (_skySeedSilent && (w || inside || isTimeReportLine(event.text) || /You glance up at the sky\./i.test(event.text))) {
+          // main window: the "glance up" header, its (any-wording) state line, plus the
+          // recognized weather / time / indoors replies.
+          if (_skySeedSilent && (w || inside || reportLine || isTimeReportLine(text) || /^\s*You glance up at the sky\./i.test(text))) {
             return
           }
         }

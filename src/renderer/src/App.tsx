@@ -533,6 +533,13 @@ function AppInner() {
             window.dr.account?.signOut()
             setInGame(false)
           }}
+          onReturnToLogin={async () => {
+            // Return to the login screen so the user can "Sign in to sync": end the DR
+            // session first (its login would otherwise auto-resume and compete with the
+            // Magiloom sign-in), then show login.
+            try { await window.dr.game.disconnect() } catch { /* ignore */ }
+            setInGame(false)
+          }}
         />
       )}
     </>

@@ -62,8 +62,11 @@ const REPORTS: { re: RegExp; state: WeatherState }[] = [
   { re: /^\s*rain is falling heav|^\s*(?:it's a )?heavy downpour|^\s*it's pouring/i, state: { kind: 'rain', level: 3 } },
   { re: /^\s*rain is falling steadil|^\s*it's a steady (?:rain|shower)/i, state: { kind: 'rain', level: 2 } },
   { re: /^\s*rain is falling|^\s*it's raining|^\s*it's drizzl|^\s*(?:it's a )?(?:light|misty) (?:rain|drizzle)/i, state: { kind: 'rain', level: 1 } },
-  // Clear / no precipitation (incl. overcast — clouds but nothing falling)
-  { re: /^\s*(?:the )?sky is (?:clear|cloudless)|^\s*it's clear|^\s*the weather is (?:fair|clear)|^\s*there is no precipitation/i, state: CLEAR },
+  // Clear / no precipitation — the `weather` clear reply is descriptive and varies
+  // ("The sky is a sharp, clear blue."), so match "sky is … clear" loosely plus the
+  // common phrasings. (Anything after the "glance up" header that we DON'T recognize
+  // is also defaulted to clear by position — see the store dispatch.)
+  { re: /^\s*(?:the )?sky is\b[\w, ]*\b(?:clear|cloudless)\b|^\s*it's clear|^\s*the weather is (?:fair|clear)|^\s*there is no precipitation|^\s*not a cloud/i, state: CLEAR },
   { re: /thick bank of clouds|clouds? (?:obscure|obscures|cover|covers) the (?:heavens|sky)|(?:sky is |it's )overcast/i, state: CLEAR },
 ]
 

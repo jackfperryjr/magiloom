@@ -19,6 +19,10 @@ interface SettingsModalProps {
   /** Web only: called after signing out of the Magiloom account so the app can
    *  disconnect from DR and return to the login screen. */
   onSignedOut?: () => void
+  /** Web only: return to the login screen (disconnecting DR) so the user can reach
+   *  "Sign in to sync" — signing into Magiloom re-buckets the socket, so it must
+   *  happen at login, not over a live DR session. */
+  onReturnToLogin?: () => void
 }
 
 type TabId = 'appearance' | 'notifications' | 'keybinds' | 'aliases' | 'triggers' | 'scripts' | 'lich' | 'account'
@@ -33,7 +37,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'lich',          label: 'Lich' },
 ]
 
-export function SettingsModal({ charName = '', onClose, onSignedOut }: SettingsModalProps) {
+export function SettingsModal({ charName = '', onClose, onSignedOut, onReturnToLogin }: SettingsModalProps) {
   // Magiloom account (web only). The tab appears when signed in so the user can
   // sign out from here (which disconnects DR and returns to the login screen).
   const acctApi = window.dr.account
@@ -337,10 +341,22 @@ export function SettingsModal({ charName = '', onClose, onSignedOut }: SettingsM
                     </div>
                   </>
                 ) : (
-                  <div className="settings-hint">
-                    Not signed in on this device. Use <strong>“Sign in to sync”</strong> on the login
-                    screen to sync your settings and Lich setups across devices.
-                  </div>
+                  <>
+                    <div className="settings-hint">
+                      Sync your settings and Lich setups across devices. Signing in happens on the
+                      login screen, so this returns you there.
+                    </div>
+                    <button
+                      className="login-btn"
+                      style={{ marginTop: 12 }}
+                      onClick={() => { onClose(); onReturnToLogin?.() }}
+                    >
+                      Sign in to sync…
+                    </button>
+                    <div className="settings-hint">
+                      Returns to the login screen (disconnecting DragonRealms) where “Sign in to sync” lives.
+                    </div>
+                  </>
                 )}
               </div>
             )}
