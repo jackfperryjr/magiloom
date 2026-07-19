@@ -485,6 +485,17 @@ function UpdateIcon({ offline }: { offline: boolean }) {
   )
 }
 
+// Brief web-only splash shown at startup while AppInner waits to learn whether the
+// server still holds this client's live DR session (see the resume effect below).
+function ResumeSplash() {
+  return (
+    <div className="resume-splash">
+      <div className="resume-splash-spinner" aria-hidden="true" />
+      <div className="resume-splash-text">Resuming…</div>
+    </div>
+  )
+}
+
 function AppInner() {
   const [inGame,        setInGame]        = useState(false)
   const [watching,      setWatching]      = useState(false)   // viewing another device's session
@@ -493,6 +504,9 @@ function AppInner() {
   const [accountName,   setAccountName]   = useState('')
   const [showSettings,  setShowSettings]  = useState(false)
   const [offline,       setOffline]       = useState(!navigator.onLine)
+  // Web only: after a reload (e.g. applying an update) the server may still hold this
+  // client's live session, so start by waiting to resume rather than flashing login.
+  const [resuming,      setResuming]      = useState(window.dr.app.platform === 'web')
 
   useEffect(() => {
     // Connectivity indicator: the red triangle shows only when actually offline.
@@ -508,6 +522,37 @@ function AppInner() {
   // Leave a watched session: detach (reconnect to our own bucket) and return to the
   // login screen WITHOUT disconnecting DR — the session keeps running for its owner.
   const leaveWatch = () => { window.dr.account?.unwatch(); setWatching(false); setInGame(false) }
+
+  // Resume decision (web). The freshly-loaded page reconnects with its persisted
+  // connId; the server re-attaches to a still-live session and emits game:connected,
+  // or (no live session) game:disconnected. Wait for whichever comes first, with a
+  // timeout so a dead/slow server still falls through to login instead of hanging on
+  // the splash. On game:connected we recover the last-played identity from settings —
+  // the character picker is gone after a reload — so we re-enter as the right character.
+  useEffect(() => {
+    if (!resuming) return
+    let settled = false
+    const settle = (enter?: { name: string; account: string }) => {
+      if (settled) return
+      settled = true
+      if (enter) enterGame(enter.name, enter.account)
+      setResuming(false)
+    }
+    const unsubs = [
+      window.dr.game.onConnected(async () => {
+        const s = await window.dr.settings.getAll()
+        const account = s.lastAccount ?? ''
+        const name = s.accounts?.find(a => a.name === account)?.lastCharacter ?? ''
+        settle({ name, account })
+      }),
+      window.dr.game.onDisconnected(() => settle()),
+    ]
+    const timer = window.setTimeout(() => settle(), 3000)
+    return () => { unsubs.forEach(fn => fn()); window.clearTimeout(timer) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  if (resuming) return <ResumeSplash />
 
   return (
     <>
