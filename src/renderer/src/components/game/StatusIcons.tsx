@@ -19,15 +19,17 @@ function FilledSvg({ children, size = 22 }: { children: ReactNode; size?: number
 export type Posture = 'standing' | 'kneeling' | 'sitting' | 'prone'
 
 // ── Posture sprite (emoji-ragdoll spritesheet) ───────────────────────────────
-// A 4×4 grid of 32px frames (see emoji-ragdoll.png). Frames 1–3 are the front-facing
-// WALK cycle (frame 0 is unused); the other rows animate into a posture. REST is the
-// frame a posture settles on; SEQ is the animation played into it (and reversed to
-// stand back up):
-//   standing → rests on 4 (neutral idle); walks via frames 1–3
+// A 4×5 grid of 32px frames (see emoji-ragdoll.png). Frames 1–3 are the front-facing
+// WALK cycle (frame 0 is unused); rows 1–3 animate into a posture; row 4 (16–19) is a
+// hover WAVE (standing only; uses 16,17). REST is the frame a posture settles on;
+// SEQ is the animation played into it (and reversed to stand back up):
+//   standing → rests on 4 (neutral idle); walks via frames 1–3; waves via 16,17
 //   sitting  → 4→7, rests seated
 //   kneeling → 8→9, rests kneeling (stops at 9, doesn't fold all the way to 11)
 //   prone    → 12→15, rests lying down
 const SHEET_COLS = 4
+const SHEET_ROWS = 5
+const WAVE_FRAMES = [16, 17]
 const REST: Record<Posture, number> = { standing: 4, sitting: 7, kneeling: 9, prone: 15 }
 const SEQ:  Record<Posture, number[]> = {
   standing: [1, 2, 3],      // walk cycle (played on room change, not on posture change)
@@ -36,16 +38,18 @@ const SEQ:  Record<Posture, number[]> = {
   prone:    [12, 13, 14, 15],
 }
 
-// Position the sheet so the given frame fills a `size`×`size` box. pixelated keeps
-// the pixel art crisp rather than blurring it as it scales.
+// Position the sheet so the given frame fills a `size`×`size` box. Scaling is left
+// smooth (NOT image-rendering: pixelated): the 32px frames downscale to ~24px by a
+// non-integer 0.75×, and nearest-neighbour at that ratio drops whole pixel rows and
+// visibly squishes the figure. The art is soft-shaded (not hard pixel art) anyway, so
+// bilinear downscaling keeps its proportions and reads cleanly.
 function frameStyle(frame: number, size: number): CSSProperties {
   const col = frame % SHEET_COLS, row = Math.floor(frame / SHEET_COLS)
   return {
     width: size, height: size,
     backgroundImage: `url(${ragdollSheet})`,
-    backgroundSize: `${size * SHEET_COLS}px ${size * SHEET_COLS}px`,
+    backgroundSize: `${size * SHEET_COLS}px ${size * SHEET_ROWS}px`,
     backgroundPosition: `${-col * size}px ${-row * size}px`,
-    imageRendering: 'pixelated',
   }
 }
 
@@ -56,10 +60,12 @@ export function PostureFrame({ posture, size = 24 }: { posture: Posture; size?: 
 
 const WALK_STEP_MS = 160   // walk-cycle frame cadence — constant while moving
 const WALK_IDLE_MS = 650   // keep walking until this long after the last room change
+const WAVE_STEP_MS = 100   // wave-cycle frame cadence (hover, standing only)
 
 // The animated inline posture sprite. Plays the sit/kneel/lie-down sequence when the
-// posture changes (and its reverse when standing back up), and a continuous walk loop
-// while the character moves between rooms.
+// posture changes (and its reverse when standing back up), a continuous walk loop
+// while the character moves between rooms, and — desktop only, since it's hover-driven
+// — a wave while the pointer rests over a standing character.
 export function PostureSprite({ size = 24 }: { size?: number }) {
   const indicators = useAtomValue(indicatorsAtom)
   const room       = useAtomValue(roomAtom)
@@ -68,6 +74,8 @@ export function PostureSprite({ size = 24 }: { size?: number }) {
   const seqTimers   = useRef<number[]>([])       // one-shot posture-transition timeouts
   const walkLoop    = useRef<number | null>(null) // interval driving the walk cycle
   const walkStop    = useRef<number | null>(null) // idle timer that ends the walk
+  const waveLoop    = useRef<number | null>(null) // interval driving the hover wave
+  const hovering    = useRef(false)               // pointer currently over the sprite
   const prevPosture = useRef(posture)
   const prevRoom    = useRef(room.name)
 
@@ -76,10 +84,26 @@ export function PostureSprite({ size = 24 }: { size?: number }) {
     if (walkLoop.current != null) { clearInterval(walkLoop.current); walkLoop.current = null }
     if (walkStop.current != null) { clearTimeout(walkStop.current); walkStop.current = null }
   }
+  const clearWave = () => {
+    if (waveLoop.current != null) { clearInterval(waveLoop.current); waveLoop.current = null }
+  }
+
+  // Hover wave — standing only. Loops the wave frames until the pointer leaves; cancels
+  // any transition/walk first so it owns the frame.
+  const startWave = () => {
+    clearSeq(); clearWalk()
+    if (waveLoop.current != null) return
+    let i = 0
+    setFrame(WAVE_FRAMES[0])
+    waveLoop.current = window.setInterval(() => {
+      i = (i + 1) % WAVE_FRAMES.length
+      setFrame(WAVE_FRAMES[i])
+    }, WAVE_STEP_MS)
+  }
 
   // One-shot posture transition: show each frame `step` ms apart, then settle on `hold`.
   const play = (frames: number[], step: number, hold: number) => {
-    clearSeq(); clearWalk()
+    clearSeq(); clearWalk(); clearWave()
     frames.forEach((f, i) => seqTimers.current.push(window.setTimeout(() => setFrame(f), i * step)))
     seqTimers.current.push(window.setTimeout(() => setFrame(hold), frames.length * step))
   }
@@ -87,9 +111,9 @@ export function PostureSprite({ size = 24 }: { size?: number }) {
   // Movement: run the walk cycle at a CONSTANT cadence, decoupled from how fast rooms
   // arrive. Each step just (re)arms the idle timer, so rapid moves keep the same loop
   // running smoothly instead of restarting it; it settles WALK_IDLE_MS after the last
-  // move. Starting a walk also cancels any in-flight posture transition.
+  // move. Starting a walk cancels any transition or hover wave.
   const walk = () => {
-    clearSeq()
+    clearSeq(); clearWave()
     if (walkLoop.current == null) {
       const cycle = SEQ.standing
       let i = 0
@@ -100,7 +124,22 @@ export function PostureSprite({ size = 24 }: { size?: number }) {
       }, WALK_STEP_MS)
     }
     if (walkStop.current != null) clearTimeout(walkStop.current)
-    walkStop.current = window.setTimeout(() => { clearWalk(); setFrame(REST.standing) }, WALK_IDLE_MS)
+    walkStop.current = window.setTimeout(() => {
+      clearWalk()
+      // If the pointer is still resting on the (standing) sprite, pick the wave back
+      // up when movement stops; otherwise settle to the idle frame.
+      if (hovering.current) startWave(); else setFrame(REST.standing)
+    }, WALK_IDLE_MS)
+  }
+
+  const onEnter = () => {
+    hovering.current = true
+    // Wave only from a settled standing pose — not mid-walk or mid-transition.
+    if (posture === 'standing' && walkLoop.current == null && seqTimers.current.length === 0) startWave()
+  }
+  const onLeave = () => {
+    hovering.current = false
+    if (waveLoop.current != null) { clearWave(); if (posture === 'standing') setFrame(REST.standing) }
   }
 
   // Posture change → animate down into the new pose, or up out of the old one.
@@ -121,9 +160,12 @@ export function PostureSprite({ size = 24 }: { size?: number }) {
     if (hadRoom && room.name && posture === 'standing') walk()
   }, [room.name, posture])
 
-  useEffect(() => () => { clearSeq(); clearWalk() }, [])
+  useEffect(() => () => { clearSeq(); clearWalk(); clearWave() }, [])
 
-  return <span className="posture-sprite" style={frameStyle(frame, size)} aria-hidden />
+  return <span
+    className="posture-sprite" style={frameStyle(frame, size)}
+    onMouseEnter={onEnter} onMouseLeave={onLeave} aria-hidden
+  />
 }
 
 // Spider-web path (webbed) — 8 spokes + 3 concentric rings, generated so the

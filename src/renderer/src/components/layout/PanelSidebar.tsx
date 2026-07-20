@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
 import { useAtomValue } from 'jotai'
 import { Tooltip } from '../ui/Tooltip'
 import { IconArrowDownTray } from '../ui/Icons'
@@ -325,22 +325,44 @@ function PanelManager({
   panels: PanelConfig[]; onToggle: (id: PanelId) => void
   onClose: () => void; anchorRef: React.RefObject<HTMLButtonElement>
 }) {
-  const [pos, setPos] = useState({ bottom: 0, right: 0 })
-  useEffect(() => {
-    const el = anchorRef.current
-    if (!el) return
+  const popupRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null)
+  // Position it left of the add button, opening upward by default (the button sits at
+  // the bottom of the rail). But the menu lists ALL panels at a fixed height, so with
+  // a short rail the button is high and opening straight up would clip off the top —
+  // measure the menu and clamp its top into the viewport so it's always fully visible,
+  // anchored as close to the button as the space allows. useLayoutEffect positions it
+  // before paint, so there's no flash at the wrong spot.
+  useLayoutEffect(() => {
+    const el = anchorRef.current, pop = popupRef.current
+    if (!el || !pop) return
     const r = el.getBoundingClientRect()
-    // Open up-and-left of the rail's add button (it sits at the bottom-right edge),
-    // so the popup never runs off the bottom or right of the screen.
-    setPos({ bottom: window.innerHeight - r.top + 6, right: window.innerWidth - r.left + 6 })
-  }, [anchorRef])
+    const margin = 8
+    const h = pop.offsetHeight
+    const right = window.innerWidth - r.left + 6
+    // Preferred: popup bottom just above the button (open up); clamp within the screen.
+    const top = Math.max(margin, Math.min(r.top - 6 - h, window.innerHeight - h - margin))
+    setPos({ top, right })
+  }, [anchorRef, panels.length])
 
   return (
     <>
       <div className="panel-manager-backdrop" onClick={onClose} />
-      <div className="panel-manager-popup" style={{ bottom: pos.bottom, right: pos.right, position: 'fixed' }}>
+      <div
+        ref={popupRef}
+        className="panel-manager-popup"
+        style={{
+          position: 'fixed', right: pos?.right ?? 0, top: pos?.top ?? 0,
+          maxHeight: 'calc(100dvh - 16px)', overflowY: 'auto',
+          visibility: pos ? 'visible' : 'hidden',   // hide until measured/placed
+        }}
+      >
         <div className="panel-manager-title">Panels</div>
-        {panels.map(p => (
+        {/* Sorted by label so this menu reads the same for every character/client,
+            regardless of each one's saved panel order (reconcilePanels appends newly
+            added panels at the end). Toggling is by id, so ordering here is display-
+            only — the rail and stacking order are unaffected. */}
+        {[...panels].sort((a, b) => a.label.localeCompare(b.label)).map(p => (
           <label key={p.id} className="panel-manager-item">
             <input type="checkbox" checked={p.visible} onChange={() => onToggle(p.id)} />
             {p.label}

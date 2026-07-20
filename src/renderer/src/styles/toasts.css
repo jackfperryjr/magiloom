@@ -224,9 +224,9 @@
 }
 .status-icon.status-posture { opacity: 0.9; position: relative; }
 /* Posture is the emoji-ragdoll spritesheet (one 32px frame shown via background
-   position; see StatusIcons.tsx). Pixelated keeps the pixel art crisp; the popup
-   variant sits inline with its posture label. */
-.posture-sprite { display: inline-block; background-repeat: no-repeat; image-rendering: pixelated; vertical-align: middle; flex-shrink: 0; }
+   position; see StatusIcons.tsx). Scaling is left smooth — nearest-neighbour at the
+   ~0.75x downscale squished the figure (see frameStyle). */
+.posture-sprite { display: inline-block; background-repeat: no-repeat; vertical-align: middle; flex-shrink: 0; }
 .status-pop-posture .posture-sprite { margin-right: 2px; }
 /* Active: light up AND stay enlarged so a live status stands out on its own. */
 .status-icon.active-danger { color: var(--color-bold); opacity: 1; transform: scale(1.22); }
