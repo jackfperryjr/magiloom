@@ -1,8 +1,14 @@
 /* mobile.css — part of the app stylesheet. Imported (in cascade order) from
    global.css. Split out of the former monolith for navigability; order matters. */
 
-/* ── Mobile layout (phones) ─────────────────────────────────────────────────── */
-@media (max-width: 768px) {
+/* ── Mobile layout (phones) ───────────────────────────────────────────────────
+   Applies to portrait phones (narrow width) AND landscape phones (short height +
+   touch), so a phone in landscape keeps the portrait mobile layout instead of
+   falling back to the wide desktop layout. Tablets are deliberately excluded: their
+   landscape height (~740px+) exceeds the 500px cap, so they still get the wide
+   layout. Keep this query in sync with useIsMobile.ts, which gates the matching JS
+   behavior (the mobile command bar, panel sheets, etc.). */
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
   /* Hide the desktop title/status bar — empty in the browser and reclaims space. */
   .status-bar { display: none; }
 

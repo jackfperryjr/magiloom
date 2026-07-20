@@ -222,15 +222,20 @@
   transform-origin: center bottom;
   transition: color .12s, opacity .12s, transform .16s cubic-bezier(.34, 1.56, .64, 1);
 }
-.status-icon.status-posture { opacity: 0.72; }
+.status-icon.status-posture { opacity: 0.9; position: relative; }
+/* Posture is the emoji-ragdoll spritesheet (one 32px frame shown via background
+   position; see StatusIcons.tsx). Pixelated keeps the pixel art crisp; the popup
+   variant sits inline with its posture label. */
+.posture-sprite { display: inline-block; background-repeat: no-repeat; image-rendering: pixelated; vertical-align: middle; flex-shrink: 0; }
+.status-pop-posture .posture-sprite { margin-right: 2px; }
 /* Active: light up AND stay enlarged so a live status stands out on its own. */
 .status-icon.active-danger { color: var(--color-bold); opacity: 1; transform: scale(1.22); }
 .status-icon.active-good  { color: var(--color-bonus); opacity: 1; transform: scale(1.22); }
 /* Dead reads as red (penalty) rather than the amber shared by other dangers. */
 .status-icon.status-cond-dead.active-danger { color: var(--color-penalty); }
 
-/* Posture is now a button (opens the status popup) — strip the button chrome. */
-button.status-icon.status-posture { background: none; border: none; padding: 0; position: relative; cursor: pointer; }
+/* On mobile the posture is a button (opens the status popup) — strip button chrome. */
+button.status-icon.status-posture { background: none; border: none; padding: 0; cursor: pointer; }
 .status-posture-alert {
   position: absolute; top: -1px; right: -3px;
   width: 7px; height: 7px; border-radius: 50%;
@@ -268,9 +273,9 @@ button.status-icon.status-posture { background: none; border: none; padding: 0; 
 /* Mobile: a rail tap opens the panel as a bottom-sheet overlay. */
 .panel-mobile-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, 0.5); display: flex; align-items: flex-end; animation: magiloom-fade .18s ease; }
 .panel-mobile-sheet {
-  /* At least 25% of the screen (so short panels aren't a sliver), capped at 75%
+  /* At least 33% of the screen (so short panels aren't a sliver), capped at 75%
      (taller content scrolls inside .panel-mobile-body). */
-  width: 100%; min-height: 25vh; max-height: 75vh; display: flex; flex-direction: column;
+  width: 100%; min-height: 33vh; max-height: 75vh; display: flex; flex-direction: column;
   background: var(--bg-sidebar); border-top: 1px solid var(--border-soft);
   border-radius: 14px 14px 0 0; overflow: hidden;
   animation: magiloom-slide-up .28s cubic-bezier(0.16, 1, 0.3, 1);

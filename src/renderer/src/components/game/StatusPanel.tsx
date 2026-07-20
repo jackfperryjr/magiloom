@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useAtomValue } from 'jotai'
 import { indicatorsAtom } from '../../store/game'
 import type { ConnectionStatus } from '../../store/game'
-import { PostureIcon, CONDITIONS, currentPosture } from './StatusIcons'
+import { PostureSprite, PostureFrame, CONDITIONS, currentPosture } from './StatusIcons'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 // ── Status panel (posture + condition icons, beside the command line) ─────────
 // A posture stick-figure that changes with your body position, plus one icon per
@@ -14,22 +15,31 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 // roundtime badge). Inline icon group — no card of its own.
 export function StatusPanel({ status }: { status: ConnectionStatus }) {
   const indicators = useAtomValue(indicatorsAtom)
+  const isMobile = useIsMobile()
   const [showConds, setShowConds] = useState(false)
   if (status !== 'connected') return null
   const posture = currentPosture(indicators)
   const hasDanger = CONDITIONS.some(c => c.danger && indicators[c.id])
   return (
     <div className="status-icons">
-      {/* Posture stick-figure — click to pop up the full condition list. On mobile
-          this is the only status shown inline (conditions collapse into the popup). */}
-      <button
-        className="status-icon status-posture"
-        data-tooltip={cap(posture) + ' · click for status'}
-        onClick={() => setShowConds(v => !v)}
-      >
-        <PostureIcon posture={posture} />
-        {hasDanger && <span className="status-posture-alert" />}
-      </button>
+      {/* Posture sprite. On mobile the conditions collapse into a popup, so the sprite
+          is a button that opens it; on desktop/web the conditions show inline (below),
+          so it's just a static indicator — no click-for-status affordance. */}
+      {isMobile ? (
+        <button
+          className="status-icon status-posture"
+          data-tooltip={cap(posture) + ' · tap for status'}
+          onClick={() => setShowConds(v => !v)}
+        >
+          <PostureSprite />
+          {hasDanger && <span className="status-posture-alert" />}
+        </button>
+      ) : (
+        <span className="status-icon status-posture" data-tooltip={cap(posture)}>
+          <PostureSprite />
+          {hasDanger && <span className="status-posture-alert" />}
+        </span>
+      )}
       <span className="status-conds-inline">
         <span className="status-panel-sep" />
         {CONDITIONS.map(c => {
@@ -45,10 +55,10 @@ export function StatusPanel({ status }: { status: ConnectionStatus }) {
           )
         })}
       </span>
-      {showConds && <>
+      {isMobile && showConds && <>
         <div className="status-pop-backdrop" onClick={() => setShowConds(false)} />
         <div className="status-pop">
-          <span className="status-pop-posture"><PostureIcon posture={posture} /> {cap(posture)}</span>
+          <span className="status-pop-posture"><PostureFrame posture={posture} /> {cap(posture)}</span>
           <div className="status-pop-grid">
             {CONDITIONS.map(c => {
               const on = !!indicators[c.id]
