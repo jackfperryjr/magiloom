@@ -23,13 +23,28 @@
   pointer-events: none;
 }
 
-/* Sky tint (faint full-panel wash) → weather veil → corner label, in paint order. */
+/* Sky tint (top-down gradient wash) → weather veil → corner label, in paint order. */
+/* The daypart colour rides a registered custom property (not `background`) so it can
+   still EASE between dayparts/weather — a linear-gradient background isn't transitionable,
+   but a <color> custom property is. Falls back to a hard swap where @property is
+   unsupported. */
+@property --ambient-sky-color {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: transparent;
+}
 .ambient-sky {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  transition: background 2s linear;   /* ease between dayparts / weather shifts */
+  /* A tint concentrated at the top (sky light from above) that clears well before the
+     reading area — DR output is newest-at-bottom, so the recent lines + input stay on
+     clean theme background while the sky band shows up top. */
+  background: linear-gradient(to bottom,
+    var(--ambient-sky-color, transparent) 0%,
+    transparent 60%);
+  transition: --ambient-sky-color 2s linear;   /* ease between dayparts / weather shifts */
 }
 
 /* Oversized + overflow-hidden so the intensity slant can rotate the field without

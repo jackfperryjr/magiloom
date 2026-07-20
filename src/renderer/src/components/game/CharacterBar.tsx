@@ -104,16 +104,6 @@ const PRESENCE_LABEL: Record<PresenceMode, string> = {
   dnd:    'Do Not Disturb',
 }
 
-// Resolve the dot color + label from connection status, the user's chosen
-// presence, and auto-idle. Presence only applies while connected.
-function presenceFor(status: ConnectionStatus, mode: PresenceMode, autoIdle: boolean): { dot: string; label: string } {
-  if (status === 'connecting') return { dot: 'connecting', label: 'Connecting…' }
-  if (status !== 'connected')  return { dot: 'offline',    label: 'Offline' }
-  if (mode === 'dnd')                 return { dot: 'dnd',  label: PRESENCE_LABEL.dnd }
-  if (mode === 'idle' || autoIdle)    return { dot: 'idle', label: PRESENCE_LABEL.idle }
-  return { dot: 'online', label: PRESENCE_LABEL.online }
-}
-
 // Flip to idle after IDLE_MS with no keyboard/pointer activity.
 function useAutoIdle(): boolean {
   const [idle, setIdle] = useState(false)
@@ -131,6 +121,17 @@ function useAutoIdle(): boolean {
   }, [])
   return idle
 }
+
+// Resolve the dot color + label from connection status, the user's chosen
+// presence, and auto-idle. Presence only applies while connected.
+function presenceFor(status: ConnectionStatus, mode: PresenceMode, autoIdle: boolean): { dot: string; label: string } {
+  if (status === 'connecting') return { dot: 'connecting', label: 'Connecting…' }
+  if (status !== 'connected')  return { dot: 'offline',    label: 'Offline' }
+  if (mode === 'dnd')                 return { dot: 'dnd',  label: PRESENCE_LABEL.dnd }
+  if (mode === 'idle' || autoIdle)    return { dot: 'idle', label: PRESENCE_LABEL.idle }
+  return { dot: 'online', label: PRESENCE_LABEL.online }
+}
+
 
 function CharacterMenu({
   status, presenceMode, onSetPresence, onEditAvatar, avatar, crop, initial, charName, profile,

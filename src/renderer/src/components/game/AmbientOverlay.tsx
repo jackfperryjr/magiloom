@@ -106,20 +106,25 @@ const WeatherParticles = memo(function WeatherParticles() {
 })
 
 // ── Day/night sky tint ──────────────────────────────────────────────────────────
-// A subtle FULL-PANEL wash whose colour tracks the Elanthian daypart and goes
-// overcast-grey while it's precipitating. Low-alpha so text contrast holds (it
-// sits above the text as a faint veil). Re-renders each second with the clock.
+// A subtle top-down gradient whose colour tracks the Elanthian daypart and goes
+// overcast-grey while it's precipitating. Low-alpha so text contrast holds (it sits
+// above the text as a faint veil, strongest at the top and fading out before the
+// reading area — see .ambient-sky). Re-renders each second with the clock.
 function skyColor(sky: SkyState, w: WeatherState): string {
   const d = sky.daylight
   const twilight = sky.phase === 'dawn' || sky.phase === 'dusk'
   let r: number, g: number, b: number, a: number
-  if (twilight) { r = 255; g = 150; b = 78;  a = 0.10 }
-  else if (d <= 0) { r = 26; g = 28; b = 74; a = 0.16 }                 // night
-  else { r = 255; g = 244; b = 214; a = 0.015 + (1 - d) * 0.05 }        // day → dusk edge
+  // These alphas are the TOP of the gradient (it fades to transparent by ~60% down —
+  // see .ambient-sky), so they read as a sky band up top while the reading area stays
+  // clean. Pitched high enough to be visible even on low-contrast themes (near-black
+  // bloodstone, light parchment, blue ff4), where a flat low-alpha wash disappeared.
+  if (twilight) { r = 255; g = 150; b = 78;  a = 0.20 }
+  else if (d <= 0) { r = 26; g = 28; b = 74; a = 0.30 }                 // night
+  else { r = 255; g = 244; b = 214; a = 0.03 + (1 - d) * 0.08 }         // day → dusk edge
   if (w.kind !== 'clear') {
     const k = Math.min(1, 0.35 + w.level * 0.15)
     r = Math.round(r + (150 - r) * k); g = Math.round(g + (155 - g) * k); b = Math.round(b + (165 - b) * k)
-    a = Math.max(a, 0.06 + w.level * 0.025)
+    a = Math.max(a, 0.10 + w.level * 0.045)
   }
   return `rgba(${r},${g},${b},${a})`
 }
@@ -129,7 +134,9 @@ function SkyTint() {
   const w   = useAtomValue(weatherAtom)
   if (!sky && w.kind === 'clear') return null
   const bg = sky ? skyColor(sky, w) : `rgba(150,155,165,${0.06 + w.level * 0.025})`
-  return <div className="ambient-sky" style={{ background: bg }} aria-hidden />
+  // The colour feeds a gradient (in .ambient-sky) via this custom property, which also
+  // lets it ease smoothly between dayparts (see the @property registration there).
+  return <div className="ambient-sky" style={{ ['--ambient-sky-color' as string]: bg }} aria-hidden />
 }
 
 // ── Corner label ────────────────────────────────────────────────────────────────
