@@ -17,6 +17,8 @@ import {
   ExperiencePanel, ConversationPanel, InventoryPanel,
   CombatPanel, AtmoPanel, DeathsPanel, ConnectionsPanel,
 } from './components/layout/PanelContent'
+import { MessagesPanel } from './components/layout/MessagesPanel'
+import { useMessaging } from './hooks/useMessaging'
 import { MapPanel } from './components/map/MapPanel'
 import { SkyPanel } from './components/layout/SkyPanel'
 import { BodyPanel, BodyOverlay } from './components/game/BodyPanel'
@@ -51,6 +53,7 @@ function renderPanel(id: PanelId) {
     case 'combat':       return <CombatPanel />
     case 'atmo':         return <AtmoPanel />
     case 'conversation': return <ConversationPanel />
+    case 'messages':     return <MessagesPanel />
     case 'inventory':    return <InventoryPanel />
     case 'deaths':       return <DeathsPanel />
     case 'connections':  return <ConnectionsPanel />
@@ -163,6 +166,9 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
   const automap = useAutomapper()
   const isMobile = useIsMobile()
   const { status, disconnect, send } = useGameConnection(charName)
+  // App-level messaging subscription (web): keeps contacts/threads/unread live whether
+  // or not the Messages panel is open. Inert on desktop until it grows a msg transport.
+  useMessaging(charName, status === 'connected')
   // Give the walker the game send fn (walk steps flow through the same path the
   // mapper observes, so click-walking also confirms/records arcs).
   useEffect(() => { automap.provideSend(send) }, [automap, send])

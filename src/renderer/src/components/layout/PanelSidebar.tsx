@@ -3,9 +3,10 @@ import { useAtomValue } from 'jotai'
 import { Tooltip } from '../ui/Tooltip'
 import { IconArrowDownTray } from '../ui/Icons'
 import { convLinesAtom } from '../../store/game'
+import { totalUnreadAtom, contactRequestsAtom, messagingAvailable } from '../../store/messaging'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
-export type PanelId = 'room' | 'map' | 'sky' | 'body' | 'experience' | 'spells' | 'conversation' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'connections' | 'scripts'
+export type PanelId = 'room' | 'map' | 'sky' | 'body' | 'experience' | 'spells' | 'conversation' | 'messages' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'connections' | 'scripts'
 
 export interface PanelConfig {
   id:      PanelId
@@ -23,11 +24,25 @@ const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'combat',       label: 'Combat',        visible: true },
   { id: 'atmo',         label: 'Atmosphere',    visible: false },
   { id: 'conversation', label: 'Conversation',  visible: true },
+  // Character-to-character messaging — only where the client has a magiserver link
+  // (web today). Omitted on desktop so it isn't a dead panel; reconcilePanels drops it
+  // from any saved layout there too. See store/messaging.ts.
+  ...(messagingAvailable ? [{ id: 'messages' as const, label: 'Messages', visible: true }] : []),
   { id: 'inventory',    label: 'Inventory',     visible: false },
   { id: 'deaths',       label: 'Deaths',        visible: false },
   { id: 'connections',  label: 'Connections',   visible: false },
   { id: 'scripts',      label: 'Scripts',       visible: false },
 ]
+
+// Rail indicator for the Messages panel: an unread count, or a dot for a pending
+// contact request when there's nothing unread. Mirrors the conversation unread dot.
+function MessagesRailBadge() {
+  const unread   = useAtomValue(totalUnreadAtom)
+  const requests = useAtomValue(contactRequestsAtom).length
+  if (unread > 0)   return <span className="panel-rail-badge">{unread > 99 ? '99+' : unread}</span>
+  if (requests > 0) return <span className="panel-rail-dot" />
+  return null
+}
 
 // Panel layout is per-character, stored in the shared settings.json under the
 // character's `characters[name]` namespace (previously in localStorage — those
@@ -290,6 +305,7 @@ function PanelRail({ panels, scrollRef, onSelect, openPanel, onManage, manageBtn
             {/* Outside the (overflow-hidden) button so it sits on top of the edge,
                 like the character avatar's status dot. */}
             {p.id === 'conversation' && convUnread && <span className="panel-rail-dot" />}
+            {p.id === 'messages' && <MessagesRailBadge />}
           </span>
         </Tooltip>
       ))}

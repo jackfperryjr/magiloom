@@ -147,5 +147,27 @@ contextBridge.exposeInMainWorld('dr', {
       ipcRenderer.on('broadcast:incoming', h)
       return () => ipcRenderer.removeListener('broadcast:incoming', h)
     }
+  },
+  // Character-to-character messaging. The desktop app has no messaging transport yet
+  // (it talks to the game directly, not via magiserver), so these channels have no
+  // main-process handler — the UI gates on `messagingAvailable` (web only) and never
+  // calls them here. Kept for 1:1 API parity with the web transport (Phase C wires a
+  // magiserver client into main and flips the gate).
+  contacts: {
+    list:   ()             => ipcRenderer.invoke('contacts:list'),
+    add:    (name: string) => ipcRenderer.invoke('contacts:add', name),
+    accept: (name: string) => ipcRenderer.invoke('contacts:accept', name),
+    deny:   (name: string) => ipcRenderer.invoke('contacts:deny', name),
+    remove: (name: string) => ipcRenderer.invoke('contacts:remove', name),
+    onPresence: (cb: (p: { name: string; online: boolean }) => void) => { const h = (_e: unknown, p: { name: string; online: boolean }) => cb(p); ipcRenderer.on('contacts:presence', h); return () => ipcRenderer.removeListener('contacts:presence', h) },
+    onRequest:  (cb: (p: { name: string }) => void)                  => { const h = (_e: unknown, p: { name: string }) => cb(p);                 ipcRenderer.on('contacts:request', h);  return () => ipcRenderer.removeListener('contacts:request', h) },
+    onAdded:    (cb: (p: { name: string; online: boolean }) => void) => { const h = (_e: unknown, p: { name: string; online: boolean }) => cb(p); ipcRenderer.on('contacts:added', h);    return () => ipcRenderer.removeListener('contacts:added', h) },
+    onRemoved:  (cb: (p: { name: string }) => void)                  => { const h = (_e: unknown, p: { name: string }) => cb(p);                 ipcRenderer.on('contacts:removed', h);  return () => ipcRenderer.removeListener('contacts:removed', h) }
+  },
+  msg: {
+    history:  (peer: string)               => ipcRenderer.invoke('msg:history', peer),
+    send:     (peer: string, body: string) => ipcRenderer.invoke('msg:send', peer, body),
+    markRead: (peer: string)               => ipcRenderer.invoke('msg:mark-read', peer),
+    onReceived: (cb: (m: unknown) => void) => { const h = (_e: unknown, m: unknown) => cb(m); ipcRenderer.on('msg:received', h); return () => ipcRenderer.removeListener('msg:received', h) }
   }
 })

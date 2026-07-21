@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useAtomValue } from 'jotai'
 import { convLinesAtom, outputLinesAtom, presenceModeAtom } from '../../store/game'
 import type { ConnectionStatus, OutputLine } from '../../store/game'
+import { messagingAvailable, openThreadAtom } from '../../store/messaging'
 import { speak } from '../../lib/tts'
 
-export type NotifKind = 'mention' | 'whisper' | 'disconnect'
+export type NotifKind = 'mention' | 'whisper' | 'disconnect' | 'message'
 
 export interface NotifSettings {
   sound:      boolean
@@ -12,12 +13,13 @@ export interface NotifSettings {
   mention:    boolean
   whisper:    boolean
   disconnect: boolean
+  message:    boolean    // Magiloom character-to-character messages
   ttsMention?: boolean   // speak mentions aloud
   ttsWhisper?: boolean   // speak whispers aloud
 }
 
 export const DEFAULT_NOTIF: NotifSettings = {
-  sound: true, desktop: true, mention: true, whisper: true, disconnect: true,
+  sound: true, desktop: true, mention: true, whisper: true, disconnect: true, message: true,
   ttsMention: false, ttsWhisper: false,
 }
 
@@ -30,10 +32,11 @@ export interface PushSettings {
   whisper: boolean
   speech:  boolean   // room "says"
   thought: boolean
+  message: boolean   // Magiloom character-to-character messages
 }
 
 export const DEFAULT_PUSH: PushSettings = {
-  enabled: false, mention: false, whisper: false, speech: false, thought: false,
+  enabled: false, mention: false, whisper: false, speech: false, thought: false, message: false,
 }
 
 // A user-defined "watch" alert. Matches incoming game text (substring, or /regex/
@@ -57,7 +60,7 @@ export function makeNameRule(name: string): NotifRule {
 }
 
 const TITLES: Record<NotifKind, string> = {
-  mention: 'Mention', whisper: 'Whisper', disconnect: 'Disconnected',
+  mention: 'Mention', whisper: 'Whisper', disconnect: 'Disconnected', message: 'Message',
 }
 
 // ── Sound — short synthesized ping (no audio assets needed) ────────────────────
@@ -80,7 +83,7 @@ function playPing(freq: number) {
   } catch { /* audio unavailable */ }
 }
 
-const KIND_FREQ: Record<NotifKind, number> = { disconnect: 300, whisper: 680, mention: 540 }
+const KIND_FREQ: Record<NotifKind, number> = { disconnect: 300, whisper: 680, mention: 540, message: 620 }
 
 interface Toast { id: number; kind: string; title: string; text: string }
 
@@ -211,6 +214,28 @@ export function NotificationCenter({ charName, status }: { charName: string; sta
     }
     prevStatus.current = status
   }, [status, fire])
+
+  // Magiloom messages → 'message' notification (title = sender). Skips our own echo,
+  // and skips when we're already looking at that thread with the window focused. Web
+  // only (messagingAvailable); harmless no-op elsewhere. The open thread is tracked in
+  // a ref so the subscription stays stable.
+  const openThread = useAtomValue(openThreadAtom)
+  const openThreadRef = useRef(openThread)
+  useEffect(() => { openThreadRef.current = openThread }, [openThread])
+  useEffect(() => {
+    if (!messagingAvailable) return
+    return window.dr.msg.onReceived((m: MagiloomMessage) => {
+      const c = cfgRef.current
+      if (!c.message) return
+      const self = charName.trim().toLowerCase()
+      if (m.from.trim().toLowerCase() === self) return   // our own sent message, mirrored back
+      const viewing = !!openThreadRef.current
+        && openThreadRef.current.trim().toLowerCase() === m.from.trim().toLowerCase()
+        && document.hasFocus()
+      if (viewing) return
+      emit('message', m.from, m.body, c.sound, c.desktop, KIND_FREQ.message)
+    })
+  }, [charName, emit])
 
   return (
     <div className="toast-stack">

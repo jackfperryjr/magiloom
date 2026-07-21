@@ -48,6 +48,11 @@ export function NotificationsTab({
             onChange={e => setNotif(n => ({ ...n, whisper: e.target.checked }))} />
         </label>
         <label className="settings-row">
+          <span className="settings-label">Messages</span>
+          <input type="checkbox" checked={notif.message} style={{ width: 'auto' }}
+            onChange={e => setNotif(n => ({ ...n, message: e.target.checked }))} />
+        </label>
+        <label className="settings-row">
           <span className="settings-label">Disconnects</span>
           <input type="checkbox" checked={notif.disconnect} style={{ width: 'auto' }}
             onChange={e => setNotif(n => ({ ...n, disconnect: e.target.checked }))} />
@@ -94,6 +99,11 @@ export function NotificationsTab({
           <span className="settings-label">Thoughts (ESP)</span>
           <input type="checkbox" checked={push.thought} disabled={!push.enabled} style={{ width: 'auto' }}
             onChange={e => setPush(p => ({ ...p, thought: e.target.checked }))} />
+        </label>
+        <label className="settings-row" style={push.enabled ? undefined : { opacity: 0.5 }}>
+          <span className="settings-label">Direct messages</span>
+          <input type="checkbox" checked={push.message} disabled={!push.enabled} style={{ width: 'auto' }}
+            onChange={e => setPush(p => ({ ...p, message: e.target.checked }))} />
         </label>
         <div className="settings-hint">
           Sent by the Magiloom server to your phone or desktop even when the app is closed — like a messaging app.

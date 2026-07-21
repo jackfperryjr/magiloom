@@ -85,16 +85,16 @@ export function SkyPanel() {
 
   const [top, horizon] = skyStops(sky.daylight, sky.dayProgress < 0.5)
   // The corner labels sit over the gradient, so their colour flips with the sky:
-  // near-white ink at night, dark ink by day, crossfading through twilight. The
-  // shadow crossfades too — a dark drop-shadow at night, a light halo by day — so
-  // the text stays legible at every point in the transition. Driven by daylight,
-  // like everything else here (so it's theme-independent — the sky is always this
-  // same gradient regardless of UI theme).
+  // near-white ink at night, dark ink by day, crossfading through twilight. Driven by
+  // daylight, like everything else here (so it's theme-independent — the sky is always
+  // this same gradient regardless of UI theme). No shadow — it hurt readability.
   const dl = sky.daylight
   const labelColor  = lerpHex('#ecebff', '#141a2e', dl)
-  const labelShadow = `0 1px 2px rgba(0,0,0,${(0.7 * (1 - dl)).toFixed(2)}), 0 0 3px rgba(255,255,255,${(0.85 * dl).toFixed(2)})`
-  const labelStyle  = { color: labelColor, textShadow: labelShadow }
+  const labelStyle  = { color: labelColor }
   const starOpacity = Math.max(0, Math.min(1, 1 - sky.daylight * 1.3))
+  // Nudge the moons' colour saturation up a touch — more so by day — so their tint
+  // still reads against the bright daytime dome instead of washing out to grey.
+  const moonSat = (1.15 + 0.55 * sky.daylight).toFixed(2)
   // Sun on its arc: t=0 east horizon, t=0.5 zenith, t=1 west horizon.
   const t = sky.dayProgress
   const sunUp = sky.isDay && t >= 0 && t <= 1
@@ -165,7 +165,7 @@ export function SkyPanel() {
           return (
             <g key={m.name} opacity={0.6 + 0.4 * starOpacity}
                data-tooltip={`${m.name} — ${arcWord(m.arc)}; sets in ${inWhen(m.msToEvent)}`}
-               style={{ cursor: 'help' }}>
+               style={{ cursor: 'help', filter: `saturate(${moonSat})` }}>
               <circle cx={mx} cy={my} r={MOON_R * 1.9} fill={meta.glow} opacity=".4" className="moon-glow" />
               <circle cx={mx} cy={my} r={MOON_R} fill={meta.color} />
               {CRATERS.map(([dx, dy, cr], i) => (

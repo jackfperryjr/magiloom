@@ -309,6 +309,151 @@
 
 .panel-content { padding: 8px 10px; }
 
+/* ── Messages panel (character-to-character) ─────────────────────────────────
+   Lives in the resizable sidebar panel, so its header/composer are sticky within
+   the panel's own scroll rather than fighting it. Two modes: contact list ⇄ thread. */
+.msg-panel { display: flex; flex-direction: column; min-height: 0; font-family: var(--font-ui); }
+
+/* Add-contact bar (sticky top of the list) */
+.msg-add {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; gap: 6px; padding-bottom: 8px;
+  background: var(--bg-panel);
+}
+.msg-add-input, .msg-composer-input {
+  flex: 1; min-width: 0;
+  background: var(--bg-input); border: 1px solid var(--border-soft); border-radius: 7px;
+  padding: 6px 9px; color: var(--text-bright); font-family: var(--font-ui); font-size: 14px;
+}
+.msg-add-input:focus, .msg-composer-input:focus { outline: none; border-color: var(--accent); }
+.msg-add-input::placeholder, .msg-composer-input::placeholder { color: var(--text-dim); }
+.msg-add-btn, .msg-send-btn {
+  flex-shrink: 0;
+  background: var(--accent); border: none; border-radius: 7px;
+  padding: 0 12px; color: #17133a; font-family: var(--font-ui); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: filter .15s;
+}
+.msg-add-btn:hover:not(:disabled), .msg-send-btn:hover:not(:disabled) { filter: brightness(1.12); }
+.msg-add-btn:disabled, .msg-send-btn:disabled { opacity: .4; cursor: default; }
+.msg-add-error { color: var(--color-warning); font-size: 12px; padding: 0 2px 6px; }
+
+.msg-section-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-dim); margin: 6px 2px 4px;
+}
+
+/* Pending incoming requests */
+.msg-request-row, .msg-pending-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 6px; border-radius: 7px;
+}
+.msg-request-actions { margin-left: auto; display: flex; gap: 6px; }
+.msg-req-accept, .msg-req-deny {
+  border: none; border-radius: 6px; padding: 3px 9px; font-family: var(--font-ui);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.msg-req-accept { background: var(--color-bonus); color: #10240f; }
+.msg-req-deny   { background: var(--bg-input); color: var(--text-dim); }
+.msg-req-deny:hover { color: var(--text-main); }
+.msg-pending-tag { margin-left: auto; font-size: 11px; color: var(--text-dim); font-style: italic; }
+
+/* Contact roster */
+.msg-contact-row {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 7px 6px; border: none; border-radius: 7px; cursor: pointer;
+  background: transparent; color: var(--text-main); font-family: var(--font-ui); font-size: 14px;
+  text-align: left;
+}
+.msg-contact-row:hover { background: var(--bg-input); }
+.msg-contact-name { color: var(--text-bright); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Avatar with a presence dot overlaid at its corner (contact rows + thread head). */
+.msg-avatar-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
+.msg-avatar {
+  border-radius: 50%; object-fit: cover; display: block;
+  border: 1px solid var(--border-soft); background: var(--accent-dim);
+}
+.msg-presence {
+  position: absolute; bottom: -1px; right: -1px;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--text-dim); border: 2px solid var(--bg-panel);
+}
+.msg-presence.on { background: var(--color-bonus); }
+.msg-unread {
+  margin-left: auto; flex-shrink: 0;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: #ff3b30; color: #fff; font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* Thread view */
+.msg-thread { display: flex; flex-direction: column; min-height: 0; }
+.msg-thread-head {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; gap: 8px;
+  padding-bottom: 8px; margin-bottom: 2px;
+  background: var(--bg-panel); border-bottom: 1px solid var(--border-soft);
+}
+.msg-back {
+  background: none; border: none; color: var(--accent); cursor: pointer;
+  font-size: 22px; line-height: 1; padding: 0 4px; flex-shrink: 0;
+}
+.msg-thread-name { color: var(--text-bright); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-remove {
+  margin-left: auto; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--text-dim);
+  cursor: pointer; padding: 4px; border-radius: 6px;
+  transition: color .12s, background .12s;
+}
+.msg-remove:hover { color: var(--color-warning); background: var(--bg-input); }
+
+/* Inline remove/delete confirm — swaps into the sticky thread header (no native confirm()). */
+.msg-confirm-text { flex: 1; min-width: 0; color: var(--text-main); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-confirm-yes, .msg-confirm-no {
+  flex-shrink: 0; border: none; border-radius: 6px; padding: 4px 11px;
+  font-family: var(--font-ui); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.msg-confirm-yes { background: var(--color-warning); color: #fff; }
+.msg-confirm-yes:hover { filter: brightness(1.1); }
+.msg-confirm-no  { background: var(--bg-input); color: var(--text-dim); }
+.msg-confirm-no:hover { color: var(--text-main); }
+
+.msg-thread-body { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; }
+/* A run of consecutive same-sender messages: peer avatar (theirs) beside a bubble
+   stack. Mine right-aligned with no avatar; theirs left-aligned with the avatar. */
+.msg-group { display: flex; gap: 8px; align-items: flex-end; }
+.msg-group.mine   { justify-content: flex-end; }
+.msg-group.theirs { justify-content: flex-start; }
+.msg-group-bubbles { display: flex; flex-direction: column; gap: 3px; max-width: 78%; }
+.msg-group.mine   .msg-group-bubbles { align-items: flex-end; }
+.msg-group.theirs .msg-group-bubbles { align-items: flex-start; }
+.msg-bubble {
+  padding: 6px 10px; border-radius: 12px;
+  font-size: 14px; line-height: 1.35; word-break: break-word;
+}
+.msg-group.theirs .msg-bubble { background: var(--bg-input); color: var(--text-main); border-bottom-left-radius: 4px; }
+.msg-group.mine   .msg-bubble { background: var(--accent); color: #17133a; border-bottom-right-radius: 4px; }
+.msg-bubble-text { display: block; }
+.msg-bubble-time { display: block; margin-top: 2px; font-size: 10px; opacity: .6; text-align: right; }
+
+.msg-composer {
+  position: sticky; bottom: 0; z-index: 2;
+  display: flex; gap: 6px; padding-top: 8px;
+  background: var(--bg-panel); border-top: 1px solid var(--border-soft);
+}
+
+/* Rail unread count badge (Messages panel) — like the conversation dot, but numeric. */
+.panel-rail-badge {
+  position: absolute;
+  bottom: -3px; right: -3px;
+  min-width: 17px; height: 17px; padding: 0 4px;
+  border-radius: 9px;
+  background: #ff3b30; color: #fff;
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 2px solid var(--bg-shell);
+}
+
 /* ── Room panel ──────────────────────────────────────────────────────────── */
 .room-name {
   font-size: 15px;

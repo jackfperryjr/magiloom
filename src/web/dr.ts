@@ -236,6 +236,25 @@ export function installDr(): void {
       setReceive: (on: boolean) => t.invoke('broadcast:set-receive', on),
       onIncoming: (cb: (cmd: string) => void) => t.on('broadcast:incoming', cb),
     },
+    // Character-to-character messaging (magiserver message-hub.ts). Actor identity is
+    // the authenticated character, resolved server-side — never passed from here.
+    contacts: {
+      list:   () => t.invoke('contacts:list'),
+      add:    (name: string) => t.invoke('contacts:add', name),
+      accept: (name: string) => t.invoke('contacts:accept', name),
+      deny:   (name: string) => t.invoke('contacts:deny', name),
+      remove: (name: string) => t.invoke('contacts:remove', name),
+      onPresence: (cb: (p: { name: string; online: boolean }) => void) => t.on('contacts:presence', cb),
+      onRequest:  (cb: (p: { name: string }) => void) => t.on('contacts:request', cb),
+      onAdded:    (cb: (p: { name: string; online: boolean }) => void) => t.on('contacts:added', cb),
+      onRemoved:  (cb: (p: { name: string }) => void) => t.on('contacts:removed', cb),
+    },
+    msg: {
+      history:  (peer: string) => t.invoke('msg:history', peer),
+      send:     (peer: string, body: string) => t.invoke('msg:send', peer, body),
+      markRead: (peer: string) => t.invoke('msg:mark-read', peer),
+      onReceived: (cb: (m: unknown) => void) => t.on('msg:received', cb),
+    },
     // Magiloom account (web only — desktop's preload has no `account`, so the UI
     // gates on its presence). Signing in/out re-buckets the connection on the server,
     // so we reconnect the socket and re-point the push subscription afterward.
