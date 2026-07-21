@@ -365,7 +365,7 @@
 .sky-corner { position: absolute; top: 6px; pointer-events: none; line-height: 1.2; text-shadow: 0 1px 3px rgba(0, 0, 0, .8), 0 0 2px rgba(0, 0, 0, .6); }
 .sky-corner-l { left: 9px; font-size: 15px; color: var(--text-main); font-family: var(--font-game); letter-spacing: .02em; }
 .sky-corner-r { right: 9px; text-align: right; font-size: 11px; color: var(--text-dim); font-family: var(--font-ui); }
-.sky-anlas { color: var(--text-muted); font-size: 10px; margin-top: 1px; }
+.sky-anlas { color: inherit; opacity: .72; font-size: 10px; margin-top: 1px; }
 /* On parchment the labels are dark, so the dark drop-shadow above ghosts them into a
    blur — swap it for a light halo that lifts the dark text off the dome cleanly (same
    idea as the app-title parchment fix in titlebar.css). */

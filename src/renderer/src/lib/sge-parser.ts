@@ -40,6 +40,7 @@ export type GameEvent =
   | { type: 'roundtime'; expires: number }
   | { type: 'cast_time'; expires: number }
   | { type: 'percClear' }   // <clearStream id='percWindow'/> — active-spell list is being refreshed
+  | { type: 'injuries';  images: { id: string; name: string }[] }  // <dialogData id='injuries'> snapshot
   | { type: 'prompt';    time: number }
 
 export type VitalField = 'health' | 'mana' | 'stamina' | 'spirit'
@@ -68,6 +69,8 @@ let _inInitialInventory = false  // suppress initial container dump until --- se
 let _shopDetailBuf = ''  // accumulate SHOP item details across lines
 let _monoMode = false    // inside <output class="mono">…<output class=""> — render ASCII verbatim (guild registers, maps, tables)
 let _lastRoomName = ''   // dedup: both the id='main' and id='room' streamWindows carry the same subtitle
+let _inInjuries  = false // inside <dialogData id='injuries'> — collecting body-injury <image> tags
+let _injuryImages: { id: string; name: string }[] = []
 
 export function resetParser(): void {
   _stream             = 'main'
@@ -93,6 +96,8 @@ export function resetParser(): void {
   _shopDetailBuf      = ''
   _monoMode           = false
   _lastRoomName       = ''
+  _inInjuries         = false
+  _injuryImages       = []
 }
 
 function decodeEntities(s: string): string {
@@ -787,6 +792,34 @@ export function parseLine(raw: string): GameEvent[] {
         flush()
         _monoMode = (attrs['class'] ?? '').toLowerCase().includes('mono')
         break
+
+      // ── Body injuries: <dialogData id='injuries'><image id='head' name='Injury1'/>…</dialogData> ──
+      // A complete snapshot of the character's wounds/scars, one <image> per body
+      // location. We collect the child <image> tags and emit them as one event on
+      // the closing tag. Other dialogData windows (minivitals, etc.) are ignored.
+      case 'dialogdata': {
+        flush()
+        if ((attrs['id'] ?? '').toLowerCase() === 'injuries') {
+          _inInjuries   = true
+          _injuryImages = []
+        }
+        break
+      }
+      case '/dialogdata': {
+        flush()
+        if (_inInjuries) {
+          events.push({ type: 'injuries', images: _injuryImages })
+          _inInjuries   = false
+          _injuryImages = []
+        }
+        break
+      }
+      case 'image': {
+        if (_inInjuries && attrs['id']) {
+          _injuryImages.push({ id: attrs['id'], name: attrs['name'] ?? '' })
+        }
+        break
+      }
 
       case 'left': case 'right':
         flush(); styles = [{ preset: tagName }]; break

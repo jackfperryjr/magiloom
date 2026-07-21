@@ -19,6 +19,7 @@ import {
 } from './components/layout/PanelContent'
 import { MapPanel } from './components/map/MapPanel'
 import { SkyPanel } from './components/layout/SkyPanel'
+import { BodyPanel, BodyOverlay } from './components/game/BodyPanel'
 import { MapOverlay } from './components/map/MapOverlay'
 import {
   echoCommandAtom, beginSilentExpAtom, appendSystemLineAtom, tickAtom,
@@ -319,6 +320,7 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
 
   const [showHighlights, setShowHighlights] = useState(false)
   const [showMap,        setShowMap]        = useState(false)
+  const [showBody,       setShowBody]       = useState(false)
   const [sidebarWidth,   setSidebarWidth]   = useState<number | null>(null)
   const [functionKeys,   setFunctionKeys]   = useState<Record<string, string>>({})
   const appendSystemLine = useSetAtom(appendSystemLineAtom)
@@ -421,6 +423,7 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
   // receive layout-local handlers: click-to-walk and the pop-out toggle.
   const renderPanelWithLich = useCallback((id: PanelId) => {
     if (id === 'map') return <MapPanel onNodeClick={automap.walkTo} onStopWalk={automap.stopWalk} onExpand={() => setShowMap(true)} />
+    if (id === 'body') return <BodyPanel onExpand={() => setShowBody(true)} />
     return renderPanel(id)
   }, [automap])
 
@@ -478,6 +481,7 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
       </div>
       {showHighlights && <HighlightsModal onClose={handleHighlightsClose} charName={charName} />}
       {showMap && <MapOverlay onClose={() => setShowMap(false)} onWalkTo={automap.walkTo} onStopWalk={automap.stopWalk} />}
+      {showBody && <BodyOverlay onClose={() => setShowBody(false)} />}
       <NotificationCenter charName={charName} status={status} />
       <GlobalTooltip />
     </div>

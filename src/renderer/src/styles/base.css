@@ -45,6 +45,11 @@
   --color-black:     #000000;
   --color-bold:      #f0d84a;   /* monsterbold / emphasized text (yellow on dark themes) */
 
+  /* Body figure (plush ragdoll: fill, eyes, bold outline) */
+  --body-base:       #3a3470;
+  --body-eye:        #1a1540;
+  --body-outline:    #14102e;
+
   /* Vitals */
   --health-color:    #dd1818;
   --mana-color:      #1850d0;
