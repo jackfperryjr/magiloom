@@ -6,6 +6,7 @@ import { feedTimeLine, computeSky, isTimeReportLine, type SkyCalibration, type S
 import { weatherFromLine, CLEAR, type WeatherState } from '../lib/weather'
 import { MOONS, computeMoonPosition, moonEventFromLine, type MoonName, type MoonAnchor, type MoonPosition } from '../lib/moons'
 import type { AvatarCrop } from '../lib/avatar'
+import { injuriesFromImages, injuriesFromTouch, type Injuries } from '../lib/injuries'
 
 export type { StreamId }
 
@@ -136,28 +137,39 @@ export interface LogonEntry { id: number; text: string; timestamp: number; kind:
 export const logonLinesAtom = atom<LogonEntry[]>([])
 
 // DR's "* …" adventure broadcasts announcing players coming online / going offline.
-// These almost always arrive as bare "* NAME …" MAIN-stream text, so matching on
-// wording (below) is how we route them to the Connections panel and out of the main
-// output. (A `pushStream id="logons"` tag very occasionally wraps a logon — seen in
-// the Lich logs — but it's rare, and the wording match catches those too.)
-// Arrivals read "… joins the adventure." / "just <verb> into the adventure …"
-//   (sauntered / crawled / stumbled / teetered / "deposited into the adventure by a
-//   mighty dragon"), plus reconnect/return-style broadcasts: "waking from a long
-//   catnap, NAME once again prowls the lands.", "comes out from within the shadows
-//   with renewed vigor.", horn/bell arrivals ("… heralding the arrival of NAME.",
-//   "plaintive bell-tolls … harbinger NAME arrival.").
-// Departures are more varied (all harvested from real Lich logs):
-//   "retires from the adventure for now." / "retires from the lands to enjoy a nice
-//   long catnap." / "returns home from a hard day…" / "returned home to work on a new
-//   tune." / "has disconnected." / "wanders off, muttering something about spiders." /
-//   "saunters off, muttering prayers under his breath." / "The mournful cry of a battle
-//   horn sounds as NAME heads off toward home." / "just found a shadow to hide out
-//   in." / "went home to take a nap." / "leaves, looking for more excitement." / "has
-//   left to contemplate the life of a warrior." / "just sauntered off-duty to get some
-//   rest." Death broadcasts ("struck down", etc.) are caught earlier by DEATH_RE, so
-//   they never reach these patterns.
-const LOGON_RE  = /\b(?:joins|into) the adventure\b|\bhas reconnected\b|\bhas logged (?:on|in)\b|\bwaking from a long catnap\b|\bcomes out from within the shadows with renewed vigor\b|\bheralding the arrival of\b|\bplaintive bell-tolls\b/i
-const LOGOFF_RE = /\bretires from the (?:adventure|lands)\b|\breturn(?:s|ed) home\b|\bheads off toward home\b|\bwanders off, muttering something about spiders\b|\bsaunters off, muttering prayers\b|\bhas disconnected\b|\bfound a shadow to hide out in\b|\bhas logged o(?:ff|ut)\b|\bhas gone link-?dead\b|\bwent home to take a nap\b|\bleaves, looking for more excitement\b|\bhas left to contemplate the life of a\b|\bsauntered off-duty\b/i
+// These always arrive as a single "* NAME …" MAIN-stream line, so the caller gates on
+// that leading "*" before testing these patterns — that lets the wording matches stay
+// loose (adventures, shadows, home, arrival/departure) without misfiring on ordinary
+// chat. (A `pushStream id="logons"` tag very occasionally wraps a logon — seen in the
+// Lich logs — but it's rare, and the wording match catches those too.)
+//
+// Patterns below were verified against ~12k real "* …" broadcasts in the Lich logs;
+// the broad tokens (join/arrives/arrival for on, depart*/leaves/home for off) cover
+// the many flavor variants a single hub throws off. Highlights:
+// Arrivals — "… joins the adventure." (also joined/join, "…into the adventure",
+//   "…with little fanfare", "…after escaping another!"), "NAME arrives, <flavor>."
+//   ("…hands clasped in near perpetual prayer.", "…an air of celebration"), reconnect/
+//   wake broadcasts ("waking from a long catnap, NAME once again prowls the lands.",
+//   "comes out from within the shadows with renewed vigor.", "snuck out of the shadow
+//   he was hiding in.", "just woke up from a nap, ready to join the adventure once
+//   again.", "has woken up in search of new ale!", "just limped in for another
+//   adventure.", "wanders in from exploring.", "returns from trailblazing."), and
+//   horn/bell/whistle arrivals ("…heralds the arrival of NAME.", "…NAME's arrival to
+//   the adventure.", "plaintive bell-tolls … harbinger NAME arrival.").
+// Departures — "retires from the adventure for now." / "retires from the lands to
+//   enjoy a nice long catnap." / "retires to the shadows." / "returns home from a hard
+//   day…" / "returned home to work on a new tune." / "heads home…" / "heads off toward
+//   home." / "has disconnected." / "wanders off, muttering …" / "wandered into another
+//   adventure." / "fades swiftly into the shadows." / "(quietly) departs (from) the
+//   adventure …" / "…announces/signals the departure of NAME." / "found a shadow to
+//   hide out in." / "went home to take a nap." / "crawled home, seeking rest…" / "sets
+//   off into the wilds." / "leaves, looking for more excitement." / "limped away from
+//   the adventure for now." / "sauntered off-duty to get some rest." / "back to her
+//   woodland grove." Death broadcasts ("struck down", etc.) are caught earlier by
+//   DEATH_RE, so they never reach these patterns. Resurrection ("arises from the ashes
+//   of death") and creature spawn/despawn flavor deliberately stay in main output.
+const LOGON_RE  = /\bjoin(?:s|ed)? the adventure\b|\binto the adventure\b|\bhas reconnected\b|\bhas logged (?:on|in)\b|\bwaking from a long catnap\b|\bwok(?:e|en) up\b|\bcomes out from within the shadows with renewed vigor\b|\bsnuck out of the shadow\b|\breturns from trailblazing\b|\blimped in\b|\bwanders in\b|\barrives\b|\barrival\b/i
+const LOGOFF_RE = /\bretires (?:from the (?:adventure|lands)|to the shadows)\b|\breturn(?:s|ed) home\b|\bheads (?:off toward )?home\b|\bwanders off, muttering\b|\bwandered into another adventure\b|\bsaunters off, muttering prayers\b|\bfades swiftly into the shadows\b|\bdeparts? (?:from )?the adventure\b|\bdeparture\b|\bhas disconnected\b|\bfound a shadow to hide out in\b|\bhas logged o(?:ff|ut)\b|\bhas gone link-?dead\b|\bwent home to take a nap\b|\bcrawled home\b|\bsets off into the wilds\b|\bleaves, looking for more excitement\b|\bhas left to contemplate the life of a\b|\blimped away\b|\bsauntered off-duty\b|\bback to (?:his|her|their) woodland grove\b/i
 
 export const appendLogonAtom = atom(null, (get, set, e: { text: string; kind: 'on' | 'off' }) => {
   set(logonLinesAtom, [...get(logonLinesAtom).slice(-199), { id: lineId++, text: e.text, timestamp: Date.now(), kind: e.kind }])
@@ -171,6 +183,41 @@ export const vitalsAtom = atom<Record<VitalField, VitalState>>({
   mana:    { value: 100, max: 100 },
   stamina: { value: 100, max: 100 },
   spirit:  { value: 100, max: 100 },
+})
+
+// ── Body injuries ───────────────────────────────────────────────────────────
+// The logged-in character's wounds/scars per body location, fed by DR's
+// `<dialogData id='injuries'>` snapshots (see lib/injuries.ts). Always reflects
+// the current character; drives the Body panel's default "Character" view.
+export const bodyInjuriesAtom = atom<Injuries>({})
+
+// A perceived patient's body (empath "Patient" view). Empaths can perceive
+// another player's health; that data has no dialogData feed we can rely on, so
+// this is populated best-effort / for preview (a sample or a future PERCEIVE
+// parse) and keyed by the patient's name. `null` = no patient loaded.
+export interface PatientBody { name: string; injuries: Injuries }
+export const patientBodyAtom = atom<PatientBody | null>(null)
+
+// Which body the Body panel/overlay is showing. Shared so the panel and its
+// pop-out overlay stay on the same subject. 'patient' is the empath view.
+export type BodySubject = 'character' | 'patient'
+export const bodySubjectAtom = atom<BodySubject>('character')
+
+// TOUCH capture: after an empath sends `touch <patient>`, we buffer the response
+// lines (a health assessment) until the next prompt, parse them into the
+// patient's wounds (injuriesFromTouch), and show them on the Patient view. The
+// diagnostic link expires, so the panel offers a Refresh (re-touch) that re-arms
+// this. The response still echoes to the main output (not suppressed).
+let _touchName: string | null = null
+let _touchBuf: string[] = []
+export const beginTouchCaptureAtom = atom(null, (get, set, name: string) => {
+  _touchName = name
+  _touchBuf  = []
+  // Switch to the Patient view and show the patient immediately — keep any prior
+  // wounds (e.g. on a refresh of the same patient) until the new response parses.
+  const prev = get(patientBodyAtom)
+  set(patientBodyAtom, { name, injuries: prev?.name === name ? prev.injuries : {} })
+  set(bodySubjectAtom, 'patient')
 })
 
 // ── Room ──────────────────────────────────────────────────────────────────────
@@ -540,6 +587,11 @@ export const resetSessionAtom = atom(null, (_get, set) => {
     spirit:  { value: 100, max: 100 },
   })
   set(handsAtom, { left: '', right: '' })
+  set(bodyInjuriesAtom, {})
+  set(patientBodyAtom, null)
+  set(bodySubjectAtom, 'character')
+  _touchName = null
+  _touchBuf  = []
   set(indicatorsAtom, {})
   set(expAtom, { skills: [], tdps: 0, favors: 0 })
   set(activeSpellAtom, '')
@@ -649,6 +701,9 @@ export const dispatchGameEventAtom = atom(
         if (event.stream === 'main') {
           const md = parseGameMove(event.text)
           if (md) _gameMove = { dir: md, move: md, ts: Date.now() }
+          // Buffer a pending TOUCH assessment (parsed on the next prompt). The
+          // lines still flow to the main output; we just also collect them.
+          if (_touchName) _touchBuf.push(event.text)
         }
         // Silent VERB LIST sweep — capture single-token verb lines, suppress from output
         if (_verbCapture) {
@@ -819,8 +874,15 @@ export const dispatchGameEventAtom = atom(
             if (!isHandUpdate && !_silentExpBatch) {
               // DR's server-wide death broadcast reads "* NAME was just struck
               // down at LOCATION!" — the "just" (and other death verbs) must not
-              // break the match, or the death never reaches the Deaths panel.
-              const DEATH_RE = /\*\s+.+?\s+(?:was (?:just )?(?:struck down|slain|killed|vanquished|destroyed)|died|perished|succumbed|fell lifeless)\b|you have died|you are dead/i
+              // break the match, or the death never reaches the Deaths panel. The
+              // verb phrases follow the official templates on Elanthipedia's
+              // "Character Death Messaging" page (struck down / disintegrated /
+              // cremated / burned alive / turned into an ice statue / crystallized /
+              // starved to death / purged by the Hounds of Rutilor / lost to the
+              // Plane of Exile / smote by / fed …self to Maelshyve). Note "entered
+              // the Void" is NOT a death; the present-tense "disintegrates into
+              // nothingness" is a creature despawn — both intentionally excluded.
+              const DEATH_RE = /\*\s+.+?\s+(?:was (?:just )?(?:struck down|slain|killed|vanquished|destroyed|cremated|burned alive|turned into an ice statue)|has been crystallized|(?:just )?disintegrated|starved to death|was purged by the hounds|was lost to the plane|was smote by|fed (?:him|her|them)self to maelshyve|died|perished|succumbed|fell lifeless)\b|you have died|you are dead/i
               if (isAtmospheric(event.text)) {
                 // Atmospheric-item messages have no stream tag in DR; matched by
                 // text and routed to the Atmo panel only (suppressed from main).
@@ -828,9 +890,11 @@ export const dispatchGameEventAtom = atom(
               } else if (DEATH_RE.test(event.text)) {
                 // Deaths live only in the Deaths panel — suppress from main output.
                 set(deathsAtom, [...get(deathsAtom).slice(-199), line])
-              } else if (LOGON_RE.test(event.text) || LOGOFF_RE.test(event.text)) {
+              } else if (/^\*\s/.test(event.text) && (LOGON_RE.test(event.text) || LOGOFF_RE.test(event.text))) {
                 // Logon/logoff/disconnect "* …" broadcasts live only in the
                 // Connections panel — suppress from main output (they're spammy).
+                // Gated on the leading "*" so the loose wording matches can't grab
+                // ordinary chat that mentions adventures/shadows/home.
                 const kind = LOGOFF_RE.test(event.text) ? 'off' : 'on'
                 const text = event.text.replace(/^\*\s+/, '')   // drop the "* " broadcast prefix
                 set(logonLinesAtom, [...get(logonLinesAtom).slice(-199), { id: lineId++, text, timestamp: Date.now(), kind }])
@@ -960,6 +1024,11 @@ export const dispatchGameEventAtom = atom(
         break
       }
 
+      case 'injuries':
+        // A complete snapshot of the character's wounds/scars — replace wholesale.
+        set(bodyInjuriesAtom, injuriesFromImages(event.images))
+        break
+
       case 'indicator':
         set(indicatorsAtom, { ...get(indicatorsAtom), [event.id]: event.active })
         break
@@ -984,6 +1053,16 @@ export const dispatchGameEventAtom = atom(
         break
 
       case 'prompt':
+        // A TOUCH response lands as one server message ending in this prompt.
+        // Parse the buffered lines into the patient's wounds — but only once at
+        // least one line has arrived, so an unrelated prompt (vitals fire often)
+        // between sending `touch` and the reply doesn't close an empty capture.
+        if (_touchName && _touchBuf.length > 0) {
+          const name = _touchName
+          set(patientBodyAtom, { name, injuries: injuriesFromTouch(_touchBuf) })
+          _touchName = null
+          _touchBuf  = []
+        }
         // Commit any accumulated active-spell snapshot (a contiguous run of
         // "Name (N roisaen)" lines, or an empty batch from a percClear with no
         // spells left) as the complete new list.

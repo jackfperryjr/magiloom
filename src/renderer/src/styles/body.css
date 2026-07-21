@@ -1,0 +1,142 @@
+/* ── Body / Health panel ──────────────────────────────────────────────────── */
+.body-panel { padding: 6px 8px 8px; }
+
+.body-panel-head {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+
+/* Character | Patient segmented toggle */
+.body-toggle { display: inline-flex; border: 1px solid var(--border-soft); border-radius: 6px; overflow: hidden; }
+.body-toggle-btn {
+  background: var(--bg-input); color: var(--text-dim); border: none;
+  font-family: var(--font-ui); font-size: 12px; padding: 3px 10px; cursor: pointer;
+}
+.body-toggle-btn + .body-toggle-btn { border-left: 1px solid var(--border-soft); }
+.body-toggle-btn:hover { color: var(--text-main); }
+.body-toggle-active { background: var(--accent-dim); color: var(--text-bright); }
+
+.body-expand-btn {
+  margin-left: auto; background: none; border: 1px solid var(--border-soft);
+  color: var(--text-dim); border-radius: 5px; cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 3px 6px;
+}
+.body-expand-btn:hover { color: var(--accent); border-color: var(--border); }
+
+.body-subject-name {
+  font-size: 12px; color: var(--text-muted); text-align: center; margin-bottom: 2px;
+}
+.body-subject-name-lg { font-size: 15px; margin-bottom: 8px; }
+
+/* ── The figure ────────────────────────────────────────────────────────────── */
+.body-figure { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.body-svg { width: 100%; max-width: 150px; height: auto; display: block; }
+
+.body-region path,
+.body-region ellipse,
+.body-region circle,
+.body-region rect {
+  stroke: var(--body-outline); stroke-width: 2; stroke-linejoin: round;
+  transition: fill 0.25s ease, filter 0.15s ease;
+}
+.body-region:hover path,
+.body-region:hover ellipse,
+.body-region:hover circle,
+.body-region:hover rect {
+  stroke: var(--accent); stroke-width: 2.5;
+}
+.body-region-active { cursor: pointer; }
+.body-region-active:hover { filter: brightness(1.15); }
+
+/* Severe wounds pulse for attention */
+.body-region-severe { animation: body-pulse 1.6s ease-in-out infinite; }
+@keyframes body-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+/* Plush detailing: a dashed center stitch seam + a soft head highlight. */
+.body-seam { stroke: var(--body-outline); stroke-width: 1.3; stroke-dasharray: 3 3; stroke-linecap: round; opacity: 0.55; }
+.body-gloss { fill: #ffffff; opacity: 0.14; }
+
+.body-scar { stroke: rgba(255,255,255,0.35); stroke-width: 0.5; }
+
+/* Back + nervous-system chips (no place on a front silhouette) */
+.body-chips { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.body-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--bg-input); border: 1px solid var(--border-soft);
+  border-radius: 12px; padding: 2px 9px 2px 5px; color: var(--text-muted);
+  font-family: var(--font-ui); font-size: 11px;
+}
+.body-chip-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid var(--border); }
+.body-chip-label { line-height: 1; }
+
+/* ── Legend ────────────────────────────────────────────────────────────────── */
+.body-legend {
+  display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: center;
+  margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border-soft);
+}
+.body-legend-item { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-dim); }
+.body-legend-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.body-legend-scar { transform: rotate(45deg); border-radius: 1px; }
+
+/* ── Patient empty / load ──────────────────────────────────────────────────── */
+.body-patient-empty { text-align: center; padding: 4px; }
+.body-patient-load { display: flex; gap: 6px; justify-content: center; }
+.body-patient-input {
+  background: var(--bg-input); border: 1px solid var(--border-soft); color: var(--text-main);
+  border-radius: 5px; padding: 4px 8px; font-family: var(--font-ui); font-size: 12px; min-width: 120px;
+}
+.body-patient-btn {
+  background: var(--accent-dim); border: 1px solid var(--border-soft); color: var(--text-bright);
+  border-radius: 5px; padding: 4px 10px; font-family: var(--font-ui); font-size: 12px; cursor: pointer;
+}
+.body-patient-btn:hover:not(:disabled) { border-color: var(--accent); }
+.body-patient-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* Subtle text button for the "or load a sample" preview link. */
+.body-sample-link {
+  display: block; margin: 8px auto 0; background: none; border: none;
+  color: var(--text-dim); font-family: var(--font-ui); font-size: 11px;
+  text-decoration: underline; cursor: pointer;
+}
+.body-sample-link:hover { color: var(--accent); }
+
+/* ── Pop-out overlay (enlarged, like the map) ─────────────────────────────────── */
+.body-overlay-backdrop {
+  position: fixed; inset: 0; z-index: 500; background: var(--bg-overlay);
+  display: flex; align-items: center; justify-content: center;
+}
+.body-overlay {
+  position: relative; width: min(90vw, 480px); height: min(88vh, 720px);
+  background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.6);
+}
+.body-overlay-head {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.body-overlay-title { font-size: 14px; font-weight: 600; color: var(--text-main); }
+.body-overlay-spacer { flex: 1; }
+.body-overlay-body {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px 20px;
+}
+.body-overlay-figure { width: 100%; display: flex; justify-content: center; }
+.body-overlay-figure .body-svg { max-width: 260px; }
+
+/* ── Empath take actions (patient view, panel + overlay) ──────────────────────── */
+.body-actions {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 8px; margin-top: 10px;
+}
+.body-take-all-btn {
+  background: var(--accent); color: #14102e; border: 1px solid var(--accent);
+  border-radius: 5px; padding: 4px 12px; font-family: var(--font-ui); font-size: 12px;
+  font-weight: 600; cursor: pointer;
+}
+.body-take-all-btn:hover { filter: brightness(1.08); }
+.body-flash { flex-basis: 100%; text-align: center; font-size: 11px; color: var(--accent); }
+.body-overlay-hint {
+  margin-top: 10px; font-size: 11px; color: var(--text-dim); text-align: center; max-width: 320px;
+}
+.body-overlay-hint code { font-family: var(--font-game); color: var(--text-muted); }

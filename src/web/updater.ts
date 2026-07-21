@@ -11,7 +11,7 @@
 declare const __BUILD_ID__: string
 const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev'
 
-type ReadyCb = () => void
+type ReadyCb = (info?: { fromLaunch?: boolean }) => void
 type AvailCb = (version: string) => void
 const readyCbs = new Set<ReadyCb>()
 const availCbs = new Set<AvailCb>()
@@ -27,8 +27,10 @@ async function check(): Promise<void> {
     const data = (await res.json()) as { build?: string }
     if (data.build && data.build !== BUILD_ID) {
       newBuild = data.build
+      // Web only ever finds updates while running (runtime poll / foreground), so
+      // they surface in the panel rail, never the title bar → fromLaunch: false.
       availCbs.forEach(cb => cb(newBuild!))
-      readyCbs.forEach(cb => cb())
+      readyCbs.forEach(cb => cb({ fromLaunch: false }))
     }
   } catch { /* offline / network hiccup — try again next foreground */ }
 }
@@ -48,6 +50,6 @@ export const webUpdater = {
   check:   () => { void check(); return Promise.resolve() },
   install: () => { window.location.reload(); return Promise.resolve() },
   onAvailable: (cb: AvailCb) => { availCbs.add(cb); if (newBuild) cb(newBuild); return () => { availCbs.delete(cb) } },
-  onReady:     (cb: ReadyCb) => { readyCbs.add(cb); if (newBuild) cb();         return () => { readyCbs.delete(cb) } },
+  onReady:     (cb: ReadyCb) => { readyCbs.add(cb); if (newBuild) cb({ fromLaunch: false }); return () => { readyCbs.delete(cb) } },
   onError:     (_cb: (m: string) => void) => () => {},
 }

@@ -186,7 +186,7 @@ function createWindow(): void {
     send('lich:status', lichManager.getStatus())
     // Replay any update events that fired before the renderer was ready
     if (pendingUpdateVersion) send('updater:available', pendingUpdateVersion)
-    if (updateDownloaded)     send('updater:ready')
+    if (updateDownloaded)     send('updater:ready', { fromLaunch: downloadedFromLaunch })
   })
 }
 
@@ -214,6 +214,11 @@ app.on('window-all-closed', () => {
 // Track update state so we can replay to renderer after it loads
 let pendingUpdateVersion = ''
 let updateDownloaded     = false
+// Distinguish an update found by the initial launch check (surfaced in the title
+// bar, like the old desktop behaviour) from one found by a later background poll
+// while the app is already running (surfaced in the panel rail, like the web app).
+let polledSinceLaunch    = false
+let downloadedFromLaunch = false
 
 function setupUpdater(): void {
   autoUpdater.autoDownload         = true
@@ -227,7 +232,8 @@ function setupUpdater(): void {
   })
   autoUpdater.on('update-downloaded', () => {
     updateDownloaded = true
-    send('updater:ready')
+    downloadedFromLaunch = !polledSinceLaunch
+    send('updater:ready', { fromLaunch: downloadedFromLaunch })
   })
   autoUpdater.on('error', (err) => {
     // Update checks fail for all sorts of transient reasons (offline, DNS blip,
@@ -243,7 +249,7 @@ function setupUpdater(): void {
   // update indicator (updater:available / updater:ready), not the game output.
   const UPDATE_POLL_INTERVAL = app.isPackaged ? 30 * 60 * 1000 : 10 * 1000
   autoUpdater.checkForUpdates()
-  setInterval(() => autoUpdater.checkForUpdates(), UPDATE_POLL_INTERVAL)
+  setInterval(() => { polledSinceLaunch = true; autoUpdater.checkForUpdates() }, UPDATE_POLL_INTERVAL)
 }
 
 function setupIpcHandlers(): void {

@@ -19,6 +19,7 @@ import {
 } from './components/layout/PanelContent'
 import { MapPanel } from './components/map/MapPanel'
 import { SkyPanel } from './components/layout/SkyPanel'
+import { BodyPanel, BodyOverlay } from './components/game/BodyPanel'
 import { MapOverlay } from './components/map/MapOverlay'
 import {
   echoCommandAtom, beginSilentExpAtom, appendSystemLineAtom, tickAtom,
@@ -32,7 +33,7 @@ import {
 import { DEFAULT_HIGHLIGHTS, type Highlight } from './lib/themes'
 import { loadCharAppearance, applyAppearance } from './lib/charSettings'
 import { anchorsFromFeed } from './lib/moons'
-import { IconExclamationTriangle } from './components/ui/Icons'
+import { IconExclamationTriangle, IconArrowDownTray } from './components/ui/Icons'
 import { Tooltip } from './components/ui/Tooltip'
 import { GlobalTooltip } from './components/ui/GlobalTooltip'
 import './styles/global.css'
@@ -319,6 +320,7 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
 
   const [showHighlights, setShowHighlights] = useState(false)
   const [showMap,        setShowMap]        = useState(false)
+  const [showBody,       setShowBody]       = useState(false)
   const [sidebarWidth,   setSidebarWidth]   = useState<number | null>(null)
   const [functionKeys,   setFunctionKeys]   = useState<Record<string, string>>({})
   const appendSystemLine = useSetAtom(appendSystemLineAtom)
@@ -421,6 +423,7 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
   // receive layout-local handlers: click-to-walk and the pop-out toggle.
   const renderPanelWithLich = useCallback((id: PanelId) => {
     if (id === 'map') return <MapPanel onNodeClick={automap.walkTo} onStopWalk={automap.stopWalk} onExpand={() => setShowMap(true)} />
+    if (id === 'body') return <BodyPanel onExpand={() => setShowBody(true)} />
     return renderPanel(id)
   }, [automap])
 
@@ -478,25 +481,36 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
       </div>
       {showHighlights && <HighlightsModal onClose={handleHighlightsClose} charName={charName} />}
       {showMap && <MapOverlay onClose={() => setShowMap(false)} onWalkTo={automap.walkTo} onStopWalk={automap.stopWalk} />}
+      {showBody && <BodyOverlay onClose={() => setShowBody(false)} />}
       <NotificationCenter charName={charName} status={status} />
       <GlobalTooltip />
     </div>
   )
 }
 
-// ── Offline icon (title bar) ──────────────────────────────────────────────────
+// ── Title-bar icons (offline + launch-time update) ───────────────────────────
 // The red triangle means "no internet connection" (driven by navigator.onLine).
-// "Update available" now lives at the bottom of the panel rail on every platform
-// (see PanelSidebar), so the title bar only carries the offline indicator.
-function UpdateIcon({ offline }: { offline: boolean }) {
-  if (!offline) return null
-  return (
+// An update found by the desktop's initial LAUNCH check shows here as a clickable
+// download icon (the classic desktop spot). Updates found later while running —
+// a background poll, or any web-build check — go to the panel rail instead (see
+// PanelSidebar). Offline wins if both are true (can't update while offline).
+function UpdateIcon({ offline, updateReady }: { offline: boolean; updateReady: boolean }) {
+  if (offline) return (
     <Tooltip text="No internet connection">
       <button className="update-icon-btn update-error" disabled aria-label="Offline">
         <IconExclamationTriangle size={15} />
       </button>
     </Tooltip>
   )
+  if (updateReady) return (
+    <Tooltip text="Update available — click to apply">
+      <button className="update-icon-btn update-available" aria-label="Update available — click to apply"
+              onClick={() => window.dr.updater.install()}>
+        <IconArrowDownTray size={15} />
+      </button>
+    </Tooltip>
+  )
+  return null
 }
 
 // Brief web-only splash shown at startup while AppInner waits to learn whether the
@@ -518,6 +532,9 @@ function AppInner() {
   const [accountName,   setAccountName]   = useState('')
   const [showSettings,  setShowSettings]  = useState(false)
   const [offline,       setOffline]       = useState(!navigator.onLine)
+  // A launch-check update (desktop) surfaces in the title bar; a while-running update
+  // (poll / web) is filtered to the panel rail (see PanelSidebar).
+  const [launchUpdate,  setLaunchUpdate]  = useState(false)
   // Web only: after a reload (e.g. applying an update) the server may still hold this
   // client's live session, so start by waiting to resume rather than flashing login.
   const [resuming,      setResuming]      = useState(window.dr.app.platform === 'web')
@@ -530,7 +547,9 @@ function AppInner() {
     return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update) }
   }, [])
 
-  const updateSlot = <UpdateIcon offline={offline} />
+  useEffect(() => window.dr.updater.onReady(info => { if (info?.fromLaunch) setLaunchUpdate(true) }), [])
+
+  const updateSlot = <UpdateIcon offline={offline} updateReady={launchUpdate} />
 
   const enterGame = (name: string, account: string, watch = false) => { setCharName(name); setAccountName(account); setWatching(watch); setInGame(true); setShowReconnect(false) }
   // Leave a watched session: detach (reconnect to our own bucket) and return to the
