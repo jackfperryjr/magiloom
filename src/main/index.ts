@@ -292,6 +292,16 @@ function setupIpcHandlers(): void {
   ipcMain.handle('logs:list', () => logStore.listFiles())
   ipcMain.handle('logs:read', (_e, name: string) => logStore.readFile(name))
 
+  // Sky panel: the community moon rise/set feed (dr-scripts `moonwatch`). Fetched in
+  // main to sidestep the renderer's CSP; returns null on any failure (panel then just
+  // waits for the passive rise/set lines to seed it).
+  ipcMain.handle('moons:fetch', async () => {
+    try {
+      const res = await fetch('https://dr-scripts.firebaseio.com/moon_data_v2.json')
+      return res.ok ? await res.json() : null
+    } catch { return null }
+  })
+
   ipcMain.handle('avatar:enabled', () => isAvatarServiceEnabled())
   ipcMain.handle('avatar:get',     (_e, name: string) => getAvatar(name))
   ipcMain.handle('avatar:publish', (_e, charName: string, dataUrl: string) => publishAvatar(settings, charName, dataUrl))

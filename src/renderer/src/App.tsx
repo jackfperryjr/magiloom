@@ -22,7 +22,7 @@ import { SkyPanel } from './components/layout/SkyPanel'
 import { MapOverlay } from './components/map/MapOverlay'
 import {
   echoCommandAtom, beginSilentExpAtom, appendSystemLineAtom, tickAtom,
-  beginSilentSkySeedAtom, endSilentSkySeedAtom,
+  beginSilentSkySeedAtom, endSilentSkySeedAtom, setMoonAnchorsAtom,
   combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom, inventoryLinesAtom,
   verbRawAtom, beginVerbCapture, endVerbCapture,
   avatarsAtom, avatarCropsAtom, selfNameAtom, resetSessionAtom,
@@ -31,6 +31,7 @@ import {
 } from './store/game'
 import { DEFAULT_HIGHLIGHTS, type Highlight } from './lib/themes'
 import { loadCharAppearance, applyAppearance } from './lib/charSettings'
+import { anchorsFromFeed } from './lib/moons'
 import { IconExclamationTriangle } from './components/ui/Icons'
 import { Tooltip } from './components/ui/Tooltip'
 import { GlobalTooltip } from './components/ui/GlobalTooltip'
@@ -221,6 +222,7 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
   const beginSilentExp   = useSetAtom(beginSilentExpAtom)
   const beginSilentSkySeed = useSetAtom(beginSilentSkySeedAtom)
   const endSilentSkySeed   = useSetAtom(endSilentSkySeedAtom)
+  const setMoonAnchors     = useSetAtom(setMoonAnchorsAtom)
   const setTick          = useSetAtom(tickAtom)
 
   const setCombat    = useSetAtom(combatLinesAtom)
@@ -288,6 +290,18 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
     ]
     return () => timers.forEach(window.clearTimeout)
   }, [status, send, beginSilentSkySeed, endSilentSkySeed])
+
+  // Sky panel moons: on connect, seed each moon's rise/set anchor once from the
+  // community feed (dr-scripts `moonwatch`). After this the passive rise/set lines in
+  // dispatch keep it current. Desktop-only (window.dr.moons); harmless no-op on web.
+  useEffect(() => {
+    if (status !== 'connected') return
+    let cancelled = false
+    window.dr.moons?.fetch()
+      .then(feed => { if (!cancelled && feed) setMoonAnchors(anchorsFromFeed(feed)) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [status, setMoonAnchors])
 
   // Poll `weather` every minute so the overlay self-heals if an ambient transition
   // message was missed (e.g. it was already snowing when you stepped outdoors). RT-

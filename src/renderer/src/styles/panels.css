@@ -359,6 +359,7 @@
 .sky-panel { position: relative; padding: 2px; }
 .sky-scene { width: 100%; height: auto; display: block; }
 .sun-glow { filter: blur(3px); }
+.moon-glow { filter: blur(2.5px); }
 /* Labels tucked into the dome's empty upper corners. The shadow keeps them legible
    where a long label grazes the (light, at midday) dome. */
 .sky-corner { position: absolute; top: 6px; pointer-events: none; line-height: 1.2; text-shadow: 0 1px 3px rgba(0, 0, 0, .8), 0 0 2px rgba(0, 0, 0, .6); }
@@ -370,3 +371,8 @@
    idea as the app-title parchment fix in titlebar.css). */
 [data-theme="parchment"] .sky-corner { text-shadow: 0 0 3px rgba(255, 255, 255, .85), 0 1px 1px rgba(255, 255, 255, .7); }
 .sky-panel-hint { font-size: 12px; color: var(--text-dim); padding: 10px 2px; font-style: italic; text-align: center; }
+/* Moon rise/set timers under the dome — one small chip per known moon. */
+.sky-moons { display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: center; padding: 5px 4px 3px; }
+.sky-moon-chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-ui); font-size: 11px; color: var(--text-main); }
+.sky-moon-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.sky-moon-when { color: var(--text-muted); }

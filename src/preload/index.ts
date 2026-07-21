@@ -45,6 +45,9 @@ contextBridge.exposeInMainWorld('dr', {
     list: ()             => ipcRenderer.invoke('logs:list'),
     read: (name: string) => ipcRenderer.invoke('logs:read', name)
   },
+  moons: {
+    fetch: () => ipcRenderer.invoke('moons:fetch')
+  },
   script: {
     list:       ()                          => ipcRenderer.invoke('script:list'),
     running:    ()                          => ipcRenderer.invoke('script:running'),
