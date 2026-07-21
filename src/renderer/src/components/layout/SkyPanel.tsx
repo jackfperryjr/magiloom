@@ -92,6 +92,9 @@ export function SkyPanel() {
   const labelColor  = lerpHex('#ecebff', '#141a2e', dl)
   const labelStyle  = { color: labelColor }
   const starOpacity = Math.max(0, Math.min(1, 1 - sky.daylight * 1.3))
+  // Nudge the moons' colour saturation up a touch — more so by day — so their tint
+  // still reads against the bright daytime dome instead of washing out to grey.
+  const moonSat = (1.15 + 0.55 * sky.daylight).toFixed(2)
   // Sun on its arc: t=0 east horizon, t=0.5 zenith, t=1 west horizon.
   const t = sky.dayProgress
   const sunUp = sky.isDay && t >= 0 && t <= 1
@@ -162,7 +165,7 @@ export function SkyPanel() {
           return (
             <g key={m.name} opacity={0.6 + 0.4 * starOpacity}
                data-tooltip={`${m.name} — ${arcWord(m.arc)}; sets in ${inWhen(m.msToEvent)}`}
-               style={{ cursor: 'help' }}>
+               style={{ cursor: 'help', filter: `saturate(${moonSat})` }}>
               <circle cx={mx} cy={my} r={MOON_R * 1.9} fill={meta.glow} opacity=".4" className="moon-glow" />
               <circle cx={mx} cy={my} r={MOON_R} fill={meta.color} />
               {CRATERS.map(([dx, dy, cr], i) => (

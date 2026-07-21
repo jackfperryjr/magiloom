@@ -26,6 +26,8 @@
 }
 .toast-mention    { border-left-color: var(--accent); }
 .toast-whisper    { border-left-color: var(--color-whisper); }
+.toast-message    { border-left-color: var(--color-bonus); }
+.toast-message .toast-title { color: var(--color-bonus); }
 .toast-disconnect { border-left-color: var(--color-warning); }
 .toast-custom     { border-left-color: #f5b544; }
 .toast-custom .toast-title { color: #f5b544; }

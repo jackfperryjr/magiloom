@@ -37,6 +37,7 @@ interface AppSettings {
     mention:    boolean
     whisper:    boolean
     disconnect: boolean
+    message:    boolean   // Magiloom character-to-character messages
     ttsMention?: boolean
     ttsWhisper?: boolean
   }
@@ -55,6 +56,7 @@ interface AppSettings {
     whisper: boolean
     speech:  boolean
     thought: boolean
+    message: boolean   // Magiloom character-to-character messages
   }
   // Legacy global logging flag — now per character (CharSettings.logging); kept
   // only as the fallback default for setups saved before the split.
