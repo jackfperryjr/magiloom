@@ -2,6 +2,7 @@ import { wsUrl, setWatch } from './config'
 import * as account from './auth'
 import { enablePush } from './push'
 import { webUpdater } from './updater'
+import { MOON_FEED_URL } from '../renderer/src/lib/moons'
 
 // App version, baked in at build time from package.json (vite.web.config.ts) — the
 // same source the desktop ships. Avoids a manually-maintained server-side version var.
@@ -166,6 +167,15 @@ export function installDr(): void {
     logs: {
       list: ()             => t.invoke('logs:list'),
       read: (name: string) => t.invoke('logs:read', name),
+    },
+    // Sky-panel moon feed: fetched straight from the browser (Firebase reflects the
+    // Origin, so cross-origin GET is allowed) rather than proxied through the server.
+    // Mirrors the desktop `moons:fetch` contract — resolves the feed JSON, or null.
+    moons: {
+      fetch: async () => {
+        try { const r = await fetch(MOON_FEED_URL); return r.ok ? await r.json() : null }
+        catch { return null }
+      },
     },
     script: {
       list:       () => t.invoke('script:list'),
