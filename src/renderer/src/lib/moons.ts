@@ -125,3 +125,61 @@ export function litPath(cx: number, cy: number, r: number, illum: number, waxing
   const sweepTerm = gibbous ? sweepLimb : 1 - sweepLimb
   return `M ${cx},${cy - r} A ${r},${r} 0 0 ${sweepLimb} ${cx},${cy + r} A ${rx},${r} 0 0 ${sweepTerm} ${cx},${cy - r} Z`
 }
+
+// ── Rise/set position model (ported from Lich moonwatch) ─────────────────────────
+// Unlike PHASE (above), a moon's rise/set timing IS deterministic: it's up for a
+// fixed span after rising, then down until it rises again. The spans below are the
+// community-fit averages from elanthia-online/dr-scripts `moonwatch.lic` (minutes →
+// ms). Given one known event we can project the whole timeline with no polling — and
+// every character standing outdoors witnesses the passive rise/set lines that
+// re-anchor it (see `moonEventFromLine`), so this needs no Moon Mage/Trader command.
+const UP_MS:   Record<MoonName, number> = { Xibar: 172 * 60_000, Katamba: 174 * 60_000, Yavash: 175 * 60_000 }
+const DOWN_MS: Record<MoonName, number> = { Xibar: 174 * 60_000, Katamba: 177 * 60_000, Yavash: 177 * 60_000 }
+
+// The last known rise/set event for a moon — the anchor the timeline is projected from.
+export interface MoonAnchor { event: 'rise' | 'set'; at: number }  // `at` is epoch-ms
+
+// A moon's live position derived from its anchor: whether it's above the horizon, how
+// far along its east→west arc it is (only meaningful while visible), and the ms until
+// its next event (set if up, rise if down).
+export interface MoonPosition { name: MoonName; visible: boolean; arc: number; msToEvent: number }
+
+export function computeMoonPosition(name: MoonName, anchor: MoonAnchor, now = Date.now()): MoonPosition {
+  const up = UP_MS[name], down = DOWN_MS[name], cycle = up + down
+  // Reduce the anchor to "ms since the most recent rise" (a set event means it rose
+  // `up` ago), then fold onto the cycle. t < up ⇒ currently visible.
+  const sinceRise = anchor.event === 'rise' ? now - anchor.at : now - (anchor.at - up)
+  const t = ((sinceRise % cycle) + cycle) % cycle
+  return t < up
+    ? { name, visible: true,  arc: t / up, msToEvent: up - t }
+    : { name, visible: false, arc: 0,      msToEvent: cycle - t }
+}
+
+// The community rise/set feed moonwatch reads (world-readable Firebase): keys k/x/y,
+// each { e: 1=rise | 0=set, t: unix-seconds }. Its `s` (sun) entry is ignored — our
+// own Elanthian clock drives day/night. Fetched once on connect to seed the anchors
+// before the character has witnessed any live rise/set line.
+export interface MoonFeed { k?: MoonFeedEntry; x?: MoonFeedEntry; y?: MoonFeedEntry }
+interface MoonFeedEntry { e?: number; t?: number }
+export const MOON_FEED_URL = 'https://dr-scripts.firebaseio.com/moon_data_v2.json'
+const FEED_KEY: Record<MoonName, 'k' | 'x' | 'y'> = { Katamba: 'k', Xibar: 'x', Yavash: 'y' }
+
+export function anchorsFromFeed(feed: MoonFeed | null | undefined): Partial<Record<MoonName, MoonAnchor>> {
+  const out: Partial<Record<MoonName, MoonAnchor>> = {}
+  if (!feed) return out
+  for (const { name } of MOONS) {
+    const e = feed[FEED_KEY[name]]
+    if (e && typeof e.t === 'number') out[name] = { event: e.e === 1 ? 'rise' : 'set', at: e.t * 1000 }
+  }
+  return out
+}
+
+// The passive rise/set broadcasts anyone outdoors sees — the live re-anchor signal.
+// Line matchers ported verbatim from moonwatch.lic.
+const MOON_RISE_RE = /^(Katamba|Xibar|Yavash) slowly rises/
+const MOON_SET_RE  = /^(Katamba|Xibar|Yavash) sets\b/
+export function moonEventFromLine(text: string, now = Date.now()): { name: MoonName; anchor: MoonAnchor } | null {
+  const r = text.match(MOON_RISE_RE); if (r) return { name: r[1] as MoonName, anchor: { event: 'rise', at: now } }
+  const s = text.match(MOON_SET_RE);  if (s) return { name: s[1] as MoonName, anchor: { event: 'set',  at: now } }
+  return null
+}

@@ -4,6 +4,7 @@ import { parseExpSkills } from '../lib/exp-parser'
 import { isAtmospheric } from '../lib/atmospherics'
 import { feedTimeLine, computeSky, isTimeReportLine, type SkyCalibration, type SkyState } from '../lib/elanthianTime'
 import { weatherFromLine, CLEAR, type WeatherState } from '../lib/weather'
+import { MOONS, computeMoonPosition, moonEventFromLine, type MoonName, type MoonAnchor, type MoonPosition } from '../lib/moons'
 import type { AvatarCrop } from '../lib/avatar'
 
 export type { StreamId }
@@ -398,6 +399,23 @@ export const skyAtom = atom<SkyState | null>(get => {
   return cal ? computeSky(Date.now(), cal) : null
 })
 
+// Moon rise/set tracking (ported from Lich `moonwatch`). moonAnchorsAtom holds the
+// last known rise/set event per moon — seeded once from the community feed on connect
+// (App.tsx) and re-anchored live by the passive rise/set lines caught in dispatch.
+// moonsAtom derives each moon's live position/visibility off tickAtom, deterministic
+// with no polling. See lib/moons.ts.
+export const moonAnchorsAtom = atom<Partial<Record<MoonName, MoonAnchor>>>({})
+export const moonsAtom = atom<MoonPosition[]>(get => {
+  get(tickAtom)  // recompute each second so arc + countdowns advance live
+  const anchors = get(moonAnchorsAtom)
+  const now = Date.now()
+  return MOONS.map(m => m.name).filter(n => anchors[n]).map(n => computeMoonPosition(n, anchors[n]!, now))
+})
+// Merge new anchors (the feed seed, or a single passive event) into the map.
+export const setMoonAnchorsAtom = atom(null, (get, set, patch: Partial<Record<MoonName, MoonAnchor>>) => {
+  set(moonAnchorsAtom, { ...get(moonAnchorsAtom), ...patch })
+})
+
 // True while the connect-time seed is fetching TIME/weather silently, so their
 // report lines are suppressed from the main output (set/cleared from App).
 let _skySeedSilent = false
@@ -530,6 +548,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(castTimeAtom, 0)
   set(weatherAtom, CLEAR)
   set(skyCalibrationAtom, null)
+  set(moonAnchorsAtom, {})
   set(profilesAtom, {})
   set(selfNameAtom, '')
   // Note: serverAvatarsAtom is NOT reset — it's a name-keyed cache of shared
@@ -687,6 +706,10 @@ export const dispatchGameEventAtom = atom(
           if (inside) set(weatherAtom, CLEAR)
           const cal = feedTimeLine(text)
           if (cal) set(skyCalibrationAtom, cal)
+          // Passive moon rise/set broadcast → re-anchor that moon's timeline. The line
+          // stays visible in main (like weather); it only updates the Sky panel.
+          const me = moonEventFromLine(text)
+          if (me) set(moonAnchorsAtom, { ...get(moonAnchorsAtom), [me.name]: me.anchor })
 
           // The `weather` command prints "You glance up at the sky." then a state line
           // whose clear-sky wording varies a lot ("The sky is a sharp, clear blue."). We

@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 import type { MapDB, Zone } from './lib/mapModel'
+import type { MoonFeed } from './lib/moons'
 
 interface SGECharacter  { id: string; name: string }
 interface SGEInstance   { code: string; name: string }
@@ -120,6 +121,11 @@ interface DrAPI {
   logs: {
     list: () => Promise<LogFileEntry[]>
     read: (name: string) => Promise<{ name: string; content: string; size: number; truncated: boolean }>
+  }
+  // Community moon rise/set feed for the Sky panel (desktop only — the web build omits
+  // it, so gate usage on `window.dr.moons`). See lib/moons.ts.
+  moons?: {
+    fetch: () => Promise<MoonFeed | null>
   }
   script: {
     list:       () => Promise<string[]>
