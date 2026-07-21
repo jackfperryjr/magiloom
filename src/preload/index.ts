@@ -1,5 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+// Cache the "update ready" event. The main process replays it on did-finish-load,
+// which runs BEFORE React mounts — so a component that subscribes via onReady in a
+// mount effect would otherwise miss it and never show the icon. We remember the last
+// payload and hand it to any listener that subscribes late.
+type UpdateReadyInfo = { fromLaunch?: boolean }
+let _readyInfo: UpdateReadyInfo | null = null
+ipcRenderer.on('updater:ready', (_e, info: UpdateReadyInfo) => { _readyInfo = info ?? {} })
+
 contextBridge.exposeInMainWorld('dr', {
   settings: {
     getAll:    ()          => ipcRenderer.invoke('settings:get-all'),
@@ -83,7 +91,12 @@ contextBridge.exposeInMainWorld('dr', {
     check:       ()                         => ipcRenderer.invoke('updater:check'),
     install:     ()                         => ipcRenderer.invoke('updater:install'),
     onAvailable: (cb: (v: string) => void) => { const h = (_e: unknown, v: string) => cb(v); ipcRenderer.on('updater:available', h); return () => ipcRenderer.removeListener('updater:available', h) },
-    onReady:     (cb: () => void)           => { ipcRenderer.on('updater:ready', cb); return () => ipcRenderer.removeListener('updater:ready', cb) },
+    onReady:     (cb: (info?: UpdateReadyInfo) => void) => {
+      const h = (_e: unknown, info: UpdateReadyInfo) => cb(info)
+      ipcRenderer.on('updater:ready', h)
+      if (_readyInfo) cb(_readyInfo)   // late subscriber: replay the cached event
+      return () => ipcRenderer.removeListener('updater:ready', h)
+    },
     onError:     (cb: (m: string) => void) => { const h = (_e: unknown, m: string) => cb(m); ipcRenderer.on('updater:error', h); return () => ipcRenderer.removeListener('updater:error', h) }
   },
   game: {

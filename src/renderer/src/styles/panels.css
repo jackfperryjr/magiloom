@@ -322,8 +322,11 @@
   -webkit-app-region: no-drag;
   flex-shrink: 0;
 }
-.update-icon-btn:hover         { background: rgba(255,255,255,0.06); }
-.update-icon-btn.update-error  { color: var(--color-warning); cursor: default; }
+.update-icon-btn:hover             { background: rgba(255,255,255,0.06); }
+.update-icon-btn.update-error      { color: var(--color-warning); cursor: default; }
+/* Launch-time update available — a green download icon, clickable to apply. */
+.update-icon-btn.update-available  { color: var(--color-bonus); cursor: pointer; }
+.update-icon-btn.update-available:hover { background: color-mix(in srgb, var(--color-bonus) 18%, transparent); }
 
 /* ── Deaths panel ────────────────────────────────────────────────────────── */
 /* Connections panel (logons / logoffs) */

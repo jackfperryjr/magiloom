@@ -272,11 +272,12 @@ function PanelRail({ panels, scrollRef, onSelect, openPanel, onManage, manageBtn
     onSelect(id)
   }
 
-  // "Update available" indicator — on every platform now (the title bar carries only
-  // the offline icon). Driven by window.dr.updater: the desktop auto-updater, or the
-  // web build's version-check (src/web/updater.ts). Click → apply (install/reload).
+  // "Update available" indicator for updates found WHILE RUNNING (a background poll,
+  // or the web build's foreground version-check) — these land in the rail. An update
+  // found by the desktop's initial launch check goes to the title bar instead (see
+  // App's UpdateIcon), so it's filtered out here by `fromLaunch`. Click → apply.
   const [updateReady, setUpdateReady] = useState(false)
-  useEffect(() => window.dr.updater.onReady(() => setUpdateReady(true)), [])
+  useEffect(() => window.dr.updater.onReady(info => { if (!info?.fromLaunch) setUpdateReady(true) }), [])
 
   return (
     <nav className="panel-rail">
