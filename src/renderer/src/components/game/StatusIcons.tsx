@@ -5,7 +5,6 @@
 import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react'
 import { useAtomValue } from 'jotai'
 import { indicatorsAtom, roomAtom } from '../../store/game'
-import ragdollSheet from '../../assets/emoji-ragdoll.png'
 
 // Filled wrapper — used for the condition glyphs (default fill = currentColor).
 function FilledSvg({ children, size = 22 }: { children: ReactNode; size?: number }) {
@@ -38,16 +37,17 @@ const SEQ:  Record<Posture, number[]> = {
   prone:    [12, 13, 14, 15],
 }
 
-// Position the sheet so the given frame fills a `size`×`size` box. Scaling is left
-// smooth (NOT image-rendering: pixelated): the 32px frames downscale to ~24px by a
-// non-integer 0.75×, and nearest-neighbour at that ratio drops whole pixel rows and
-// visibly squishes the figure. The art is soft-shaded (not hard pixel art) anyway, so
-// bilinear downscaling keeps its proportions and reads cleanly.
+// Position the sheet so the given frame fills a `size`×`size` box. The sheet image
+// itself is set in CSS (.posture-sprite), keyed per theme so each palette gets its own
+// recoloured ragdoll — see styles/toasts.css. Scaling is left smooth (NOT
+// image-rendering: pixelated): the 32px frames downscale to ~24px by a non-integer
+// 0.75×, and nearest-neighbour at that ratio drops whole pixel rows and visibly squishes
+// the figure. The art is soft-shaded (not hard pixel art) anyway, so bilinear downscaling
+// keeps its proportions and reads cleanly.
 function frameStyle(frame: number, size: number): CSSProperties {
   const col = frame % SHEET_COLS, row = Math.floor(frame / SHEET_COLS)
   return {
     width: size, height: size,
-    backgroundImage: `url(${ragdollSheet})`,
     backgroundSize: `${size * SHEET_COLS}px ${size * SHEET_ROWS}px`,
     backgroundPosition: `${-col * size}px ${-row * size}px`,
   }

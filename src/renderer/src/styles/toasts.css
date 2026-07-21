@@ -225,8 +225,18 @@
 .status-icon.status-posture { opacity: 0.9; position: relative; }
 /* Posture is the emoji-ragdoll spritesheet (one 32px frame shown via background
    position; see StatusIcons.tsx). Scaling is left smooth — nearest-neighbour at the
-   ~0.75x downscale squished the figure (see frameStyle). */
-.posture-sprite { display: inline-block; background-repeat: no-repeat; vertical-align: middle; flex-shrink: 0; }
+   ~0.75x downscale squished the figure (see frameStyle). The sheet is recoloured per
+   theme (each to its --accent) so the figure matches the palette; the default below is
+   the magiloom sheet, overridden per data-theme. Sheets live in styles/themes/. */
+.posture-sprite {
+  display: inline-block; background-repeat: no-repeat; vertical-align: middle; flex-shrink: 0;
+  background-image: url('./themes/emoji-ragdoll-magiloom.png');
+}
+:root[data-theme="bloodstone"] .posture-sprite { background-image: url('./themes/emoji-ragdoll-bloodstone.png'); }
+:root[data-theme="forest"]     .posture-sprite { background-image: url('./themes/emoji-ragdoll-forest.png'); }
+:root[data-theme="parchment"]  .posture-sprite { background-image: url('./themes/emoji-ragdoll-parchment.png'); }
+:root[data-theme="discord"]    .posture-sprite { background-image: url('./themes/emoji-ragdoll-discord.png'); }
+:root[data-theme="ff4"]        .posture-sprite { background-image: url('./themes/emoji-ragdoll-ff4.png'); }
 .status-pop-posture .posture-sprite { margin-right: 2px; }
 /* Active: light up AND stay enlarged so a live status stands out on its own. */
 .status-icon.active-danger { color: var(--color-bold); opacity: 1; transform: scale(1.22); }
