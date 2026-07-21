@@ -184,6 +184,27 @@ interface DrAPI {
     export:     (content: string, defaultName: string) => Promise<{ ok: boolean; path?: string; error?: string }>
     onZoneChanged: (cb: (zone: Zone) => void) => () => void
   }
+  // Magiloom character-to-character messaging (separate from in-game speech). The
+  // actor is the authenticated character; the server rejects these until connected.
+  // Available on the web client; on desktop the handlers are absent until it grows a
+  // messaging transport (gate real use on `messagingAvailable`, store/messaging.ts).
+  contacts: {
+    list:   () => Promise<MagiloomContactBook>
+    add:    (name: string) => Promise<{ ok: boolean; error?: string; autoAccepted?: boolean }>
+    accept: (name: string) => Promise<{ ok: boolean; error?: string }>
+    deny:   (name: string) => Promise<{ ok: boolean }>
+    remove: (name: string) => Promise<{ ok: boolean }>
+    onPresence: (cb: (p: { name: string; online: boolean }) => void) => () => void
+    onRequest:  (cb: (p: { name: string }) => void) => () => void
+    onAdded:    (cb: (p: { name: string; online: boolean }) => void) => () => void
+    onRemoved:  (cb: (p: { name: string }) => void) => () => void
+  }
+  msg: {
+    history:  (peer: string) => Promise<MagiloomMessage[]>
+    send:     (peer: string, body: string) => Promise<{ ok: boolean; error?: string; message?: MagiloomMessage }>
+    markRead: (peer: string) => Promise<void>
+    onReceived: (cb: (m: MagiloomMessage) => void) => () => void
+  }
   // Magiloom account — WEB CLIENT ONLY (the Electron preload omits it). Gate any
   // usage on `window.dr.account` being present. Signing in syncs a user's settings,
   // Lich profiles/custom scripts and avatars across their devices.
@@ -205,6 +226,15 @@ declare global {
   // One game-output log file on disk, e.g. refia-2026-07-09.log (see main/log-store.ts).
   interface LogFileEntry { name: string; char: string; day: string; size: number; mtime: number }
   interface MagiloomAccount { id: string; email: string; tier: 'free' | 'paid' }
+  // Character-to-character messaging wire shapes (mirror magiserver message-store.ts).
+  interface MagiloomMessage { id: string; from: string; to: string; body: string; ts: number; read?: boolean; delivered?: boolean }
+  interface MagiloomContactRef { name: string; since: number }
+  interface MagiloomContactBook {
+    contacts:   MagiloomContactRef[]
+    pendingIn:  MagiloomContactRef[]
+    pendingOut: MagiloomContactRef[]
+    presence:   Record<string, boolean>
+  }
   type AccountAuthResult =
     | { ok: true; account: MagiloomAccount; token: string }
     | { ok: false; error: string }

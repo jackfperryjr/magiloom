@@ -85,15 +85,12 @@ export function SkyPanel() {
 
   const [top, horizon] = skyStops(sky.daylight, sky.dayProgress < 0.5)
   // The corner labels sit over the gradient, so their colour flips with the sky:
-  // near-white ink at night, dark ink by day, crossfading through twilight. The
-  // shadow crossfades too — a dark drop-shadow at night, a light halo by day — so
-  // the text stays legible at every point in the transition. Driven by daylight,
-  // like everything else here (so it's theme-independent — the sky is always this
-  // same gradient regardless of UI theme).
+  // near-white ink at night, dark ink by day, crossfading through twilight. Driven by
+  // daylight, like everything else here (so it's theme-independent — the sky is always
+  // this same gradient regardless of UI theme). No shadow — it hurt readability.
   const dl = sky.daylight
   const labelColor  = lerpHex('#ecebff', '#141a2e', dl)
-  const labelShadow = `0 1px 2px rgba(0,0,0,${(0.7 * (1 - dl)).toFixed(2)}), 0 0 3px rgba(255,255,255,${(0.85 * dl).toFixed(2)})`
-  const labelStyle  = { color: labelColor, textShadow: labelShadow }
+  const labelStyle  = { color: labelColor }
   const starOpacity = Math.max(0, Math.min(1, 1 - sky.daylight * 1.3))
   // Sun on its arc: t=0 east horizon, t=0.5 zenith, t=1 west horizon.
   const t = sky.dayProgress

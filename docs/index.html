@@ -257,6 +257,35 @@
       color: var(--text-muted);
     }
 
+    /* ── Live "playing now" indicator (populated from the server /stats) ── */
+    .live-stat {
+      display: none;               /* revealed by JS only when someone is online */
+      align-items: center;
+      gap: 8px;
+      margin-top: 24px;
+      padding: 6px 15px;
+      border-radius: 100px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(139,134,248,0.3);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      position: relative;
+      z-index: 1;
+      transition: border-color .15s, color .15s;
+    }
+    .live-stat.show { display: inline-flex; }
+    .live-stat:hover { border-color: var(--accent); color: var(--text-bright); text-decoration: none; }
+    .live-stat b { color: var(--green); font-weight: 700; }
+    .live-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
     /* ── Screenshot ── */
     .screenshot-section {
       padding: 0 24px 100px;
@@ -619,6 +648,10 @@
     <span class="platform-chip">Browser</span>
     <span class="platform-chip">iOS · Android</span>
   </div>
+  <a href="/app" id="live-stat" class="live-stat" title="Play in your browser">
+    <span class="live-dot"></span>
+    <span><b id="live-count">0</b> <span id="live-noun">adventurers</span> online now</span>
+  </a>
 </section>
 
 <!-- ── Screenshot ────────────────────────────────────────────────────────── -->
@@ -874,6 +907,34 @@
     </p>
   </div>
 </footer>
+
+<!-- ── Live player count (from the Magiloom server /stats aggregate) ─────────── -->
+<script>
+  (function () {
+    var SERVER = 'https://magiserver.up.railway.app';
+    var el = document.getElementById('live-stat');
+    var count = document.getElementById('live-count');
+    var noun = document.getElementById('live-noun');
+    if (!el) return;
+    function poll() {
+      fetch(SERVER + '/stats', { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          var n = d && typeof d.online === 'number' ? d.online : 0;
+          if (n > 0) {
+            count.textContent = n;
+            noun.textContent = n === 1 ? 'adventurer' : 'adventurers';
+            el.classList.add('show');
+          } else {
+            el.classList.remove('show');   // hide rather than advertise an empty world
+          }
+        })
+        .catch(function () { el.classList.remove('show'); });
+    }
+    poll();
+    setInterval(poll, 30000);
+  })();
+</script>
 
 </body>
 </html>
