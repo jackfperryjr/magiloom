@@ -48,7 +48,7 @@ export function NotificationsTab({
             onChange={e => setNotif(n => ({ ...n, whisper: e.target.checked }))} />
         </label>
         <label className="settings-row">
-          <span className="settings-label">Messages</span>
+          <span className="settings-label">Chat</span>
           <input type="checkbox" checked={notif.message} style={{ width: 'auto' }}
             onChange={e => setNotif(n => ({ ...n, message: e.target.checked }))} />
         </label>
@@ -101,7 +101,7 @@ export function NotificationsTab({
             onChange={e => setPush(p => ({ ...p, thought: e.target.checked }))} />
         </label>
         <label className="settings-row" style={push.enabled ? undefined : { opacity: 0.5 }}>
-          <span className="settings-label">Direct messages</span>
+          <span className="settings-label">Direct Chat</span>
           <input type="checkbox" checked={push.message} disabled={!push.enabled} style={{ width: 'auto' }}
             onChange={e => setPush(p => ({ ...p, message: e.target.checked }))} />
         </label>
