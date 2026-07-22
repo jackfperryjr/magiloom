@@ -5,7 +5,12 @@ node_modules/
 dist/
 dist-electron/
 out/
-docs/app/            # web/PWA build (built in CI for Pages, not committed)
+# web/PWA build — produced fresh by CI for Pages, never committed.
+# (Inline comments aren't valid in .gitignore, so this must be on its own line.)
+docs/app/
+
+# Consumed icon-set drop (source icons already deployed into docs/, public/, resources/)
+new_icon/
 
 # Electron-vite cache
 .vite/
