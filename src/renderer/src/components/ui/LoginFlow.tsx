@@ -21,8 +21,8 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="login-screen">
       <div className="login-card">
-        <img src="./icon.png" className="login-hero" alt="MAGILOOM" />
-        <div className="login-logo">MAGILOOM</div>
+        <img src="./icon.png" className="login-hero" alt="Lantern" />
+        <div className="login-logo">LANTERN</div>
         <div className="login-logo-sub">DragonRealms Client</div>
         {children}
       </div>

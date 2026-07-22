@@ -27,7 +27,7 @@ const DEFAULT_PANELS: PanelConfig[] = [
   // Character-to-character messaging — only where the client has a magiserver link
   // (web today). Omitted on desktop so it isn't a dead panel; reconcilePanels drops it
   // from any saved layout there too. See store/messaging.ts.
-  ...(messagingAvailable ? [{ id: 'messages' as const, label: 'Messages', visible: true }] : []),
+  ...(messagingAvailable ? [{ id: 'messages' as const, label: 'Chat', visible: true }] : []),
   { id: 'inventory',    label: 'Inventory',     visible: false },
   { id: 'deaths',       label: 'Deaths',        visible: false },
   { id: 'connections',  label: 'Connections',   visible: false },
@@ -56,7 +56,11 @@ const heightsKey = (name: string) => `magiloom-panel-heights-v1:${name.trim().to
 function reconcilePanels(saved: PanelConfig[] | undefined): PanelConfig[] {
   if (!saved || saved.length === 0) return DEFAULT_PANELS
   const valid  = new Set(DEFAULT_PANELS.map(p => p.id))
-  const kept   = saved.filter(p => valid.has(p.id))
+  // Labels are display-only and keyed by id, so always refresh them from the source
+  // list — that way a panel rename (e.g. Messages → Chat) reaches users who already
+  // have the panel in their saved layout, instead of keeping the stale saved label.
+  const labelById = new Map(DEFAULT_PANELS.map(p => [p.id, p.label]))
+  const kept   = saved.filter(p => valid.has(p.id)).map(p => ({ ...p, label: labelById.get(p.id) ?? p.label }))
   const have   = new Set(kept.map(p => p.id))
   for (const d of DEFAULT_PANELS) if (!have.has(d.id)) kept.push(d)
   return kept

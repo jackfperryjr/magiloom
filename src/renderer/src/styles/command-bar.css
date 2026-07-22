@@ -120,7 +120,7 @@
   box-shadow: 0 0 0 2px var(--accent-glow), 0 0 12px var(--accent-glow);
 }
 .command-prompt {
-  color: var(--accent);
+  color: var(--amber, var(--accent));   /* Lantern flame; other themes fall back to accent */
   font-family: var(--font-game);
   font-size: var(--font-size-game);
   user-select: none;
@@ -137,7 +137,7 @@
   font-size: var(--font-size-game);
   padding: 10px 0;
   outline: none;
-  caret-color: var(--accent);
+  caret-color: var(--amber, var(--accent));
 }
 .command-input::placeholder { color: var(--text-dim); opacity: 0.5; }
 /* Roundtime badge embedded in the command line (right) — appears only during RT. */

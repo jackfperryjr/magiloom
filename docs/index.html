@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MAGILOOM — DragonRealms Client</title>
-  <meta name="description" content="A modern Electron client for DragonRealms. Real-time parsing, resizable panels, Lich scripting, custom themes." />
+  <title>Magiloom Lantern — A DragonRealms Client</title>
+  <meta name="description" content="Lantern — a modern client for DragonRealms. Real-time parsing, resizable panels, Lich scripting, custom themes, and messaging. On your desktop or in your browser." />
   <link rel="icon" type="image/x-icon" href="./favicon.ico" />
   <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png" />
@@ -192,6 +192,17 @@
       margin-bottom: 20px;
       position: relative;
       z-index: 1;
+    }
+    .hero-title-sm {
+      display: block;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: clamp(15px, 2.4vw, 22px);
+      font-weight: 600;
+      letter-spacing: .34em;
+      color: var(--text-muted);
+      text-shadow: none;
+      margin-bottom: 10px;
+      margin-left: .34em; /* optical: offset the trailing letter-spacing */
     }
     .hero-sub {
       font-size: clamp(16px, 2.5vw, 20px);
@@ -596,7 +607,7 @@
   <div class="nav-inner">
     <div class="nav-logo">
       <img src="./favicon-32x32.png" alt="" />
-      MAGILOOM
+      MAGILOOM LANTERN
     </div>
     <div class="nav-links">
       <a href="#features" class="nav-text">Features</a>
@@ -618,7 +629,7 @@
     <span class="hero-badge-dot"></span>
     Open Source · Free · DragonRealms
   </div>
-  <h1 class="hero-title">MAGILOOM</h1>
+  <h1 class="hero-title"><span class="hero-title-sm">MAGILOOM</span>LANTERN</h1>
   <p class="hero-sub">
     A <strong>modern client</strong> for DragonRealms — on your desktop, or right in your
     browser. Real-time XML parsing, resizable panels, custom themes, and full Lich scripting support.
@@ -767,7 +778,7 @@
   <div class="container">
     <div class="section-head">
       <div class="section-label">// download</div>
-      <h2 class="section-title">Get MAGILOOM</h2>
+      <h2 class="section-title">Get Lantern</h2>
       <p class="section-desc">Free and open source. Play instantly in your browser, or install a native build.</p>
     </div>
 
@@ -788,7 +799,7 @@
           <div class="dl-os-name">Windows</div>
           <div class="dl-os-note">.exe installer · x64</div>
         </div>
-        <a href="https://github.com/jackfperryjr/magiloom/releases/latest/download/Magiloom-Setup.exe" class="dl-btn dl-btn-primary">
+        <a href="https://github.com/jackfperryjr/magiloom/releases/latest/download/Lantern-Setup.exe" class="dl-btn dl-btn-primary">
           Download for Windows
         </a>
         <div style="font-size:11px; color:var(--text-dim); line-height:1.5">
@@ -802,11 +813,11 @@
           <div class="dl-os-name">Linux</div>
           <div class="dl-os-note">.AppImage · x64</div>
         </div>
-        <a href="https://github.com/jackfperryjr/magiloom/releases/latest/download/Magiloom.AppImage" class="dl-btn">
+        <a href="https://github.com/jackfperryjr/magiloom/releases/latest/download/Lantern.AppImage" class="dl-btn">
           Download for Linux
         </a>
         <div style="font-size:11px; color:var(--text-dim); line-height:1.5">
-          Mark executable: <code style="font-family:'JetBrains Mono',monospace; color:var(--accent)">chmod +x Magiloom.AppImage</code>
+          Mark executable: <code style="font-family:'JetBrains Mono',monospace; color:var(--accent)">chmod +x Lantern.AppImage</code>
         </div>
       </div>
 
@@ -816,7 +827,7 @@
           <div class="dl-os-name">macOS (Apple Silicon)</div>
           <div class="dl-os-note">.dmg · arm64</div>
         </div>
-        <a href="https://github.com/jackfperryjr/magiloom/releases/latest/download/Magiloom-arm64.dmg" class="dl-btn">
+        <a href="https://github.com/jackfperryjr/magiloom/releases/latest/download/Lantern-arm64.dmg" class="dl-btn">
           Download for Apple Silicon
         </a>
         <div style="font-size:11px; color:var(--text-dim); line-height:1.5">
@@ -830,7 +841,7 @@
           <div class="dl-os-name">macOS (Intel)</div>
           <div class="dl-os-note">.dmg · x64</div>
         </div>
-        <a href="https://github.com/jackfperryjr/magiloom/releases/latest/download/Magiloom-x64.dmg" class="dl-btn">
+        <a href="https://github.com/jackfperryjr/magiloom/releases/latest/download/Lantern-x64.dmg" class="dl-btn">
           Download for Intel
         </a>
         <div style="font-size:11px; color:var(--text-dim); line-height:1.5">
@@ -861,7 +872,7 @@
         <ol style="list-style:none; display:flex; flex-direction:column; gap:16px;">
           <li style="display:flex; gap:14px; align-items:flex-start;">
             <span style="font-family:'VT323',monospace; font-size:20px; color:var(--accent); line-height:1.4; flex-shrink:0;">01</span>
-            <span style="font-size:14px; color:var(--text-muted);">Download and install MAGILOOM for your platform.</span>
+            <span style="font-size:14px; color:var(--text-muted);">Download and install Lantern for your platform.</span>
           </li>
           <li style="display:flex; gap:14px; align-items:flex-start;">
             <span style="font-family:'VT323',monospace; font-size:20px; color:var(--accent); line-height:1.4; flex-shrink:0;">02</span>
@@ -894,7 +905,7 @@
 <!-- ── Footer ─────────────────────────────────────────────────────────────── -->
 <footer>
   <div class="footer-inner">
-    <div class="footer-logo">MAGILOOM</div>
+    <div class="footer-logo">MAGILOOM LANTERN</div>
     <div class="footer-links">
       <a href="https://github.com/jackfperryjr/magiloom" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/jackfperryjr/magiloom/releases" target="_blank" rel="noopener">Releases</a>

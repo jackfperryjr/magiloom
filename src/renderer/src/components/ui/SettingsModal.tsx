@@ -276,9 +276,9 @@ export function SettingsModal({ charName = '', onClose, onSignedOut, onReturnToL
                   )}
                 </div>
                 <div className="settings-hint">
-                  Magiloom runs Genie/Wizard-style <code>.cmd</code> scripts from this folder —
+                  Lantern runs Genie/Wizard-style <code>.cmd</code> scripts from this folder —
                   type <code>.name</code> in the command bar to run one (<code>.stop</code> halts all).
-                  If no folder is set, Magiloom uses <code>{defaultScriptDir}</code>.
+                  If no folder is set, Lantern uses <code>{defaultScriptDir}</code>.
                 </div>
                 <CmdFilesEditor />
               </div>
