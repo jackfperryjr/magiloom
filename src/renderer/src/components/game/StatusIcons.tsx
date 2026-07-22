@@ -70,12 +70,18 @@ const LAN_COLS = 3                 // frames 3-5 of the mascot sheet (the raised
 const LAN_ASPECT = 82 / 80        // lantern-idle frame w:h
 const IDLE_MS = 45000             // go idle → raise the lantern after this long, no input
 const LAN_LOOP_STEP = 460         // ping-pong cadence (matches the homepage idle loop)
+// The lantern-idle figure fills its whole 80px source frame, while a posture cell
+// leaves ~15% headroom/foot padding around its 64px figure. Rendered at the same box
+// height the lantern ragdoll therefore reads ~18% bigger. Shrink the lantern box by
+// this factor so the idle mascot matches the on-screen size of the posture sprite.
+const LAN_FIGURE_SCALE = 0.85
 function lanternFrameStyle(frame: number, size: number): CSSProperties {
-  const w = Math.round(size * LAN_ASPECT)
+  const h = Math.round(size * LAN_FIGURE_SCALE)
+  const w = Math.round(h * LAN_ASPECT)
   return {
-    width: w, height: size,
+    width: w, height: h,
     backgroundImage: `url(${lanternIdleSrc})`,
-    backgroundSize: `${w * LAN_COLS}px ${size}px`,
+    backgroundSize: `${w * LAN_COLS}px ${h}px`,
     backgroundPosition: `${-frame * w}px 0`,
   }
 }

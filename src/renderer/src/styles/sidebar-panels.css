@@ -323,13 +323,13 @@
 .msg-add-input, .msg-composer-input {
   flex: 1; min-width: 0;
   background: var(--bg-input); border: 1px solid var(--border-soft); border-radius: 7px;
-  padding: 6px 9px; color: var(--text-bright); font-family: var(--font-ui); font-size: 14px;
+  padding: 6px 9px; color: var(--text-bright); font-family: var(--font-ui); font-size: var(--font-size-game);
 }
 /* On touch devices iOS Safari auto-zooms when a focused input's font-size is
-   below 16px. Bump to 16px there so focusing the chat inputs never zooms the
-   app (belt-and-suspenders alongside user-scalable=no in the PWA viewport). */
+   below 16px. Keep a 16px floor there so focusing the chat inputs never zooms
+   the app (belt-and-suspenders alongside user-scalable=no in the PWA viewport). */
 @media (pointer: coarse) {
-  .msg-add-input, .msg-composer-input { font-size: 16px; }
+  .msg-add-input, .msg-composer-input { font-size: max(16px, var(--font-size-game)); }
 }
 .msg-add-input:focus, .msg-composer-input:focus { outline: none; border-color: var(--accent); }
 .msg-add-input::placeholder, .msg-composer-input::placeholder { color: var(--text-dim); }
@@ -435,7 +435,7 @@
 .msg-group.theirs .msg-group-bubbles { align-items: flex-start; }
 .msg-bubble {
   padding: 6px 10px; border-radius: 12px;
-  font-size: 14px; line-height: 1.35; word-break: break-word;
+  font-size: var(--font-size-game); line-height: 1.35; word-break: break-word;
 }
 .msg-group.theirs .msg-bubble { background: var(--bg-input); color: var(--text-main); border-bottom-left-radius: 4px; }
 .msg-group.mine   .msg-bubble { background: var(--accent); color: #17133a; border-bottom-right-radius: 4px; }
