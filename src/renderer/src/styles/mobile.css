@@ -68,75 +68,12 @@
   .char-menu { animation: magiloom-slide-up .24s cubic-bezier(0.16, 1, 0.3, 1); }
 }
 
-/* Hover: pop to full opacity and bounce up a touch. Each icon then plays a
-   themed one-shot animation keyed to what the condition is. */
-.status-icon:hover { opacity: 1; transform: translateY(-2px) scale(1.18); }
-/* The figure waves on hover: each pose's arm (its own path) pivots at that
-   pose's shoulder (transform-origin set inline per pose) while the span keeps
-   its zoom — separate transforms, no conflict. */
-.status-posture .wave-arm { transform-box: view-box; }
-.status-posture:hover .wave-arm { animation: arm-wave 1.15s ease-in-out; }
-.status-icon.status-cond-hidden:hover   { animation: status-hide .6s ease-in-out; }
-.status-icon.status-cond-stunned:hover  { animation: status-pulse .55s ease-in-out; }
-.status-icon.status-cond-bleeding:hover { animation: status-drip .65s ease-in; }
-.status-icon.status-cond-poisoned:hover { animation: status-wobble .5s ease-in-out; }
-/* Diseased + webbed spin a clean full turn like the settings cog. The span
-   keeps its pop; the spin lives on the inner <svg> (its own transform, no
-   conflict) using the very same gear-spin the settings cog uses. */
-.status-icon.status-cond-diseased:hover svg,
-.status-icon.status-cond-webbed:hover svg { animation: gear-spin .7s ease-in-out; }
-.status-icon.status-cond-dead:hover     { animation: status-wobble .5s ease-in-out; }
-
-/* When a condition is ACTIVE (already lit + enlarged), hover changes nothing:
-   hold the colour and the enlarged size, no themed animation (it reads as
-   glitchy on an already-on icon). After the per-icon rules so it wins on order. */
-.status-icon.active-danger:hover,
-.status-icon.active-good:hover { transform: scale(1.22); animation: none; }
-.status-icon.active-danger:hover svg,
-.status-icon.active-good:hover svg { animation: none; }
-
-/* All keyframes carry the hovered base transform (translateY(-2px) scale(1.18))
-   so there's no jump into/out of the animation. */
-@keyframes status-wobble {
-  0%, 100% { transform: translateY(-2px) scale(1.18) rotate(0); }
-  30%      { transform: translateY(-2px) scale(1.18) rotate(-8deg); }
-  65%      { transform: translateY(-2px) scale(1.18) rotate(7deg); }
-}
-@keyframes status-pulse {
-  0%, 100% { transform: translateY(-2px) scale(1.18); }
-  50%      { transform: translateY(-2px) scale(1.4); }
-}
-/* Wave: raise the arm from the side up to the right, wag twice, lower it. */
-@keyframes arm-wave {
-  0%   { transform: rotate(0deg); }
-  16%  { transform: rotate(-98deg); }
-  32%  { transform: rotate(-86deg); }
-  48%  { transform: rotate(-110deg); }
-  64%  { transform: rotate(-86deg); }
-  80%  { transform: rotate(-110deg); }
-  92%  { transform: rotate(-98deg); }
-  100% { transform: rotate(0deg); }
-}
-/* Bleeding: gather up, then a heavy drip fall with a squash landing. */
-@keyframes status-drip {
-  0%   { transform: translateY(-2px) scale(1.18); }
-  25%  { transform: translateY(-5px) scale(1.18) scaleY(1.12); }
-  60%  { transform: translateY(5px)  scale(1.18) scaleY(0.9); }
-  75%  { transform: translateY(4px)  scale(1.18) scaleY(1.05); }
-  100% { transform: translateY(-2px) scale(1.18); }
-}
-/* Hidden: fade away and peek back — a stealthy vanish. Scale stays put so the
-   hit area never shrinks out from under the cursor (which would loop the hover). */
-@keyframes status-hide {
-  0%       { transform: translateY(-2px) scale(1.18); opacity: 1; }
-  40%, 55% { transform: translateY(2px)  scale(1.18); opacity: 0.05; }
-  100%     { transform: translateY(-2px) scale(1.18); opacity: 1; }
-}
+/* Hover: every status icon (posture + conditions, active or clear alike) simply
+   zooms a little and brightens to full opacity — no per-condition themed animation. */
+.status-icon:hover { opacity: 1; transform: scale(1.15); }
 @media (prefers-reduced-motion: reduce) {
   .status-icon { transition: color .12s, opacity .12s; }
-  .status-icon:hover { transform: none !important; animation: none !important; }
-  .status-posture:hover .wave-arm,
-  .status-icon:hover svg { animation: none !important; }
+  .status-icon:hover { transform: none !important; }
   /* Bottom sheets, mobile modals, and the character/popover menus appear instantly. */
   .panel-mobile-sheet, .panel-mobile-overlay, .char-menu,
   .modal-card, .modal-box, .broadcast-modal, .avatar-modal,

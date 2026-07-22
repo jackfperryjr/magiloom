@@ -6,13 +6,21 @@ import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from 
 import { useAtomValue } from 'jotai'
 import { indicatorsAtom, roomAtom } from '../../store/game'
 
-// Filled wrapper — used for the condition glyphs (default fill = currentColor).
-function FilledSvg({ children, size = 22 }: { children: ReactNode; size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden>
-      {children}
-    </svg>
-  )
+// Condition sprites — one ragdoll frame per state, lifted + trimmed from the status
+// spritesheet (assets/emoji-ragdoll-2.png). Shown muted/greyscale while the condition
+// is clear and in full colour once it's active (see .status-cond-sprite in
+// styles/toasts.css). Vite bundles these imports as URLs (works desktop + web).
+import hiddenSprite   from '../../assets/status/hidden.png'
+import stunnedSprite  from '../../assets/status/stunned.png'
+import bleedingSprite from '../../assets/status/bleeding.png'
+import poisonedSprite from '../../assets/status/poisoned.png'
+import diseasedSprite from '../../assets/status/diseased.png'
+import webbedSprite   from '../../assets/status/webbed.png'
+import deadSprite     from '../../assets/status/dead.png'
+import lanternIdleSrc from '../../assets/lantern-idle.png'
+
+function CondSprite({ src }: { src: string }) {
+  return <img className="status-cond-sprite" src={src} alt="" draggable={false} />
 }
 
 export type Posture = 'standing' | 'kneeling' | 'sitting' | 'prone'
@@ -53,6 +61,25 @@ function frameStyle(frame: number, size: number): CSSProperties {
   }
 }
 
+// ── Idle "raise the lantern" ──────────────────────────────────────────────────
+// After the player has been idle a while (standing only), the ragdoll raises its
+// lantern — a separate 4-frame strip (assets/lantern-idle.png). Its frames are wider
+// than a posture cell (the raised lantern), so this overrides the sheet + box inline.
+// Any real input reverts to the normal posture. (Mirrors the landing-page mascot.)
+const LAN_COLS = 3                 // frames 3-5 of the mascot sheet (the raised lantern)
+const LAN_ASPECT = 82 / 80        // lantern-idle frame w:h
+const IDLE_MS = 45000             // go idle → raise the lantern after this long, no input
+const LAN_LOOP_STEP = 460         // ping-pong cadence (matches the homepage idle loop)
+function lanternFrameStyle(frame: number, size: number): CSSProperties {
+  const w = Math.round(size * LAN_ASPECT)
+  return {
+    width: w, height: size,
+    backgroundImage: `url(${lanternIdleSrc})`,
+    backgroundSize: `${w * LAN_COLS}px ${size}px`,
+    backgroundPosition: `${-frame * w}px 0`,
+  }
+}
+
 // A single static frame — used where no animation is wanted (the status popup).
 export function PostureFrame({ posture, size = 24 }: { posture: Posture; size?: number }) {
   return <span className="posture-sprite" style={frameStyle(REST[posture], size)} aria-hidden />
@@ -66,11 +93,12 @@ const WAVE_STEP_MS = 100   // wave-cycle frame cadence (hover, standing only)
 // posture changes (and its reverse when standing back up), a continuous walk loop
 // while the character moves between rooms, and — desktop only, since it's hover-driven
 // — a wave while the pointer rests over a standing character.
-export function PostureSprite({ size = 24 }: { size?: number }) {
+export function PostureSprite({ size = 32 }: { size?: number }) {
   const indicators = useAtomValue(indicatorsAtom)
   const room       = useAtomValue(roomAtom)
   const posture    = currentPosture(indicators)
   const [frame, setFrame] = useState(() => REST[posture])
+  const [lantern, setLantern] = useState<number | null>(null)  // idle lantern-raise frame (null = off)
   const seqTimers   = useRef<number[]>([])       // one-shot posture-transition timeouts
   const walkLoop    = useRef<number | null>(null) // interval driving the walk cycle
   const walkStop    = useRef<number | null>(null) // idle timer that ends the walk
@@ -78,8 +106,12 @@ export function PostureSprite({ size = 24 }: { size?: number }) {
   const hovering    = useRef(false)               // pointer currently over the sprite
   const prevPosture = useRef(posture)
   const prevRoom    = useRef(room.name)
+  const lanternTimers = useRef<number[]>([])     // idle raise/bob timers
+  const postureRef    = useRef(posture)          // current posture, for the idle timer
 
   const clearSeq  = () => { seqTimers.current.forEach(clearTimeout); seqTimers.current = [] }
+  // clearTimeout also cancels intervals (shared id pool), so it clears both raise + bob.
+  const clearLantern = () => { lanternTimers.current.forEach(clearTimeout); lanternTimers.current = [] }
   const clearWalk = () => {
     if (walkLoop.current != null) { clearInterval(walkLoop.current); walkLoop.current = null }
     if (walkStop.current != null) { clearTimeout(walkStop.current); walkStop.current = null }
@@ -134,6 +166,7 @@ export function PostureSprite({ size = 24 }: { size?: number }) {
 
   const onEnter = () => {
     hovering.current = true
+    if (lantern !== null) return   // don't wave while the idle lantern is raised
     // Wave only from a settled standing pose — not mid-walk or mid-transition.
     if (posture === 'standing' && walkLoop.current == null && seqTimers.current.length === 0) startWave()
   }
@@ -160,86 +193,62 @@ export function PostureSprite({ size = 24 }: { size?: number }) {
     if (hadRoom && room.name && posture === 'standing') walk()
   }, [room.name, posture])
 
+  // Keep postureRef fresh so the idle timer (subscribed once) sees the live posture.
+  useEffect(() => { postureRef.current = posture }, [posture])
+
+  // Idle → raise the lantern (standing only). Any real input (key / click / wheel /
+  // touch / a game command sent) reverts to the normal posture and re-arms the timer.
+  useEffect(() => {
+    let idleTimer = 0
+    const raise = () => {
+      if (postureRef.current !== 'standing') return
+      clearSeq(); clearWalk(); clearWave(); clearLantern()
+      // ping-pong frames 0↔2 (the mascot sheet's 3↔5): raises, then loops up/down —
+      // same idle animation as the homepage mascot.
+      let f = 0, dir = 1
+      setLantern(0)
+      lanternTimers.current.push(window.setInterval(() => {
+        f += dir
+        if (f <= 0) dir = 1; else if (f >= LAN_COLS - 1) dir = -1
+        setLantern(f)
+      }, LAN_LOOP_STEP))
+    }
+    const reset = () => {
+      if (lanternTimers.current.length) { clearLantern(); setLantern(null); setFrame(REST[postureRef.current]) }
+      window.clearTimeout(idleTimer)
+      idleTimer = window.setTimeout(raise, IDLE_MS)
+    }
+    const evs: (keyof WindowEventMap)[] = ['keydown', 'mousedown', 'wheel', 'touchstart']
+    evs.forEach(e => window.addEventListener(e, reset, { passive: true }))
+    const unsub = window.dr.game.onSent(reset)
+    reset()
+    return () => { evs.forEach(e => window.removeEventListener(e, reset)); unsub(); window.clearTimeout(idleTimer); clearLantern() }
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Changing to a non-standing posture drops the raised lantern back to the pose.
+  useEffect(() => {
+    if (posture !== 'standing' && lanternTimers.current.length) { clearLantern(); setLantern(null) }
+  }, [posture])
+
   useEffect(() => () => { clearSeq(); clearWalk(); clearWave() }, [])
 
   return <span
-    className="posture-sprite" style={frameStyle(frame, size)}
+    className="posture-sprite"
+    style={lantern !== null ? lanternFrameStyle(lantern, size) : frameStyle(frame, size)}
     onMouseEnter={onEnter} onMouseLeave={onLeave} aria-hidden
   />
 }
 
-// Spider-web path (webbed) — 8 spokes + 3 concentric rings, generated so the
-// geometry stays clean at small sizes.
-const WEB_D = (() => {
-  const cx = 12, cy = 12, spokes = 8, rings = [3.4, 6.3, 9.3]
-  const P = (r: number, i: number) => {
-    const a = ((-90 + (i * 360) / spokes) * Math.PI) / 180
-    return [cx + r * Math.cos(a), cy + r * Math.sin(a)] as const
-  }
-  let d = ''
-  for (let i = 0; i < spokes; i++) { const [x, y] = P(9.3, i); d += `M${cx} ${cy}L${x.toFixed(1)} ${y.toFixed(1)}` }
-  for (const r of rings) {
-    for (let i = 0; i <= spokes; i++) { const [x, y] = P(r, i % spokes); d += (i ? 'L' : 'M') + `${x.toFixed(1)} ${y.toFixed(1)}` }
-    d += 'Z'
-  }
-  return d
-})()
-
 export interface Condition { id: string; label: string; danger: boolean; icon: ReactNode }
 
 export const CONDITIONS: Condition[] = [
-  // Hidden — incognito: a detective hat above a popped collar with a tie.
-  { id: 'hidden', label: 'Hidden', danger: false, icon:
-    <FilledSvg>
-      <path d="M12 2.6c-2.7 0-4.4 2.1-4.4 4.7 0 .5.05 1 .16 1.45C6.4 8.5 4.3 8.9 4.3 9.7c0 1 3.4 1.8 7.7 1.8s7.7-.8 7.7-1.8c0-.8-2.1-1.2-3.46-.95.11-.46.16-.95.16-1.45 0-2.6-1.7-4.7-4.4-4.7z" />
-      <path d="M12 12.7c-1.9 0-3.7.35-5.1.95L4.6 19.4c2.1-1 4.6-1.55 7.4-1.55s5.3.55 7.4 1.55l-2.3-5.75c-1.4-.6-3.2-.95-5.1-.95zm0 1.5 1.3 1-1.3 4-1.3-4z" />
-    </FilledSvg> },
-  // Stunned — seeing stars: Heroicons-style sparkles (matches the app icon set).
-  { id: 'stunned', label: 'Stunned', danger: true, icon:
-    <FilledSvg>
-      <path d="M9 2.4a.7.7 0 0 1 .67.5l.76 2.64a3.5 3.5 0 0 0 2.4 2.4l2.64.76a.7.7 0 0 1 0 1.34l-2.64.76a3.5 3.5 0 0 0-2.4 2.4l-.76 2.64a.7.7 0 0 1-1.34 0l-.76-2.64a3.5 3.5 0 0 0-2.4-2.4l-2.64-.76a.7.7 0 0 1 0-1.34l2.64-.76a3.5 3.5 0 0 0 2.4-2.4l.76-2.64A.7.7 0 0 1 9 2.4z" />
-      <path d="M17.5 13.2a.65.65 0 0 1 .62.44l.44 1.32c.14.42.47.75.89.89l1.32.44a.65.65 0 0 1 0 1.24l-1.32.44c-.42.14-.75.47-.89.89l-.44 1.32a.65.65 0 0 1-1.24 0l-.44-1.32a1.4 1.4 0 0 0-.89-.89l-1.32-.44a.65.65 0 0 1 0-1.24l1.32-.44c.42-.14.75-.47.89-.89l.44-1.32a.65.65 0 0 1 .62-.44z" />
-    </FilledSvg> },
-  // Bleeding — two blood drops, a large one and a small one.
-  { id: 'bleeding', label: 'Bleeding', danger: true, icon:
-    <FilledSvg>
-      <path d="M10.5 7.5c2.6 3.2 4.3 5.5 4.3 7.6a4.3 4.3 0 0 1-8.6 0c0-2.1 1.7-4.4 4.3-7.6z" />
-      <path d="M17.2 3.2c1.2 1.5 2 2.6 2 3.6a2 2 0 0 1-4 0c0-1 .8-2.1 2-3.6z" />
-    </FilledSvg> },
-  // Poisoned — a poison bottle with a knocked-out skull.
-  { id: 'poisoned', label: 'Poisoned', danger: true, icon:
-    <FilledSvg>
-      <rect x="9.6" y="2.2" width="4.8" height="1.7" rx="0.85" />
-      <rect x="9.6" y="4.5" width="4.8" height="1.7" rx="0.85" />
-      <path fillRule="evenodd" clipRule="evenodd" d="M9.5 6.7h5v1.4c0 .5.2 1 .6 1.3a5.6 5.6 0 0 1 2 4.3v3A2.6 2.6 0 0 1 14.5 20.6h-5A2.6 2.6 0 0 1 6.9 18v-3a5.6 5.6 0 0 1 2-4.3c.4-.4.6-.8.6-1.3V6.7zM12 10.4a3 3 0 0 0-3 3c0 1 .5 1.8 1.2 2.4v.9a.75.75 0 0 0 .75.75h2.1a.75.75 0 0 0 .75-.75v-.9c.7-.6 1.2-1.4 1.2-2.4a3 3 0 0 0-3-3zm-1.1 2.7a.7.7 0 1 1 0 1.4.7.7 0 0 1 0-1.4zm2.2 0a.7.7 0 1 1 0 1.4.7.7 0 0 1 0-1.4z" />
-    </FilledSvg> },
-  // Diseased — a germ/virus: outline body, inner dots, knobbed stalks.
-  { id: 'diseased', label: 'Diseased', danger: true, icon:
-    <FilledSvg>
-      <g stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round">
-        <circle cx="12" cy="12" r="4.2" />
-        <path d="M12 7.8V4.9M12 16.2v2.9M7.8 12H4.9M16.2 12h2.9M9 9 6.9 6.9M15 15l2.1 2.1M15 9l2.1-2.1M9 15l-2.1 2.1" />
-      </g>
-      <g stroke="none">
-        <circle cx="12" cy="3.6" r="1.2" /><circle cx="12" cy="20.4" r="1.2" /><circle cx="3.6" cy="12" r="1.2" /><circle cx="20.4" cy="12" r="1.2" />
-        <circle cx="6.1" cy="6.1" r="1.1" /><circle cx="17.9" cy="17.9" r="1.1" /><circle cx="17.9" cy="6.1" r="1.1" /><circle cx="6.1" cy="17.9" r="1.1" />
-        <circle cx="10.8" cy="11" r="0.85" /><circle cx="13.2" cy="12.5" r="0.95" /><circle cx="11.2" cy="13.4" r="0.6" />
-      </g>
-    </FilledSvg> },
-  // Webbed — a spider web (outline).
-  { id: 'webbed', label: 'Webbed', danger: true, icon:
-    <FilledSvg><path d={WEB_D} stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinejoin="round" strokeLinecap="round" /></FilledSvg> },
-  // Dead — skull & crossbones.
-  { id: 'dead', label: 'Dead', danger: true, icon:
-    <FilledSvg>
-      <g stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" fill="none">
-        <path d="M7.6 15 16.4 20.2M16.4 15 7.6 20.2" />
-      </g>
-      <g stroke="none">
-        <circle cx="6.9" cy="14.7" r="1.4" /><circle cx="6.9" cy="20.4" r="1.4" /><circle cx="17.1" cy="14.7" r="1.4" /><circle cx="17.1" cy="20.4" r="1.4" />
-      </g>
-      <path fillRule="evenodd" clipRule="evenodd" d="M12 3A5 5 0 0 0 7 8c0 1.7.8 2.9 1.7 3.7.3.3.5.6.5 1v.6a.9.9 0 0 0 .9.9h.15v-.85a.6.6 0 0 1 1.2 0v.85h1.1v-.85a.6.6 0 0 1 1.2 0v.85h.15a.9.9 0 0 0 .9-.9v-.6c0-.4.2-.7.5-1C16.2 10.9 17 9.7 17 8A5 5 0 0 0 12 3zM9.9 7.2a1.35 1.35 0 1 1 0 2.7 1.35 1.35 0 0 1 0-2.7zm4.2 0a1.35 1.35 0 1 1 0 2.7 1.35 1.35 0 0 1 0-2.7zM12 10.4l1 1.9h-2z" />
-    </FilledSvg> },
+  { id: 'hidden',   label: 'Hidden',   danger: false, icon: <CondSprite src={hiddenSprite} /> },
+  { id: 'stunned',  label: 'Stunned',  danger: true,  icon: <CondSprite src={stunnedSprite} /> },
+  { id: 'bleeding', label: 'Bleeding', danger: true,  icon: <CondSprite src={bleedingSprite} /> },
+  { id: 'poisoned', label: 'Poisoned', danger: true,  icon: <CondSprite src={poisonedSprite} /> },
+  { id: 'diseased', label: 'Diseased', danger: true,  icon: <CondSprite src={diseasedSprite} /> },
+  { id: 'webbed',   label: 'Webbed',   danger: true,  icon: <CondSprite src={webbedSprite} /> },
+  { id: 'dead',     label: 'Dead',     danger: true,  icon: <CondSprite src={deadSprite} /> },
 ]
 
 // Map DR posture indicator ids → the four poses we draw ('lying' → prone).

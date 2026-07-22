@@ -226,25 +226,37 @@
 }
 .status-icon.status-posture { opacity: 0.9; position: relative; }
 /* Posture is the emoji-ragdoll spritesheet (one 32px frame shown via background
-   position; see StatusIcons.tsx). Scaling is left smooth — nearest-neighbour at the
-   ~0.75x downscale squished the figure (see frameStyle). The sheet is recoloured per
-   theme (each to its --accent) so the figure matches the palette; the default below is
-   the magiloom sheet, overridden per data-theme. Sheets live in styles/themes/. */
+   position; see StatusIcons.tsx). Always the plain YELLOW ragdoll now, matching the
+   Lantern mascot — no more per-theme recolour. Scaling is left smooth (nearest-
+   neighbour at the ~0.75x downscale squished the figure; see frameStyle). */
 .posture-sprite {
   display: inline-block; background-repeat: no-repeat; vertical-align: middle; flex-shrink: 0;
-  background-image: url('./themes/emoji-ragdoll-magiloom.png');
+  background-image: url('./themes/emoji-ragdoll-yellow.png');
 }
-:root[data-theme="bloodstone"] .posture-sprite { background-image: url('./themes/emoji-ragdoll-bloodstone.png'); }
-:root[data-theme="forest"]     .posture-sprite { background-image: url('./themes/emoji-ragdoll-forest.png'); }
-:root[data-theme="parchment"]  .posture-sprite { background-image: url('./themes/emoji-ragdoll-parchment.png'); }
-:root[data-theme="discord"]    .posture-sprite { background-image: url('./themes/emoji-ragdoll-discord.png'); }
-:root[data-theme="ff4"]        .posture-sprite { background-image: url('./themes/emoji-ragdoll-ff4.png'); }
 .status-pop-posture .posture-sprite { margin-right: 2px; }
-/* Active: light up AND stay enlarged so a live status stands out on its own. */
-.status-icon.active-danger { color: var(--color-bold); opacity: 1; transform: scale(1.22); }
-.status-icon.active-good  { color: var(--color-bonus); opacity: 1; transform: scale(1.22); }
+/* Active: light up (full colour + opacity) but DON'T resize — the ragdoll sprites
+   read better staying put; the colour swap alone is the "on" signal. */
+.status-icon.active-danger { color: var(--color-bold); opacity: 1; }
+.status-icon.active-good  { color: var(--color-bonus); opacity: 1; }
 /* Dead reads as red (penalty) rather than the amber shared by other dangers. */
 .status-icon.status-cond-dead.active-danger { color: var(--color-penalty); }
+
+/* Condition sprites (ragdoll frames, StatusIcons.tsx): muted greyscale while the
+   condition is clear, full original colour once it's active. The .status-icon
+   opacity + scale states above still apply, so active reads as "lights up + pops". */
+.status-cond-sprite {
+  /* Uniform slot so the row reads evenly despite each sprite's natural aspect
+     (tall standing poses vs the wide lying "dead"): contain-fit into a fixed box,
+     bottom-aligned so every figure stands on a common baseline. */
+  width: 26px; height: 30px; display: block; flex-shrink: 0;
+  object-fit: contain; object-position: center bottom;
+  filter: grayscale(1) brightness(0.8);
+  transition: filter .15s ease;
+}
+.status-icon.active-danger    .status-cond-sprite,
+.status-icon.active-good      .status-cond-sprite,
+.status-pop-row.active-danger .status-cond-sprite,
+.status-pop-row.active-good   .status-cond-sprite { filter: none; }
 
 /* On mobile the posture is a button (opens the status popup) — strip button chrome. */
 button.status-icon.status-posture { background: none; border: none; padding: 0; cursor: pointer; }

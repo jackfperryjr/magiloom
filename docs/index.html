@@ -204,6 +204,35 @@
       margin-bottom: 10px;
       margin-left: .34em; /* optical: offset the trailing letter-spacing */
     }
+    /* Hero mascot: the ragdoll walks out from behind the wordmark and raises its
+       lantern (walk-cycle + lantern-raise sprite strips, sequenced by the script
+       at the end of the page). Purely decorative; never affects layout. */
+    .hero-mascot {
+      position: absolute;
+      right: 4%;
+      bottom: 2px;
+      z-index: -1;                     /* behind the LANTERN text */
+      width: 98px;
+      height: 96px;
+      background: url('./mascot.png') no-repeat 0 0;
+      background-size: 588px 96px;     /* 6 frames: walk → raise, all one sheet */
+      transform: translateX(0);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .hero-mascot::after {              /* warm glow that blooms when the lantern lifts */
+      content: '';
+      position: absolute;
+      right: -2px; top: 18px;
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,171,94,.6) 0%, rgba(255,171,94,0) 70%);
+      opacity: 0;
+      transition: opacity .9s ease;
+      pointer-events: none;
+    }
+    .hero-mascot.lit::after { opacity: 1; }
+    @media (max-width: 640px) { .hero-mascot { display: none; } }
     .hero-sub {
       font-size: clamp(16px, 2.5vw, 20px);
       font-weight: 300;
@@ -629,7 +658,7 @@
     <span class="hero-badge-dot"></span>
     Open Source · Free · DragonRealms
   </div>
-  <h1 class="hero-title"><span class="hero-title-sm">MAGILOOM</span>LANTERN</h1>
+  <h1 class="hero-title"><span class="hero-title-sm">MAGILOOM</span>LANTERN<span class="hero-mascot" aria-hidden="true"></span></h1>
   <p class="hero-sub">
     A <strong>modern client</strong> for DragonRealms — on your desktop, or right in your
     browser. Real-time XML parsing, resizable panels, custom themes, and full Lich scripting support.
@@ -944,6 +973,70 @@
     }
     poll();
     setInterval(poll, 30000);
+  })();
+</script>
+
+<!-- ── Hero mascot: walk out from behind LANTERN, then raise the lantern ──────── -->
+<script>
+  (function () {
+    var m = document.querySelector('.hero-mascot');
+    if (!m) return;
+    var FRAME_W = 98, FRAMES = 6, FRAME_MS = 200, IDLE_STEP = 460;  // 0-2 walk, 3-5 raise
+    var WALK_MS = 1000, WALK_DIST = 118;
+    var frame = function (i) { m.style.backgroundPosition = (-i * FRAME_W) + 'px 0'; };
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var idleTimer = null;
+
+    // Idle loop: ping-pong the raise frames 3↔5 so the lantern gently rises and lowers.
+    function idle() {
+      var lo = 3, hi = FRAMES - 1, f = hi, dir = -1;
+      idleTimer = setInterval(function () {
+        f += dir;
+        if (f <= lo) dir = 1; else if (f >= hi) dir = -1;
+        frame(f);
+      }, IDLE_STEP);
+    }
+
+    if (reduce) {                      // skip the walk — just stand with the lantern lit
+      m.style.transform = 'translateX(' + WALK_DIST + 'px)';
+      m.style.opacity = '1';
+      m.classList.add('lit');
+      frame(FRAMES - 1);
+      return;
+    }
+
+    function run() {
+      if (idleTimer) { clearInterval(idleTimer); idleTimer = null; }
+      m.classList.remove('lit');
+      m.style.transition = 'none';
+      m.style.transform = 'translateX(0)';
+      m.style.opacity = '0';           // start invisible → fade in as he walks on
+      var i = 0; frame(0);
+      // fade in + walk out from behind the wordmark (one continuous sheet)
+      requestAnimationFrame(function () {
+        m.style.transition = 'transform ' + WALK_MS + 'ms ease-out, opacity 600ms ease';
+        m.style.transform = 'translateX(' + WALK_DIST + 'px)';
+        m.style.opacity = '1';
+      });
+      // step 0→5 (walk into the raise), then loop the raise frames
+      var seq = setInterval(function () {
+        i++;
+        if (i >= FRAMES - 1) {
+          clearInterval(seq);
+          frame(FRAMES - 1);
+          m.classList.add('lit');
+          idle();
+          return;
+        }
+        frame(i);
+      }, FRAME_MS);
+    }
+
+    setTimeout(run, 900);
+    // Replay on click — a little easter egg.
+    m.style.pointerEvents = 'auto';
+    m.style.cursor = 'pointer';
+    m.addEventListener('click', run);
   })();
 </script>
 
