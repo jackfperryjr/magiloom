@@ -47,7 +47,7 @@ jobs:
 
       - name: Install Linux build dependencies
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get install -y libarchive-tools
+        run: sudo apt-get update && sudo apt-get install -y libarchive-tools
 
       - name: Build and package
         run: npx electron-vite build && npx electron-builder ${{ matrix.arch_flag }} --publish never

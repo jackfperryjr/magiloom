@@ -325,6 +325,12 @@
   background: var(--bg-input); border: 1px solid var(--border-soft); border-radius: 7px;
   padding: 6px 9px; color: var(--text-bright); font-family: var(--font-ui); font-size: 14px;
 }
+/* On touch devices iOS Safari auto-zooms when a focused input's font-size is
+   below 16px. Bump to 16px there so focusing the chat inputs never zooms the
+   app (belt-and-suspenders alongside user-scalable=no in the PWA viewport). */
+@media (pointer: coarse) {
+  .msg-add-input, .msg-composer-input { font-size: 16px; }
+}
 .msg-add-input:focus, .msg-composer-input:focus { outline: none; border-color: var(--accent); }
 .msg-add-input::placeholder, .msg-composer-input::placeholder { color: var(--text-dim); }
 .msg-add-btn, .msg-send-btn {
