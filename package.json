@@ -36,7 +36,7 @@
   },
   "build": {
     "appId": "com.magiloom.dragonrealms",
-    "productName": "Magiloom",
+    "productName": "Lantern",
     "icon": "resources/icon.png",
     "directories": {
       "output": "dist"
@@ -56,7 +56,7 @@
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Magiloom"
+      "shortcutName": "Lantern"
     },
     "dmg": {
       "artifactName": "${productName}-${arch}.${ext}"

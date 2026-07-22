@@ -25,7 +25,7 @@
   /* Borders */
   --border:        #544e96;
   --border-soft:   #2c2658;
-  --border-accent: #9a95ff;
+  --border-accent: #6467dc;   /* Lantern periwinkle (from the logo) */
 
   /* Text */
   --text-main:     #c8c4e8;
@@ -58,8 +58,10 @@
 
   /* Accent */
   --accent:          #9a95ff;
-  --accent-glow:     rgba(139, 134, 248, 0.24);
+  --accent-glow:     rgba(100, 103, 220, 0.28);   /* Lantern periwinkle glow */
   --accent-dim:      #241d54;
+  /* --amber (Lantern flame) is defined per-theme, not globally, so only the Lantern
+     theme tints its command prompt amber; other themes fall back to their accent. */
 
   /* Scrollbar */
   --scrollbar:       #2c2658;

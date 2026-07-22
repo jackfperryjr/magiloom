@@ -51,8 +51,8 @@ export interface Theme {
 
 export const THEMES: Theme[] = [
   {
-    id: 'magiloom',
-    name: 'Default',
+    id: 'magiloom',   // internal id kept stable (saved prefs + ragdoll sprite); display is "Lantern"
+    name: 'Lantern',
     vars: {
       '--bg-shell':      '#1a1540',
       '--bg-panel':      '#221c50',
@@ -60,14 +60,16 @@ export const THEMES: Theme[] = [
       '--bg-sidebar':    '#1d1848',
       '--border':        '#544e96',
       '--border-soft':   '#2c2658',
-      '--border-accent': '#9a95ff',
+      '--border-accent': '#6467dc',
       '--text-main':     '#c8c4e8',
       '--text-dim':      '#645d8e',
       '--text-bright':   '#f0eeff',
       '--text-muted':    '#8b86cc',
       '--accent':        '#9a95ff',
-      '--accent-glow':   'rgba(139,134,248,0.24)',
+      '--accent-glow':   'rgba(100,103,220,0.28)',
       '--accent-dim':    '#241d54',
+      '--amber':         '#f0a24a',
+      '--amber-glow':    'rgba(240,162,74,0.28)',
       '--bg-overlay':    'rgba(10, 8, 24, 0.92)',
       '--color-roomname':'#ffffff',
       '--color-roomdesc':'#a29ecc',
@@ -82,7 +84,9 @@ export const THEMES: Theme[] = [
       '--mana-color':    '#1850d0',
       '--stamina-color': '#40b8e0',
       '--spirit-color':  '#8828b8',
-      '--bg-theme-image': 'radial-gradient(ellipse at 50% 0%, rgba(150,146,255,0.16) 0%, transparent 55%)',
+      // Periwinkle wash from the top + a faint warm amber pool at the bottom edge,
+      // like a lantern's light settling into the room. Both are subtle by design.
+      '--bg-theme-image': 'radial-gradient(ellipse at 50% 0%, rgba(100,103,220,0.18) 0%, transparent 55%), radial-gradient(ellipse 75% 42% at 50% 100%, rgba(240,162,74,0.06) 0%, transparent 60%)',
     }
   },
   {

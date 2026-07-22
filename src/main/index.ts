@@ -23,6 +23,11 @@ import { ensurePortrait } from './portrait-service'
 // collides on the same cache / localStorage and Chromium logs
 // "Unable to move the cache: Access is denied." on Windows.
 //
+// The app rebranded from Magiloom to Lantern (productName), but its userData folder
+// stays pinned to the original "Magiloom" directory so existing installs keep their
+// settings, accounts, and saved passwords across the rename — the folder name is
+// internal and never shown. Must run before we read/repoint userData below.
+app.setPath('userData', join(app.getPath('appData'), 'Magiloom'))
 // SHARED_DIR is the default userData location (…/AppData/Roaming/Magiloom);
 // capture it BEFORE we repoint userData at a per-instance slot below.
 const SHARED_DIR = app.getPath('userData')
