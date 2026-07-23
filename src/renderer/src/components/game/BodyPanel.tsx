@@ -210,11 +210,13 @@ function PatientEmpty() {
           onClick={submit}
         >Touch</button>
       </div>
-      <button
-        className="body-sample-link"
-        data-tooltip="Preview the figure with sample wounds (no game command)"
-        onClick={() => setPatient({ name: capitalize(trimmed) || 'Patient', injuries: sampleInjuries() })}
-      >or load a sample</button>
+      {import.meta.env.DEV && (
+        <button
+          className="body-sample-link"
+          data-tooltip="Preview the figure with sample wounds (no game command)"
+          onClick={() => setPatient({ name: capitalize(trimmed) || 'Patient', injuries: sampleInjuries() })}
+        >or load a sample</button>
+      )}
     </div>
   )
 }
