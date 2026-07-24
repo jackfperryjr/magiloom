@@ -28,6 +28,14 @@ function token(): string {
   return localStorage.getItem('magiloom-token') || env('VITE_MAGILOOM_TOKEN') || ''
 }
 
+// Whether a signed-in Magiloom account is required to use the app. Mirrors the
+// server's MAGILOOM_REQUIRE_ACCOUNT: set BOTH together — this flag makes the client
+// show a mandatory sign-in gate, the server flag enforces it (rejects anonymous
+// connections). localStorage override for quick local testing, else the build env.
+export function requireAccount(): boolean {
+  return (localStorage.getItem('magiloom-require-account') || env('VITE_MAGILOOM_REQUIRE_ACCOUNT')) === '1'
+}
+
 export function deviceId(): string {
   let id = localStorage.getItem('magiloom-device-id')
   if (!id) {

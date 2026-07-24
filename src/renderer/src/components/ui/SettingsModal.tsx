@@ -45,6 +45,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [originalTheme,   setOriginalTheme]   = useState('magiloom')
   const [density,         setDensity]         = useState<'cozy' | 'compact'>('cozy')
   const [outputBufferSize, setOutputBufferSize] = useState(5000)
+  const [keepScreenOn,    setKeepScreenOn]    = useState(true)
   const [logging,         setLogging]         = useState(false)
   const [functionKeys,    setFunctionKeys]    = useState<Record<string, string>>({})
   const [aliases,         setAliases]         = useState<Alias[]>([])
@@ -103,6 +104,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setLichPath(s.lichPath || '')
       setScriptDir(s.scriptDir || '')
       setOutputBufferSize(s.outputBufferSize || 5000)
+      setKeepScreenOn(s.keepScreenOn !== false)
       setNotif({ ...DEFAULT_NOTIF, ...(s.notifications ?? {}) })
       setPush({ ...DEFAULT_PUSH, ...(s.push ?? {}) })
       setNotifRules(s.notifRules ?? [])
@@ -133,7 +135,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
     // Per-character appearance + gameplay → settings.json; the rest is global.
     saveCharAppearance(charName, { theme, fontSize, fontFamily, density })
     await window.dr.settings.patch({
-      lichPath, scriptDir, outputBufferSize, notifications: notif, push, notifRules,
+      lichPath, scriptDir, outputBufferSize, keepScreenOn, notifications: notif, push, notifRules,
     })
     const varsRecord = Object.fromEntries(
       vars.map(v => [v.name.trim(), v.value]).filter(([n]) => n) as [string, string][]
@@ -182,6 +184,8 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                 fontFamily={fontFamily} setFontFamily={setFontFamily}
                 fontSize={fontSize} setFontSize={setFontSize}
                 outputBufferSize={outputBufferSize} setOutputBufferSize={setOutputBufferSize}
+                isWeb={isWeb}
+                keepScreenOn={keepScreenOn} setKeepScreenOn={setKeepScreenOn}
               />
             )}
 

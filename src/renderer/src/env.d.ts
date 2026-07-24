@@ -61,6 +61,10 @@ interface AppSettings {
   // Legacy global logging flag — now per character (CharSettings.logging); kept
   // only as the fallback default for setups saved before the split.
   logging?:         boolean
+  // Web/PWA only: hold a Screen Wake Lock while a game session is connected, so a
+  // phone/tablet display won't dim or lock while you watch hands-off. Undefined =
+  // on (the desktop app ignores it). See src/web/wakeLock.ts.
+  keepScreenOn?:    boolean
 }
 
 
@@ -211,6 +215,9 @@ interface DrAPI {
   // usage on `window.dr.account` being present. Signing in syncs a user's settings,
   // Lich profiles/custom scripts and avatars across their devices.
   account?: {
+    // True when the server requires a signed-in account (mirrors MAGILOOM_REQUIRE_ACCOUNT);
+    // the login UI shows a mandatory sign-in gate when set. Web only.
+    required?:  () => boolean
     isSignedIn: () => boolean
     current:    () => Promise<MagiloomAccount | null>
     signUp:  (email: string, password: string) => Promise<AccountAuthResult>
