@@ -160,7 +160,7 @@ function ColResize({ onDrag }: { onDrag: (dx: number) => void }) {
 
 
 // ── Game layout ───────────────────────────────────────────────────────────────
-function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSettings, onRequestConnect, updateSlot }: { charName: string; accountName: string; watching: boolean; onLeaveWatch: () => void; onOpenSettings: () => void; onRequestConnect: () => void; updateSlot: React.ReactNode }) {
+function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSettings, onRequestConnect, onSwitchCharacter, updateSlot }: { charName: string; accountName: string; watching: boolean; onLeaveWatch: () => void; onOpenSettings: () => void; onRequestConnect: () => void; onSwitchCharacter: () => void; updateSlot: React.ReactNode }) {
   // Automapper: records rooms into the shared world map (movement is captured
   // universally via dr.game.onSent inside the hook).
   const automap = useAutomapper()
@@ -476,6 +476,7 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
               onSettings={onOpenSettings}
               onDisconnect={disconnect}
               onConnect={onRequestConnect}
+              onSwitchCharacter={onSwitchCharacter}
             />
           )
           // Mobile: dock the avatar/menu inside the command input as one bar.
@@ -534,6 +535,10 @@ function AppInner() {
   const [inGame,        setInGame]        = useState(false)
   const [watching,      setWatching]      = useState(false)   // viewing another device's session
   const [showReconnect, setShowReconnect] = useState(false)
+  // When set, the reconnect overlay opens straight onto this DR account's character
+  // list (a "Switch character" shortcut) instead of the account picker. null = the
+  // normal full login flow.
+  const [switchAccount, setSwitchAccount] = useState<string | null>(null)
   const [charName,      setCharName]      = useState('')
   const [accountName,   setAccountName]   = useState('')
   const [showSettings,  setShowSettings]  = useState(false)
@@ -557,7 +562,12 @@ function AppInner() {
 
   const updateSlot = <UpdateIcon offline={offline} updateReady={launchUpdate} />
 
-  const enterGame = (name: string, account: string, watch = false) => { setCharName(name); setAccountName(account); setWatching(watch); setInGame(true); setShowReconnect(false) }
+  const enterGame = (name: string, account: string, watch = false) => { setCharName(name); setAccountName(account); setWatching(watch); setInGame(true); setShowReconnect(false); setSwitchAccount(null) }
+  const closeReconnect = () => { setShowReconnect(false); setSwitchAccount(null) }
+  // Open the reconnect overlay: "connect" starts the full login flow; "switch"
+  // jumps straight to the current account's character list.
+  const openConnect = () => { setSwitchAccount(null); setShowReconnect(true) }
+  const openSwitchCharacter = () => { setSwitchAccount(accountName || ''); setShowReconnect(true) }
   // Leave a watched session: detach (reconnect to our own bucket) and return to the
   // login screen WITHOUT disconnecting DR — the session keeps running for its owner.
   const leaveWatch = () => { window.dr.account?.unwatch(); setWatching(false); setInGame(false) }
@@ -598,32 +608,18 @@ function AppInner() {
       {!inGame && <div className="app-titlebar-shell">{updateSlot}<WindowControls /></div>}
       {!inGame
         ? <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} />
-        : <GameLayout charName={charName} accountName={accountName} watching={watching} onLeaveWatch={leaveWatch} onOpenSettings={() => setShowSettings(true)} onRequestConnect={() => setShowReconnect(true)} updateSlot={updateSlot} />
+        : <GameLayout charName={charName} accountName={accountName} watching={watching} onLeaveWatch={leaveWatch} onOpenSettings={() => setShowSettings(true)} onRequestConnect={openConnect} onSwitchCharacter={openSwitchCharacter} updateSlot={updateSlot} />
       }
       {inGame && showReconnect && (
         <div className="reconnect-overlay">
-          <button className="reconnect-close" onClick={() => setShowReconnect(false)} aria-label="Cancel">✕</button>
-          <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} />
+          <button className="reconnect-close" onClick={closeReconnect} aria-label="Cancel">✕</button>
+          <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} switchAccount={switchAccount} />
         </div>
       )}
       {showSettings && (
         <SettingsModal
           charName={charName}
           onClose={() => setShowSettings(false)}
-          onSignedOut={async () => {
-            // Order matters: end the DR session on the signed-in bucket FIRST, then
-            // sign out (which reconnects the socket anonymously), then show login.
-            try { await window.dr.game.disconnect() } catch { /* ignore */ }
-            window.dr.account?.signOut()
-            setInGame(false)
-          }}
-          onReturnToLogin={async () => {
-            // Return to the login screen so the user can "Sign in to sync": end the DR
-            // session first (its login would otherwise auto-resume and compete with the
-            // Magiloom sign-in), then show login.
-            try { await window.dr.game.disconnect() } catch { /* ignore */ }
-            setInGame(false)
-          }}
         />
       )}
     </>

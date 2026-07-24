@@ -1,7 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { Tooltip } from './Tooltip'
 
-interface LoginFlowProps { onEnterGame: (characterName: string, accountName: string, watching?: boolean) => void; onOpenSettings: () => void }
+interface LoginFlowProps {
+  onEnterGame: (characterName: string, accountName: string, watching?: boolean) => void
+  onOpenSettings: () => void
+  // "Switch character" shortcut: when a DR account name is given, skip the account
+  // picker and go straight to that account's character list (re-authenticating with
+  // the saved password behind the scenes). Falls back to the credentials screen if
+  // no password is saved. undefined/null = the normal full login flow.
+  switchAccount?: string | null
+}
 
 type Screen =
   | 'account-list'
@@ -376,7 +384,7 @@ function WatchSelectScreen({ onWatch, onBack }: {
 }
 
 // ─── Root controller ──────────────────────────────────────────────────────────
-export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
+export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginFlowProps) {
   const [screen,        setScreen]        = useState<Screen>('account-list')
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([])
   const [activeAccount, setActiveAccount] = useState('')
@@ -526,6 +534,23 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
     setLoading(false)
     if (!result.ok) setError(result.error ?? 'Failed to connect.')
   }
+
+  // "Switch character" shortcut: re-authenticate the current account with its saved
+  // password and land on the character list, skipping the account picker. Runs once.
+  const switchStarted = useRef(false)
+  useEffect(() => {
+    if (!switchAccount || switchStarted.current) return
+    switchStarted.current = true
+    setActiveAccount(switchAccount)
+    activeAccountRef.current = switchAccount
+    setScreen('credentials')   // shows the account + a spinner while we re-auth
+    window.dr.auth.getPassword(switchAccount).then(pw => {
+      // With a saved password we sign in silently and advance to character-select;
+      // without one the credentials screen is already up for manual entry.
+      if (pw) handleCredentials(switchAccount, pw)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [switchAccount])
 
   return (
     <Shell>

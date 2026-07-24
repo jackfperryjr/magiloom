@@ -17,16 +17,9 @@ import { TriggersTab } from './settings/TriggersTab'
 interface SettingsModalProps {
   charName?: string
   onClose: () => void
-  /** Web only: called after signing out of the Magiloom account so the app can
-   *  disconnect from DR and return to the login screen. */
-  onSignedOut?: () => void
-  /** Web only: return to the login screen (disconnecting DR) so the user can reach
-   *  "Sign in to sync" — signing into Magiloom re-buckets the socket, so it must
-   *  happen at login, not over a live DR session. */
-  onReturnToLogin?: () => void
 }
 
-type TabId = 'appearance' | 'notifications' | 'keybinds' | 'aliases' | 'triggers' | 'scripts' | 'lich' | 'account'
+type TabId = 'appearance' | 'notifications' | 'keybinds' | 'aliases' | 'triggers' | 'scripts' | 'lich'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'appearance',    label: 'Appearance' },
@@ -38,16 +31,10 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'lich',          label: 'Lich' },
 ]
 
-export function SettingsModal({ charName = '', onClose, onSignedOut, onReturnToLogin }: SettingsModalProps) {
+export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const isWeb = window.dr.app.platform === 'web'
-  // Magiloom account (web only). The tab appears when signed in so the user can
-  // sign out from here (which disconnects DR and returns to the login screen).
-  const acctApi = window.dr.account
-  const [acct, setAcct] = useState<MagiloomAccount | null>(null)
-  useEffect(() => { if (acctApi?.isSignedIn()) void acctApi.current().then(a => setAcct(a)) }, [acctApi])
-  // Show the Account tab on any WEB client (desktop or mobile) for consistency; the
-  // Electron desktop app has no `account` API, so it never appears there (free/local).
-  const tabs = acctApi ? [...TABS, { id: 'account' as TabId, label: 'Account' }] : TABS
+  // Magiloom account sign-in/out now lives in the user menu (CharacterBar), not here.
+  const tabs = TABS
   const [lichPath,        setLichPath]        = useState('')
   const [scriptDir,       setScriptDir]       = useState('')
   const [defaultScriptDir, setDefaultScriptDir] = useState('')
@@ -326,49 +313,6 @@ export function SettingsModal({ charName = '', onClose, onSignedOut, onReturnToL
               </div>
             )}
 
-            {tab === 'account' && (
-              <div className="settings-section">
-                <div className="settings-section-label">Magiloom account</div>
-                {acct ? (
-                  <>
-                    <label className="settings-row">
-                      <span className="settings-label">Signed in as</span>
-                      <span className="settings-value">{acct.email}</span>
-                    </label>
-                    <div className="settings-hint">
-                      Your settings and Lich setups sync across devices while signed in.
-                    </div>
-                    <button
-                      className="login-btn-secondary"
-                      style={{ marginTop: 12, color: 'var(--color-warning)' }}
-                      onClick={() => { onClose(); onSignedOut?.() }}
-                    >
-                      Sign out
-                    </button>
-                    <div className="settings-hint">
-                      Signing out disconnects from DragonRealms and returns to the login screen.
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="settings-hint">
-                      Sync your settings and Lich setups across devices. Signing in happens on the
-                      login screen, so this returns you there.
-                    </div>
-                    <button
-                      className="login-btn"
-                      style={{ marginTop: 12 }}
-                      onClick={() => { onClose(); onReturnToLogin?.() }}
-                    >
-                      Sign in to sync…
-                    </button>
-                    <div className="settings-hint">
-                      Returns to the login screen (disconnecting DragonRealms) where “Sign in to sync” lives.
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
           </div>
         </div>
 
