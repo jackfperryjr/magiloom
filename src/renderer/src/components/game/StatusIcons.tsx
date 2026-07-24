@@ -4,7 +4,7 @@
 // so the active-state colour swap just works).
 import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react'
 import { useAtomValue } from 'jotai'
-import { indicatorsAtom, roomAtom } from '../../store/game'
+import { indicatorsAtom, roomAtom, presenceModeAtom, autoIdleAtom } from '../../store/game'
 
 // Condition sprites — one ragdoll frame per state, lifted + trimmed from the status
 // spritesheet (assets/emoji-ragdoll-2.png). Shown muted/greyscale while the condition
@@ -62,13 +62,13 @@ function frameStyle(frame: number, size: number): CSSProperties {
 }
 
 // ── Idle "raise the lantern" ──────────────────────────────────────────────────
-// After the player has been idle a while (standing only), the ragdoll raises its
-// lantern — a separate 4-frame strip (assets/lantern-idle.png). Its frames are wider
-// than a posture cell (the raised lantern), so this overrides the sheet + box inline.
-// Any real input reverts to the normal posture. (Mirrors the landing-page mascot.)
+// When the player goes idle (standing only), Loomy raises the lantern — a separate
+// 4-frame strip (assets/lantern-idle.png). Its frames are wider than a posture cell
+// (the raised lantern), so this overrides the sheet + box inline. The idle state is
+// the SHARED avatar-idle signal (the yellow status dot), so the two coincide exactly;
+// going active reverts to the normal posture. (Mirrors the landing-page mascot.)
 const LAN_COLS = 3                 // frames 3-5 of the mascot sheet (the raised lantern)
 const LAN_ASPECT = 82 / 80        // lantern-idle frame w:h
-const IDLE_MS = 45000             // go idle → raise the lantern after this long, no input
 const LAN_LOOP_STEP = 460         // ping-pong cadence (matches the homepage idle loop)
 // The lantern-idle figure fills its whole 80px source frame, while a posture cell
 // leaves ~15% headroom/foot padding around its 64px figure. Rendered at the same box
@@ -102,6 +102,9 @@ const WAVE_STEP_MS = 100   // wave-cycle frame cadence (hover, standing only)
 export function PostureSprite({ size = 32 }: { size?: number }) {
   const indicators = useAtomValue(indicatorsAtom)
   const room       = useAtomValue(roomAtom)
+  const presenceMode = useAtomValue(presenceModeAtom)
+  const autoIdle     = useAtomValue(autoIdleAtom)
+  const idle         = presenceMode === 'idle' || autoIdle  // matches the yellow status dot
   const posture    = currentPosture(indicators)
   const [frame, setFrame] = useState(() => REST[posture])
   const [lantern, setLantern] = useState<number | null>(null)  // idle lantern-raise frame (null = off)
@@ -113,7 +116,6 @@ export function PostureSprite({ size = 32 }: { size?: number }) {
   const prevPosture = useRef(posture)
   const prevRoom    = useRef(room.name)
   const lanternTimers = useRef<number[]>([])     // idle raise/bob timers
-  const postureRef    = useRef(posture)          // current posture, for the idle timer
 
   const clearSeq  = () => { seqTimers.current.forEach(clearTimeout); seqTimers.current = [] }
   // clearTimeout also cancels intervals (shared id pool), so it clears both raise + bob.
@@ -199,15 +201,14 @@ export function PostureSprite({ size = 32 }: { size?: number }) {
     if (hadRoom && room.name && posture === 'standing') walk()
   }, [room.name, posture])
 
-  // Keep postureRef fresh so the idle timer (subscribed once) sees the live posture.
-  useEffect(() => { postureRef.current = posture }, [posture])
-
-  // Idle → raise the lantern (standing only). Any real input (key / click / wheel /
-  // touch / a game command sent) reverts to the normal posture and re-arms the timer.
+  // Idle → Loomy raises the lantern (standing only), in lockstep with the avatar's
+  // yellow status dot: this reacts to the SAME shared idle signal instead of a private
+  // timer, so the two always coincide. Going active again — or dropping out of standing
+  // — lowers it back to the normal pose.
   useEffect(() => {
-    let idleTimer = 0
-    const raise = () => {
-      if (postureRef.current !== 'standing') return
+    const raised = lanternTimers.current.length > 0
+    if (idle && posture === 'standing') {
+      if (raised) return
       clearSeq(); clearWalk(); clearWave(); clearLantern()
       // ping-pong frames 0↔2 (the mascot sheet's 3↔5): raises, then loops up/down —
       // same idle animation as the homepage mascot.
@@ -218,28 +219,17 @@ export function PostureSprite({ size = 32 }: { size?: number }) {
         if (f <= 0) dir = 1; else if (f >= LAN_COLS - 1) dir = -1
         setLantern(f)
       }, LAN_LOOP_STEP))
+    } else if (raised) {
+      clearLantern(); setLantern(null)
+      if (posture === 'standing') setFrame(REST.standing)
     }
-    const reset = () => {
-      if (lanternTimers.current.length) { clearLantern(); setLantern(null); setFrame(REST[postureRef.current]) }
-      window.clearTimeout(idleTimer)
-      idleTimer = window.setTimeout(raise, IDLE_MS)
-    }
-    const evs: (keyof WindowEventMap)[] = ['keydown', 'mousedown', 'wheel', 'touchstart']
-    evs.forEach(e => window.addEventListener(e, reset, { passive: true }))
-    const unsub = window.dr.game.onSent(reset)
-    reset()
-    return () => { evs.forEach(e => window.removeEventListener(e, reset)); unsub(); window.clearTimeout(idleTimer); clearLantern() }
-  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [idle, posture])   // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Changing to a non-standing posture drops the raised lantern back to the pose.
-  useEffect(() => {
-    if (posture !== 'standing' && lanternTimers.current.length) { clearLantern(); setLantern(null) }
-  }, [posture])
-
-  useEffect(() => () => { clearSeq(); clearWalk(); clearWave() }, [])
+  useEffect(() => () => { clearSeq(); clearWalk(); clearWave(); clearLantern() }, [])
 
   return <span
     className="posture-sprite"
+    data-tooltip="Loomy"
     style={lantern !== null ? lanternFrameStyle(lantern, size) : frameStyle(frame, size)}
     onMouseEnter={onEnter} onMouseLeave={onLeave} aria-hidden
   />

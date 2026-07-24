@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useAtomValue, useAtom } from 'jotai'
 import {
-  presenceModeAtom, avatarsAtom, avatarCropsAtom, serverAvatarsAtom, linkModeAtom, broadcastReceiveAtom,
+  presenceModeAtom, autoIdleAtom, avatarsAtom, avatarCropsAtom, serverAvatarsAtom, linkModeAtom, broadcastReceiveAtom,
 } from '../../store/game'
 import type { PresenceMode, ProfileInfo, ConnectionStatus } from '../../store/game'
 import type { AvatarCrop } from '../../lib/avatar'
@@ -11,10 +11,11 @@ import { useProfile } from '../../hooks/useProfile'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import {
-  IconCog, IconPaintBrush, IconPhoto, IconPower, IconBolt, IconBroadcast,
+  IconCog, IconPaintBrush, IconPhoto, IconPower, IconBolt, IconBroadcast, IconSwitch,
 } from '../ui/Icons'
 import { Tooltip } from '../ui/Tooltip'
 import { BroadcastModal } from '../ui/BroadcastModal'
+import { AccountSignInModal } from '../ui/AccountSignInModal'
 
 // ── Character bar (bottom-left identity + user menu) ──────────────────────────
 // Read a picked File into a data URL (raw — cropping happens live in the modal).
@@ -104,9 +105,11 @@ const PRESENCE_LABEL: Record<PresenceMode, string> = {
   dnd:    'Do Not Disturb',
 }
 
-// Flip to idle after IDLE_MS with no keyboard/pointer activity.
+// Flip to idle after IDLE_MS with no keyboard/pointer activity. Publishes to the
+// shared autoIdleAtom (not just local state) so Loomy's idle lantern-raise reads
+// the exact same signal as the status dot. Mounted once, in the character bar.
 function useAutoIdle(): boolean {
-  const [idle, setIdle] = useState(false)
+  const [idle, setIdle] = useAtom(autoIdleAtom)
   useEffect(() => {
     let timer = 0
     const reset = () => {
@@ -118,7 +121,7 @@ function useAutoIdle(): boolean {
     events.forEach(e => window.addEventListener(e, reset))
     reset()
     return () => { window.clearTimeout(timer); events.forEach(e => window.removeEventListener(e, reset)) }
-  }, [])
+  }, [setIdle])
   return idle
 }
 
@@ -135,7 +138,7 @@ function presenceFor(status: ConnectionStatus, mode: PresenceMode, autoIdle: boo
 
 function CharacterMenu({
   status, presenceMode, onSetPresence, onEditAvatar, avatar, crop, initial, charName, profile,
-  onDisconnect, onConnect, watching, onLeaveWatch, onClose, showActions, onBroadcast, onHighlights, onSettings,
+  onDisconnect, onConnect, onSwitchCharacter, magiAccount, onSignIn, onSignOut, watching, onLeaveWatch, onClose, showActions, onBroadcast, onHighlights, onSettings,
 }: {
   status:        ConnectionStatus
   presenceMode:  PresenceMode
@@ -148,6 +151,10 @@ function CharacterMenu({
   profile:       ProfileInfo | null
   onDisconnect:  () => void
   onConnect:     () => void
+  onSwitchCharacter?: () => void
+  magiAccount:   MagiloomAccount | null
+  onSignIn:      () => void
+  onSignOut:     () => void
   watching?:     boolean
   onLeaveWatch?: () => void
   onClose:       () => void
@@ -207,6 +214,34 @@ function CharacterMenu({
             <IconBolt size={15} /> Connect
           </button>
         )}
+        {onSwitchCharacter && !watching && (
+          // Jump to this account's character list without ending here first — the
+          // reconnect handler tears down the old session cleanly (see auth flow).
+          <button className="char-menu-item" onClick={run(onSwitchCharacter)}>
+            <IconSwitch size={15} /> Switch character
+          </button>
+        )}
+        {/* Magiloom account (web only — desktop's preload has no `account` API).
+            Signing in/out here re-buckets the connection in place, so the DR session
+            keeps running. Create-account lives inside the sign-in modal. */}
+        {window.dr.account && (
+          <>
+            <div className="char-menu-sep" />
+            {magiAccount ? (
+              <div className="char-menu-account">
+                <div className="char-menu-account-info">
+                  <span className="char-menu-account-label">Magiloom</span>
+                  <span className="char-menu-account-email" data-tooltip={magiAccount.email}>{magiAccount.email}</span>
+                </div>
+                <button className="char-menu-account-signout" onClick={run(onSignOut)}>Sign out</button>
+              </div>
+            ) : (
+              <button className="char-menu-item" onClick={run(onSignIn)}>
+                <span className="char-menu-cloud" aria-hidden>☁</span> Sign in to Magiloom
+              </button>
+            )}
+          </>
+        )}
         {watching && onLeaveWatch && (
           // Watch mode: leave the view without ending the session (it keeps running
           // for its owner). Sits just under Disconnect.
@@ -220,7 +255,7 @@ function CharacterMenu({
 }
 
 export function CharacterBar({
-  charName, accountName, status, watching = false, onLeaveWatch, onHighlights, onSettings, onDisconnect, onConnect,
+  charName, accountName, status, watching = false, onLeaveWatch, onHighlights, onSettings, onDisconnect, onConnect, onSwitchCharacter,
 }: {
   charName:     string
   accountName:  string
@@ -231,9 +266,19 @@ export function CharacterBar({
   onSettings:   () => void
   onDisconnect: () => void
   onConnect:    () => void
+  onSwitchCharacter?: () => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [showBroadcast, setShowBroadcast] = useState(false)
+  // Magiloom account (web only). Signing in/out from the menu re-buckets the
+  // connection in place (the server re-keys this client's live session to the new
+  // bucket), so it never forces a DR re-login.
+  const [magiAccount, setMagiAccount] = useState<MagiloomAccount | null>(null)
+  const [showSignIn, setShowSignIn] = useState(false)
+  useEffect(() => {
+    if (window.dr.account?.isSignedIn()) window.dr.account.current().then(a => setMagiAccount(a))
+  }, [])
+  const onSignOut = () => { window.dr.account?.signOut(); setMagiAccount(null) }
   const isMobile = useIsMobile()
   const linkMode = useAtomValue(linkModeAtom)
   const receive  = useAtomValue(broadcastReceiveAtom)
@@ -403,6 +448,10 @@ export function CharacterBar({
           profile={profile}
           onDisconnect={onDisconnect}
           onConnect={onConnect}
+          onSwitchCharacter={onSwitchCharacter}
+          magiAccount={magiAccount}
+          onSignIn={() => setShowSignIn(true)}
+          onSignOut={onSignOut}
           watching={watching}
           onLeaveWatch={onLeaveWatch}
           onClose={() => setMenuOpen(false)}
@@ -448,6 +497,12 @@ export function CharacterBar({
         </div>
       )}
       {showBroadcast && <BroadcastModal charName={charName} onClose={() => setShowBroadcast(false)} />}
+      {showSignIn && (
+        <AccountSignInModal
+          onClose={() => setShowSignIn(false)}
+          onSignedIn={a => { setMagiAccount(a); setShowSignIn(false) }}
+        />
+      )}
     </div>
   )
 }

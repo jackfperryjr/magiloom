@@ -172,11 +172,57 @@ export class LichManager extends EventEmitter {
     this.setStatus('stopped')
   }
 
+  /**
+   * Stop the current Lich and resolve once it has FULLY exited (its 'close' event,
+   * after stdio drains). Switching characters spawns a new headless Lich on the same
+   * port, so the old one must be gone first — otherwise the new Lich can't bind the
+   * detachable-client port and dies, which is the "switch fails until I direct-connect
+   * first" bug. Resolves immediately when nothing is running, and after `timeoutMs` if
+   * the process refuses to die so a switch never hangs.
+   */
+  stopAndWait(timeoutMs = 4000): Promise<void> {
+    this.clearPoll()
+    const proc = this.process
+    this.process = null
+    this.setStatus('stopped')
+    if (!proc || proc.exitCode !== null || proc.signalCode !== null) return Promise.resolve()
+    return new Promise<void>((resolve) => {
+      let done = false
+      const finish = () => { if (done) return; done = true; resolve() }
+      proc.once('close', finish)
+      try { proc.kill('SIGTERM') } catch { finish() }
+      setTimeout(finish, timeoutMs)
+    })
+  }
+
+  /**
+   * Resolve once nothing is listening on `port` (a connect attempt is refused), or
+   * after `timeoutMs`. Gives the OS a beat to release the socket a just-killed Lich
+   * held before the replacement tries to bind it.
+   */
+  waitForPortFree(port: number, timeoutMs = 3000): Promise<void> {
+    const started = Date.now()
+    return new Promise<void>((resolve) => {
+      const probe = () => {
+        const s = createConnection({ port, host: '127.0.0.1' })
+        const cleanup = () => { s.removeAllListeners(); s.destroy() }
+        s.on('connect', () => {                    // still held — wait and retry
+          cleanup()
+          if (Date.now() - started >= timeoutMs) resolve()
+          else setTimeout(probe, 150)
+        })
+        s.on('error', () => { cleanup(); resolve() })  // refused → free
+      }
+      probe()
+    })
+  }
+
   getStatus(): LichStatus { return this.status }
 
   private _spawn(rubyPath: string, args: string[]): void {
-    this.process = spawn(rubyPath, args, { stdio: ['pipe', 'pipe', 'pipe'] })
-    this.process.stdin?.end()
+    const proc = spawn(rubyPath, args, { stdio: ['pipe', 'pipe', 'pipe'] })
+    this.process = proc
+    proc.stdin?.end()
 
     // Lich's own logging (Lich.log) goes to STDERR, so this is where the "why did
     // it quit" detail lives. Keep a tail so we can replay it on exit — a fast/quiet
@@ -184,15 +230,20 @@ export class LichManager extends EventEmitter {
     // be lost.
     const tail: string[] = []
     const record = (l: string) => { tail.push(l); if (tail.length > 80) tail.shift() }
+    // True only while `proc` is the manager's current process. Once it's replaced by a
+    // new spawn or intentionally stopped (this.process !== proc), its late stdio/close
+    // events must NOT touch status or emit errors — otherwise stopping the old Lich
+    // during a character switch surfaces as a spurious "Lich exited" failure.
+    const current = () => this.process === proc
 
-    this.process.stdout?.on('data', (d: Buffer) => {
+    proc.stdout?.on('data', (d: Buffer) => {
       d.toString().split('\n').filter(Boolean).forEach(l => { record(l); this.emit('log', l) })
     })
-    this.process.stderr?.on('data', (d: Buffer) => {
+    proc.stderr?.on('data', (d: Buffer) => {
       d.toString().split('\n').filter(Boolean).forEach(l => {
         record(`[stderr] ${l}`)
         this.emit('log', `[stderr] ${l}`)
-        if (/error|failed|invalid|no such|cannot/i.test(l) && this.status !== 'ready') {
+        if (/error|failed|invalid|no such|cannot/i.test(l) && this.status !== 'ready' && current()) {
           this.setStatus('error')
           this.emit('error', l.trim())
         }
@@ -202,8 +253,10 @@ export class LichManager extends EventEmitter {
     // Record the exit code, but do the diagnostic on 'close' — it fires only after
     // stdout/stderr have fully drained, so we never miss Lich's final words.
     let exited: { code: number | null; signal: NodeJS.Signals | null } | null = null
-    this.process.on('exit', (code, signal) => { exited = { code, signal }; this.clearPoll() })
-    this.process.on('close', () => {
+    proc.on('exit', (code, signal) => { exited = { code, signal }; if (current()) this.clearPoll() })
+    proc.on('close', () => {
+      // A stale process we've already replaced/stopped: stay silent.
+      if (!current()) return
       if (this.status === 'ready') { this.setStatus('stopped'); this.process = null; return }
       const code = exited?.code ?? null
       const signal = exited?.signal ?? null

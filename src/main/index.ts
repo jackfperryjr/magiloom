@@ -383,6 +383,14 @@ function setupIpcHandlers(): void {
     const wantsLich = useLich ?? !!settings.get('lichPath')
     settings.patch({ connectWithLich: wantsLich })
 
+    // Fully tear down the PREVIOUS session before reconnecting — this handler also
+    // runs for an in-app character switch, where the old socket + old Lich are still
+    // live. Drop our client socket, then wait for any running Lich to exit and release
+    // its port. Skipping this is the "switch fails until I direct-connect first" bug:
+    // the old Lich still held port 11024 so the new headless Lich couldn't bind it.
+    gameConn.disconnect()
+    await lichManager.stopAndWait()
+
     if (wantsLich) {
       // Headless Lich mode: Lich authenticates itself from its saved-login file and
       // exposes a detachable client port we attach to (no frostbite, no key forwarded).
@@ -397,6 +405,9 @@ function setupIpcHandlers(): void {
         // Write Lich's saved login (masked with its :standard cipher) so --login works.
         writeLichEntry(join(dirname(lichRbw), 'data'), accountName, pendingPassword, characterName)
         pendingPassword = null
+        // Make sure the previous Lich has released the detachable-client port before
+        // the new one tries to bind it.
+        await lichManager.waitForPortFree(11024)
         lichLog('[sge] Launching Lich (headless mode) for ' + characterName + '...')
         const res = lichManager.spawnHeadless(characterName, 11024, settings.get('lichPath') || undefined)
         if (res.ok) {
@@ -540,6 +551,6 @@ function setupIpcHandlers(): void {
     }
   })
   gameConn.on('connected',    ()          => { lichLog('[game] Connected'); send('game:connected') })
-  gameConn.on('disconnected', ()          => send('game:disconnected'))
+  gameConn.on('disconnected', ()          => { lichReadyDetected = false; send('game:disconnected') })
   gameConn.on('error',        (e: string) => { lichLog('[game] Error: ' + e); send('game:error', e) })
 }

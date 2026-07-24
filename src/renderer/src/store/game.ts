@@ -241,6 +241,10 @@ export const indicatorsAtom = atom<Record<string, boolean>>({})
 // ── Presence (avatar status; shared so notifications can honor Do Not Disturb) ──
 export type PresenceMode = 'online' | 'idle' | 'dnd'
 export const presenceModeAtom = atom<PresenceMode>('online')
+// Auto-idle flag (no keyboard/pointer activity for a while). Driven by the single
+// useAutoIdle instance in the character bar and read by both the avatar status dot
+// and Loomy's idle lantern-raise, so the two stay in lockstep.
+export const autoIdleAtom = atom(false)
 
 // ── Avatars ─────────────────────────────────────────────────────────────────
 // Local self-uploads, keyed by lowercased character name (mirrors settings.json
