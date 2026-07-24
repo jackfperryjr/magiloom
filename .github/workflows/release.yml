@@ -1,9 +1,15 @@
 name: Tag and Release
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
   push:
     branches: [main]
+    # Skip releases for docs-only changes (README, guides, and the README's
+    # Loomy images) so a documentation tweak doesn't cut a new version + build.
+    # A manual run (workflow_dispatch) still releases regardless.
+    paths-ignore:
+      - '**.md'
+      - 'docs/loomy/**'
 
 permissions:
   contents: write
