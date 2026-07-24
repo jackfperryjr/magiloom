@@ -302,7 +302,8 @@ function SettingsScreen({ initialPath, detectedPath, onSave, onBack }: {
 // phone. (Intentionally says nothing about the paid tier yet.)
 function MagiloomAccountScreen({ onDone, onBack }: {
   onDone: (account: MagiloomAccount) => void
-  onBack: () => void
+  // Omitted when sign-in is mandatory (MAGILOOM_REQUIRE_ACCOUNT) — no way to skip past it.
+  onBack?: () => void
 }) {
   const [mode,     setMode]     = useState<'signin' | 'signup'>('signin')
   const [email,    setEmail]    = useState('')
@@ -321,10 +322,12 @@ function MagiloomAccountScreen({ onDone, onBack }: {
   }
 
   return <>
-    <Back onClick={onBack} />
+    {onBack && <Back onClick={onBack} />}
     <div className="login-screen-title">{mode === 'signup' ? 'Create account' : 'Sign in to Magiloom'}</div>
     <p className="login-hint" style={{ marginTop: 0 }}>
-      Sync your settings and Lich setups across your devices.
+      {onBack
+        ? 'Sync your settings and Lich setups across your devices.'
+        : 'Sign in or create a free account to continue.'}
     </p>
     <div className="login-fields">
       <label className="login-label">Email
@@ -385,7 +388,13 @@ function WatchSelectScreen({ onWatch, onBack }: {
 
 // ─── Root controller ──────────────────────────────────────────────────────────
 export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginFlowProps) {
-  const [screen,        setScreen]        = useState<Screen>('account-list')
+  // Mandatory sign-in gate (web only; desktop has no `account` API). When the server
+  // requires an account and we're not signed in, open straight on the Magiloom
+  // account screen with no way to skip it — every other screen needs a live WS the
+  // server won't grant until we're authenticated.
+  const requireAcct = !!window.dr.account?.required?.()
+  const mustSignIn  = requireAcct && !window.dr.account?.isSignedIn?.()
+  const [screen,        setScreen]        = useState<Screen>(mustSignIn ? 'magiloom-account' : 'account-list')
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([])
   const [activeAccount, setActiveAccount] = useState('')
   const [instances,     setInstances]     = useState<SGEInstance[]>([])
@@ -424,13 +433,25 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
         setLichAvailable(available)
         const initial = s.connectWithLich ?? available
         setUseLich(initial); useLichRef.current = initial
-        if (!s.accounts?.length) setScreen('credentials')
+        // Skip straight to credentials when there are no saved DR accounts — but never
+        // jump out of the mandatory sign-in gate (that must be cleared first).
+        if (!s.accounts?.length && !mustSignIn) setScreen('credentials')
       })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Reflect an existing Magiloom sign-in (web only) in the sync badge.
+  // Reflect an existing Magiloom sign-in (web only) in the sync badge. Also validates
+  // the stored token: when sign-in is required and the token turns out stale/expired
+  // (current() resolves null), clear it and fall back to the mandatory gate — otherwise
+  // isSignedIn() (presence-only) would let us past a token the server will reject.
   useEffect(() => {
-    if (window.dr.account?.isSignedIn()) window.dr.account.current().then(a => { if (a) setMagiAccount(a) })
+    const api = window.dr.account
+    if (!api?.isSignedIn()) return
+    api.current().then(a => {
+      if (a) setMagiAccount(a)
+      else if (requireAcct) { api.signOut(); setMagiAccount(null); setScreen('magiloom-account') }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // After signing in/out, the socket re-buckets to the account (or device); pull the
@@ -439,7 +460,11 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
     setMagiAccount(a); await refreshSettings(); setScreen('account-list')
   }
   const onMagiloomSignOut = async () => {
-    window.dr.account?.signOut(); setMagiAccount(null); await refreshSettings()
+    window.dr.account?.signOut(); setMagiAccount(null)
+    // When an account is mandatory, signing out returns to the gate rather than the
+    // (now unauthenticated, server-rejected) DR account list.
+    if (requireAcct) { setScreen('magiloom-account'); return }
+    await refreshSettings()
   }
 
   // Watch a running session: attach to it (reconnects with ?watch=) and enter game
@@ -566,7 +591,10 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
         />
       )}
       {screen === 'magiloom-account' && (
-        <MagiloomAccountScreen onDone={onMagiloomSignedIn} onBack={() => setScreen('account-list')} />
+        <MagiloomAccountScreen
+          onDone={onMagiloomSignedIn}
+          onBack={mustSignIn ? undefined : () => setScreen('account-list')}
+        />
       )}
       {screen === 'watch-select' && (
         <WatchSelectScreen onWatch={onWatchSession} onBack={() => setScreen('account-list')} />

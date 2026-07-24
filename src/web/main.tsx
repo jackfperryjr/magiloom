@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { installDr } from './dr'
 import { setupPush } from './push'
 import { startUpdateChecks } from './updater'
+import { setupWakeLock } from './wakeLock'
 
 // Install the WebSocket-backed window.dr BEFORE importing the app: App.tsx reads
 // window.dr.app.platform at module-evaluation time, so it must exist first. The
@@ -10,6 +11,7 @@ import { startUpdateChecks } from './updater'
 installDr()
 setupPush()
 startUpdateChecks()
+setupWakeLock()
 
 import('../renderer/src/App').then(({ default: App }) => {
   ReactDOM.createRoot(document.getElementById('root')!).render(

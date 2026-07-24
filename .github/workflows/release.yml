@@ -104,6 +104,10 @@ jobs:
         run: npm run web:build
         env:
           VITE_MAGILOOM_TOKEN: ${{ secrets.MAGILOOM_WEB_TOKEN }}
+          # Not a secret — a feature flag baked into the bundle. Must match the
+          # server's MAGILOOM_REQUIRE_ACCOUNT so the mandatory sign-in gate lines up
+          # with the server actually rejecting anonymous connections.
+          VITE_MAGILOOM_REQUIRE_ACCOUNT: "1"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

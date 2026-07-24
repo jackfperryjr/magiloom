@@ -259,7 +259,17 @@ function setupUpdater(): void {
 
 function setupIpcHandlers(): void {
   ipcMain.handle('app:version',        () => app.getVersion())
-  ipcMain.handle('app:open-external',  (_e, url: string) => shell.openExternal(url))
+  // Only hand safe web/mail schemes to the OS. Game text renders clickable links from
+  // untrusted server content, so an unchecked url could smuggle file:, a Windows
+  // protocol handler, etc. straight to shell.openExternal — allowlist http(s)/mailto.
+  ipcMain.handle('app:open-external',  (_e, url: string) => {
+    try {
+      const { protocol } = new URL(url)
+      if (protocol === 'http:' || protocol === 'https:' || protocol === 'mailto:') {
+        return shell.openExternal(url)
+      }
+    } catch { /* malformed URL — ignore */ }
+  })
   ipcMain.handle('window:minimize',    () => mainWindow?.minimize())
   ipcMain.handle('window:maximize',    () => {
     if (mainWindow?.isMaximized()) mainWindow.unmaximize()

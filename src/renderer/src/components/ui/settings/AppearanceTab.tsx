@@ -7,6 +7,7 @@ import { THEMES } from '../../../lib/themes'
 export function AppearanceTab({
   theme, previewTheme, density, setDensity, fontFamily, setFontFamily,
   fontSize, setFontSize, outputBufferSize, setOutputBufferSize,
+  isWeb, keepScreenOn, setKeepScreenOn,
 }: {
   theme:               string
   previewTheme:        (id: string) => void
@@ -18,6 +19,9 @@ export function AppearanceTab({
   setFontSize:         Dispatch<SetStateAction<number>>
   outputBufferSize:    number
   setOutputBufferSize: Dispatch<SetStateAction<number>>
+  isWeb:               boolean
+  keepScreenOn:        boolean
+  setKeepScreenOn:     Dispatch<SetStateAction<boolean>>
 }) {
   return (
     <>
@@ -112,6 +116,23 @@ export function AppearanceTab({
         </select>
       </label>
       </div>
+
+      {/* Keep-awake only applies to the PWA/browser; the desktop app manages power
+          differently, so the toggle is web-only. See src/web/wakeLock.ts. */}
+      {isWeb && (
+        <div className="settings-section">
+          <div className="settings-section-label">Mobile</div>
+          <label className="settings-row">
+            <span className="settings-label">Keep screen awake</span>
+            <input type="checkbox" checked={keepScreenOn} style={{ width: 'auto' }}
+              onChange={e => setKeepScreenOn(e.target.checked)} />
+          </label>
+          <div className="settings-hint">
+            Holds the display on while connected to the game, so your phone or tablet
+            won't dim or lock mid-session. Only active while a character is connected.
+          </div>
+        </div>
+      )}
     </>
   )
 }

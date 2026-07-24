@@ -548,7 +548,13 @@ function AppInner() {
   const [launchUpdate,  setLaunchUpdate]  = useState(false)
   // Web only: after a reload (e.g. applying an update) the server may still hold this
   // client's live session, so start by waiting to resume rather than flashing login.
-  const [resuming,      setResuming]      = useState(window.dr.app.platform === 'web')
+  // Resume a still-running server session on web load — but not when sign-in is
+  // required and we're not signed in: the server rejects that WS, so there's nothing
+  // to resume and we'd just wait out the timeout before showing the mandatory gate.
+  const [resuming,      setResuming]      = useState(
+    window.dr.app.platform === 'web' &&
+    !(window.dr.account?.required?.() && !window.dr.account?.isSignedIn?.())
+  )
 
   useEffect(() => {
     // Connectivity indicator: the red triangle shows only when actually offline.

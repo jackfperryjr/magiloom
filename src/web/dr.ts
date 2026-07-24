@@ -1,4 +1,4 @@
-import { wsUrl, setWatch } from './config'
+import { wsUrl, setWatch, requireAccount } from './config'
 import * as account from './auth'
 import { enablePush } from './push'
 import { webUpdater } from './updater'
@@ -259,6 +259,8 @@ export function installDr(): void {
     // gates on its presence). Signing in/out re-buckets the connection on the server,
     // so we reconnect the socket and re-point the push subscription afterward.
     account: {
+      // Whether the app must be used signed-in (mirrors the server's enforcement).
+      required:   () => requireAccount(),
       isSignedIn: () => account.isSignedIn(),
       current:    () => account.currentAccount(),
       signUp: async (email: string, password: string) => {

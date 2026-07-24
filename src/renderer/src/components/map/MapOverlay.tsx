@@ -17,6 +17,9 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
   const [db, setDb]   = useAtom(mapDbAtom)
   const currentNodeId = useAtomValue(currentNodeIdAtom)
   const walk          = useAtomValue(walkStateAtom)
+  // Web uses the shared server map; desktop uses a local per-user one. A few
+  // destructive affordances differ between the two (see "Clear all" below).
+  const isWeb = window.dr.app.platform === 'web'
   const [autoRecord, setAutoRecord] = useAtom(autoRecordAtom)
 
   const zones = useMemo(
@@ -180,7 +183,13 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
           <button className="map-tb-btn map-text-btn" onClick={doImport}>Import</button>
           <button className="map-tb-btn map-text-btn" onClick={doExport} disabled={zones.length === 0}>Export</button>
           <button className="map-tb-btn map-text-btn" onClick={() => zoneId && setConfirmState({ kind: 'zone', label: `Delete the recorded map for "${db.zones[zoneId]?.name ?? 'this zone'}"?` })} disabled={!zoneId}>Clear zone</button>
-          <button className="map-tb-btn map-text-btn" onClick={() => setConfirmState({ kind: 'all', label: 'Delete the ENTIRE recorded world map? This cannot be undone.' })} disabled={zones.length === 0}>Clear all</button>
+          {/* "Clear all" wipes the WHOLE map. On the web client that map is the shared
+              server DB, and the server refuses a remote wipe (operator-only) — so the
+              button would do nothing there. Desktop's map is the user's own local DB,
+              where clearing is legitimate, so it's shown only there. */}
+          {!isWeb && (
+            <button className="map-tb-btn map-text-btn" onClick={() => setConfirmState({ kind: 'all', label: 'Delete the ENTIRE recorded world map? This cannot be undone.' })} disabled={zones.length === 0}>Clear all</button>
+          )}
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
