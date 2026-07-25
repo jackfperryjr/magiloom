@@ -45,18 +45,45 @@ export function deviceId(): string {
   return id
 }
 
-// A stable connection id, distinct from the (also per-install) device id. It names
-// THIS client's server-side session, so a reconnect — a network blip, a backgrounded
-// PWA, or a full reopen after iOS kills the page — reattaches to the SAME running
-// session instead of starting a new one and dropping the character. Persisted (not
-// per-page) so it survives a reload/kill; that's what lets you close the app and
-// resume/"watch" the still-running DR connection when you come back. Two tabs in the
-// same browser share it (and the session) by design; separate devices get their own.
+// Whether this client should hold ONE persistent, resumable session or an isolated
+// session PER TAB. Mobile / installed PWA → persistent: the phone only ever watches a
+// single session, and iOS kills the page, so we must resume the SAME session on reopen.
+// Desktop browser → per-tab: sharing localStorage across windows would collapse every
+// window onto one session (they'd hijack each other), which breaks running multiple DR
+// accounts side by side. Decided once and cached so it can't flip mid-session.
+let _persistent: boolean | null = null
+function persistentSession(): boolean {
+  if (_persistent !== null) return _persistent
+  let result = false
+  try {
+    const standalone =
+      window.matchMedia?.('(display-mode: standalone)')?.matches === true ||
+      (navigator as unknown as { standalone?: boolean }).standalone === true
+    const phoneSized =
+      window.matchMedia?.('(pointer: coarse)')?.matches === true &&
+      window.matchMedia?.('(max-width: 900px)')?.matches === true
+    result = standalone || phoneSized
+  } catch { /* non-browser / no matchMedia → default to per-tab */ }
+  _persistent = result
+  return result
+}
+
+// A connection id, distinct from the (also per-install) device id. It names THIS
+// client's server-side session, so a reconnect — a network blip, a backgrounded PWA,
+// an auto-update reload, or a full reopen after iOS kills the page — reattaches to the
+// SAME running session instead of starting a new one and dropping the character.
+//
+// WHERE it lives decides the sharing model (see persistentSession above):
+//  • mobile/PWA → localStorage: survives a full close, so you resume/"watch" the still-
+//    running DR connection when you come back.
+//  • desktop browser → sessionStorage: unique per tab, so each window runs its own DR
+//    account without hijacking the others. Survives a reload (same tab), not a close.
 export function connId(): string {
-  let id = localStorage.getItem('magiloom-conn-id')
+  const store: Storage = persistentSession() ? localStorage : sessionStorage
+  let id = store.getItem('magiloom-conn-id')
   if (!id) {
     id = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)
-    localStorage.setItem('magiloom-conn-id', id)
+    store.setItem('magiloom-conn-id', id)
   }
   return id
 }
