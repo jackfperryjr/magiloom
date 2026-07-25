@@ -192,9 +192,13 @@ function InstanceSelectScreen({ instances, onSelect, onBack, error, loading }: {
 function LichToggle({ on, available, onChange }: {
   on: boolean; available: boolean; onChange: (on: boolean) => void
 }) {
+  // Drive the subtitle off the ACTUAL toggle state, not the (possibly stale) detection
+  // snapshot: when the toggle is on the session connects through Lich, so never claim a
+  // "direct connection" here. The "not detected" hint is only useful when Lich is off
+  // AND unavailable — a nudge that turning it on won't do anything.
   const sub = on
-    ? (available ? 'Lich enabled' : 'No Lich detected — direct connection')
-    : 'Direct connection'
+    ? 'Lich enabled'
+    : (available ? 'Direct connection' : 'Direct connection — no Lich detected')
   return (
     <label className="login-lich-toggle">
       <div className="login-lich-text">
