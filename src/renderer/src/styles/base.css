@@ -69,7 +69,7 @@
 
   /* Typography */
   --font-game:       'VT323', 'Consolas', monospace;
-  --font-ui:         'VT323', 'Courier New', monospace;
+  --font-ui:         'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-pixel:      'Press Start 2P', monospace;
   --font-size-game:  17px;
   --line-height-game: 1.35;
