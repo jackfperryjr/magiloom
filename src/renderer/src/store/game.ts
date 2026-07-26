@@ -816,8 +816,18 @@ export const dispatchGameEventAtom = atom(
           if (_weatherReportNext) {
             _weatherReportNext = false
             reportLine = true
-            const isPrecip = /\b(rain|snow|sleet|hail|storm|downpour|blizzard|drizzl|flurr|precipitat|thunder|lightning)\b/i.test(text)
-            if (!w && !inside && !isPrecip) set(weatherAtom, CLEAR)
+            // This is the `weather` state line. If weatherFromLine already graded it, keep
+            // that. Otherwise fall back on its keywords so a wording we don't grade still
+            // switches the overlay to the correct MODE — never leaving a stale rain/snow
+            // state to linger as the wrong type (e.g. snowflakes over a rainy sky). Snow
+            // words win when present; else any rain word ⇒ rain; nothing ⇒ clear.
+            if (!w && !inside) {
+              const isSnow = /\b(snow|snowfall|flurr|blizzard|sleet)\b/i.test(text)
+              const isRain = /\b(rain|drizzl|downpour|shower|squall|pouring|storm)\b/i.test(text)
+              if (isSnow)      set(weatherAtom, { kind: 'snow', level: 2 })
+              else if (isRain) set(weatherAtom, { kind: 'rain', level: 2 })
+              else             set(weatherAtom, CLEAR)
+            }
           }
           if (/^\s*You glance up at the sky\.?/i.test(text)) _weatherReportNext = true
 
