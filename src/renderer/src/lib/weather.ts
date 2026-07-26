@@ -59,7 +59,7 @@ const REPORTS: { re: RegExp; state: WeatherState }[] = [
   { re: /^\s*(?:snow|snowfall) is falling|^\s*it's snowing|^\s*(?:it's )?light snow|^\s*(?:it's )?flurr/i, state: { kind: 'snow', level: 1 } },
   // Rain
   { re: /^\s*(?:it's a |a )?severe downpour/i,                         state: { kind: 'rain', level: 4 } },
-  { re: /^\s*rain is falling heav|^\s*(?:it's a )?heavy downpour|^\s*it's pouring/i, state: { kind: 'rain', level: 3 } },
+  { re: /^\s*rain is falling heav|^\s*(?:the )?rain is pouring|^\s*(?:it's a )?heavy downpour|^\s*it's pouring|^\s*the rain\b.*\bsquall/i, state: { kind: 'rain', level: 3 } },
   { re: /^\s*rain is falling steadil|^\s*it's a steady (?:rain|shower)/i, state: { kind: 'rain', level: 2 } },
   { re: /^\s*rain is falling|^\s*it's raining|^\s*it's drizzl|^\s*(?:it's a )?(?:light|misty) (?:rain|drizzle)/i, state: { kind: 'rain', level: 1 } },
   // Clear / no precipitation — the `weather` clear reply is descriptive and varies

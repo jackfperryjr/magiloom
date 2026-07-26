@@ -17,7 +17,10 @@
 }
 
 /* ── Room panel ──────────────────────────────────────────────────────────── */
-.room-panel { display: flex; flex-direction: column; gap: 6px; }
+/* The whole room panel uses the game-window font (--font-game), so the also-here /
+   objects lines match the game-font room name/desc/exits instead of inheriting the
+   Inter UI font. */
+.room-panel { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-game); }
 
 /* ── Experience panel ────────────────────────────────────────────────────── */
 .exp-panel { display: flex; flex-direction: column; gap: 4px; }

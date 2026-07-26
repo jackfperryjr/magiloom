@@ -144,7 +144,7 @@
 .command-rt {
   flex-shrink: 0;
   font-family: var(--font-ui);
-  font-size: 16px; font-weight: 600; letter-spacing: 0.02em;
+  font-size: 14px; font-weight: 600; letter-spacing: 0.02em;
   color: var(--color-warning); background: rgba(255, 88, 32, 0.14);
   padding: 8px 4px; border-radius: 6px;
   animation: rt-pop 0.15s ease-out;
