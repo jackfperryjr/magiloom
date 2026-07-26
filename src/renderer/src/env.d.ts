@@ -174,6 +174,7 @@ interface DrAPI {
   }
   game: {
     getStatus:      ()               => Promise<string>
+    getChar:        ()               => Promise<string>
     disconnect:     ()               => Promise<void>
     send:           (d: string)      => Promise<void>
     onData:         (cb: (r: string) => void) => () => void

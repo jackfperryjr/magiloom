@@ -579,11 +579,19 @@ function AppInner() {
   const leaveWatch = () => { window.dr.account?.unwatch(); setWatching(false); setInGame(false) }
 
   // Resume decision (web). The freshly-loaded page reconnects with its persisted
-  // connId; the server re-attaches to a still-live session and emits game:connected,
-  // or (no live session) game:disconnected. Wait for whichever comes first, with a
-  // timeout so a dead/slow server still falls through to login instead of hanging on
-  // the splash. On game:connected we recover the last-played identity from settings —
-  // the character picker is gone after a reload — so we re-enter as the right character.
+  // connId; the server re-attaches to a still-live session for that conn. We ASK the
+  // server directly (request/response) whether it holds a live game connection and —
+  // critically — which character it's ACTUALLY connected as, rather than racing a
+  // fixed timer against connect/disconnect events. The WS transport queues these
+  // invokes until the socket opens, so they resolve once a (possibly cold-starting)
+  // server answers.
+  //
+  // The character comes from the SERVER (game:get-char), never from the client's saved
+  // lastCharacter: a reload can't be told which of several characters this conn is
+  // running, and account-shared settings drift across devices, so lastCharacter can
+  // name a DIFFERENT character than the live session — which is exactly what dropped a
+  // resume into the wrong character. Saved settings are only a fallback for when the
+  // server reports no name (older server, or the name isn't parsed yet).
   useEffect(() => {
     if (!resuming) return
     let settled = false
@@ -593,17 +601,34 @@ function AppInner() {
       if (enter) enterGame(enter.name, enter.account)
       setResuming(false)
     }
-    const unsubs = [
-      window.dr.game.onConnected(async () => {
+    void (async () => {
+      try {
+        const status = await window.dr.game.getStatus()
+        if (status !== 'connected') { settle(); return }   // no live session → login
+        // Live session — get the character it's actually connected as. Briefly retry
+        // if the name hasn't been parsed yet (rare: resuming mid-connect).
+        let serverChar = ''
+        for (let i = 0; i < 4 && !serverChar; i++) {
+          serverChar = ((await window.dr.game.getChar()) ?? '').trim()
+          if (!serverChar) await new Promise(r => setTimeout(r, 400))
+        }
         const s = await window.dr.settings.getAll()
-        const account = s.lastAccount ?? ''
-        const name = s.accounts?.find(a => a.name === account)?.lastCharacter ?? ''
+        const name = serverChar || (s.accounts?.find(a => a.name === s.lastAccount)?.lastCharacter ?? '')
+        // Resolve the owning account (for labels + the switch-character shortcut) from
+        // the resolved character; fall back to the last-used account.
+        const account = name
+          ? (s.accounts?.find(a => a.lastCharacter?.toLowerCase() === name.toLowerCase())?.name ?? s.lastAccount ?? '')
+          : (s.lastAccount ?? '')
         settle({ name, account })
-      }),
-      window.dr.game.onDisconnected(() => settle()),
-    ]
-    const timer = window.setTimeout(() => settle(), 3000)
-    return () => { unsubs.forEach(fn => fn()); window.clearTimeout(timer) }
+      } catch {
+        settle()   // socket closed / server unreachable → fall through to login
+      }
+    })()
+    // Fallback: if the server never answers (unreachable / stuck cold start), stop
+    // waiting and show login rather than hanging on the splash. Generous, since a
+    // freshly-deployed server can take several seconds to accept the socket.
+    const timer = window.setTimeout(() => settle(), 10000)
+    return () => { window.clearTimeout(timer) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
