@@ -502,6 +502,7 @@ function setupIpcHandlers(): void {
   cmdEngine.on('error',  (msg: string)          => { lichLog('[script] ' + msg); send('script:output', msg) })
 
   ipcMain.handle('game:get-status', () => gameConn.getStatus())
+  ipcMain.handle('game:get-char', () => currentCharName)
   ipcMain.handle('game:disconnect', () => gameConn.disconnect())
   ipcMain.handle('game:send', (_e, d: string) => {
     // All commands go through gameConn -- Lich intercepts ; prefixed lines
@@ -541,6 +542,10 @@ function setupIpcHandlers(): void {
   })
 
   let lichReadyDetected = false
+  // The character currently connected, exposed via game:get-char (mirrors the server's
+  // Session.charName). Desktop never loses it across a reload, but keeping the handler
+  // symmetric with the web client keeps the dr.game API uniform.
+  let currentCharName = ''
   gameConn.on('log',          (l: string) => lichLog('[game] ' + l))
   gameConn.on('data',         (r: string) => {
     send('game:data', r)
@@ -553,6 +558,7 @@ function setupIpcHandlers(): void {
       const charMatch = /<app[^>]+char=["']([^"']+)["']/.exec(r)
       if (charMatch) {
         lichReadyDetected = true
+        currentCharName = charMatch[1]
         applyLoggingFor(charMatch[1])                      // per-character log file + flag
         cmdEngine.setContext({ charname: charMatch[1] })   // $charname for .cmd scripts
         lichLog('[lich] Character data received -- Lich ready')
@@ -561,6 +567,6 @@ function setupIpcHandlers(): void {
     }
   })
   gameConn.on('connected',    ()          => { lichLog('[game] Connected'); send('game:connected') })
-  gameConn.on('disconnected', ()          => { lichReadyDetected = false; send('game:disconnected') })
+  gameConn.on('disconnected', ()          => { lichReadyDetected = false; currentCharName = ''; send('game:disconnected') })
   gameConn.on('error',        (e: string) => { lichLog('[game] Error: ' + e); send('game:error', e) })
 }

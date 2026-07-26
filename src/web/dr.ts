@@ -215,6 +215,9 @@ export function installDr(): void {
     updater: webUpdater,
     game: {
       getStatus:  () => t.invoke('game:get-status'),
+      // The character the SERVER session is actually connected as — used on resume to
+      // recover the true identity rather than trusting the client's saved lastCharacter.
+      getChar:    () => t.invoke('game:get-char'),
       disconnect: () => t.invoke('game:disconnect'),
       send:       (d: string) => t.invoke('game:send', d),
       onData:         (cb: (r: string) => void)   => t.on('game:data', cb),

@@ -101,6 +101,7 @@ contextBridge.exposeInMainWorld('dr', {
   },
   game: {
     getStatus:  ()          => ipcRenderer.invoke('game:get-status'),
+    getChar:    ()          => ipcRenderer.invoke('game:get-char'),
     disconnect: ()          => ipcRenderer.invoke('game:disconnect'),
     send:       (d: string) => ipcRenderer.invoke('game:send', d),
     // Use module-level tracking so React Strict Mode's double-mount never leaves

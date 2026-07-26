@@ -135,29 +135,31 @@
   opacity: .5;
 }
 
-/* Combat heat: a red edge vignette above the weather, its opacity driven inline
-   from combatHeatAtom. It shares z-index 3 with the corner label but renders before
-   it in the DOM, so the label stays legible on top of the flare.
-   Transparent centre → red rim keeps the reading column clear while the frame flares.
-   The opacity is transitioned so the per-second heat decay eases down smoothly and a
-   hit's flash ramps in fast. While hot (.is-hot) the rim pulses. */
+/* Combat heat: a thin, bright red border hugging the game panel with a soft glow
+   bleeding inward, its opacity driven inline from combatHeatAtom. It shares z-index 3
+   with the corner label but renders before it in the DOM, so the label stays legible.
+   A real `border` (not `outline`) is used so it's drawn INSIDE the element's box and
+   isn't clipped by .ambient-layer's overflow:hidden; the glow is `inset` for the same
+   reason (an outer glow would be clipped, and would bleed into the surrounding chrome
+   anyway). The opacity is transitioned so the per-second heat decay eases down smoothly
+   and a hit's flash ramps in fast. While hot (.is-hot) the border + glow pulse. */
 .ambient-heat {
   position: absolute;
   inset: 0;
   z-index: 3;
   pointer-events: none;
-  background: radial-gradient(130% 108% at 50% 50%,
-    transparent 46%,
-    rgba(210, 38, 30, 0.30) 82%,
-    rgba(150, 12, 8, 0.55) 100%);
-  transition: opacity 0.5s ease;
+  border: 1.5px solid rgba(255, 48, 40, 0.95);
+  box-shadow:
+    inset 0 0 3px rgba(255, 96, 74, 0.85),
+    inset 0 0 16px rgba(224, 40, 30, 0.45);
+  transition: opacity 0.4s ease;
 }
 .ambient-heat.is-hot {
-  animation: ambient-heat-pulse 1.15s ease-in-out infinite;
+  animation: ambient-heat-pulse 1.05s ease-in-out infinite;
 }
 @keyframes ambient-heat-pulse {
   0%, 100% { filter: brightness(1); }
-  50%      { filter: brightness(1.35); }
+  50%      { filter: brightness(1.55); }
 }
 
 @media (prefers-reduced-motion: reduce) {

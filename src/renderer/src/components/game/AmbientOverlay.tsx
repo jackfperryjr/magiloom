@@ -182,9 +182,9 @@ function RoomTint() {
 function CombatHeat() {
   const heat = useAtomValue(combatHeatAtom)
   if (heat <= 0) return null
-  // Opacity from heat, floored so even a low simmer is faintly visible (pronounced
-  // per the user's pick), curved so a full flash is strong.
-  const opacity = Math.min(0.9, 0.12 + heat * 0.78)
+  // Opacity from heat, floored high enough that the thin bright border stays clearly
+  // legible whenever there's any combat heat, ramping to full on a hit's flash.
+  const opacity = Math.min(1, 0.35 + heat * 0.65)
   return (
     <div
       className={'ambient-heat' + (heat > 0.55 ? ' is-hot' : '')}
