@@ -23,6 +23,30 @@
   pointer-events: none;
 }
 
+/* Room-locale tint → sky tint → weather veil → combat heat → corner label, in
+   paint order (z-index 0 → 3). */
+
+/* Room-locale tint: a soft edge vignette in the current locale's colour, painted
+   UNDERNEATH the sky tint (z-index 0) so the day/night wash still wins outdoors. A
+   radial-gradient that's transparent through the centre and tinted at the rim keeps
+   the reading column clean while the room's mood shows at the edges. The colour
+   rides a registered custom property so it eases as you walk between locales. */
+@property --ambient-room-color {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: transparent;
+}
+.ambient-room {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 100% at 50% 50%,
+    transparent 52%,
+    var(--ambient-room-color, transparent) 100%);
+  transition: --ambient-room-color 1.4s ease;   /* ease between locales on movement */
+}
+
 /* Sky tint (top-down gradient wash) → weather veil → corner label, in paint order. */
 /* The daypart colour rides a registered custom property (not `background`) so it can
    still EASE between dayparts/weather — a linear-gradient background isn't transitionable,
@@ -111,6 +135,33 @@
   opacity: .5;
 }
 
+/* Combat heat: a red edge vignette above the weather, its opacity driven inline
+   from combatHeatAtom. It shares z-index 3 with the corner label but renders before
+   it in the DOM, so the label stays legible on top of the flare.
+   Transparent centre → red rim keeps the reading column clear while the frame flares.
+   The opacity is transitioned so the per-second heat decay eases down smoothly and a
+   hit's flash ramps in fast. While hot (.is-hot) the rim pulses. */
+.ambient-heat {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: radial-gradient(130% 108% at 50% 50%,
+    transparent 46%,
+    rgba(210, 38, 30, 0.30) 82%,
+    rgba(150, 12, 8, 0.55) 100%);
+  transition: opacity 0.5s ease;
+}
+.ambient-heat.is-hot {
+  animation: ambient-heat-pulse 1.15s ease-in-out infinite;
+}
+@keyframes ambient-heat-pulse {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.35); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ambient-particle { animation: none; }
+  /* Keep the heat glow (a real combat cue) but drop the pulse to a steady rim. */
+  .ambient-heat.is-hot { animation: none; }
 }
