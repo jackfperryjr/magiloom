@@ -8,6 +8,7 @@ export function AppearanceTab({
   theme, previewTheme, density, setDensity, fontFamily, setFontFamily,
   fontSize, setFontSize, outputBufferSize, setOutputBufferSize,
   isWeb, keepScreenOn, setKeepScreenOn,
+  ambientRoomTint, setAmbientRoomTint, ambientHeat, setAmbientHeat,
 }: {
   theme:               string
   previewTheme:        (id: string) => void
@@ -22,6 +23,10 @@ export function AppearanceTab({
   isWeb:               boolean
   keepScreenOn:        boolean
   setKeepScreenOn:     Dispatch<SetStateAction<boolean>>
+  ambientRoomTint:     boolean
+  setAmbientRoomTint:  Dispatch<SetStateAction<boolean>>
+  ambientHeat:         boolean
+  setAmbientHeat:      Dispatch<SetStateAction<boolean>>
 }) {
   return (
     <>
@@ -115,6 +120,30 @@ export function AppearanceTab({
           <option value={10000}>10,000 lines</option>
         </select>
       </label>
+      </div>
+
+      {/* Ambient visual layers painted over the game panel (AmbientOverlay). Both
+          default on; independent of the always-on day/night + weather layers. */}
+      <div className="settings-section">
+        <div className="settings-section-label">Ambient</div>
+        <label className="settings-row">
+          <span className="settings-label">Room tint</span>
+          <input type="checkbox" checked={ambientRoomTint} style={{ width: 'auto' }}
+            onChange={e => setAmbientRoomTint(e.target.checked)} />
+        </label>
+        <div className="settings-hint">
+          Tints the panel edges by locale — cool in caves, green in forests, warm in
+          taverns — to give each room a sense of place.
+        </div>
+        <label className="settings-row">
+          <span className="settings-label">Combat heat</span>
+          <input type="checkbox" checked={ambientHeat} style={{ width: 'auto' }}
+            onChange={e => setAmbientHeat(e.target.checked)} />
+        </label>
+        <div className="settings-hint">
+          Flares a red glow around the panel during combat, flashing brighter when you
+          take a hit, then fading as the fight settles.
+        </div>
       </div>
 
       {/* Keep-awake only applies to the PWA/browser; the desktop app manages power

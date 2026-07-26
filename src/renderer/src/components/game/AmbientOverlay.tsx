@@ -1,8 +1,9 @@
 import { memo, useMemo, useState, useEffect } from 'react'
 import { useAtomValue } from 'jotai'
-import { skyAtom, weatherAtom } from '../../store/game'
+import { skyAtom, weatherAtom, roomLocaleAtom, combatHeatAtom } from '../../store/game'
 import type { SkyState } from '../../lib/elanthianTime'
 import { weatherLabel, type WeatherState } from '../../lib/weather'
+import { LOCALE_TINT } from '../../lib/roomLocale'
 
 // Subtle immersive weather + day/night layer painted over the game panel.
 // Purely decorative (pointer-events: none). It renders ONLY .ambient-* elements
@@ -153,15 +154,72 @@ function AmbientLabel() {
   return <div className="ambient-label" aria-hidden>{parts.join(' · ')}</div>
 }
 
+// ── Room-locale tint ─────────────────────────────────────────────────────────────
+// A soft edge vignette in the current room's locale colour (cave blue, forest green,
+// tavern amber, …). Painted UNDER the sky tint (lower z-index) so time-of-day still
+// wins outdoors; sits behind the reading area only at the panel's edges. `default`
+// locale → nothing. The colour rides a registered custom property so it eases when
+// you walk between locales (see .ambient-room).
+function RoomTint() {
+  const locale = useAtomValue(roomLocaleAtom)
+  const tint = locale === 'default' ? undefined : LOCALE_TINT[locale]
+  // Keep the element mounted with a transparent colour when there's no tint, so the
+  // ease-out still plays on stepping into an untinted room (rather than a hard cut).
+  return (
+    <div
+      className="ambient-room"
+      style={{ ['--ambient-room-color' as string]: tint ?? 'transparent' }}
+      aria-hidden
+    />
+  )
+}
+
+// ── Combat heat ──────────────────────────────────────────────────────────────────
+// A red edge vignette whose opacity tracks combatHeatAtom (0→1), painted ABOVE the
+// other ambient layers so a fight's red rim reads over any locale tint. Pulses while
+// hot; the opacity is CSS-transitioned so the per-second heat decay reads smoothly
+// and a hit's flash ramps in fast. Fully hidden (unmounted styling) at zero heat.
+function CombatHeat() {
+  const heat = useAtomValue(combatHeatAtom)
+  if (heat <= 0) return null
+  // Opacity from heat, floored so even a low simmer is faintly visible (pronounced
+  // per the user's pick), curved so a full flash is strong.
+  const opacity = Math.min(0.9, 0.12 + heat * 0.78)
+  return (
+    <div
+      className={'ambient-heat' + (heat > 0.55 ? ' is-hot' : '')}
+      style={{ opacity }}
+      aria-hidden
+    />
+  )
+}
+
+// Read the two ambient visual toggles from global settings (default ON), re-reading
+// on save. Mirrors the settings:saved live-reload pattern used elsewhere.
+function useAmbientToggles() {
+  const [t, setT] = useState({ room: true, heat: true })
+  useEffect(() => {
+    const load = () => window.dr.settings.getAll().then(s =>
+      setT({ room: s.ambientRoomTint !== false, heat: s.ambientHeat !== false }))
+    load()
+    window.addEventListener('settings:saved', load)
+    return () => window.removeEventListener('settings:saved', load)
+  }, [])
+  return t
+}
+
 export function AmbientOverlay() {
   // Everything lives inside .ambient-layer, an inset:0 overflow:hidden clip box, so
   // the oversized/rotated weather field can't give .game-output-wrap scrollable
   // overflow (which would let GameOutput's auto-scroll drag the output up — see
   // ambient.css). This is the single element the overlay adds to the wrap.
+  const toggles = useAmbientToggles()
   return (
     <div className="ambient-layer" aria-hidden>
+      {toggles.room && <RoomTint />}
       <SkyTint />
       <WeatherParticles />
+      {toggles.heat && <CombatHeat />}
       <AmbientLabel />
     </div>
   )

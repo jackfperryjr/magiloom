@@ -1,4 +1,6 @@
 import { atom } from 'jotai'
+import type { Getter, Setter } from 'jotai'
+import { classifyRoom } from '../lib/roomLocale'
 import type { GameEvent, LinkSpan, TextStyle, VitalField, StreamId } from '../lib/sge-parser'
 import { parseExpSkills } from '../lib/exp-parser'
 import { isAtmospheric } from '../lib/atmospherics'
@@ -224,6 +226,14 @@ export const beginTouchCaptureAtom = atom(null, (get, set, name: string) => {
 export interface RoomState { name: string; description: string; exits: string[]; objs: string; players: string[]; playerNames: string[] }
 export const roomAtom = atom<RoomState>({ name: '', description: '', exits: [], objs: '', players: [], playerNames: [] })
 
+// Coarse locale of the current room (cave / forest / tavern / …), inferred from its
+// name + description by keyword. Drives the ambient room-tint overlay; recomputes
+// whenever the room changes. See lib/roomLocale.ts.
+export const roomLocaleAtom = atom(get => {
+  const r = get(roomAtom)
+  return classifyRoom(r.name, r.description)
+})
+
 // Incremented on every server prompt (end of a command response). The automapper
 // watches this to know when the current room is fully populated so it can fold it
 // into the map — a prompt marks the room name/desc/exits as all having landed.
@@ -437,6 +447,32 @@ export const roundtimeSecondsAtom = atom(get => {
   return Math.max(0, Math.ceil((get(roundtimeAtom) - Date.now()) / 1000))
 })
 
+// ── Combat "heat" ───────────────────────────────────────────────────────────────
+// A 0→1 intensity that spikes on combat activity and decays over a few seconds of
+// quiet, driving the red edge-vignette in AmbientOverlay. Stored as the raw {level,
+// at} of the last spike; the derived combatHeatAtom decays it exponentially against
+// the clock. Bumped from dispatch: a combat line is a small pulse, taking a hit (a
+// drop in health) is a big flash. No explicit combat start/end detection needed —
+// it simply lights up mid-fight and fades when the blows stop.
+export const combatHeatRawAtom = atom<{ level: number; at: number }>({ level: 0, at: 0 })
+const HEAT_TAU_MS = 2600   // e-folding time of the decay (~5–6s to fade from a full flash)
+export const combatHeatAtom = atom(get => {
+  get(tickAtom)            // re-evaluate every second while it decays
+  const { level, at } = get(combatHeatRawAtom)
+  if (level <= 0) return 0
+  const decayed = level * Math.exp(-(Date.now() - at) / HEAT_TAU_MS)
+  return decayed < 0.02 ? 0 : Math.min(1, decayed)
+})
+
+// Add `amount` to the current (decayed) heat and re-anchor it to now. Reads through
+// the derived level so repeated bumps accumulate from where the decay left off
+// rather than snapping to the raw stored value.
+function bumpHeat(get: Getter, set: Setter, amount: number): void {
+  const { level, at } = get(combatHeatRawAtom)
+  const current = level <= 0 ? 0 : level * Math.exp(-(Date.now() - at) / HEAT_TAU_MS)
+  set(combatHeatRawAtom, { level: Math.min(1, Math.max(current, 0) + amount), at: Date.now() })
+}
+
 // ── Ambient: weather + Elanthian sky (day/night) ────────────────────────────────
 // weatherAtom is driven by ambient weather messages + the `weather` command
 // (lib/weather.ts). skyCalibrationAtom holds the deterministic-clock anchor seeded
@@ -602,6 +638,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(activeSpellsAtom, [])
   set(roundtimeAtom, 0)
   set(castTimeAtom, 0)
+  set(combatHeatRawAtom, { level: 0, at: 0 })
   set(weatherAtom, CLEAR)
   set(skyCalibrationAtom, null)
   set(moonAnchorsAtom, {})
@@ -857,6 +894,7 @@ export const dispatchGameEventAtom = atom(
           case 'combat':
             // Combat lives only in the Combat panel — don't echo to main output.
             set(combatLinesAtom, [...get(combatLinesAtom).slice(-499), line])
+            bumpHeat(get, set, 0.34)   // combat activity → warm the heat vignette
             break
           case 'atmo':
             set(atmoLinesAtom, [...get(atmoLinesAtom).slice(-199), line])
@@ -1021,6 +1059,12 @@ export const dispatchGameEventAtom = atom(
 
       case 'vitals': {
         const prev = get(vitalsAtom)
+        // A drop in health means we just took a hit — the biggest heat spike (a
+        // bright flash), scaled a little by how hard the hit was.
+        if (event.field === 'health' && event.value < prev.health.value) {
+          const dropFrac = prev.health.max > 0 ? (prev.health.value - event.value) / prev.health.max : 0
+          bumpHeat(get, set, 0.55 + Math.min(0.45, dropFrac * 2))
+        }
         set(vitalsAtom, {
           ...prev,
           [event.field]: { value: event.value, max: event.max ?? prev[event.field].max }

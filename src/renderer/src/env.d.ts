@@ -65,6 +65,11 @@ interface AppSettings {
   // phone/tablet display won't dim or lock while you watch hands-off. Undefined =
   // on (the desktop app ignores it). See src/web/wakeLock.ts.
   keepScreenOn?:    boolean
+  // Ambient visual layers over the game panel (see AmbientOverlay). Undefined = on.
+  // Room tint colours the panel edges by locale; combat heat flares a red rim when
+  // fighting / taking hits.
+  ambientRoomTint?: boolean
+  ambientHeat?:     boolean
 }
 
 
