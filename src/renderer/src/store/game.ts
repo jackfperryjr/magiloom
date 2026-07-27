@@ -5,7 +5,7 @@ import type { GameEvent, LinkSpan, TextStyle, VitalField, StreamId } from '../li
 import { parseExpSkills } from '../lib/exp-parser'
 import { isAtmospheric } from '../lib/atmospherics'
 import { feedTimeLine, computeSky, isTimeReportLine, type SkyCalibration, type SkyState } from '../lib/elanthianTime'
-import { weatherFromLine, CLEAR, type WeatherState } from '../lib/weather'
+import { weatherFromLine, weatherFromReportLine, isWeatherHeaderLine, CLEAR, type WeatherState } from '../lib/weather'
 import { MOONS, computeMoonPosition, moonEventFromLine, type MoonName, type MoonAnchor, type MoonPosition } from '../lib/moons'
 import type { AvatarCrop } from '../lib/avatar'
 import { injuriesFromImages, injuriesFromTouch, type Injuries } from '../lib/injuries'
@@ -508,9 +508,16 @@ export const setMoonAnchorsAtom = atom(null, (get, set, patch: Partial<Record<Mo
 let _skySeedSilent = false
 export const beginSilentSkySeedAtom = atom(null, () => { _skySeedSilent = true })
 export const endSilentSkySeedAtom   = atom(null, () => { _skySeedSilent = false })
-// True on the line immediately after `weather`'s "You glance up at the sky." header —
-// that line is the weather state, whose clear-sky wording varies too much to enumerate.
-let _weatherReportNext = false
+// Non-blank lines still eligible to carry `weather`'s state sentence after its
+// "You glance up at the sky." header. A small window (not strictly the next line)
+// so a blank/interleaved line can't eat the reply — that used to leave the overlay
+// stuck clear while it was actually raining.
+let _weatherReportWait = 0
+// Two non-blank lines: enough to survive one interleaved line, small enough that an
+// ambient cloud message ("…disappear behind a thick bank of clouds.") arriving later
+// can't be mistaken for the reply and clear a live rain overlay. Blank lines don't
+// consume the window at all.
+const WEATHER_REPORT_WINDOW = 2
 
 // ── Experience ────────────────────────────────────────────────────────────────
 export interface ExpSkill { name: string; rank: number; pct: number; mind: string; mindWord?: string }
@@ -674,7 +681,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _silentExpBatch    = false
   _spellBatch        = null
   _skySeedSilent     = false
-  _weatherReportNext = false
+  _weatherReportWait = 0
   _gameMove          = null
 })
 
@@ -808,33 +815,39 @@ export const dispatchGameEventAtom = atom(
           if (me) set(moonAnchorsAtom, { ...get(moonAnchorsAtom), [me.name]: me.anchor })
 
           // The `weather` command prints "You glance up at the sky." then a state line
-          // whose clear-sky wording varies a lot ("The sky is a sharp, clear blue."). We
-          // handle THAT line by position: if it isn't a recognized precipitation report,
-          // default it to clear — and flag it so it's suppressed during a silent poll
-          // whatever it says.
+          // whose wording varies a lot ("The sky is a sharp, clear blue.", "A light rain
+          // patters silently down from dark skies above."). We grade that line by POSITION
+          // via weatherFromReportLine, which also resolves un-transcribed wordings by
+          // keyword and defaults a precipitation-free sky description to clear — and flag
+          // it so it's suppressed during a silent poll whatever it says.
           let reportLine = false
-          if (_weatherReportNext) {
-            _weatherReportNext = false
-            reportLine = true
-            // This is the `weather` state line. If weatherFromLine already graded it, keep
-            // that. Otherwise fall back on its keywords so a wording we don't grade still
-            // switches the overlay to the correct MODE — never leaving a stale rain/snow
-            // state to linger as the wrong type (e.g. snowflakes over a rainy sky). Snow
-            // words win when present; else any rain word ⇒ rain; nothing ⇒ clear.
-            if (!w && !inside) {
-              const isSnow = /\b(snow|snowfall|flurr|blizzard|sleet)\b/i.test(text)
-              const isRain = /\b(rain|drizzl|downpour|shower|squall|pouring|storm)\b/i.test(text)
-              if (isSnow)      set(weatherAtom, { kind: 'snow', level: 2 })
-              else if (isRain) set(weatherAtom, { kind: 'rain', level: 2 })
-              else             set(weatherAtom, CLEAR)
+          if (_weatherReportWait > 0 && text.trim()) {
+            const r = weatherFromReportLine(text)
+            if (r) {
+              _weatherReportWait = 0
+              reportLine = true
+              if (!w && !inside) set(weatherAtom, r)
+            } else {
+              _weatherReportWait--          // not the reply (blank lines don't count) — keep waiting
             }
           }
-          if (/^\s*You glance up at the sky\.?/i.test(text)) _weatherReportNext = true
+          if (isWeatherHeaderLine(text)) {
+            // The state sentence sometimes rides on the header line itself; if it does,
+            // it's already been graded (weatherFromLine strips the header), so don't open
+            // a window that a later line could answer.
+            const sameLine = weatherFromReportLine(text)
+            if (sameLine) {
+              reportLine = true
+              if (!w && !inside) set(weatherAtom, sameLine)
+            }
+            _weatherReportWait = sameLine ? 0 : WEATHER_REPORT_WINDOW
+          }
+          if (inside) _weatherReportWait = 0
 
           // Suppress the silent connect-seed / background weather-poll output from the
           // main window: the "glance up" header, its (any-wording) state line, plus the
           // recognized weather / time / indoors replies.
-          if (_skySeedSilent && (w || inside || reportLine || isTimeReportLine(text) || /^\s*You glance up at the sky\./i.test(text))) {
+          if (_skySeedSilent && (w || inside || reportLine || isTimeReportLine(text) || isWeatherHeaderLine(text))) {
             return
           }
         }
