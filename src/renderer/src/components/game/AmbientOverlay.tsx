@@ -15,11 +15,11 @@ import { LOCALE_TINT } from '../../lib/roomLocale'
 // ── Particle field (rain / snow) ────────────────────────────────────────────────
 // Density, fall speed and slant scale with intensity. Kept modest for perf; the
 // list is memoized on kind+level so it's only rebuilt when the weather changes.
-const COUNT = { rain: [0, 26, 48, 72, 108], snow: [0, 18, 34, 55, 90] }
+const COUNT = { rain: [0, 44, 70, 100, 140], snow: [0, 18, 34, 55, 90] }
 const DUR   = { rain: [0, 1.1, 0.9, 0.72, 0.55], snow: [0, 10, 8, 6.5, 5] }     // seconds to cross
 const ANGLE = { rain: [0, 5, 9, 15, 22] }                                       // rain: whole-field slant (deg)
 const DRIFT = { snow: [0, 10, 13, 16, 19] }                                     // snow: max per-flake sideways drift (vh)
-const LEN   = { rain: [0, 9, 12, 15, 19] }                                      // streak length px
+const LEN   = { rain: [0, 11, 14, 18, 23] }                                      // streak length px
 const SNOW_GLYPHS = ['❄', '❅', '❆']                                             // varied flake shapes
 const FADE_MS = 1100                                                            // matches the CSS opacity transition
 

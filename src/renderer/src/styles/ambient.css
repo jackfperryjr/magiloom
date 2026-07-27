@@ -82,8 +82,22 @@
   overflow: hidden;
   transition: opacity 1s ease;   /* ease the field in on appearance / out on clear */
 }
-.ambient-rain { opacity: .5; }
-.ambient-snow { opacity: .8; }
+/* Particle colours ride custom properties so a light theme can darken them — a
+   pale streak/flake is invisible on Parchment's #eee1c2 game panel. */
+.ambient-rain {
+  opacity: .62;
+  --ambient-rain-color: rgba(198, 214, 255, .8);
+}
+.ambient-snow {
+  opacity: .8;
+  --ambient-snow-color: rgba(255, 255, 255, .92);
+  --ambient-snow-glow:  rgba(200, 225, 255, .5);
+}
+:root[data-theme="parchment"] .ambient-rain { --ambient-rain-color: rgba(58, 78, 132, .62); }
+:root[data-theme="parchment"] .ambient-snow {
+  --ambient-snow-color: rgba(255, 255, 255, .95);
+  --ambient-snow-glow:  rgba(74, 96, 148, .75);   /* dark halo so white flakes read on parchment */
+}
 /* Fade target: the component mounts the field with .is-hidden, then removes it a
    frame later (fade in); on clear it re-adds .is-hidden, then unmounts after the
    transition (fade out). Two classes → beats the base .ambient-rain/.snow opacity. */
@@ -95,13 +109,18 @@
   will-change: transform;
 }
 .ambient-rain .ambient-particle {
-  width: 1px;
-  background: linear-gradient(to bottom, rgba(190, 205, 255, 0), rgba(190, 205, 255, .55));
+  width: 1.6px;
+  border-radius: 1px;
+  /* Tapered streak: transparent at the tail, solid at the leading (bottom) end. */
+  background: linear-gradient(to bottom,
+    transparent,
+    color-mix(in srgb, var(--ambient-rain-color) 45%, transparent) 45%,
+    var(--ambient-rain-color));
   animation: ambient-fall var(--fall, 1s) linear var(--delay, 0s) infinite;
 }
 .ambient-snow .ambient-particle {
-  color: rgba(255, 255, 255, .92);
-  text-shadow: 0 0 4px rgba(200, 225, 255, .5);
+  color: var(--ambient-snow-color, rgba(255, 255, 255, .92));
+  text-shadow: 0 0 4px var(--ambient-snow-glow, rgba(200, 225, 255, .5));
   line-height: 1;
   user-select: none;
   /* Fall (transform) + a gentle wobble via the independent `rotate` property, so the

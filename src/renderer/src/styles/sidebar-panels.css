@@ -403,7 +403,7 @@
   background: none; border: none; color: var(--accent); cursor: pointer;
   font-size: 22px; line-height: 1; padding: 0 4px; flex-shrink: 0;
 }
-.msg-thread-name { color: var(--text-bright); font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-thread-name { color: var(--text-bright); font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .msg-remove {
   margin-left: auto; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
