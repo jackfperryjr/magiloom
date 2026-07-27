@@ -15,15 +15,19 @@ import { LOCALE_TINT } from '../../lib/roomLocale'
 // ── Particle field (rain / snow) ────────────────────────────────────────────────
 // Density, fall speed and slant scale with intensity. Kept modest for perf; the
 // list is memoized on kind+level so it's only rebuilt when the weather changes.
-const COUNT = { rain: [0, 44, 70, 100, 140], snow: [0, 18, 34, 55, 90] }
+const COUNT = { rain: [0, 55, 85, 120, 160], snow: [0, 18, 34, 55, 90] }
 const DUR   = { rain: [0, 1.1, 0.9, 0.72, 0.55], snow: [0, 10, 8, 6.5, 5] }     // seconds to cross
 const ANGLE = { rain: [0, 5, 9, 15, 22] }                                       // rain: whole-field slant (deg)
 const DRIFT = { snow: [0, 10, 13, 16, 19] }                                     // snow: max per-flake sideways drift (vh)
-const LEN   = { rain: [0, 11, 14, 18, 23] }                                      // streak length px
+const LEN   = { rain: [0, 14, 18, 23, 29] }                                     // streak length px (at mid depth)
 const SNOW_GLYPHS = ['❄', '❅', '❆']                                             // varied flake shapes
 const FADE_MS = 1100                                                            // matches the CSS opacity transition
 
-interface Particle { left: number; delay: number; dur: number; size: number; glyph?: string; spin?: number; drift?: number }
+interface Particle {
+  left: number; delay: number; dur: number; size: number
+  glyph?: string; spin?: number; drift?: number
+  width?: number; alpha?: number                         // rain only — see `depth` below
+}
 
 function buildParticles(kind: 'rain' | 'snow', level: number): Particle[] {
   const n = COUNT[kind][level] ?? 0
@@ -32,18 +36,28 @@ function buildParticles(kind: 'rain' | 'snow', level: number): Particle[] {
   const maxDrift = DRIFT.snow[level] ?? 13
   const out: Particle[] = []
   for (let i = 0; i < n; i++) {
+    // Rain gets a per-drop DEPTH (0 far → 1 near). Near drops are thicker, longer,
+    // brighter and fall faster; far ones stay faint and slow. A uniform field of
+    // identical hairlines reads as noise and disappears into the text — the depth
+    // spread gives a handful of drops enough weight to be legible while the rest
+    // fill in the sense of a downpour.
+    const depth = snow ? 0 : Math.random()
     out.push({
       left: Math.random() * 100,
       delay: -Math.random() * base,                       // negative → mid-flight at mount
-      dur: base * (0.75 + Math.random() * 0.5),
+      dur: snow ? base * (0.75 + Math.random() * 0.5)
+                : base * (1.2 - depth * 0.45),            // nearer → faster
       // Snowflakes are glyphs sized by font-size (bigger, and bigger with intensity);
-      // raindrops are thin streaks whose length grows with intensity.
-      size: snow ? 7 + level * 1.5 + Math.random() * 7 : (LEN.rain[level] ?? 12) * (0.8 + Math.random() * 0.4),
+      // raindrops are streaks whose length grows with intensity and nearness.
+      size: snow ? 7 + level * 1.5 + Math.random() * 7
+                 : (LEN.rain[level] ?? 12) * (0.7 + depth * 0.7),
       glyph: snow ? SNOW_GLYPHS[(Math.random() * SNOW_GLYPHS.length) | 0] : undefined,
       spin: snow ? 6 + Math.random() * 10 : undefined,    // seconds per slow wobble
       // Per-flake straight-line drift → each flake falls at its own slight angle,
       // mostly vertical. Symmetric so some lean left, some right, some fall straight.
       drift: snow ? (Math.random() - 0.5) * maxDrift : undefined,
+      width: snow ? undefined : 1.1 + depth * 1.7,        // px
+      alpha: snow ? undefined : 0.45 + depth * 0.55,
     })
   }
   return out
@@ -96,7 +110,7 @@ const WeatherParticles = memo(function WeatherParticles() {
             ['--delay' as string]: `${p.delay}s`,
             ...(p.glyph
               ? { ['--spin' as string]: `${p.spin}s`, ['--drift' as string]: `${p.drift}vh`, fontSize: `${p.size}px` }
-              : { height: `${p.size}px` }),
+              : { height: `${p.size}px`, width: `${p.width}px`, opacity: p.alpha }),
           }}
         >
           {p.glyph}

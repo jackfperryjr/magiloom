@@ -85,8 +85,8 @@
 /* Particle colours ride custom properties so a light theme can darken them — a
    pale streak/flake is invisible on Parchment's #eee1c2 game panel. */
 .ambient-rain {
-  opacity: .62;
-  --ambient-rain-color: rgba(198, 214, 255, .8);
+  opacity: .72;
+  --ambient-rain-color: rgba(210, 224, 255, .95);
 }
 .ambient-snow {
   opacity: .8;
@@ -109,13 +109,16 @@
   will-change: transform;
 }
 .ambient-rain .ambient-particle {
+  /* Width + per-drop opacity are set inline from the particle's depth (see
+     buildParticles); these are the fallbacks. */
   width: 1.6px;
   border-radius: 1px;
-  /* Tapered streak: transparent at the tail, solid at the leading (bottom) end. */
+  /* Tapered streak: transparent at the tail, solid over the leading (bottom) third so
+     each drop has a definite head instead of fading out evenly along its length. */
   background: linear-gradient(to bottom,
     transparent,
-    color-mix(in srgb, var(--ambient-rain-color) 45%, transparent) 45%,
-    var(--ambient-rain-color));
+    color-mix(in srgb, var(--ambient-rain-color) 40%, transparent) 40%,
+    var(--ambient-rain-color) 78%);
   animation: ambient-fall var(--fall, 1s) linear var(--delay, 0s) infinite;
 }
 .ambient-snow .ambient-particle {
