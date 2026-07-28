@@ -15,9 +15,8 @@
  * points are cheap. A transcription error would almost certainly break that, and
  * `racialSumsAreBalanced` below asserts it at test time.
  *
- * Where a value could not be verified it is absent rather than approximated, and
- * the UI asks the player for it instead — the game will tell them exactly
- * (`TDP PROJECT <attribute> <goal>`).
+ * Where a value could not be verified it is absent rather than approximated. The
+ * game itself is always the final word (`TDP PROJECT <attribute> <goal>`).
  *
  * Pure: no DOM, no React. Same reasoning as logAnalysis.ts.
  */
@@ -40,9 +39,9 @@ export const emptyStats = (): StatBlock =>
 
 /**
  * Racial TDP cost modifier per attribute, -3 (cheapest) to +3 (dearest). Omitted
- * entries are 0. Half-Elf and Aelotoi are deliberately ABSENT — their rows weren't
- * on the source page, and inventing them would silently mis-plan a whole character.
- * Those players use the Custom option and enter their modifiers from the game.
+ * entries are 0. Only races whose rows appear on the source page are listed —
+ * inventing a missing row would silently mis-plan a whole character, so a race we
+ * can't source simply isn't offered.
  */
 export const RACIAL_MODIFIERS: Record<string, Partial<Record<StatName, number>>> = {
   Human:       {},
@@ -130,7 +129,17 @@ export function planCost(race: string, current: StatBlock, target: StatBlock): S
 /** TDPs granted by the Character Manager at creation. */
 export const STARTING_TDPS = 600
 
-/** No TDPs are awarded for circles beyond this. */
+/**
+ * Highest circle the tools plan for. Nobody is anywhere near it — it's a ceiling on
+ * the inputs, not a claim that the circle exists. Requirements past 200 are projected
+ * (see circleReqs.generated.ts).
+ */
+export const MAX_CIRCLE = 300
+
+/**
+ * No TDPs are awarded for circles beyond this. Distinct from MAX_CIRCLE: you keep
+ * circling past 150, you just stop being paid for it.
+ */
 export const MAX_CIRCLE_AWARD = 150
 
 /**

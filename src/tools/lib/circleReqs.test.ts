@@ -15,6 +15,7 @@
 import {
   CIRCLE_REQS, GUILDS, SKILLSETS, parseSlot, guildFromSkills,
   checkCircle, reqsFor, highestCircleMet, GUILD_BY_SKILL, PRIMARY_MAGIC_BY_GUILD, circleForSlot, canonicalSkill,
+  isProjectedCircle,
 } from './circleReqs'
 import { EXP_GROUPS } from '../../renderer/src/lib/expGroups'
 
@@ -32,7 +33,8 @@ function eq<T>(name: string, actual: T, expected: T): void {
 eq('all eleven guilds present', GUILDS.length, 11)
 for (const guild of GUILDS) {
   const g = CIRCLE_REQS[guild]
-  check(`${guild}: reaches circle 200`, g.lastCircle === 200, `got ${g.lastCircle}`)
+  check(`${guild}: reaches circle 300`, g.lastCircle === 300, `got ${g.lastCircle}`)
+  check(`${guild}: scraped through circle 200`, g.scrapedThrough === 200, `got ${g.scrapedThrough}`)
   check(`${guild}: starts at circle 2`, g.firstCircle === 2, `got ${g.firstCircle}`)
   eq(`${guild}: one row per circle`, g.table.length, g.lastCircle - g.firstCircle + 1)
   check(`${guild}: every row matches slot count`,
@@ -320,8 +322,26 @@ eq('guild: one guild skill per guild', new Set(Object.values(GUILD_BY_SKILL)).si
 // ── Unknown inputs ─────────────────────────────────────────────────────────────
 eq('unknown guild yields null',  reqsFor('Commoner', 2), null)
 eq('circle below range yields null', reqsFor('Thief', 1), null)
-eq('circle above range yields null', reqsFor('Thief', 201), null)
+eq('circle above range yields null', reqsFor('Thief', 301), null)
 eq('checkCircle on unknown guild', checkCircle('Commoner', 2, new Map()), null)
+
+// ── Projected circles ──────────────────────────────────────────────────────────
+// Circles above the scrape continue each guild's own constant step. The check that
+// matters is that they're flagged as projected AND that the step is the one the
+// published tail actually uses — a wrong step would read as real published data.
+for (const guild of GUILDS) {
+  const g = CIRCLE_REQS[guild]
+  check(`${guild}: circle 200 is published`, !isProjectedCircle(guild, 200))
+  check(`${guild}: circle 201 is projected`, isProjectedCircle(guild, 201))
+
+  const idx = (c: number): number[] => g.table[c - g.firstCircle]
+  const step = idx(200).map((v, i) => v - idx(199)[i])
+  let drift = 0
+  for (let c = 201; c <= g.lastCircle; c++) {
+    if (idx(c).some((v, i) => v - idx(c - 1)[i] !== step[i])) drift++
+  }
+  eq(`${guild}: projection continues the published step`, drift, 0)
+}
 
 if (failures.length) {
   console.error(`\n✗ ${failures.length} failed, ${passed} passed\n`)
