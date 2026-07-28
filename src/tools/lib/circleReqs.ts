@@ -31,6 +31,16 @@ import { CIRCLE_REQS, type GuildCircleReqs } from './circleReqs.generated'
 export { CIRCLE_REQS }
 export const GUILDS = Object.keys(CIRCLE_REQS).sort()
 
+/**
+ * True when a circle's requirements are projected rather than published — see the
+ * generated file's banner. Every guild is scraped to the same circle, so this is a
+ * property of the circle, not of the guild.
+ */
+export function isProjectedCircle(guild: string, circle: number): boolean {
+  const g = CIRCLE_REQS[guild]
+  return !!g && circle > g.scrapedThrough
+}
+
 // ── Skillsets ───────────────────────────────────────────────────────────────────
 
 /**
@@ -324,7 +334,7 @@ export function checkCircle(
  *
  * Requirements never decrease as circles rise (asserted in the tests), so the column
  * is sorted and this is a binary search — which matters because the UI calls it for
- * every slot on every keystroke, over tables that now run to circle 200.
+ * every slot on every keystroke, over tables that now run to circle 300.
  */
 export function circleForSlot(guild: string, slotIndex: number, rank: number): number {
   const g = CIRCLE_REQS[guild]

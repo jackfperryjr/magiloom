@@ -1,6 +1,6 @@
 import { useAtomValue, useSetAtom } from 'jotai'
 import { createPortal } from 'react-dom'
-import { useEffect, useRef, useState, useLayoutEffect, useCallback, memo } from 'react'
+import { useEffect, useRef, useState, useLayoutEffect, useCallback, memo, Fragment } from 'react'
 import { outputLinesAtom, avatarsAtom, serverAvatarsAtom, aiAvatarsAtom, selfNameAtom, connectionStatusAtom, setOutputBufferSize, type OutputLine } from '../../store/game'
 import { parseExpSkills, type ParsedExpSkill } from '../../lib/exp-parser'
 import type { LinkSpan } from '../../lib/sge-parser'
@@ -10,7 +10,7 @@ import { useEnsureAvatars } from '../../hooks/useAvatars'
 import type { Highlight } from '../ui/HighlightsModal'
 
 // ── Exp skill line helpers ────────────────────────────────────────────────────
-interface ParsedInfoPair  { label: string; value: string }
+interface ParsedInfoPair  { label: string; value: string; bonus?: string }
 
 const MIND_COLORS_OUTPUT: Record<string, string> = {
   'clear':      'var(--text-dim)',
@@ -25,16 +25,64 @@ function mindColorOutput(word: string): string {
   return MIND_COLORS_OUTPUT[word.toLowerCase()] ?? 'var(--text-main)'
 }
 
-const INFO_PAIR_RE  = /([A-Za-z][A-Za-z]*?)\s*:\s+(.+?)(?=\s{3,}[A-Za-z]|\s*$)/g
+// INFO's own field names. Used both to recognise the line and, more importantly, to
+// find where its second column starts — see parseInfoPairs.
+const INFO_FIELDS =
+  'Name|Race|Guild|Gender|Age|Circle|Strength|Reflex|Agility|Charisma|Discipline|Wisdom|' +
+  'Intelligence|Stamina|Concentration|Favors|TDPs|Encumbrance|Luck|Wealth|Debt|Max'
+const INFO_START_RE   = new RegExp(`^(?:${INFO_FIELDS})\\s*:`, 'i')
+const INFO_FIELD_RE   = new RegExp(`^(?:${INFO_FIELDS})$`, 'i')
+// The gap is `\s*`, not `\s+`: a field name can end up butted straight against the
+// previous value once the padding is gone, and a known field name is head enough.
+const INFO_HEAD_RE    = /(\s*)([A-Za-z]+)\s*:\s*/g
+// A stat that's being buffed reads "136 +13". Only split a bare number followed by a
+// signed number — anything looser would carve up values like "3 gold Kronars".
+const INFO_BONUS_RE   = /^(\d+)\s+([+-]\d+)$/
 
+/**
+ * Split an INFO line into its label/value columns.
+ *
+ * Column boundaries are found STRUCTURALLY, by locating the next field name, rather
+ * than by looking for a wide gap. The gap can't be trusted: a buffed attribute
+ * ("Discipline : 136 +13") arrives with the bonus in its own styled span, and the
+ * XML path collapses runs of spaces when it reassembles the line — so the padding
+ * that used to separate the columns is gone by the time we see it, and a gap-based
+ * split swallowed the whole of the next column into the value.
+ */
 function parseInfoPairs(text: string): ParsedInfoPair[] {
-  INFO_PAIR_RE.lastIndex = 0
-  const pairs: ParsedInfoPair[] = []
+  INFO_HEAD_RE.lastIndex = 0
+  const heads: { label: string; at: number; from: number }[] = []
   let m: RegExpExecArray | null
-  while ((m = INFO_PAIR_RE.exec(text)) !== null) {
-    pairs.push({ label: m[1].trim(), value: m[2].trim() })
+  while ((m = INFO_HEAD_RE.exec(text)) !== null) {
+    const [, gap, label] = m
+    // "Word:" starts a new column when it opens the line, when it's one of INFO's own
+    // field names, or when the game did leave a real gap. Otherwise it's a colon
+    // inside a value and splitting there would break the value in half.
+    if (heads.length > 0 && !INFO_FIELD_RE.test(label) && gap.length < 2) continue
+    heads.push({ label, at: m.index + gap.length, from: m.index + m[0].length })
   }
+
+  const pairs: ParsedInfoPair[] = []
+  heads.forEach((h, i) => {
+    const raw = text.slice(h.from, i + 1 < heads.length ? heads[i + 1].at : text.length).trim()
+    if (!raw) return
+    const b = INFO_BONUS_RE.exec(raw)
+    pairs.push(b ? { label: h.label, value: b[1], bonus: b[2] } : { label: h.label, value: raw })
+  })
   return pairs
+}
+
+/**
+ * Copyable text for an INFO line, rebuilt from its columns rather than taken from
+ * the raw line. The raw is only reliable when nothing on the line was styled (see
+ * above), so pasting a full INFO screen used to come out aligned everywhere except
+ * the one buffed row. Rebuilding every row keeps the block square.
+ */
+function infoCopyText(pairs: ParsedInfoPair[]): string {
+  return pairs
+    .map(p => `${p.label.padStart(13)} : ${p.value}${p.bonus ? ` ${p.bonus}` : ''}`.padEnd(30))
+    .join('')
+    .trimEnd()
 }
 
 // ── Preset class map ──────────────────────────────────────────────────────────
@@ -223,7 +271,7 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
   const isExpHeader = /Circle:|Showing all skills|SKILL:.*Rank|Total Ranks|Time Development|Overall state|EXP HELP/i.test(line.text)
   const isExpMeta = /Favors:|TDPs:|Deaths:|Departs:|Rested EXP|Cycle Refreshes/i.test(line.text)
 
-  const isInfoLine = /^(Name|Race|Guild|Gender|Age|Circle|Strength|Reflex|Agility|Charisma|Discipline|Wisdom|Intelligence|Stamina|Concentration|Favors|TDPs|Encumbrance|Luck|Wealth|Debt|Max)\s*:/i.test(line.text.trim()) ||
+  const isInfoLine = INFO_START_RE.test(line.text.trim()) ||
                     /^You (were born|have \d+ active)/i.test(line.text.trim()) ||
                     /^\[You can pay/i.test(line.text.trim())
 
@@ -251,6 +299,26 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
     style.color = line.styles[0].color
   } else if (line.styles[0]?.bold) {
     style.fontWeight = 'bold'
+  }
+
+  // Info attribute lines: parse Label: Value pairs into a column grid. Runs BEFORE
+  // the bold branch below, because the only thing ever bold on an INFO line is an
+  // attribute's buff ("136 +13") — letting that branch claim the line meant a buffed
+  // row rendered as flat text while every row around it kept the grid.
+  if (isInfoLine) {
+    const pairs = parseInfoPairs(line.text)
+    if (pairs.length > 0) {
+      return (
+        <div className="game-line info-data-line" data-copy-text={infoCopyText(pairs)} data-copy-atomic="">
+          {pairs.map((p, i) => (
+            <Fragment key={p.label + i}>
+              {i > 0 && <div className="info-data-sep" />}
+              <InfoPairHalf pair={p} />
+            </Fragment>
+          ))}
+        </div>
+      )
+    }
   }
 
   // Inline bold spans (optionally alongside links) — splice them into the text
@@ -306,24 +374,6 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
     return <div className={classList.join(' ')} style={style} data-copy-text={line.text}>{parts}</div>
   }
 
-  // Info attribute lines: parse Label: Value pairs into a 2-column grid
-  if (isInfoLine) {
-    const pairs = parseInfoPairs(line.text)
-    if (pairs.length > 0) {
-      return (
-        <div className="game-line info-data-line" data-copy-text={line.text} data-copy-atomic="">
-            <InfoPairHalf pair={pairs[0]} />
-          {pairs[1] && (
-            <>
-              <div className="info-data-sep" />
-              <InfoPairHalf pair={pairs[1]} />
-            </>
-          )}
-        </div>
-      )
-    }
-  }
-
   // Exp skill lines: parse and render in a 2-column grid so spaces don't collapse
   if (isExpLine) {
     const skills = parseExpSkills(line.text)
@@ -366,7 +416,10 @@ function InfoPairHalf({ pair }: { pair: ParsedInfoPair }) {
   return (
     <div className="info-data-half">
       <span className="info-data-label">{pair.label}</span>
-      <span className="info-data-value">{pair.value}</span>
+      <span className="info-data-value">
+        {pair.value}
+        {pair.bonus && <span className="info-data-bonus"> {pair.bonus}</span>}
+      </span>
     </div>
   )
 }

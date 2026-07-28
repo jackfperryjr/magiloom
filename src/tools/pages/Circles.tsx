@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { parseExpSkills } from '../../renderer/src/lib/exp-parser'
-import { CIRCLE_REQS, GUILDS, checkCircle, guildFromSkills, highestCircleMet } from '../lib/circleReqs'
+import { CIRCLE_REQS, GUILDS, checkCircle, guildFromSkills, highestCircleMet, isProjectedCircle } from '../lib/circleReqs'
 
 /**
  * Circle requirements checker.
@@ -39,9 +39,10 @@ export function Circles(): JSX.Element {
   const at    = useMemo(() => (guild ? highestCircleMet(guild, ranks) : 0), [guild, ranks])
 
   const first = guild ? CIRCLE_REQS[guild].firstCircle : 2
-  const last  = guild ? CIRCLE_REQS[guild].lastCircle  : 200
+  const last  = guild ? CIRCLE_REQS[guild].lastCircle  : 300
   const goal  = Math.min(Math.max(target ?? at + 1, first), last)
   const check = guild ? checkCircle(guild, goal, ranks) : null
+  const projected = guild ? isProjectedCircle(guild, goal) : false
 
   const rows = useMemo(() => {
     if (!check) return []
@@ -190,6 +191,15 @@ export function Circles(): JSX.Element {
                 </tbody>
               </table>
             </div>
+
+            {projected && (
+              <p className="note warn">
+                Nothing above circle {CIRCLE_REQS[guild].scrapedThrough} is published. These
+                numbers continue your guild's own per-circle step, which has held exactly
+                steady since circle 151 — a projection, not a source. Check{' '}
+                <span className="mono">GUILD</span> in game before planning against them.
+              </p>
+            )}
 
             <p className="note">
               <strong>Good to</strong> is the circle each requirement would let you reach on its

@@ -227,6 +227,19 @@
 .status-offline    { background: var(--color-penalty); }
 .status-idle       { background: #e0a020; }
 .status-dnd        { background: #f04747; }
+/* Do Not Disturb gets the "no entry" bar every other client draws, because red
+   alone doesn't separate it from the offline dot — same hue family, and no help
+   at all to a colourblind eye. Sized in % so it scales with whichever dot wears
+   the class (14px in the bar, 9px in the menu). */
+.status-dnd::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 58%; height: 2px;
+  border-radius: 1px;
+  background: #fff;
+}
 /* FF IV theme's --bg-panel is a gradient, which makes the whole `border`
    shorthand invalid (dropping width + style too), so the dot loses its ring.
    Re-declare the full border with a solid navy matching the panel. */
@@ -582,7 +595,9 @@
 .char-menu-item-danger:hover { background: rgba(200, 40, 20, 0.18); color: #fff; }
 .char-menu-item-connect { color: var(--color-bonus); }
 .char-menu-item-connect:hover { background: rgba(38, 216, 38, 0.15); color: #fff; }
-.char-menu-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+/* position: relative so the DND bar (.status-dnd::after) has something to centre
+   against here; the bar's own dot is already absolutely positioned. */
+.char-menu-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; position: relative; }
 .char-menu-check { margin-left: auto; color: var(--accent); }
 .char-menu-sep { height: 1px; margin: 4px 6px; background: var(--border-soft); }
 .char-menu-cloud { font-size: 15px; line-height: 1; width: 15px; text-align: center; flex-shrink: 0; }

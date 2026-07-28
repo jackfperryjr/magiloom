@@ -224,6 +224,9 @@
 .info-data-sep   { width: 1px; background: var(--border-soft); margin: 0 16px; align-self: stretch; }
 .info-data-label { color: var(--text-dim); white-space: nowrap; }
 .info-data-value { color: var(--text-main); white-space: nowrap; }
+/* A buffed attribute's "+13" — coloured so the boosted value reads as boosted
+   rather than as a stray number that ran into the next column. */
+.info-data-bonus { color: var(--color-bonus); }
 
 .game-line.exp-line {
   padding: 0.1rem 0.25rem;

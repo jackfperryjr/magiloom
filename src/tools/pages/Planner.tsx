@@ -2,12 +2,10 @@ import { useMemo, useState } from 'react'
 import { parseExpSkills } from '../../renderer/src/lib/exp-parser'
 import {
   STATS, RACES, emptyStats, modifierFor, costForRange,
-  STARTING_TDPS, tdpsFromCircling, tdpsFromSkills, MAX_CIRCLE_AWARD, tdpsForCircle,
+  STARTING_TDPS, tdpsFromCircling, tdpsFromSkills, MAX_CIRCLE, MAX_CIRCLE_AWARD,
   parseStats, parseCircle, parseTdps,
   type StatBlock, type StatName,
 } from '../lib/tdp'
-
-const CUSTOM = 'Custom (enter your own)'
 
 /**
  * TDP planner — "what will these attribute goals cost me, and will I have earned
@@ -20,8 +18,6 @@ const CUSTOM = 'Custom (enter your own)'
  */
 export function Planner(): JSX.Element {
   const [race, setRace]       = useState<string>('Human')
-  const [custom, setCustom]   = useState<Record<StatName, number>>(() =>
-    Object.fromEntries(STATS.map(s => [s, 0])) as Record<StatName, number>)
   const [current, setCurrent] = useState<StatBlock>(emptyStats)
   const [target, setTarget]   = useState<StatBlock>(emptyStats)
   const [paste, setPaste]     = useState('')
@@ -29,15 +25,12 @@ export function Planner(): JSX.Element {
   const [circle, setCircle]   = useState(1)
   const [goalCircle, setGoal] = useState(1)
 
-  const racialFor = (stat: StatName): number =>
-    race === CUSTOM ? (custom[stat] ?? 0) : modifierFor(race, stat)
-
   const rows = useMemo(() => STATS.map(stat => {
     const from = current[stat] || 0
     const to   = target[stat]  || 0
-    const racial = racialFor(stat)
+    const racial = modifierFor(race, stat)
     return { stat, from, to, racial, cost: to > from ? costForRange(from, to, racial) : 0 }
-  }), [current, target, race, custom])
+  }), [current, target, race])
 
   const totalCost = rows.reduce((n, r) => n + r.cost, 0)
   const fromCircling = tdpsFromCircling(circle, goalCircle)
@@ -99,7 +92,6 @@ export function Planner(): JSX.Element {
             <label htmlFor="race">Race</label>
             <select id="race" value={race} onChange={e => setRace(e.target.value)}>
               {RACES.map(r => <option key={r} value={r}>{r}</option>)}
-              <option value={CUSTOM}>{CUSTOM}</option>
             </select>
           </div>
           <div>
@@ -109,24 +101,15 @@ export function Planner(): JSX.Element {
           </div>
           <div>
             <label htmlFor="circle">Current circle</label>
-            <input id="circle" type="number" min={1} max={MAX_CIRCLE_AWARD} value={circle}
+            <input id="circle" type="number" min={1} max={MAX_CIRCLE} value={circle}
                    onChange={e => setCircle(Math.max(1, +e.target.value || 1))} />
           </div>
           <div>
             <label htmlFor="goal">Circle you expect to reach</label>
-            <input id="goal" type="number" min={1} max={MAX_CIRCLE_AWARD} value={goalCircle}
+            <input id="goal" type="number" min={1} max={MAX_CIRCLE} value={goalCircle}
                    onChange={e => setGoal(Math.max(1, +e.target.value || 1))} />
           </div>
         </div>
-
-        {race === CUSTOM && (
-          <p className="note">
-            Enter your own cost modifiers below (−3 is cheapest, +3 dearest). Half-Elf and
-            Aelotoi aren't in the published table, so rather than guess we let you supply
-            the numbers — in game, <span className="mono">TDP PROJECT &lt;attribute&gt; &lt;goal&gt;</span>{' '}
-            tells you the real cost and you can work back from it.
-          </p>
-        )}
       </div>
 
       <div className="card">
@@ -147,17 +130,9 @@ export function Planner(): JSX.Element {
                 <tr key={r.stat}>
                   <td>{r.stat}</td>
                   <td className="num">
-                    {race === CUSTOM ? (
-                      <input type="number" min={-3} max={3} value={custom[r.stat]}
-                             style={{ width: 62, padding: '2px 6px', textAlign: 'right' }}
-                             onChange={e => setCustom(c => ({
-                               ...c, [r.stat]: Math.max(-3, Math.min(3, +e.target.value || 0)),
-                             }))} />
-                    ) : (
-                      <span className={r.racial < 0 ? '' : 'muted'}>
-                        {r.racial > 0 ? `+${r.racial}` : r.racial || '—'}
-                      </span>
-                    )}
+                    <span className={r.racial < 0 ? '' : 'muted'}>
+                      {r.racial > 0 ? `+${r.racial}` : r.racial || '—'}
+                    </span>
                   </td>
                   <td className="num">
                     <input type="number" min={0} max={999} value={r.from || ''}
@@ -217,14 +192,15 @@ export function Planner(): JSX.Element {
         </p>
       )}
 
-      <CircleIncome />
       <SkillIncome />
 
       <div className="card tight">
         <p className="note" style={{ margin: 0 }}>
           Costs use <span className="mono">3 × attribute + racial × ⌊attribute ÷ 2⌋</span> per point
           (15 × instead of 3 × at 100 and above), summed point by point the way the game
-          does. Sourced from{' '}
+          does. Circling grants 50 plus the circle number below circle 10, then 100 plus the
+          circle number, and nothing past circle {MAX_CIRCLE_AWARD} — circle 1 pays nothing,
+          since you start there. Sourced from{' '}
           <a href="https://elanthipedia.play.net/Attributes" target="_blank" rel="noopener">Elanthipedia: Attributes</a>
           {' '}and{' '}
           <a href="https://elanthipedia.play.net/Time_Development_Points" target="_blank" rel="noopener">Time Development Points</a>.
@@ -232,69 +208,6 @@ export function Planner(): JSX.Element {
         </p>
       </div>
     </>
-  )
-}
-
-/**
- * TDPs from circling. Lives here rather than on the Circles page: everything about
- * TDPs belongs in one place, and this number feeds the shortfall above.
- */
-function CircleIncome(): JSX.Element {
-  const [from, setFrom] = useState(1)
-  const [to, setTo]     = useState(30)
-
-  const total = tdpsFromCircling(from, to)
-  const each  = Math.max(0, Math.floor(to) - Math.max(1, Math.floor(from)))
-
-  return (
-    <div className="card">
-      <h2>TDPs from circling</h2>
-      <p className="lede">
-        Each circle grants TDPs: 50 plus the circle number below circle 10, then 100 plus the
-        circle number, and nothing past circle {MAX_CIRCLE_AWARD}. Circle 1 pays nothing — you
-        start there.
-      </p>
-      <div className="row">
-        <div>
-          <label htmlFor="cf">From circle</label>
-          <input id="cf" type="number" min={1} max={MAX_CIRCLE_AWARD} value={from}
-                 onChange={e => setFrom(Math.max(1, +e.target.value || 1))} />
-        </div>
-        <div>
-          <label htmlFor="ct">To circle</label>
-          <input id="ct" type="number" min={1} max={MAX_CIRCLE_AWARD} value={to}
-                 onChange={e => setTo(Math.max(1, +e.target.value || 1))} />
-        </div>
-        <div className="shrink" style={{ minWidth: 150 }}>
-          <div className="tile" style={{ padding: '8px 14px' }}>
-            <div className="val accent">{total.toLocaleString()}</div>
-            <div className="lbl">TDPs over {each} circle{each === 1 ? '' : 's'}</div>
-          </div>
-        </div>
-      </div>
-
-      {each > 0 && each <= 40 && (
-        <div className="table-wrap" style={{ marginTop: 16 }}>
-          <table>
-            <thead><tr><th className="num">Circle</th><th className="num">TDPs</th><th className="num">Running total</th></tr></thead>
-            <tbody>
-              {Array.from({ length: each }, (_, i) => Math.floor(from) + 1 + i).map((c, i, arr) => (
-                <tr key={c}>
-                  <td className="num">{c}</td>
-                  <td className="num">{tdpsForCircle(c).toLocaleString()}</td>
-                  <td className="num muted">
-                    {arr.slice(0, i + 1).reduce((n, x) => n + tdpsForCircle(x), 0).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {each > 40 && (
-        <p className="note">Range is too wide for a per-circle breakdown — narrow it below 40 circles to see one.</p>
-      )}
-    </div>
   )
 }
 
