@@ -8,7 +8,7 @@ import { GameConnection } from './game-connection'
 import { CmdScriptEngine } from './cmd-script-engine'
 import { BroadcastBus } from './broadcast-bus'
 import { MapStore, type StoredZone } from './map-store'
-import { LogStore, logSlug, stripToLines } from './log-store'
+import { LogStore, logSlug } from './log-store'
 import { SettingsStore } from './settings-store'
 import { sgeAuth } from './sge-auth'
 import type { SGELaunchKey } from './sge-auth'
@@ -550,7 +550,7 @@ function setupIpcHandlers(): void {
   gameConn.on('data',         (r: string) => {
     send('game:data', r)
     cmdEngine.feed(r)   // drive waitfor/matchwait in running .cmd scripts
-    if (logStore.isEnabled()) for (const line of stripToLines(r)) logStore.writeLine(line)
+    logStore.write(r)   // text log + structured sidecar; no-ops when logging is off
     if (!lichReadyDetected) {
       // <app char="Name"> appears in the game stream once Lich has connected
       // to the game server and parsed the character name from the initial XML.
