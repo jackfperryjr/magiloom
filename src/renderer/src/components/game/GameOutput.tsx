@@ -158,7 +158,7 @@ function LookCard({ name, lines }: { name: string; lines: string[] }) {
   }, [key, name, lines, custom, aiAvatars, status, setAiAvatars])
 
   return (
-    <div className="game-line look-card" data-copy-text={lines.join('\n')}>
+    <div className="game-line look-card" data-copy-text={lines.join('\n')} data-copy-atomic="">
       <img
         className={'look-avatar' + (realImage ? ' look-avatar-zoomable' : '')}
         src={src} alt={name}
@@ -311,7 +311,7 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
     const pairs = parseInfoPairs(line.text)
     if (pairs.length > 0) {
       return (
-        <div className="game-line info-data-line" data-copy-text={line.text}>
+        <div className="game-line info-data-line" data-copy-text={line.text} data-copy-atomic="">
             <InfoPairHalf pair={pairs[0]} />
           {pairs[1] && (
             <>
@@ -329,7 +329,7 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
     const skills = parseExpSkills(line.text)
     if (skills.length > 0) {
       return (
-        <div className="game-line exp-data-line" data-copy-text={line.text}>
+        <div className="game-line exp-data-line" data-copy-text={line.text} data-copy-atomic="">
             <ExpSkillHalf s={skills[0]} />
           {skills[1] && (
             <>
@@ -452,13 +452,19 @@ export function GameOutput() {
       elRange.selectNodeContents(el)
       const startsBefore = range.compareBoundaryPoints(Range.START_TO_START, elRange) <= 0
       const endsAfter    = range.compareBoundaryPoints(Range.END_TO_END, elRange) >= 0
-      if (startsBefore && endsAfter) {
-        // Whole line is selected — use the canonical formatted text (grid-laid-out
-        // lines like exp/info rows lose their spacing if read from raw DOM text).
+      // Lines laid out as a GRID (exp rows, info rows, look cards) are built from
+      // separate elements whose visible spacing and separators come from CSS, not from
+      // text. Reading a sub-range of one back gives the text nodes run together with
+      // the punctuation gone — "Strength42" for what reads as "Strength : 42". So they
+      // are atomic: any overlap copies the whole canonical line. Since the first and
+      // last line of a selection are precisely the partial ones, without this the two
+      // ends of every multi-line copy came out mangled.
+      const atomic = el.dataset.copyAtomic !== undefined
+      if ((startsBefore && endsAfter) || atomic) {
         parts.push(el.dataset.copyText ?? el.textContent ?? '')
       } else {
-        // Only part of this line is selected — copy exactly that part, clamped
-        // to the line's bounds, instead of falling back to the whole line.
+        // Ordinary prose line, only partly selected — copy exactly that part, clamped
+        // to the line's bounds. Half a sentence should copy as half a sentence.
         const clamped = document.createRange()
         clamped.setStart(startsBefore ? elRange.startContainer : range.startContainer,
                           startsBefore ? elRange.startOffset    : range.startOffset)

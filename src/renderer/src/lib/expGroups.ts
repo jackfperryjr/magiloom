@@ -5,21 +5,35 @@
 // never hidden.
 
 export const EXP_GROUPS: { name: string; skills: string[] }[] = [
-  // One per guild; a character only ever has field exp in their own, so at most one
-  // row shows here. (Empathy from the Empath reference; the rest per the guild list.)
+  // Exactly one per guild, and a character only ever has field exp in their own, so at
+  // most one row shows here. Each guild skill also BELONGS to one of the five
+  // skillsets mechanically (Backstab is a Survival skill, Expertise a Weapon skill);
+  // this group is a display grouping, not a sixth skillset — see circleReqs.ts, where
+  // that distinction decides which skills can satisfy a circle requirement.
   { name: 'Guild Skills', skills: [
-    'Empathy', 'Scouting', 'Backstab', 'Astrology', 'Bardic Lore', 'Conviction',
-    'Expertise', 'Instinct', 'Summoning', 'Thanatology', 'Theurgy', 'Trading',
+    'Empathy', 'Instinct', 'Backstab', 'Astrology', 'Bardic Lore', 'Conviction',
+    'Expertise', 'Summoning', 'Thanatology', 'Theurgy', 'Trading',
   ] },
   { name: 'Armor', skills: [
     'Shield Usage', 'Light Armor', 'Chain Armor', 'Brigandine', 'Plate Armor', 'Defending',
   ] },
+  // DR 3.0 consolidated and renamed the weapon skills: Light + Medium Edged became
+  // Small Edged, Heavy Edged became Large Edged, and the same for Blunt. Bow/Crossbow
+  // The old names are gone from the game, so a skill listed under them would never
+  // match anything the stream sends and would fall into "Other".
+  //
+  // Bow and Crossbow are SINGULAR. The wiki lists them plural (those are article
+  // titles), but the stream sends <component id='exp Bow'> — verified against real
+  // Lich XML captures, which is the only source that can't be out of date.
   { name: 'Weapon', skills: [
-    'Parry Ability', 'Light Edged', 'Medium Edged', 'Heavy Edged', 'Twohanded Edged',
-    'Light Blunt', 'Medium Blunt', 'Heavy Blunt', 'Twohanded Blunt',
+    'Parry Ability', 'Small Edged', 'Large Edged', 'Twohanded Edged',
+    'Small Blunt', 'Large Blunt', 'Twohanded Blunt',
     'Slings', 'Bow', 'Crossbow', 'Staves', 'Polearms', 'Light Thrown', 'Heavy Thrown',
-    'Brawling', 'Offhand Weapon',
+    'Brawling', 'Offhand Weapon', 'Melee Mastery', 'Missile Mastery',
   ] },
+  // The guild-specific names (Inner Fire, Elemental Magic, …) are each a guild's
+  // PRIMARY MAGIC skill — one per guild, and the only one a character will ever have
+  // ranks in. See PRIMARY_MAGIC_BY_GUILD in tools/lib/circleReqs.ts.
   { name: 'Magic', skills: [
     'Arcana', 'Attunement', 'Augmentation', 'Debilitation', 'Utility', 'Warding',
     'Sorcery', 'Targeted Magic',
