@@ -67,7 +67,7 @@ function reconcilePanels(saved: PanelConfig[] | undefined): PanelConfig[] {
 }
 
 function readLegacy<T>(key: string): T | null {
-  try { const raw = localStorage.getItem(key); if (raw) return JSON.parse(raw) as T } catch {}
+  try { const raw = localStorage.getItem(key); if (raw) return JSON.parse(raw) as T } catch { /* ignore */ }
   return null
 }
 
@@ -80,11 +80,11 @@ async function loadPanelLayout(name: string): Promise<{ panels: PanelConfig[]; h
     // One-time migration from the old localStorage keys.
     if (!panels) {
       const legacy = readLegacy<PanelConfig[]>(panelsKey(name))
-      if (legacy) { panels = legacy; window.dr.settings.patchChar(name, { panels: legacy }); try { localStorage.removeItem(panelsKey(name)) } catch {} }
+      if (legacy) { panels = legacy; window.dr.settings.patchChar(name, { panels: legacy }); try { localStorage.removeItem(panelsKey(name)) } catch { /* ignore */ } }
     }
     if (!heights) {
       const legacy = readLegacy<Record<string, number>>(heightsKey(name))
-      if (legacy) { heights = legacy; window.dr.settings.patchChar(name, { panelHeights: legacy }); try { localStorage.removeItem(heightsKey(name)) } catch {} }
+      if (legacy) { heights = legacy; window.dr.settings.patchChar(name, { panelHeights: legacy }); try { localStorage.removeItem(heightsKey(name)) } catch { /* ignore */ } }
     }
     return { panels: reconcilePanels(panels), heights: heights ?? {} }
   } catch {

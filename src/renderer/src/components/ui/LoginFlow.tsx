@@ -276,29 +276,6 @@ function LoginLog({ lines }: { lines: string[] }) {
   )
 }
 
-// ─── Settings ─────────────────────────────────────────────────────────────────
-function SettingsScreen({ initialPath, detectedPath, onSave, onBack }: {
-  initialPath:  string
-  detectedPath: string
-  onSave:       (path: string) => void
-  onBack:       () => void
-}) {
-  const [lichPath, setLichPath] = useState(initialPath || detectedPath)
-  return <>
-    <Back onClick={onBack} />
-    <div className="login-screen-title">Settings</div>
-    <div className="login-fields">
-      <label className="login-label">Lich path
-        <input className="login-input login-input-mono" type="text"
-          placeholder={detectedPath || 'C:\\Ruby4Lich5\\Lich5\\lich.rbw'}
-          value={lichPath} onChange={e => setLichPath(e.target.value)} />
-        <span className="login-hint">Path to lich.rbw — auto-detected if blank</span>
-      </label>
-    </div>
-    <button className="login-btn" onClick={() => onSave(lichPath)}>Save</button>
-  </>
-}
-
 // ─── Magiloom account (web only) ──────────────────────────────────────────────
 // A real Magiloom account (email + password), separate from the DragonRealms
 // account. Signing in syncs your settings + Lich profiles/custom scripts across
@@ -416,7 +393,6 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
   const [logLines,      setLogLines]      = useState<string[]>([])
   const [error,         setError]         = useState('')
   const [loading,       setLoading]       = useState(false)
-  const [detectedPath,  setDetectedPath]  = useState('')
   const [useLich,       setUseLich]       = useState(false)
   const [lichAvailable, setLichAvailable] = useState(false)
   const useLichRef = useRef(false)
@@ -426,7 +402,6 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
     Promise.all([window.dr.settings.getAll(), window.dr.lich.detectPath()])
       .then(([s, detected]) => {
         setSavedAccounts(s.accounts ?? [])
-        setDetectedPath(detected || '')
         // Remember the last-played identity for the cold-resume fallback below.
         lastAccountRef.current  = s.lastAccount ?? ''
         lastCharNameRef.current = s.accounts?.find(a => a.name === s.lastAccount)?.lastCharacter ?? ''

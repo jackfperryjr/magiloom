@@ -115,19 +115,6 @@ function looksLikeNpcList(text: string): boolean {
   return /^(a|an|the)\s+/i.test(stripped)
 }
 
-function looksLikeRoomName(text: string): boolean {
-  // DragonRealms room names often look like "[Area, Subarea] (roomid)" or "Room Name"
-  const trimmed = text.trim()
-  if (!trimmed || trimmed.length < 3 || trimmed.length > 200) return false
-  if (/^(you|also here|obvious|roundtime|exp|tdp|you are|your|the|an?|some)/i.test(trimmed)) return false
-  if (/^[<>\[\]]/.test(trimmed) && !/^\[.*\]$/.test(trimmed)) return false  // allow complete [brackets] but not incomplete
-  if (/^[\[\(]/.test(trimmed) && /[\]\)]$/.test(trimmed)) return true  // [Area] or (id)
-  if (/^\[.*\]\s*\(.*\)$/.test(trimmed)) return true  // [Area, Subarea] (roomid)
-  // Regular room names: start with capital, contain location words, no XML chars
-  if (/[<>:]/.test(trimmed)) return false  // avoid XML-like chars
-  return /^[A-Z]/.test(trimmed) && /\b(of|the|and|in|on|at|to|from|north|south|east|west|up|down|out|in|forest|glade|path|road|street|square|plaza|shop|inn|tavern|guild|hall|tower|castle|keep|gate|bridge|river|lake|mountain|hill|valley|cave|mine|dungeon|room|chamber|hallway|corridor|door|portal)\b/i.test(trimmed)
-}
-
 const TAG_RE = /<([^>]+)>|([^<]+)/g
 
 export function parseLine(raw: string): GameEvent[] {
@@ -152,7 +139,7 @@ export function parseLine(raw: string): GameEvent[] {
     // so we only need to discard the stale link ref.
     if (_inExpSkill) { links = []; bolds = []; return }
 
-    let text = buf.replace(/[\r\n]+/g, ' ').replace(/  +/g, ' ').trim()
+    const text = buf.replace(/[\r\n]+/g, ' ').replace(/  +/g, ' ').trim()
     buf = ''
     if (!text || text === '>') return
     const s  = forcePreset ? [{ preset: forcePreset }] : [...styles]
@@ -471,7 +458,7 @@ export function parseLine(raw: string): GameEvent[] {
           // Parse: "     Aug:  305 66%  [ 1/34]"  (abbr already in buf)
           const raw2 = buf.replace(/[\r\n]+/g, ' ').trim()
           buf = ''
-          const sm = raw2.match(/:?\s*(\d+)\s+(\d+)%\s+(?:([a-zA-Z][a-zA-Z ]*?)\s+)?[\[\(]\s*(\d+\/\d+)\s*[\]\)]/)
+          const sm = raw2.match(/:?\s*(\d+)\s+(\d+)%\s+(?:([a-zA-Z][a-zA-Z ]*?)\s+)?[[(]\s*(\d+\/\d+)\s*[\])]/)
           if (sm) {
             events.push({
               type:     'expSkill',
@@ -510,7 +497,7 @@ export function parseLine(raw: string): GameEvent[] {
           }
           styles = []
         } else if (_inExits) {
-          const raw2 = (_roomExitBuf + ' ' + buf).replace(/[\r\n,\.]+/g, ' ').replace(/  +/g, ' ').trim()
+          const raw2 = (_roomExitBuf + ' ' + buf).replace(/[\r\n,.]+/g, ' ').replace(/  +/g, ' ').trim()
           buf = ''
           _roomExitBuf = ''
           _inExits     = false
@@ -520,7 +507,7 @@ export function parseLine(raw: string): GameEvent[] {
             const DIRS = new Set(['north','south','east','west','northeast','northwest',
               'southeast','southwest','up','down','out','in','ne','nw','se','sw','n','s','e','w'])
             const pathPart = raw2.replace(/obvious\s+(?:paths?|exits?)\s*:?\s*/i, '')
-            const textExits = pathPart.split(/[\s,\.]+/).map(e => e.trim().toLowerCase()).filter(e => DIRS.has(e))
+            const textExits = pathPart.split(/[\s,.]+/).map(e => e.trim().toLowerCase()).filter(e => DIRS.has(e))
             const allExits  = exitLinks.length > 0
               ? exitLinks.map(l => l.cmd.replace('go ', ''))
               : textExits

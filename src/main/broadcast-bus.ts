@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events'
 import { join } from 'path'
 import {
-  existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync,
+  mkdirSync, writeFileSync, readFileSync, readdirSync,
   unlinkSync, renameSync, statSync, watch,
 } from 'fs'
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useSetAtom } from 'jotai'
 import {
   messagingAvailable, contactsAtom, contactRequestsAtom, pendingOutAtom,

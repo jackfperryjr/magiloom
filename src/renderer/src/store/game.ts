@@ -1038,26 +1038,27 @@ export const dispatchGameEventAtom = atom(
         set(roomAtom, { ...get(roomAtom), objs: event.objs })
         break
 
-      case 'roomPlayers':
+      case 'roomPlayers': {
         const playerList = event.players.replace(/^(Also here|You also see):\s*/i, '').split(/,\s*/).filter(p => p.trim())
         set(roomAtom, { ...get(roomAtom), players: playerList, playerNames: playerList })
         break
+      }
 
-      case 'playerArrived':
+      case 'playerArrived': {
         const currentPlayers = get(roomAtom).playerNames
         if (!currentPlayers.includes(event.player)) {
           const newPlayers = [...currentPlayers, event.player]
-          const playerText = newPlayers.length > 0 ? `Also here: ${newPlayers.join(', ')}` : ''
           set(roomAtom, { ...get(roomAtom), players: newPlayers, playerNames: newPlayers })
         }
         break
+      }
 
-      case 'playerDeparted':
+      case 'playerDeparted': {
         const currentPlayers2 = get(roomAtom).playerNames
         const newPlayers2 = currentPlayers2.filter(p => p !== event.player)
-        const playerText2 = newPlayers2.length > 0 ? `Also here: ${newPlayers2.join(', ')}` : ''
         set(roomAtom, { ...get(roomAtom), players: newPlayers2, playerNames: newPlayers2 })
         break
+      }
 
       case 'expSkill': {
         const skill = { name: event.name, rank: event.rank, pct: event.pct, mind: event.mind, mindWord: event.mindWord }
