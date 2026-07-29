@@ -310,15 +310,27 @@
 .panel-content { padding: 8px 10px; }
 
 /* ── Messages panel (character-to-character) ─────────────────────────────────
-   Lives in the resizable sidebar panel, so its header/composer are sticky within
-   the panel's own scroll rather than fighting it. Two modes: contact list ⇄ thread. */
-.msg-panel { display: flex; flex-direction: column; min-height: 0; font-family: var(--font-ui); }
+   Two modes: contact list ⇄ thread. The head/composer bars are NOT sticky — they
+   are fixed chrome, and only the list between them scrolls (.msg-list-body /
+   .msg-thread-body own the scrollbar). Sticky bars floating over the panel's own
+   scroll meant messages passed visibly behind them and needed an opaque mask;
+   with a real inner scroller the content is clipped, so the bars can stay fully
+   transparent and the card's background — gradient included — runs unbroken. */
+.msg-panel { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; font-family: var(--font-ui); }
+/* The messages card's body is a flex column so the inner scroller can size itself
+   against it — both when the panel is resized (definite height) and at its default
+   content height capped by max-height. */
+.panel-card[data-panel-id="messages"] .panel-content { display: flex; flex-direction: column; }
+.msg-list { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.msg-list-body, .msg-thread-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.msg-list-body::-webkit-scrollbar, .msg-thread-body::-webkit-scrollbar { width: 4px; }
+.msg-list-body::-webkit-scrollbar-thumb, .msg-thread-body::-webkit-scrollbar-thumb { background: var(--scrollbar); }
 
-/* Add-contact bar (sticky top of the list) */
+/* Add-contact bar (fixed at the top of the list) */
 .msg-add {
-  position: sticky; top: 0; z-index: 2;
+  flex-shrink: 0;
   display: flex; gap: 6px; padding-bottom: 8px;
-  background: var(--bg-panel);
+  background: transparent;
 }
 .msg-add-input, .msg-composer-input {
   flex: 1; min-width: 0;
@@ -333,15 +345,26 @@
 }
 .msg-add-input:focus, .msg-composer-input:focus { outline: none; border-color: var(--accent); }
 .msg-add-input::placeholder, .msg-composer-input::placeholder { color: var(--text-dim); }
+/* Icon buttons (plus / paper-plane). The add button sits beside its input; the
+   send button is tucked INSIDE the composer input (see .msg-input-wrap). */
 .msg-add-btn, .msg-send-btn {
   flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; padding: 0;
   background: var(--accent); border: none; border-radius: 7px;
-  padding: 0 12px; color: #17133a; font-family: var(--font-ui); font-size: 16px; font-weight: 600;
-  cursor: pointer; transition: filter .15s;
+  color: #17133a; cursor: pointer; transition: filter .15s;
+}
+.msg-input-wrap { position: relative; flex: 1; min-width: 0; display: flex; }
+.msg-input-wrap .msg-composer-input { padding-right: 32px; }
+/* Bare glyph inside the field — no filled pill, so it reads as part of the input. */
+.msg-send-btn {
+  position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 20px; border-radius: 0;
+  background: none; color: var(--accent);
 }
 .msg-add-btn:hover:not(:disabled), .msg-send-btn:hover:not(:disabled) { filter: brightness(1.12); }
 .msg-add-btn:disabled, .msg-send-btn:disabled { opacity: .4; cursor: default; }
-.msg-add-error { color: var(--color-warning); font-size: 12px; padding: 0 2px 6px; }
+.msg-add-error { flex-shrink: 0; color: var(--color-warning); font-size: 12px; padding: 0 2px 6px; }
 
 .msg-section-label {
   font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
@@ -392,12 +415,12 @@
 }
 
 /* Thread view */
-.msg-thread { display: flex; flex-direction: column; min-height: 0; }
+.msg-thread { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
 .msg-thread-head {
-  position: sticky; top: 0; z-index: 2;
+  flex-shrink: 0;
   display: flex; align-items: center; gap: 8px;
   padding-bottom: 8px; margin-bottom: 2px;
-  background: var(--bg-panel); border-bottom: 1px solid var(--border-soft);
+  background: transparent; border-bottom: 1px solid var(--border-soft);
 }
 .msg-back {
   background: none; border: none; color: var(--accent); cursor: pointer;
@@ -425,6 +448,8 @@
 .msg-confirm-no:hover { color: var(--text-main); }
 
 .msg-thread-body { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; }
+/* Push a short conversation to the bottom of the scroller, chat-app style. */
+.msg-thread-body > :first-child { margin-top: auto; }
 /* A run of consecutive same-sender messages: peer avatar (theirs) beside a bubble
    stack. Mine right-aligned with no avatar; theirs left-aligned with the avatar. */
 .msg-group { display: flex; gap: 8px; align-items: flex-end; }
@@ -443,9 +468,9 @@
 .msg-bubble-time { display: block; margin-top: 2px; font-size: 10px; opacity: .6; text-align: right; }
 
 .msg-composer {
-  position: sticky; bottom: 0; z-index: 2;
-  display: flex; gap: 6px; padding-top: 8px;
-  background: var(--bg-panel); border-top: 1px solid var(--border-soft);
+  flex-shrink: 0;
+  display: flex; padding-top: 8px;
+  background: transparent; border-top: 1px solid var(--border-soft);
 }
 
 /* Rail unread count badge (Messages panel) — like the conversation dot, but numeric. */

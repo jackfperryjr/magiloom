@@ -8,7 +8,7 @@ import { selfNameAtom, avatarsAtom, serverAvatarsAtom } from '../../store/game'
 import { resolveAvatarSrc } from '../../lib/avatar'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
 import { Tooltip } from '../ui/Tooltip'
-import { IconTrash } from '../ui/Icons'
+import { IconTrash, IconPlus, IconPaperAirplane } from '../ui/Icons'
 
 // Avatar (with a presence dot overlaid at its corner) — the same image source the
 // Conversation panel uses: local self-upload → server-backed image → letter fallback.
@@ -93,52 +93,59 @@ function ContactList({ onOpen }: { onOpen: (name: string) => void }) {
           onChange={e => { setAdd(capitalize(e.target.value)); setError('') }}
           onKeyDown={e => { if (e.key === 'Enter') submitAdd() }}
         />
-        <button className="msg-add-btn" onClick={submitAdd} disabled={!add.trim() || busy}>Add</button>
+        <Tooltip text="Send contact request">
+          <button className="msg-add-btn" onClick={submitAdd} disabled={!add.trim() || busy} aria-label="Add contact">
+            <IconPlus size={17} />
+          </button>
+        </Tooltip>
       </div>
       {error && <div className="msg-add-error">{error}</div>}
 
-      {requests.length > 0 && (
-        <div className="msg-requests">
-          <div className="msg-section-label">Requests</div>
-          {requests.map(name => (
-            <div key={name} className="msg-request-row">
-              <ContactAvatar name={name} size={26} />
-              <span className="msg-contact-name">{name}</span>
-              <div className="msg-request-actions">
-                <button className="msg-req-accept" onClick={() => accept(name)}>Accept</button>
-                <button className="msg-req-deny" onClick={() => deny(name)}>Deny</button>
+      {/* Only the roster scrolls — the add bar above it is fixed chrome. */}
+      <div className="msg-list-body">
+        {requests.length > 0 && (
+          <div className="msg-requests">
+            <div className="msg-section-label">Requests</div>
+            {requests.map(name => (
+              <div key={name} className="msg-request-row">
+                <ContactAvatar name={name} size={26} />
+                <span className="msg-contact-name">{name}</span>
+                <div className="msg-request-actions">
+                  <button className="msg-req-accept" onClick={() => accept(name)}>Accept</button>
+                  <button className="msg-req-deny" onClick={() => deny(name)}>Deny</button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      {sorted.length === 0 && requests.length === 0 && (
-        <div className="panel-empty">No contacts yet — add someone by their character name.</div>
-      )}
+        {sorted.length === 0 && requests.length === 0 && (
+          <div className="panel-empty">No contacts yet — add someone by their character name.</div>
+        )}
 
-      {sorted.map((c: Contact) => {
-        const n = unread[key(c.name)] ?? 0
-        return (
-          <button key={key(c.name)} className="msg-contact-row" onClick={() => onOpen(c.name)}>
-            <ContactAvatar name={c.name} online={c.online} />
-            <span className="msg-contact-name">{c.name}</span>
-            {n > 0 && <span className="msg-unread">{n > 99 ? '99+' : n}</span>}
-          </button>
-        )
-      })}
+        {sorted.map((c: Contact) => {
+          const n = unread[key(c.name)] ?? 0
+          return (
+            <button key={key(c.name)} className="msg-contact-row" onClick={() => onOpen(c.name)}>
+              <ContactAvatar name={c.name} online={c.online} />
+              <span className="msg-contact-name">{c.name}</span>
+              {n > 0 && <span className="msg-unread">{n > 99 ? '99+' : n}</span>}
+            </button>
+          )
+        })}
 
-      {pending.length > 0 && (
-        <div className="msg-pending">
-          <div className="msg-section-label">Pending</div>
-          {pending.map(name => (
-            <div key={name} className="msg-pending-row">
-              <span className="msg-contact-name">{name}</span>
-              <span className="msg-pending-tag">requested</span>
-            </div>
-          ))}
-        </div>
-      )}
+        {pending.length > 0 && (
+          <div className="msg-pending">
+            <div className="msg-section-label">Pending</div>
+            {pending.map(name => (
+              <div key={name} className="msg-pending-row">
+                <span className="msg-contact-name">{name}</span>
+                <span className="msg-pending-tag">requested</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -247,14 +254,20 @@ function Thread({ peer, onBack }: { peer: string; onBack: () => void }) {
 
       {error && <div className="msg-add-error">{error}</div>}
       <div className="msg-composer">
-        <input
-          className="msg-composer-input"
-          placeholder={`Message ${peer}…`}
-          value={text}
-          onChange={e => setText(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') send() }}
-        />
-        <button className="msg-send-btn" onClick={send} disabled={!text.trim()}>Send</button>
+        <div className="msg-input-wrap">
+          <input
+            className="msg-composer-input"
+            placeholder={`Message ${peer}…`}
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') send() }}
+          />
+          <Tooltip text="Send">
+            <button className="msg-send-btn" onClick={send} disabled={!text.trim()} aria-label="Send message">
+              <IconPaperAirplane size={14} />
+            </button>
+          </Tooltip>
+        </div>
       </div>
     </div>
   )
