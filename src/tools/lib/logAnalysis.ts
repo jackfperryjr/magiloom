@@ -116,7 +116,7 @@ export interface ExpSample {
 
 // The numbers half of a split live update: ": 305 66% [ 1/34]". Mind-state word
 // ("Mind lock", "clear") is optional and ignored here.
-const EXP_FRAGMENT_RE = /^:\s*(\d+)\s+(\d+)%\s*(?:[a-zA-Z][a-zA-Z ]*?\s*)?[\[(]\s*\d+\/\d+\s*[\])]\s*$/
+const EXP_FRAGMENT_RE = /^:\s*(\d+)\s+(\d+)%\s*(?:[a-zA-Z][a-zA-Z ]*?\s*)?[[(]\s*\d+\/\d+\s*[\])]\s*$/
 // The abbreviation half. Short, wordy, no punctuation — "Aug", "L Armor", "TM".
 const EXP_ABBREV_RE   = /^[A-Za-z][A-Za-z' ]{0,15}$/
 

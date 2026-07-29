@@ -74,7 +74,7 @@ function saveWindowState(win: BrowserWindow): void {
     const maximized = win.isMaximized()
     const bounds    = maximized ? win.getNormalBounds() : win.getBounds()
     writeFileSync(winStatePath(), JSON.stringify({ ...bounds, maximized }), 'utf8')
-  } catch {}
+  } catch { /* best-effort — a lost window position isn't worth failing on */ }
 }
 
 function isOnScreen(s: WindowState): boolean {

@@ -222,7 +222,7 @@ export function useAutomapper() {
         // (unknown direction → draw-only link) if it's missing — otherwise the room
         // we came from stays disconnected (the west-gate → Flatlands bug).
         if (prevId && prevId !== anchor && autoRef.current) {
-          let out = recordArc(dbRef.current, prevId, anchor, 'special', '')
+          const out = recordArc(dbRef.current, prevId, anchor, 'special', '')
           dbRef.current = out; setDb(out)
           persistZoneOf(out, anchor); persistZoneOf(out, prevId)
         }
@@ -256,7 +256,10 @@ export function useAutomapper() {
       currentIdRef.current = known ? id : null
       setCurrentNode(known ? id : null)
       pendingMoveRef.current = null; clearGameMove()
-      if (routeRef.current) known ? onWalkArrival(id) : stopWalk('walk interrupted (unknown room).')
+      if (routeRef.current) {
+        if (known) onWalkArrival(id)
+        else stopWalk('walk interrupted (unknown room).')
+      }
       return
     }
 

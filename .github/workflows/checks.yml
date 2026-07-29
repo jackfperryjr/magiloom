@@ -1,0 +1,43 @@
+name: Checks
+
+# The fast gate on every PR: lint, types, unit tests. Deliberately NOT path-filtered
+# — PR Build skips PRs that only touch CSS/assets/docs, which left those PRs with no
+# checks at all. This one always runs so "all checks passed" means something.
+#
+# Ubuntu only and no packaging, so it finishes in well under a minute; the 3-OS
+# packaging matrix in build.yml stays where it is.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      # None of these steps run Electron, so skip its ~100MB binary download.
+      # The package's TypeScript definitions still install, which is all tsc needs.
+      - name: Install dependencies
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm run test:tools

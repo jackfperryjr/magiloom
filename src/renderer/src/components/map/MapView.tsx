@@ -33,7 +33,7 @@ export interface MapViewProps {
  * current room as the character moves. Reused by MapPanel and MapOverlay.
  */
 export function MapView({
-  db, zone, currentNodeId, selectedId, focusId,
+  zone, currentNodeId, selectedId, focusId,
   onNodeClick, onNodeContext, onNodeDrag, walkActive, onStopWalk, className,
 }: MapViewProps) {
   const wrapRef = useRef<HTMLDivElement>(null)

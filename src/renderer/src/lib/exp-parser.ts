@@ -3,7 +3,7 @@
 // Shared by the main-output renderer and the side-panel store so both agree on one format.
 export interface ParsedExpSkill { name: string; rank: string; pct: string; mind: string; frac: string }
 
-export const EXP_SKILL_RE = /(\w[\w\s-]*?):\s+(\d+)\s+(\d+)%\s+(?:([a-zA-Z][a-zA-Z ]*?)\s+)?[\[\(](\d+\/\d+)[\]\)]/g
+export const EXP_SKILL_RE = /(\w[\w\s-]*?):\s+(\d+)\s+(\d+)%\s+(?:([a-zA-Z][a-zA-Z ]*?)\s+)?[[(](\d+\/\d+)[\])]/g
 
 export function parseExpSkills(text: string): ParsedExpSkill[] {
   EXP_SKILL_RE.lastIndex = 0

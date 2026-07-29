@@ -267,7 +267,7 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
   const isShopFooter = /\[type shop/i.test(line.text)
   const isShopDetail = /^(Short|Tap|Worn|Cost|Look|Read):/i.test(line.text.trim())
 
-  const isExpLine = /\w[\w\s]*?:\s+\d+\s+\d+%\s+(?:[a-zA-Z][a-zA-Z ]*?\s+)?[\[\(]\d+\/\d+[\]\)]/.test(line.text)
+  const isExpLine = /\w[\w\s]*?:\s+\d+\s+\d+%\s+(?:[a-zA-Z][a-zA-Z ]*?\s+)?[[(]\d+\/\d+[\])]/.test(line.text)
   const isExpHeader = /Circle:|Showing all skills|SKILL:.*Rank|Total Ranks|Time Development|Overall state|EXP HELP/i.test(line.text)
   const isExpMeta = /Favors:|TDPs:|Deaths:|Departs:|Rested EXP|Cycle Refreshes/i.test(line.text)
 
