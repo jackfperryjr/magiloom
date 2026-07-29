@@ -98,6 +98,23 @@ export function IconBroadcast({ size = 16, className, style }: IconProps) {
   )
 }
 
+// Add-contact / send-message controls in the Messages panel.
+export function IconPlus({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path fillRule="evenodd" clipRule="evenodd" d="M12 3.75a1.05 1.05 0 011.05 1.05v6.15h6.15a1.05 1.05 0 010 2.1h-6.15v6.15a1.05 1.05 0 01-2.1 0v-6.15H4.8a1.05 1.05 0 010-2.1h6.15V4.8A1.05 1.05 0 0112 3.75z" />
+    </svg>
+  )
+}
+
+export function IconPaperAirplane({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+    </svg>
+  )
+}
+
 // ── Window control icons ──────────────────────────────────────────────────────
 
 export function IconWinMinimize({ size = 10 }: { size?: number }) {
