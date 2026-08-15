@@ -1,11 +1,14 @@
 /**
  * Automapper data model + pure helpers.
  *
- * DragonRealms' StormFront stream carries NO stable numeric room id (the <nav>
- * tag is emitted but empty for DR), so a room's identity has to be derived from
- * its content: title + a hash of its description + its obvious exits. This is the
- * same signature approach Genie's DR maps use. Everything here is pure (no React,
- * no IPC, no DOM) so it can be unit-tested with a plain node harness.
+ * A room's identity is derived from its content: title + a hash of its description
+ * + its obvious exits. This is the same signature approach Genie's DR maps use,
+ * and it stays the fallback because a numeric room id is not always available:
+ * DR long sent a bare <nav/> and only exposed an id via ShowRoomID's "(NNNN)"
+ * title tag, which parseRoomUid below still handles. Modern DR sends
+ * <nav rm='NNNN'/> and the parser prefers it, but plenty of rooms have no id at
+ * all, so content matching remains the backstop. Everything here is pure (no
+ * React, no IPC, no DOM) so it can be unit-tested with a plain node harness.
  */
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -20,6 +23,12 @@ export interface MapNode {
   x:            number      // layout coords, in grid units
   y:            number
   z:            number      // level (up/down change this)
+  region?:      string      // coarse area name from the dataset ("Velaka Desert")
+  forage?:      string[]    // forageable items known to be found here
+  // Came from the shipped dataset rather than this player's own play. Rebuilt from
+  // the packaged file on every load, so it is never written to their store (see
+  // recordedZone) — and cleared the moment they actually walk into the room.
+  seed?:        true
   note?:        string      // freeform user note
   tag?:         string      // short waypoint label drawn on the node
   color?:       string      // node accent (room type / user highlight)

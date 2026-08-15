@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAtom, useAtomValue } from 'jotai'
 import { mapDbAtom, currentNodeIdAtom, walkStateAtom, autoRecordAtom } from '../../store/map'
-import { nodeZoneId, componentLayout, resetLayoutCache } from '../../lib/mapper'
+import { nodeZoneId, areaLayout, listAreas } from '../../lib/mapper'
 import { emptyDb, type MapNode, type Zone } from '../../lib/mapModel'
 import { parseGenieMap, mergeZones, exportGenieMap } from '../../lib/mapImport'
+import { reseed, hasSeed, recordedZone } from '../../lib/mapSeed'
 import { MapView } from './MapView'
 
 const NODE_COLORS = ['', '#e0b050', '#6bc5a0', '#5fbcd4', '#7b8fe8', '#e06060', '#c78bd8']
@@ -22,18 +23,25 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
   const isWeb = window.dr.app.platform === 'web'
   const [autoRecord, setAutoRecord] = useAtom(autoRecordAtom)
 
-  const zones = useMemo(
-    () => Object.values(db.zones).sort((a, b) => a.name.localeCompare(b.name)),
-    [db.zones],
-  )
+  // The "browse maps" list: one entry per walkable area, largest first. This is not
+  // the same as db.zones — DR's title-derived zones are far finer-grained (a single
+  // shop is its own zone), so listing them made a 200-entry dropdown of mostly
+  // one-room stubs. An area merges the zones a town's streets are split across.
+  const areas = useMemo(() => listAreas(db), [db])
+
   const [query, setQuery]   = useState('')
   const [focusId, setFocusId] = useState<string | null>(null)
-  // The map is drawn as one unified connected component around a "root" room —
-  // the focused/searched room, else the current room, else anything. This spans
-  // zone boundaries so a contiguous area isn't split into disconnected clusters.
+  // One area at a time, rooted on the focused/searched room, else the current one.
   const rootId = focusId ?? currentNodeId ?? null
-  const zone: Zone = useMemo(() => componentLayout(db, rootId), [db, rootId])
+  const area = useMemo(() => areaLayout(db, rootId), [db, rootId])
+  const zone: Zone = area.zone
   const zoneId = nodeZoneId(db, rootId ?? '') ?? null
+  // Which area entry is showing — matched by membership, since any of its rooms
+  // roots the same layout.
+  const areaKey = useMemo(
+    () => areas.find(a => zone.nodes[a.id])?.id ?? '',
+    [areas, zone],
+  )
   const [ctx, setCtx] = useState<{ id: string; x: number; y: number } | null>(null)
   // Custom (non-native) replacements for prompt()/confirm()/alert():
   const [status, setStatus]   = useState('')                                   // transient header notice
@@ -55,8 +63,15 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
     const out: { id: string; title: string; zoneId: string; zoneName: string }[] = []
     for (const z of Object.values(db.zones)) {
       for (const n of Object.values(z.nodes)) {
-        if (n.title.toLowerCase().includes(q) || (n.note ?? '').toLowerCase().includes(q) || (n.tag ?? '').toLowerCase().includes(q)) {
-          out.push({ id: n.id, title: n.title, zoneId: z.id, zoneName: z.name })
+        // Region and forageables are searchable too, which is what turns the box
+        // into "where can I pick jadice flowers" rather than only room-name lookup.
+        const hit = n.title.toLowerCase().includes(q)
+          || (n.note ?? '').toLowerCase().includes(q)
+          || (n.tag ?? '').toLowerCase().includes(q)
+          || (n.region ?? '').toLowerCase().includes(q)
+          || (n.forage ?? []).some(f => f.toLowerCase().includes(q))
+        if (hit) {
+          out.push({ id: n.id, title: n.title, zoneId: z.id, zoneName: n.region || z.name })
           if (out.length >= 40) return out
         }
       }
@@ -65,7 +80,9 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
   }, [query, db.zones])
 
   // ── DB mutation helpers (persist the touched zone) ──────────────────────────
-  const persist = (z: Zone) => window.dr.map.saveZone(z).catch(() => {})
+  // recordedZone keeps the shipped rooms out of the player's store; a shipped room
+  // they annotated counts as theirs and is kept, so notes and labels survive.
+  const persist = (z: Zone) => window.dr.map.saveZone(recordedZone(z)).catch(() => {})
 
   const patchNode = (nodeId: string, patch: Partial<MapNode>) => {
     const zid = nodeZoneId(db, nodeId)
@@ -95,10 +112,8 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
   const hasPins = Object.values(zone.nodes).some(n => n.pin)
   const tidy = () => {
     const shown = Object.keys(zone.nodes)
-    // Drop the sticky auto-layout cache so the next render re-lays every shown room
-    // fresh from the grid — otherwise cleared pins would snap back to their old
-    // cached positions instead of a clean layout.
-    resetLayoutCache()
+    // Clearing the pins is all that's needed — the layout is recomputed from the
+    // grid on every render, so the rooms snap back as soon as the override is gone.
     setDb(prev => {
       const zones = { ...prev.zones }
       const touched = new Set<string>()
@@ -139,16 +154,23 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
 
   // Destructive actions go through an inline confirm bar (no native confirm()).
   const runConfirm = () => {
-    resetLayoutCache()   // deleted rooms shouldn't leave stale positions behind
+    // Clearing removes what the PLAYER recorded. The shipped rooms are not theirs
+    // to delete — they are regenerated from the packaged dataset on every launch —
+    // so they are put straight back, and the map after a clear is the map you get
+    // on restart rather than an empty view that silently repopulates later.
     if (confirmState?.kind === 'zone' && zoneId) {
       window.dr.map.deleteZone(zoneId).catch(() => {})
-      setDb(prev => { const zones = { ...prev.zones }; delete zones[zoneId]; return { ...prev, zones } })
+      setDb(prev => {
+        const zones = { ...prev.zones }
+        delete zones[zoneId]
+        return reseed({ ...prev, zones }).db
+      })
       setFocusId(null)
-      flash('Zone map cleared.')
+      flash(hasSeed() ? 'Your mapping for this zone was cleared.' : 'Zone map cleared.')
     } else if (confirmState?.kind === 'all') {
       window.dr.map.clear().catch(() => {})
-      setDb(emptyDb())
-      flash('World map cleared.')
+      setDb(reseed(emptyDb()).db)
+      flash(hasSeed() ? 'Your recorded mapping was cleared.' : 'World map cleared.')
     }
     setConfirmState(null)
   }
@@ -163,11 +185,11 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
       <div className="map-overlay">
         <div className="map-overlay-head">
           <span className="map-overlay-title">World Map</span>
-          <select className="map-zone-select" value={zoneId ?? ''}
-                  onChange={e => setFocusId(Object.keys(db.zones[e.target.value]?.nodes ?? {})[0] ?? null)}>
-            {zones.length === 0 && <option value="">No zones yet</option>}
-            {zones.map(z => (
-              <option key={z.id} value={z.id}>{z.name} ({Object.keys(z.nodes).length})</option>
+          <select className="map-zone-select" value={areaKey}
+                  onChange={e => setFocusId(e.target.value || null)}>
+            {areas.length === 0 && <option value="">No maps yet</option>}
+            {areas.map(a => (
+              <option key={a.id} value={a.id}>{a.name} ({a.rooms})</option>
             ))}
           </select>
           <input
@@ -181,14 +203,14 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
           </label>
           <button className="map-tb-btn map-text-btn" data-tooltip="Snap dragged rooms back to the auto layout" onClick={tidy} disabled={!hasPins}>Tidy</button>
           <button className="map-tb-btn map-text-btn" onClick={doImport}>Import</button>
-          <button className="map-tb-btn map-text-btn" onClick={doExport} disabled={zones.length === 0}>Export</button>
+          <button className="map-tb-btn map-text-btn" onClick={doExport} disabled={areas.length === 0}>Export</button>
           <button className="map-tb-btn map-text-btn" onClick={() => zoneId && setConfirmState({ kind: 'zone', label: `Delete the recorded map for "${db.zones[zoneId]?.name ?? 'this zone'}"?` })} disabled={!zoneId}>Clear zone</button>
           {/* "Clear all" wipes the WHOLE map. On the web client that map is the shared
               server DB, and the server refuses a remote wipe (operator-only) — so the
               button would do nothing there. Desktop's map is the user's own local DB,
               where clearing is legitimate, so it's shown only there. */}
           {!isWeb && (
-            <button className="map-tb-btn map-text-btn" onClick={() => setConfirmState({ kind: 'all', label: 'Delete the ENTIRE recorded world map? This cannot be undone.' })} disabled={zones.length === 0}>Clear all</button>
+            <button className="map-tb-btn map-text-btn" onClick={() => setConfirmState({ kind: 'all', label: 'Delete the ENTIRE recorded world map? This cannot be undone.' })} disabled={areas.length === 0}>Clear all</button>
           )}
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
@@ -219,6 +241,9 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
           <MapView
             db={db}
             zone={zone}
+            exits={area.exits}
+        labels={area.labels}
+            onExitClick={id => setFocusId(id)}   // step through to the next area
             currentNodeId={currentNodeId}
             selectedId={focusId ?? (walk.active ? walk.targetId : null)}
             focusId={focusId}

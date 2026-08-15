@@ -26,6 +26,9 @@ const TESTS = [
   'src/tools/lib/lichLog.test.ts',
   'src/tools/lib/circleReqs.test.ts',
   'src/tools/lib/tdp.test.ts',
+  'src/renderer/src/lib/mapper.test.ts',
+  'src/renderer/src/lib/sge-parser.test.ts',
+  'src/renderer/src/lib/mapSeed.test.ts',
 ]
 
 fs.mkdirSync(CACHE, { recursive: true })

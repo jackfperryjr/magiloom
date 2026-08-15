@@ -70,17 +70,37 @@ export function parseGenieMap(xml: string): { zones: Zone[]; summary: ImportSumm
   const zoneBlocks = xml.match(/<zone\b[\s\S]*?<\/zone>/gi)
     ?? (/<node\b/i.test(xml) ? [xml] : [])
 
+  // Genie addresses an arc's destination by a number that only means anything inside
+  // its own zone, so a link that LEAVES the zone can't be written down at all. Our own
+  // exports therefore add `ref="<zone id>/<node id>"`, and resolving those needs every
+  // zone parsed first — hence two passes. This maps the zone id as WRITTEN in the file
+  // to the zone id we derive on the way in (which comes from the room titles, so the
+  // two don't always agree).
+  const zoneIdByFileId = new Map<string, string>()
+  const pending: { zone: Zone; from: string; ref: string; dir: string; move: string; hidden: boolean }[] = []
+
   for (const zb of zoneBlocks) {
     const zoneTag  = zb.match(/<zone\b[^>]*>/i)?.[0] ?? ''
     const zoneName = attr(zoneTag, 'name') || 'Imported'
     // Prefer a zone id derived from a room name so imported + walked maps share a
     // zone key; fall back to the file's own zone name.
     const firstRoomName = zb.match(/<node\b[^>]*\bname\s*=\s*["']([^"']+)/i)?.[1] ?? zoneName
-    const zInfo = deriveZone(firstRoomName).id !== 'wilds'
-      ? deriveZone(firstRoomName)
-      : { id: zoneName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'imported', name: zoneName }
+    const fileZoneId = attr(zoneTag, 'id')
+    // Genie numbers its zones ("1"); ours are slugs ("the-crossing"). A slug is our
+    // own key and is authoritative — deriving one from the first room's title instead
+    // is only a guess for real Genie files, and a wrong guess is destructive here:
+    // a zone holds rooms titled for OTHER areas, so two zones can guess the same key
+    // and then silently overwrite each other's rooms on the way in.
+    const ownId = fileZoneId && !/^\d+$/.test(fileZoneId) ? fileZoneId : null
+    const derived = deriveZone(firstRoomName)
+    const zInfo = ownId
+      ? { id: ownId, name: zoneName }
+      : derived.id !== 'wilds'
+        ? derived
+        : { id: zoneName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'imported', name: zoneName }
     const zone = emptyZone(zInfo.id, zInfo.name)
     const nsId = (gid: string) => `g-${zone.id}-${gid}`
+    if (fileZoneId) zoneIdByFileId.set(fileZoneId, zone.id)
 
     const nodeBlocks = zb.match(/<node\b[\s\S]*?<\/node>/gi) ?? []
     // Also support self-closing / no-body nodes (rare).
@@ -90,6 +110,11 @@ export function parseGenieMap(xml: string): { zones: Zone[]; summary: ImportSumm
       const nodeTag = nb.match(/<node\b[^>]*>/i)?.[0] ?? nb
       const gid   = attr(nodeTag, 'id', 'num') ?? String(Object.keys(zone.nodes).length + 1)
       const title = attr(nodeTag, 'name', 'title') ?? ''
+      // DragonRealms' own room number. It's the definitive identity — observeRoom
+      // matches on it before any heuristic — so an import that drops it can never be
+      // reconciled with rooms you subsequently walk, and you'd collect duplicates of
+      // everything. Genie files won't carry one; ours always do when the game gave it.
+      const uid   = attr(nodeTag, 'uid', 'roomid', 'rnum')
       const color = attr(nodeTag, 'color')
       const note  = attr(nodeTag, 'note', 'notes')
       const tag   = attr(nodeTag, 'tag', 'label')
@@ -107,17 +132,23 @@ export function parseGenieMap(xml: string): { zones: Zone[]; summary: ImportSumm
         const exit = (attr(at, 'exit', 'dir') ?? '').toLowerCase().trim()
         const move = attr(at, 'move', 'cmd', 'command') ?? exit
         const dest = attr(at, 'destination', 'dest', 'to', 'destid')
+        const ref  = attr(at, 'ref')
         const hidden = /^(true|1|yes)$/i.test(attr(at, 'hidden') ?? '')
-        if (!dest || !move) continue
-        const dir = CANON_DIRS.has(exit) ? exit : 'special'
-        if (CANON_DIRS.has(exit) && !hidden) exits.push(exit)
-        arcs.push({ move, dir, dest: nsId(dest), hidden })
+        // An empty move is meaningful, not missing: it's a link we watched someone
+        // take without ever seeing the command. Dropping those (the old `!move`
+        // guard) silently threw away most of a recorded map's connectivity on a
+        // round-trip, because they're exactly the links the game never announced.
+        if (!dest && !ref) continue
+        const dir = attr(at, 'kind') === 'special' || !CANON_DIRS.has(exit) ? 'special' : exit
+        if (dir !== 'special' && !hidden) exits.push(exit)
+        if (ref) pending.push({ zone, from: nsId(gid), ref, dir, move, hidden })
+        else arcs.push({ move, dir, dest: nsId(dest!), hidden })
         arcTotal++
       }
 
       const id = nsId(gid)
       const node: MapNode = {
-        id, zoneId: zone.id, title,
+        id, uid: uid || undefined, zoneId: zone.id, title,
         descHash: roomSignature(title, desc, exits).split('|')[1] ?? '',
         descriptions: desc ? [desc] : [],
         exits, x: px / GENIE_SCALE, y: py / GENIE_SCALE, z: pz,
@@ -128,10 +159,24 @@ export function parseGenieMap(xml: string): { zones: Zone[]; summary: ImportSumm
       nodeTotal++
     }
 
-    // Drop arcs pointing at nodes that weren't in the file.
-    zone.arcs = zone.arcs.filter(a => zone.nodes[a.to])
     if (Object.keys(zone.nodes).length) zones.push(zone)
   }
+
+  // Second pass: now that every zone exists, hook up the links that leave one.
+  const byId = new Map<string, Zone>()
+  for (const z of zones) for (const id in z.nodes) byId.set(id, z)
+  for (const p of pending) {
+    const slash = p.ref.lastIndexOf('/')
+    if (slash < 0) continue
+    const zid = zoneIdByFileId.get(p.ref.slice(0, slash)) ?? p.ref.slice(0, slash)
+    const to  = `g-${zid}-${p.ref.slice(slash + 1)}`
+    if (!byId.has(to)) continue
+    p.zone.arcs.push({ from: p.from, to, dir: p.dir, move: p.move, hidden: p.hidden })
+  }
+
+  // Drop arcs pointing at rooms that weren't in the file at all. Cross-zone links are
+  // kept, so this checks the whole import rather than one zone.
+  for (const z of zones) z.arcs = z.arcs.filter(a => byId.has(a.to))
 
   return { zones, summary: { zones: zones.length, nodes: nodeTotal, arcs: arcTotal } }
 }
@@ -159,14 +204,22 @@ export function mergeZones(base: Record<string, Zone>, incoming: Zone[]): Record
 /** Serialize zones back to Genie-style XML (one <zone> each) for sharing/backup. */
 export function exportGenieMap(zones: Zone[]): string {
   const lines: string[] = ['<?xml version="1.0" encoding="UTF-8"?>', '<maps>']
+  // Stable short numeric ids per zone for portability — but recorded maps are full of
+  // links that LEAVE their zone (every shop door), and Genie's per-zone `destination`
+  // number can't name a room in another zone. Those used to be dropped on the way out,
+  // which quietly cost an export most of its connectivity, so each arc also carries a
+  // `ref="<zone>/<node>"` that our importer resolves across the whole file.
+  const gidOf  = new Map<string, number>()
+  const zoneOf = new Map<string, string>()
+  for (const z of zones) {
+    Object.keys(z.nodes).forEach((id, i) => { gidOf.set(id, i + 1); zoneOf.set(id, z.id) })
+  }
   for (const z of zones) {
     lines.push(`  <zone name="${encodeXml(z.name)}" id="${encodeXml(z.id)}">`)
-    // Stable short numeric ids per zone for portability.
-    const idMap = new Map<string, number>()
-    Object.keys(z.nodes).forEach((id, i) => idMap.set(id, i + 1))
     for (const n of Object.values(z.nodes)) {
-      const gid = idMap.get(n.id)!
+      const gid = gidOf.get(n.id)!
       const attrs = [`id="${gid}"`, `name="${encodeXml(n.title)}"`]
+      if (n.uid) attrs.push(`uid="${encodeXml(n.uid)}"`)   // DR's own room number
       if (n.color) attrs.push(`color="${encodeXml(n.color)}"`)
       if (n.note)  attrs.push(`note="${encodeXml(n.note)}"`)
       if (n.tag)   attrs.push(`tag="${encodeXml(n.tag)}"`)
@@ -174,9 +227,18 @@ export function exportGenieMap(zones: Zone[]): string {
       if (n.descriptions[0]) lines.push(`      <description>${encodeXml(n.descriptions[0])}</description>`)
       lines.push(`      <position x="${Math.round(n.x * GENIE_SCALE)}" y="${Math.round(n.y * GENIE_SCALE)}" z="${n.z}" />`)
       for (const a of z.arcs.filter(a => a.from === n.id)) {
-        const dest = idMap.get(a.to)
+        const dest = gidOf.get(a.to)
         if (dest === undefined) continue
-        lines.push(`      <arc exit="${encodeXml(a.dir === 'special' ? a.move : a.dir)}" move="${encodeXml(a.move)}" destination="${dest}" hidden="${a.hidden ? 'True' : 'False'}" />`)
+        // `exit` must never be blank: a link recorded with no command still has to
+        // come back as a link, so it exports as "special" rather than as nothing.
+        const exit = a.dir === 'special' ? (a.move || 'special') : a.dir
+        // `exit` carries the command, the way Genie writes it — but a non-compass move
+        // can read like a direction ("out"), which would come back as a compass link.
+        // `kind` says plainly that it has no bearing; other readers just ignore it.
+        const kind = a.dir === 'special' ? ' kind="special"' : ''
+        lines.push(
+          `      <arc exit="${encodeXml(exit)}" move="${encodeXml(a.move)}"${kind} destination="${dest}"` +
+          ` ref="${encodeXml(zoneOf.get(a.to)!)}/${dest}" hidden="${a.hidden ? 'True' : 'False'}" />`)
       }
       lines.push('    </node>')
     }

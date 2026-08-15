@@ -126,6 +126,9 @@ contextBridge.exposeInMainWorld('dr', {
   map: {
     // Shared world-map (automapper) persistence.
     load:       ()                    => ipcRenderer.invoke('map:load'),
+    // Prebaked room graph + baked layouts, as raw JSON text (parsed renderer-side
+    // — cloning a parsed 19k-room graph across IPC is far slower than one string).
+    dataset:    ()                    => ipcRenderer.invoke('map:dataset') as Promise<{ rooms: string | null; layouts: string | null }>,
     saveZone:   (zone: object)        => ipcRenderer.invoke('map:save-zone', zone),
     deleteZone: (zoneId: string)      => ipcRenderer.invoke('map:delete-zone', zoneId),
     clear:      ()                    => ipcRenderer.invoke('map:clear'),

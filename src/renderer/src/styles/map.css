@@ -3,13 +3,23 @@
 
 /* ── Automapper: map panel + view ─────────────────────────────────────────── */
 .map-panel { position: relative; }
+/* The map sits on its own sheet rather than the panel background, so an area reads
+   as a chart you're looking at rather than another list. Built from gradients only
+   (no image asset — works offline and needs no CSP allowance): three big offset
+   pools of --map-haze give the surface a slow cloud mottle, and a final radial
+   browns the edges the way a folded map ages. Every colour is a theme token, so
+   Parchment gets aged paper where the dark themes get slate. The texture is fixed to
+   the viewport, not the map, so it doesn't crawl while you pan. */
 .map-view {
   position: relative;
   width: 100%;
   height: 210px;
   background:
-    radial-gradient(circle at center, rgba(154,149,255,0.05), transparent 70%),
-    var(--bg-input);
+    radial-gradient(ellipse 60% 50% at 22% 18%, var(--map-haze), transparent 70%),
+    radial-gradient(ellipse 55% 45% at 78% 72%, var(--map-haze), transparent 70%),
+    radial-gradient(ellipse 70% 60% at 52% 96%, var(--map-haze), transparent 75%),
+    radial-gradient(ellipse at 50% 50%, transparent 42%, var(--map-vignette) 100%),
+    var(--map-bg);
   border: 1px solid var(--border-soft);
   border-radius: 6px;
   overflow: hidden;
@@ -19,15 +29,53 @@
 .map-svg { display: block; cursor: grab; }
 .map-svg:active { cursor: grabbing; }
 
-.map-edge { fill: none; stroke: var(--border); stroke-width: 1.25; }
+.map-edge { fill: none; stroke: var(--map-line); stroke-width: 1.25; }
+/* A link between rooms that aren't neighbouring cells — the world doesn't always
+   fit a flat grid. Dashed so it reads as "these connect" and not as a street. */
+.map-edge.is-far { stroke-dasharray: 3 3; opacity: 0.55; }
+
+/* Street lettering: one label per run of same-named rooms, under the squares. */
+.map-street {
+  fill: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+  pointer-events: none;
+  user-select: none;
+}
+/* One-room landmarks (gates, plazas) — present but subordinate to the streets. */
+.map-street.is-minor { fill: var(--text-dim); font-size: 8px; opacity: 0.65; letter-spacing: 0.03em; }
+
+/* Portals — where the map leaves this area (a gate, a shop door, the road out). */
+.map-portal { cursor: pointer; }
+.map-portal-leader { stroke: var(--accent); stroke-width: 1; opacity: 0.45; }
+.map-portal-ring {
+  fill: var(--map-bg);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  opacity: 0.85;
+}
+.map-portal-x { stroke: var(--accent); stroke-width: 1.2; fill: none; }
+.map-portal:hover .map-portal-ring { fill: var(--accent); opacity: 1; }
+.map-portal:hover .map-portal-x { stroke: var(--map-bg); }
+.map-portal-label {
+  fill: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: 8.5px;
+  pointer-events: none;
+  user-select: none;
+}
+.map-portal:hover .map-portal-label { fill: var(--text-main); }
+
 .map-node { cursor: pointer; }
 .map-node-box {
-  fill: var(--bg-panel);
+  fill: var(--map-room);
   stroke: var(--border-accent);
   stroke-width: 1.5;
   transition: fill 0.1s;
 }
-.map-node:hover .map-node-box { fill: var(--bg-sidebar); stroke: var(--accent); }
+.map-node:hover .map-node-box { fill: var(--map-room-hover); stroke: var(--accent); }
 .map-node.is-selected .map-node-box { stroke: var(--color-warning); stroke-width: 2; }
 /* "You are here": the room square keeps its own colour but gets a soft green glow,
    and a bright green circle (the player marker) sits on top so it never blends with
@@ -47,8 +95,8 @@
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.45; }
 }
-.map-node-tag { fill: var(--text-main); font-size: 8px; font-family: var(--font-ui); pointer-events: none; }
-.map-node-chev { fill: var(--text-dim); font-size: 7px; pointer-events: none; }
+.map-node-tag { fill: var(--text-bright); font-size: 9px; font-family: var(--font-ui); pointer-events: none; }
+.map-node-chev { fill: var(--text-dim); font-size: 8px; pointer-events: none; }
 .map-node-chev.up   { fill: #6bc5a0; }
 .map-node-chev.down { fill: #e0b050; }
 
@@ -63,13 +111,13 @@
 .map-stats {
   position: absolute; left: 8px; bottom: 8px;
   font-size: 10px; color: var(--text-dim);
-  background: rgba(21,16,58,0.7); padding: 2px 7px; border-radius: 4px;
+  background: var(--map-chip); padding: 2px 7px; border-radius: 4px;
   pointer-events: none;
 }
 .map-toolbar {
   position: absolute; right: 6px; bottom: 6px;
   display: flex; align-items: center; gap: 3px;
-  background: rgba(21,16,58,0.85);
+  background: var(--map-chip);
   border: 1px solid var(--border-soft);
   border-radius: 5px;
   padding: 2px 4px;
@@ -90,7 +138,7 @@
 
 .map-expand-btn {
   position: absolute; right: 6px; top: 6px; z-index: 2;
-  background: rgba(21,16,58,0.85); border: 1px solid var(--border-soft);
+  background: var(--map-chip); border: 1px solid var(--border-soft);
   color: var(--text-dim); cursor: pointer; border-radius: 4px;
   font-size: 13px; line-height: 1; padding: 3px 6px;
 }
@@ -162,7 +210,7 @@
 .map-legend {
   position: absolute; left: 8px; top: 8px;
   display: flex; flex-wrap: wrap; gap: 4px 10px; max-width: 60%;
-  background: rgba(21,16,58,0.7); padding: 4px 8px; border-radius: 5px;
+  background: var(--map-chip); padding: 4px 8px; border-radius: 5px;
   pointer-events: none;
 }
 .map-legend-item { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-dim); }

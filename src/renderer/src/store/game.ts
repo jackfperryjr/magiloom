@@ -223,8 +223,11 @@ export const beginTouchCaptureAtom = atom(null, (get, set, name: string) => {
 })
 
 // ── Room ──────────────────────────────────────────────────────────────────────
-export interface RoomState { name: string; description: string; exits: string[]; objs: string; players: string[]; playerNames: string[] }
-export const roomAtom = atom<RoomState>({ name: '', description: '', exits: [], objs: '', players: [], playerNames: [] })
+// `uid` is the native DR room id from <nav rm='NNNN'/>. Empty when the room has
+// no id, or when Lich predates 5.20.0 / we're connected directly — the automapper
+// falls back to scraping the title tag in that case.
+export interface RoomState { name: string; uid: string; description: string; exits: string[]; objs: string; players: string[]; playerNames: string[] }
+export const roomAtom = atom<RoomState>({ name: '', uid: '', description: '', exits: [], objs: '', players: [], playerNames: [] })
 
 // Coarse locale of the current room (cave / forest / tavern / …), inferred from its
 // name + description by keyword. Drives the ambient room-tint overlay; recomputes
@@ -626,7 +629,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(deathsAtom, [])
   set(logonLinesAtom, [])
   set(inventoryLinesAtom, [])
-  set(roomAtom, { name: '', description: '', exits: [], objs: '', players: [], playerNames: [] })
+  set(roomAtom, { name: '', uid: '', description: '', exits: [], objs: '', players: [], playerNames: [] })
   set(vitalsAtom, {
     health:  { value: 100, max: 100 },
     mana:    { value: 100, max: 100 },
@@ -1017,6 +1020,12 @@ export const dispatchGameEventAtom = atom(
           ...get(roomAtom),
           name: event.name,
         })
+        break
+
+      // <nav> leads the room feed on arrival, so this lands before roomName/roomDesc
+      // — which is why roomDesc must not clear it.
+      case 'roomId':
+        set(roomAtom, { ...get(roomAtom), uid: event.uid })
         break
 
       case 'roomDesc':
