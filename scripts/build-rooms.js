@@ -88,6 +88,15 @@ function normTitle(raw) {
   return /^\[\[.*\]\]$/.test(s) ? s.slice(1, -1) : s
 }
 
+// "Obvious paths: northeast, southeast, west, northwest." -> [northeast, ...].
+// Also covers the "Obvious exits:" wording and a bare "none".
+function parsePaths(raw) {
+  const s = String(raw ?? '')
+  const m = s.match(/Obvious (?:paths|exits):\s*(.+?)\.?\s*$/i)
+  if (!m || /^none$/i.test(m[1].trim())) return []
+  return m[1].split(/,\s*/).map(p => p.trim().toLowerCase()).filter(Boolean)
+}
+
 async function main() {
   const { classifyMove, fnv1a } = await loadMapModel()
 
@@ -124,6 +133,12 @@ async function main() {
 
     const title = normTitle((r.title ?? [])[0])
     const desc = String((r.description ?? [])[0] ?? '')
+    // The obvious-paths line, not the wayto keys. Content identity is matched
+    // against what the live stream reports, and the stream's exits event carries
+    // exactly this list — wayto additionally includes scripted moves ("go gate")
+    // that never appear in obvious paths, so hashing those would stop prebaked
+    // rooms from ever matching an observed one.
+    const obvious = parsePaths((r.paths ?? [])[0])
     rooms.push({
       id: Number(r.id),
       ...(uids.length ? { uid: uids } : {}),
@@ -131,6 +146,7 @@ async function main() {
       desc,
       // Content identity, precomputed so the app doesn't rehash 18k rooms on boot.
       h: fnv1a(desc),
+      ...(obvious.length ? { e: obvious } : {}),
       ...(r.location ? { loc: String(r.location) } : {}),
       x: exits,
       // Per-edge traversal seconds — the natural weight for route finding.

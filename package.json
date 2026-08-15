@@ -20,7 +20,8 @@
     "tools:build": "vite build --config vite.tools.config.ts",
     "tools:preview": "vite preview --config vite.tools.config.ts",
     "test:tools": "node scripts/run-tests.js",
-    "map:build-rooms": "node scripts/build-rooms.js"
+    "map:build-rooms": "node scripts/build-rooms.js",
+    "map:check": "node scripts/check-dataset.js"
   },
   "dependencies": {
     "electron-updater": "^6.8.3",
