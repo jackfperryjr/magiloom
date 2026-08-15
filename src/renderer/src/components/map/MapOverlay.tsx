@@ -5,6 +5,7 @@ import { mapDbAtom, currentNodeIdAtom, walkStateAtom, autoRecordAtom } from '../
 import { nodeZoneId, areaLayout, listAreas } from '../../lib/mapper'
 import { emptyDb, type MapNode, type Zone } from '../../lib/mapModel'
 import { parseGenieMap, mergeZones, exportGenieMap } from '../../lib/mapImport'
+import { reseed, hasSeed } from '../../lib/mapSeed'
 import { MapView } from './MapView'
 
 const NODE_COLORS = ['', '#e0b050', '#6bc5a0', '#5fbcd4', '#7b8fe8', '#e06060', '#c78bd8']
@@ -144,15 +145,23 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
 
   // Destructive actions go through an inline confirm bar (no native confirm()).
   const runConfirm = () => {
+    // Clearing removes what the PLAYER recorded. The shipped rooms are not theirs
+    // to delete — they are regenerated from the packaged dataset on every launch —
+    // so they are put straight back, and the map after a clear is the map you get
+    // on restart rather than an empty view that silently repopulates later.
     if (confirmState?.kind === 'zone' && zoneId) {
       window.dr.map.deleteZone(zoneId).catch(() => {})
-      setDb(prev => { const zones = { ...prev.zones }; delete zones[zoneId]; return { ...prev, zones } })
+      setDb(prev => {
+        const zones = { ...prev.zones }
+        delete zones[zoneId]
+        return reseed({ ...prev, zones }).db
+      })
       setFocusId(null)
-      flash('Zone map cleared.')
+      flash(hasSeed() ? 'Your mapping for this zone was cleared.' : 'Zone map cleared.')
     } else if (confirmState?.kind === 'all') {
       window.dr.map.clear().catch(() => {})
-      setDb(emptyDb())
-      flash('World map cleared.')
+      setDb(reseed(emptyDb()).db)
+      flash(hasSeed() ? 'Your recorded mapping was cleared.' : 'World map cleared.')
     }
     setConfirmState(null)
   }

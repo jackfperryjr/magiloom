@@ -147,6 +147,33 @@ export function mergeSeed(recorded: MapDB, seed: MapDB): SeedResult {
   return { db: out, added, skipped, baked: false }
 }
 
+// The built seed graph, kept after the first load. Clearing a zone has to put the
+// shipped rooms back immediately (see reseed), and re-parsing ~19k rooms to do it
+// would stall the UI on what should be an instant action.
+let cachedSeed: MapDB | null = null
+
+/**
+ * Re-merge the shipped rooms into `recorded`, reusing the already-built seed.
+ *
+ * This is what makes "clear" honest. Seeded rooms are not part of the player's
+ * store, so deleting a zone only removes what they recorded; the shipped rooms
+ * would come back by themselves on the next launch. Re-seeding immediately means
+ * the map they are looking at after a clear is the map they will get on restart,
+ * rather than an empty view that silently repopulates later.
+ *
+ * A no-op when nothing has been seeded (web client, or no dataset packaged), so
+ * clearing still empties the map exactly as it did before.
+ */
+export function reseed(recorded: MapDB): SeedResult {
+  if (!cachedSeed) return { db: recorded, added: 0, skipped: 0, baked: false }
+  return mergeSeed(recorded, cachedSeed)
+}
+
+/** Whether a dataset was loaded — lets the UI word destructive actions honestly. */
+export function hasSeed(): boolean {
+  return cachedSeed !== null
+}
+
 /**
  * Fetch the shipped dataset and merge it under `recorded`.
  * Returns the untouched db when no dataset is available (web client, or a package
@@ -191,6 +218,10 @@ export async function seedFromDataset(recorded: MapDB): Promise<SeedResult> {
       console.warn('[map] baked layouts unreadable; laying out live:', err)
     }
   }
+
+  // Hold the built graph (positions already applied) so a later clear can restore
+  // the shipped rooms without re-parsing the dataset.
+  cachedSeed = seed
 
   const merged = mergeSeed(recorded, seed)
   return { ...merged, baked, staleReason }
