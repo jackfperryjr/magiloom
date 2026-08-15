@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useAtomValue } from 'jotai'
 import { mapDbAtom, currentNodeIdAtom, walkStateAtom } from '../../store/map'
-import { componentLayout } from '../../lib/mapper'
+import { areaLayout } from '../../lib/mapper'
 import { MapView } from './MapView'
 
 export function MapPanel({ onNodeClick, onStopWalk, onExpand }: {
@@ -12,9 +12,10 @@ export function MapPanel({ onNodeClick, onStopWalk, onExpand }: {
   const db            = useAtomValue(mapDbAtom)
   const currentNodeId = useAtomValue(currentNodeIdAtom)
   const walk          = useAtomValue(walkStateAtom)
-  // Render the connected map around the current room as one unified, tidy layout,
-  // spanning zone boundaries (DR fragments areas across title-derived zones).
-  const zone = useMemo(() => componentLayout(db, currentNodeId), [db, currentNodeId])
+  // Just the area you're standing in — the town's street grid, this stretch of road,
+  // this building. Everywhere it leads shows as a portal on the edge rather than
+  // being inlined, which is what keeps the panel readable at a glance.
+  const area = useMemo(() => areaLayout(db, currentNodeId), [db, currentNodeId])
 
   return (
     <div className="map-panel">
@@ -23,10 +24,13 @@ export function MapPanel({ onNodeClick, onStopWalk, onExpand }: {
       )}
       <MapView
         db={db}
-        zone={zone}
+        zone={area.zone}
+        exits={area.exits}
+        labels={area.labels}
         currentNodeId={currentNodeId}
         selectedId={walk.active ? walk.targetId : null}
         onNodeClick={onNodeClick}
+        onExitClick={onNodeClick}
         walkActive={walk.active}
         onStopWalk={onStopWalk}
       />

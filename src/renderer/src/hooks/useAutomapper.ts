@@ -3,7 +3,7 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { roomAtom, promptCountAtom, connectionStatusAtom, roundtimeAtom, appendScriptOutputAtom, currentGameMove, clearGameMove } from '../store/game'
 import { mapDbAtom, currentNodeIdAtom, autoRecordAtom, walkStateAtom } from '../store/map'
 import { classifyMove, roomSignature, parseRoomUid, stripRoomTag, type MapDB, type Zone } from '../lib/mapModel'
-import { observeRoom, recordArc, nodeZoneId, findRoute, findNode, matchRoom } from '../lib/mapper'
+import { observeRoom, recordArc, nodeZoneId, findRoute, findNode, matchRoom, firstUnwalkableLink } from '../lib/mapper'
 
 // A captured movement is only paired with the room change it caused if the change
 // lands within this window (a move + server round-trip). Beyond it, the room
@@ -15,6 +15,12 @@ const MOVE_WINDOW_MS = 6000
 // timeout is treated as stuck and the walk aborts.
 const STEP_BUFFER_MS  = 250
 const STEP_TIMEOUT_MS = 9000
+
+// Commands we send that plainly can't move us. Everything else is kept as a
+// last-resort LABEL for a link we're about to traverse (see rawMoveRef) — an
+// unrecognised travel verb ("board the ferry", a custom alias, a script's own
+// wording) is exactly the case that used to leave a link recorded but unwalkable.
+const NON_MOVE = /^(?:l|look|exp|experience|inv|inventory|health|info|skills|stats|spells|prep|cast|attack|kill|say|whisper|tell|think|shout|yell|who|time|date|weather|ready|stow|get|put|drop|wear|remove|open|close|search|hide|stand|sit|kneel|lie|lay)\b/i
 
 // Temporary: log each mapping decision to the console to diagnose duplicate nodes.
 const MAP_DEBUG = (() => { try { return localStorage.getItem('magiloom-automap-debug') !== '0' } catch { return true } })()
@@ -50,6 +56,9 @@ export function useAutomapper() {
   const currentIdRef  = useRef<string | null>(null)
   const lastSigRef    = useRef<string>('')
   const pendingMoveRef = useRef<{ dir: string; move: string; ts: number } | null>(null)
+  // Last command that wasn't recognised as movement but might still have been one.
+  // Used only to give an otherwise-unwalkable link a command to replay.
+  const rawMoveRef     = useRef<{ move: string; ts: number } | null>(null)
   const sendRef       = useRef<(cmd: string) => void>(() => {})
 
   // Walk-executor state (imperative; the atom mirrors it for the UI).
@@ -79,9 +88,16 @@ export function useAutomapper() {
   // Every command the client sends is echoed back from main via game:sent, so we
   // capture movement no matter how it was issued (typed, clicked exit link, Room
   // panel, alias, .cmd script). This is the single universal capture point.
+
   const recordSentCommand = useCallback((cmd: string) => {
     const mv = classifyMove(cmd)
-    if (mv) pendingMoveRef.current = { ...mv, ts: Date.now() }
+    if (mv) { pendingMoveRef.current = { ...mv, ts: Date.now() }; rawMoveRef.current = null; return }
+    const raw = cmd.trim().replace(/\s+/g, ' ')
+    // Kept ONLY to label an arc after a room change actually happens. It is
+    // deliberately never fed into the room-identity decision: treating an arbitrary
+    // command as movement is what used to spawn a duplicate of the room you were
+    // standing in whenever its exits or description refreshed.
+    rawMoveRef.current = raw && !NON_MOVE.test(raw) ? { move: raw, ts: Date.now() } : null
   }, [])
   useEffect(() => window.dr.game.onSent(recordSentCommand), [recordSentCommand])
 
@@ -146,7 +162,14 @@ export function useAutomapper() {
     const route = findRoute(dbRef.current, from, targetId)
     if (!route || route.moves.length === 0) {
       const dest = findNode(dbRef.current, targetId)
-      echo(`[map] no known route to ${dest?.title ?? 'there'}.`)
+      // The map can DRAW a link it can't WALK: rooms recorded while something else
+      // moved us (Lich's own travel, a shove) are joined without a command to
+      // replay. Say which link is missing, because walking it once by hand records
+      // the command and repairs every route through it for good.
+      const gap = firstUnwalkableLink(dbRef.current, from, targetId)
+      echo(gap
+        ? `[map] no route to ${dest?.title ?? 'there'} — the link ${gap} was recorded without a command. Walk it once and it'll be learned.`
+        : `[map] no known route to ${dest?.title ?? 'there'} — nothing recorded connects them yet.`)
       return
     }
     clearWalkTimers()
@@ -161,7 +184,7 @@ export function useAutomapper() {
     if (status !== 'connected') { stopWalk(); return }
     currentIdRef.current = null
     lastSigRef.current   = ''
-    pendingMoveRef.current = null; clearGameMove()
+    pendingMoveRef.current = null; rawMoveRef.current = null; clearGameMove()
     setCurrentNode(null)
     stopWalk()
   }, [status, setCurrentNode, stopWalk])
@@ -170,13 +193,18 @@ export function useAutomapper() {
   useEffect(() => {
     const r = roomRef.current
     if (!r.name && !r.description) return               // pre-game / no room yet
-    const sig = roomSignature(r.name, r.description, r.exits)
+    // The uid leads the change key so that stepping between two rooms with
+    // identical content (adjacent wilderness rooms are routinely byte-identical)
+    // still registers as a transition instead of being swallowed as "same room".
+    const sig = `${r.uid}|${roomSignature(r.name, r.description, r.exits)}`
     if (sig === lastSigRef.current) return              // same room — nothing to do
     lastSigRef.current = sig
 
     const prevId   = currentIdRef.current
     const prevNode = prevId ? findNode(dbRef.current, prevId) : null
-    const uid      = parseRoomUid(r.name) ?? undefined
+    // Prefer the native <nav rm> id; fall back to the title tag for pre-5.20.0
+    // Lich and direct connections, which don't send one.
+    const uid      = r.uid || parseRoomUid(r.name) || undefined
     const title    = stripRoomTag(r.name)
     const obs      = { title, description: r.description, exits: r.exits, uid }
 
@@ -204,7 +232,7 @@ export function useAutomapper() {
         const out = refreshNodeContent(dbRef.current, prevId!, obs)
         dbRef.current = out; setDb(out); persistZoneOf(out, prevId!)
       }
-      pendingMoveRef.current = null; clearGameMove()
+      pendingMoveRef.current = null; rawMoveRef.current = null; clearGameMove()
       if (MAP_DEBUG) console.log(`[automap] refresh "${title}"${uid ? ' #' + uid : ''} (same room)`)
       return
     }
@@ -228,7 +256,7 @@ export function useAutomapper() {
         }
         currentIdRef.current = anchor
         setCurrentNode(anchor)
-        pendingMoveRef.current = null; clearGameMove()
+        pendingMoveRef.current = null; rawMoveRef.current = null; clearGameMove()
         if (routeRef.current) onWalkArrival(anchor)
         if (MAP_DEBUG) console.log(`[automap] no-move/no-id "${title}" -> anchored`)
         return
@@ -236,7 +264,7 @@ export function useAutomapper() {
       if (!prevId) {
         currentIdRef.current = null
         setCurrentNode(null)
-        pendingMoveRef.current = null; clearGameMove()
+        pendingMoveRef.current = null; rawMoveRef.current = null; clearGameMove()
         if (routeRef.current) stopWalk('walk interrupted (lost track).')
         if (MAP_DEBUG) console.log(`[automap] no-move/no-id "${title}" -> position lost`)
         return
@@ -245,9 +273,16 @@ export function useAutomapper() {
     }
 
     // dir/move for placement + the arc: the captured command, else unknown
-    // ('special' offset placement; empty move = a draw-only, non-walkable link).
+    // ('special' offset placement).
     const dir     = move?.dir ?? 'special'
-    const mvCmd   = move?.move ?? ''
+    // The command to replay when walking this link later. Falling back to the last
+    // unclassified command we sent is what keeps the map SELF-SUFFICIENT: a link
+    // recorded without one is drawn but can never be walked, and enough of those
+    // shatter the route graph into islands. This only applies once a room change has
+    // actually been observed, and never influences which room we think we're in.
+    const rawRef  = rawMoveRef.current
+    const mvCmd   = move?.move
+      ?? (rawRef && now - rawRef.ts < MOVE_WINDOW_MS ? rawRef.move : '')
     const placeFrom = prevId ? { id: prevId, dir, move: mvCmd } : null
 
     if (!autoRef.current) {
@@ -255,7 +290,7 @@ export function useAutomapper() {
       const known = probe === dbRef.current
       currentIdRef.current = known ? id : null
       setCurrentNode(known ? id : null)
-      pendingMoveRef.current = null; clearGameMove()
+      pendingMoveRef.current = null; rawMoveRef.current = null; clearGameMove()
       if (routeRef.current) {
         if (known) onWalkArrival(id)
         else stopWalk('walk interrupted (unknown room).')
@@ -285,7 +320,7 @@ export function useAutomapper() {
 
     currentIdRef.current = next.id
     setCurrentNode(next.id)
-    pendingMoveRef.current = null; clearGameMove()
+    pendingMoveRef.current = null; rawMoveRef.current = null; clearGameMove()
     if (routeRef.current) onWalkArrival(next.id)
   // Only re-run when a prompt arrives; all inputs are read from refs.
   }, [promptCount])  // eslint-disable-line react-hooks/exhaustive-deps

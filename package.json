@@ -19,7 +19,8 @@
     "tools:dev": "vite --config vite.tools.config.ts",
     "tools:build": "vite build --config vite.tools.config.ts",
     "tools:preview": "vite preview --config vite.tools.config.ts",
-    "test:tools": "node scripts/run-tests.js"
+    "test:tools": "node scripts/run-tests.js",
+    "map:build-rooms": "node scripts/build-rooms.js"
   },
   "dependencies": {
     "electron-updater": "^6.8.3",
@@ -59,6 +60,10 @@
       {
         "from": "resources/icon.png",
         "to": "icon.png"
+      },
+      {
+        "from": "resources/map-data",
+        "to": "map-data"
       }
     ],
     "publish": {

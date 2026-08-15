@@ -1,11 +1,14 @@
 /**
  * Automapper data model + pure helpers.
  *
- * DragonRealms' StormFront stream carries NO stable numeric room id (the <nav>
- * tag is emitted but empty for DR), so a room's identity has to be derived from
- * its content: title + a hash of its description + its obvious exits. This is the
- * same signature approach Genie's DR maps use. Everything here is pure (no React,
- * no IPC, no DOM) so it can be unit-tested with a plain node harness.
+ * A room's identity is derived from its content: title + a hash of its description
+ * + its obvious exits. This is the same signature approach Genie's DR maps use,
+ * and it stays the fallback because a numeric room id is not always available:
+ * DR long sent a bare <nav/> and only exposed an id via ShowRoomID's "(NNNN)"
+ * title tag, which parseRoomUid below still handles. Modern DR sends
+ * <nav rm='NNNN'/> and the parser prefers it, but plenty of rooms have no id at
+ * all, so content matching remains the backstop. Everything here is pure (no
+ * React, no IPC, no DOM) so it can be unit-tested with a plain node harness.
  */
 
 // ── Types ───────────────────────────────────────────────────────────────────

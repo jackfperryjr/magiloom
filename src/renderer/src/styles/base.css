@@ -63,6 +63,25 @@
   /* --amber (Lantern flame) is defined per-theme, not globally, so only the Lantern
      theme tints its command prompt amber; other themes fall back to their accent. */
 
+  /* Map surface — the automapper draws on its own "sheet" rather than on the panel
+     background, so an area reads as a chart you're looking at. Each theme supplies
+     its own set (see lib/themes.ts); these are the Lantern defaults and the fallback
+     for any theme that doesn't. --map-haze is the soft cloud mottling, --map-vignette
+     the aged edge, --map-chip the backing for the labels floating over the map. */
+  --map-bg:        #191634;
+  --map-haze:      rgba(154, 149, 255, 0.055);
+  --map-vignette:  rgba(5, 3, 18, 0.55);
+  --map-chip:      rgba(21, 16, 58, 0.72);
+  /* Room squares get their own solid fill rather than borrowing --bg-panel: the
+     sheet is no longer the panel colour, so they need to be pitched against it —
+     and --bg-panel is a gradient in the FF4 theme, which an SVG fill can't use. */
+  --map-room:       #2a2456;
+  --map-room-hover: #39337a;
+  /* Connectors are pitched against the sheet, not against a panel: several themes
+     set --border almost black (Discord's is darker than its own map sheet), which
+     left the streets all but invisible once the map got its own surface. */
+  --map-line:       #5f58a8;
+
   /* Scrollbar */
   --scrollbar:       #2c2658;
   --scrollbar-hover: #3a3470;

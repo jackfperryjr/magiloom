@@ -1,25 +1,32 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { MapDB, MapNode, Zone } from '../../lib/mapModel'
 import { roomType, nodeFill, ROOM_TYPE_META, type RoomType } from '../../lib/roomType'
+import { portalPoints, type AreaExit, type StreetLabel } from '../../lib/mapper'
 
-// Grid spacing (px) between adjacent rooms at zoom 1, and node radius. Small squares
-// on an airy grid (ratio ≈ 0.28) keep connectors long and legible — the clean look
-// DR's own map viewer uses, where diagonals read as crisp 45° lines.
+// Grid spacing (px) between adjacent rooms at zoom 1, and node half-size. Rooms are
+// drawn large relative to the grid (ratio ≈ 0.44) so the squares — not the wiring —
+// carry the shape of the map, the way a drawn map reads.
 const GRID = 50
-const NODE_R = 7
+const NODE_R = 11
 const ZOOM_MIN = 0.35
 const ZOOM_MAX = 2.6
 const DRAG_THRESHOLD = 4   // px of movement before a node press becomes a drag
+// Below this zoom, per-room lettering is unreadable and just muddies the map, so
+// only the street labels survive.
+const LABEL_ZOOM = 0.75
 
 export interface MapViewProps {
   db:             MapDB
   zone:           Zone | null
+  exits?:         AreaExit[]           // links leaving the area — drawn as portals
+  labels?:        StreetLabel[]        // street lettering, positioned by the layout
   currentNodeId:  string | null
   selectedId?:    string | null
   focusId?:       string | null        // center on this node when it changes (search)
   onNodeClick?:   (id: string) => void
   onNodeContext?: (id: string, e: React.MouseEvent) => void
   onNodeDrag?:    (id: string, x: number, y: number) => void   // new grid coords
+  onExitClick?:   (toId: string) => void   // travel/jump to the room beyond a portal
   walkActive?:    boolean
   onStopWalk?:    () => void
   className?:     string
@@ -33,8 +40,8 @@ export interface MapViewProps {
  * current room as the character moves. Reused by MapPanel and MapOverlay.
  */
 export function MapView({
-  zone, currentNodeId, selectedId, focusId,
-  onNodeClick, onNodeContext, onNodeDrag, walkActive, onStopWalk, className,
+  zone, exits, labels, currentNodeId, selectedId, focusId,
+  onNodeClick, onNodeContext, onNodeDrag, onExitClick, walkActive, onStopWalk, className,
 }: MapViewProps) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 300, h: 220 })
@@ -83,21 +90,38 @@ export function MapView({
     () => zone ? Object.values(zone.nodes).filter(n => n.z === level) : [],
     [zone, level],
   )
+  // Edges. A link between neighbouring cells is a plain connector; anything longer
+  // is a place the world doesn't fit a flat grid (a non-Euclidean loop, or a hop with
+  // no captured direction), so it's dashed — that reads as "these connect" without
+  // being mistaken for a street running across everything in between.
   const edges = useMemo(() => {
     if (!zone) return []
     const onLevel = new Set(levelNodes.map(n => n.id))
     const seen = new Set<string>()
-    const out: { x1: number; y1: number; x2: number; y2: number }[] = []
+    const out: { x1: number; y1: number; x2: number; y2: number; far: boolean }[] = []
     for (const a of zone.arcs) {
       if (!onLevel.has(a.from) || !onLevel.has(a.to)) continue
       const key = a.from < a.to ? `${a.from}|${a.to}` : `${a.to}|${a.from}`
       if (seen.has(key)) continue
       seen.add(key)
       const f = zone.nodes[a.from], t = zone.nodes[a.to]
-      out.push({ x1: f.x * GRID, y1: f.y * GRID, x2: t.x * GRID, y2: t.y * GRID })
+      const far = Math.max(Math.abs(f.x - t.x), Math.abs(f.y - t.y)) > 1
+      out.push({ x1: f.x * GRID, y1: f.y * GRID, x2: t.x * GRID, y2: t.y * GRID, far })
     }
     return out
   }, [zone, levelNodes])
+
+  // Portal geometry comes from the layout so the lettering it routed around lines up
+  // with what's actually drawn. Grid units in, pixels out.
+  const portals = useMemo(
+    () => (zone && exits?.length ? portalPoints(zone, exits, level) : []),
+    [zone, exits, level],
+  )
+  // One-room landmark names are only worth drawing once they're readable.
+  const levelLabels = useMemo(
+    () => (labels ?? []).filter(l => l.z === level && (!l.minor || zoom >= LABEL_ZOOM)),
+    [labels, level, zoom],
+  )
 
   const levelLinks = useMemo(() => {
     const marks: Record<string, { up?: boolean; down?: boolean }> = {}
@@ -200,8 +224,35 @@ export function MapView({
       >
         <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
           {edges.map((e, i) => (
-            <line key={i} className="map-edge" x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2} />
+            <line key={i} className={'map-edge' + (e.far ? ' is-far' : '')}
+                  x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2} />
           ))}
+
+          {/* Street lettering sits under the rooms so a label never hides a square. */}
+          {levelLabels.map((l, i) => (
+            <text
+              key={'lbl' + i} className={'map-street' + (l.minor ? ' is-minor' : '')}
+              textAnchor="middle" dominantBaseline="middle"
+              transform={`translate(${l.x * GRID} ${l.y * GRID})` + (l.vertical ? ' rotate(-90)' : '')}
+            >{l.text}</text>
+          ))}
+
+          {/* Links out of this area: a ring on a short leader, labelled with where it
+              goes and the command that gets you there. Clicking one opens that area. */}
+          {portals.map((p, i) => (
+            <g key={'px' + i} className="map-portal"
+               data-tooltip={`${p.exit.title}${p.exit.area ? ' — ' + p.exit.area : ''}${p.exit.move ? ` (${p.exit.move})` : ''}`}
+               onPointerDown={e => e.stopPropagation()}
+               onClick={() => onExitClick?.(p.exit.toId)}>
+              <line className="map-portal-leader" x1={p.ax * GRID} y1={p.ay * GRID} x2={p.x * GRID} y2={p.y * GRID} />
+              <circle className="map-portal-ring" cx={p.x * GRID} cy={p.y * GRID} r={6} />
+              <path className="map-portal-x" d={`M${p.x * GRID - 2.6} ${p.y * GRID - 2.6} L${p.x * GRID + 2.6} ${p.y * GRID + 2.6} M${p.x * GRID + 2.6} ${p.y * GRID - 2.6} L${p.x * GRID - 2.6} ${p.y * GRID + 2.6}`} />
+              {zoom >= LABEL_ZOOM && (
+                <text className="map-portal-label" x={p.x * GRID + 9} y={p.y * GRID + 3}>{p.exit.area || p.exit.title}</text>
+              )}
+            </g>
+          ))}
+
           {levelNodes.map(n => {
             const isCurrent = n.id === currentNodeId
             const isSelected = n.id === selectedId
@@ -219,9 +270,9 @@ export function MapView({
                     (glowing) square — see the .is-current rules in global.css. */}
                 <rect className="map-node-box" x={-NODE_R} y={-NODE_R} width={NODE_R * 2} height={NODE_R * 2} rx={2}
                       style={nodeFill(n) ? { fill: nodeFill(n) } : undefined} />
-                {n.tag && !isCurrent && <text className="map-node-tag" x={0} y={3} textAnchor="middle">{n.tag.slice(0, 3)}</text>}
-                {mark?.up && <text className="map-node-chev up" x={NODE_R} y={-NODE_R + 3}>▲</text>}
-                {mark?.down && <text className="map-node-chev down" x={NODE_R} y={NODE_R + 4}>▼</text>}
+                {n.tag && <text className="map-node-tag" x={0} y={3} textAnchor="middle">{n.tag.slice(0, 4)}</text>}
+                {mark?.up && <text className="map-node-chev up" x={NODE_R - 1} y={-NODE_R + 8}>▲</text>}
+                {mark?.down && <text className="map-node-chev down" x={NODE_R - 1} y={NODE_R - 1}>▼</text>}
                 {isCurrent && <circle className="map-node-player" cx={0} cy={0} r={NODE_R - 2.5} />}
               </g>
             )
@@ -231,7 +282,8 @@ export function MapView({
 
       {hasNodes && (
         <div className="map-stats">
-          {Object.keys(zone!.nodes).length} rooms · {zone!.arcs.length} links
+          {Object.keys(zone!.nodes).length} rooms
+          {exits?.length ? ` · ${exits.length} exits` : ''}
         </div>
       )}
       {legend.length > 0 && (

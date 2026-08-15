@@ -26,6 +26,7 @@ export interface LinkSpan {
 export type GameEvent =
   | { type: 'text';      text: string;   styles: TextStyle[]; stream: StreamId; links?: LinkSpan[]; bolds?: string[] }
   | { type: 'roomName';  name: string }
+  | { type: 'roomId';    uid: string }
   | { type: 'roomDesc';  description: string }
   | { type: 'roomExits'; exits: string[] }
   | { type: 'roomObjs';  objs: string }
@@ -769,7 +770,23 @@ export function parseLine(raw: string): GameEvent[] {
         }
         break
       }
-      case 'nav': case '/nav':
+      // ── Native room id: <nav rm='NNNN'/> ──────────────────────────────────
+      // Historically DR sent a bare <nav/> and the only way to get a room id was
+      // to turn on ShowRoomID and scrape the "(NNNN)" tag off the room title.
+      // Lich 5.20.0 (upstream #1491) adopts the rm attribute as the authoritative
+      // UID and stops forcing ShowRoomID on — so the title tag is no longer there
+      // by default and this is now the primary source. Still tolerate its absence:
+      // pre-5.20 Lich, direct connections, and no-id rooms all send a bare <nav/>.
+      // A bare <nav/> deliberately emits an EMPTY uid rather than nothing: rooms
+      // without an id must clear the previous room's, or a no-id room inherits it
+      // and matches as "same room" (the bug upstream #1467 fixed on their side).
+      case 'nav': {
+        flush()
+        const rm = (attrs['rm'] ?? '').trim()
+        events.push({ type: 'roomId', uid: /^\d+$/.test(rm) ? rm : '' })
+        break
+      }
+      case '/nav':
         flush(); break
 
       // ── Monospace toggle: <output class="mono"/> … <output class=""/> ──────
