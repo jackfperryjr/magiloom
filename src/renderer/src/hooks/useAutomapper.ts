@@ -4,7 +4,7 @@ import { roomAtom, promptCountAtom, connectionStatusAtom, roundtimeAtom, appendS
 import { mapDbAtom, currentNodeIdAtom, autoRecordAtom, walkStateAtom } from '../store/map'
 import { classifyMove, roomSignature, parseRoomUid, stripRoomTag, emptyDb, type MapDB, type Zone } from '../lib/mapModel'
 import { observeRoom, recordArc, nodeZoneId, findRoute, findNode, matchRoom, firstUnwalkableLink } from '../lib/mapper'
-import { seedFromDataset } from '../lib/mapSeed'
+import { seedFromDataset, recordedZone, reseedZone } from '../lib/mapSeed'
 
 // A captured movement is only paired with the room change it caused if the change
 // lands within this window (a move + server round-trip). Beyond it, the room
@@ -92,8 +92,14 @@ export function useAutomapper() {
           `layouts ${seeded.baked ? 'baked' : `live${seeded.staleReason ? ` — ${seeded.staleReason}` : ''}`}`)
       }
     }).catch(() => { /* no map yet */ })
+    // Another window rewrote a zone. What it wrote is only ITS player's recorded
+    // rooms, so the shipped ones have to be merged back in before it replaces what
+    // we're displaying — otherwise a second character walking anywhere would empty
+    // that area of our map until the next launch.
     const off = window.dr.map.onZoneChanged((zone: Zone) => {
-      if (zone?.id) setDb(prev => ({ ...prev, zones: { ...prev.zones, [zone.id]: zone } }))
+      if (!zone?.id) return
+      const merged = reseedZone(zone)
+      setDb(prev => ({ ...prev, zones: { ...prev.zones, [merged.id]: merged } }))
     })
     return () => { cancelled = true; off() }
   }, [setDb])
@@ -349,7 +355,10 @@ export function useAutomapper() {
 
 function persistZoneOf(db: MapDB, nodeId: string): void {
   const zid = nodeZoneId(db, nodeId)
-  if (zid && db.zones[zid]) window.dr.map.saveZone(db.zones[zid]).catch(() => {})
+  if (!zid || !db.zones[zid]) return
+  // Only what the player recorded — the shipped rooms sharing this zone come back
+  // from the packaged dataset on every load and must not be copied into their store.
+  window.dr.map.saveZone(recordedZone(db.zones[zid])).catch(() => {})
 }
 
 const normEq = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
@@ -367,6 +376,9 @@ function refreshNodeContent(
   const descriptions = obs.description && !n.descriptions.includes(obs.description)
     ? [...n.descriptions, obs.description].slice(0, 6)
     : n.descriptions
-  const updated = { ...n, exits: obs.exits, descriptions }
+  // `seed` is dropped for the same reason observeRoom drops it: we are standing in
+  // this room, so it is one the player has mapped, not merely one we shipped them.
+  const { seed: _wasShipped, ...rest } = n
+  const updated = { ...rest, exits: obs.exits, descriptions }
   return { ...db, zones: { ...db.zones, [zid]: { ...zone, nodes: { ...zone.nodes, [nodeId]: updated } } } }
 }

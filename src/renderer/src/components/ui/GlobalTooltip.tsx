@@ -70,7 +70,12 @@ export function GlobalTooltip() {
   }
 
   return createPortal(
-    <div className="tooltip-custom" data-pos={posType} style={style}>{state.text}</div>,
+    <div
+      className="tooltip-custom"
+      data-pos={posType}
+      data-multiline={state.text.includes('\n') ? '' : undefined}
+      style={style}
+    >{state.text}</div>,
     document.body,
   )
 }

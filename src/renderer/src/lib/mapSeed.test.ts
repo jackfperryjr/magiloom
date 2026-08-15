@@ -11,11 +11,16 @@
  *      different node id must still absorb the dataset's arcs, or the map splits
  *      exactly where explored meets unexplored.
  *   3. Baked coordinates apply only to the graph they were computed from.
+ *   4. Shipped rooms never leak into the player's store, and are never lost from
+ *      the view when a zone comes back from it.
  *
  * Run: npm run test:tools
  */
 
-import { mergeSeed, applyBakedLayouts, LAYOUT_VERSION, type BakedLayouts } from './mapSeed'
+import {
+  mergeSeed, applyBakedLayouts, recordedZone, reseedZone, seedFromDataset,
+  LAYOUT_VERSION, type BakedLayouts,
+} from './mapSeed'
 import { emptyDb, type MapDB, type MapNode, type Zone } from './mapModel'
 
 let passed = 0
@@ -137,6 +142,90 @@ function baked(over: Partial<BakedLayouts> = {}): BakedLayouts {
   }), 'v1')
   eq('unknown room in bake tolerated', res.ok, true)
   eq('known room left at origin', d.zones['z'].nodes['a'].x, 0)
+}
+
+// ── 5. Shipped rooms stay out of the player's store ──────────────────────────
+const shipped = (id: string, uid?: string): MapNode => ({ ...node(id, uid), seed: true })
+const zoneOf = (d: MapDB): Zone => d.zones['z']
+const idsOf = (z: Zone): string => Object.keys(z.nodes).sort().join(',')
+const linksOf = (z: Zone): string => z.arcs.map(a => `${a.from}>${a.to}`).sort().join(',')
+
+{
+  // The whole point: a zone holding both kinds saves only what was walked.
+  const z = zoneOf(db([node('rec'), shipped('ship')], [['rec', 'ship'], ['ship', 'rec']]))
+  const out = recordedZone(z)
+  eq('shipped room not persisted', idsOf(out), 'rec')
+  eq('arcs to a dropped room go with it', linksOf(out), '')
+  eq('the live zone is not mutated', idsOf(z), 'rec,ship')
+}
+{
+  // Walking into a shipped room promotes it (observeRoom clears the flag), which is
+  // what lets the room AND the link the player travelled reach their store.
+  const z = zoneOf(db([node('rec'), node('walked')], [['rec', 'walked']]))
+  eq('a promoted room persists', idsOf(recordedZone(z)), 'rec,walked')
+  eq('and keeps its link', linksOf(recordedZone(z)), 'rec>walked')
+}
+{
+  // A note on a shipped room is recorded data; losing it on the next launch would
+  // read as the app silently discarding the player's edit.
+  const z = zoneOf(db([shipped('a'), { ...shipped('b'), note: 'ranger camp' }]))
+  eq('annotated shipped room is kept', idsOf(recordedZone(z)), 'b')
+}
+{
+  const z = zoneOf(db([node('a'), node('b')], [['a', 'b']]))
+  check('an all-recorded zone is passed through untouched', recordedZone(z) === z)
+}
+{
+  // Arcs leaving the zone can't be judged here — the far end lives in another file —
+  // so they survive as long as their own end does.
+  const z = zoneOf(db([node('rec')], [['rec', 'elsewhere']]))
+  eq('cross-zone arc kept', linksOf(recordedZone(z)), 'rec>elsewhere')
+}
+
+// ── 6. A zone read back from the store is re-seeded ──────────────────────────
+{
+  // Without a dataset loaded there is nothing to put back, and the zone must pass
+  // through unchanged rather than being emptied.
+  const z = zoneOf(db([node('a')]))
+  check('reseedZone is a no-op with no dataset', reseedZone(z) === z)
+}
+{
+  // Load a tiny dataset through the real path, so cachedSeed is populated exactly
+  // as it is at runtime. Desktop hands the JSON over IPC; stubbing that is enough.
+  const rooms = JSON.stringify({
+    instance: 'dr-prime', source: 'test', generated: 0, roomsVersion: 'v1',
+    rooms: [
+      { id: 1, t: '[Town, Square]', desc: 'd1', h: 'h1', e: ['north'], loc: 'Zoluren', f: ['rock'], x: [[2, 'north', 'north']] },
+      { id: 2, t: '[Town, Road]',   desc: 'd2', h: 'h2', e: ['south'], x: [] },
+    ],
+  })
+  ;(globalThis as unknown as { window: unknown }).window = {
+    dr: { map: { dataset: async () => ({ rooms, layouts: null }) } },
+  }
+
+  const seeded = await seedFromDataset(emptyDb())
+  eq('dataset rooms seeded', seeded.added, 2)
+  const zid = Object.keys(seeded.db.zones)[0]
+  const live = seeded.db.zones[zid]
+  eq('region carried onto the node', Object.values(live.nodes)[0].region, 'Zoluren')
+  check('forage carried onto the node',
+    Object.values(live.nodes).some(n => n.forage?.[0] === 'rock'))
+  check('seeded rooms are flagged', Object.values(live.nodes).every(n => n.seed === true))
+
+  // What the store would actually hold for this zone after the player walked one
+  // room of it — and what another window then hands us back.
+  const walked = Object.keys(live.nodes)[0]
+  const asStored = recordedZone({
+    ...live,
+    nodes: { ...live.nodes, [walked]: { ...live.nodes[walked], seed: undefined } },
+  })
+  eq('store holds only the walked room', Object.keys(asStored.nodes).join(','), walked)
+
+  const back = reseedZone(asStored)
+  eq('shipped rooms restored on the way back in', Object.keys(back.nodes).length, 2)
+  check('the walked room stays the recorded one', back.nodes[walked].seed === undefined)
+  check('shipped neighbour is still flagged',
+    Object.values(back.nodes).filter(n => n.id !== walked).every(n => n.seed === true))
 }
 
 // ── Report ───────────────────────────────────────────────────────────────────

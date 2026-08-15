@@ -14,6 +14,24 @@ const DRAG_THRESHOLD = 4   // px of movement before a node press becomes a drag
 // Below this zoom, per-room lettering is unreadable and just muddies the map, so
 // only the street labels survive.
 const LABEL_ZOOM = 0.75
+// Forageables are listed in full up to this many, then summarised. A handful of
+// rooms carry a dozen items and an uncapped list would grow a tooltip taller than
+// the map pane.
+const TOOLTIP_FORAGE_MAX = 8
+
+// Room title, plus whatever else is known about it. Multi-line whenever there is
+// more than the title (GlobalTooltip switches to a wrapped box on seeing a newline).
+function nodeTooltip(n: MapNode): string {
+  const lines = [n.title || '(unnamed)']
+  if (n.region) lines.push(n.region)
+  if (n.forage?.length) {
+    const shown = n.forage.slice(0, TOOLTIP_FORAGE_MAX).join(', ')
+    const rest  = n.forage.length - TOOLTIP_FORAGE_MAX
+    lines.push(`Forage: ${shown}${rest > 0 ? ` +${rest} more` : ''}`)
+  }
+  if (n.note) lines.push(`— ${n.note}`)
+  return lines.join('\n')
+}
 
 export interface MapViewProps {
   db:             MapDB
@@ -262,7 +280,7 @@ export function MapView({
                 key={n.id}
                 className={'map-node' + (isCurrent ? ' is-current' : '') + (isSelected ? ' is-selected' : '')}
                 transform={`translate(${n.x * GRID} ${n.y * GRID})`}
-                data-tooltip={n.title + (n.note ? ' — ' + n.note : '')}
+                data-tooltip={nodeTooltip(n)}
                 onPointerDown={e => onNodePointerDown(e, n)}
                 onContextMenu={e => { if (onNodeContext) { e.preventDefault(); onNodeContext(n.id, e) } }}
               >

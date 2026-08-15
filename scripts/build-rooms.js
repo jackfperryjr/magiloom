@@ -18,9 +18,10 @@
 //   • DR prime uid  — the game's native room number, what <nav rm='NNNN'/> and
 //                     the "(NNNN)" title tag carry, and what the running app
 //                     identifies rooms by.
-// Only ~20% of mapdb rooms carry a uid, so the app joins on uid where it exists
-// and falls back to content matching (title + description hash) elsewhere,
-// backfilling uids onto nodes as live play observes them.
+// Most mapdb rooms carry a uid (~83% of this crawl) but far from all, so the app
+// joins on uid where it exists and falls back to content matching (title +
+// description hash) elsewhere, backfilling uids onto nodes as live play observes
+// them. The build prints the real ratio each run.
 
 const { buildSync } = require('esbuild')
 const path = require('path')
@@ -97,6 +98,85 @@ function parsePaths(raw) {
   return m[1].split(/,\s*/).map(p => p.trim().toLowerCase()).filter(Boolean)
 }
 
+// ── Forageables ──────────────────────────────────────────────────────────────
+// A mapdb room's `tags` are an untyped grab-bag that Lich's own scripts filter by
+// convention: forageable item names sit alongside shop tags ("bank", "pawnshop"),
+// guild tags ("moon mage"), hunting-zone ids ("wood_trolls"), travel-script
+// fragments ("peer e =~ /a gate.../") and structured "meta:" entries. Only the
+// item names are worth shipping, so this pulls them out and drops the rest.
+//
+// The extraction is deliberately conservative — a false positive puts "bank" in a
+// room's forage list, which reads as a bug, while a miss just omits one item from
+// a list that was never exhaustive to begin with.
+
+// Everything else is dropped: structured metadata, Lich's own markers, hunting
+// zone ids (always underscored), and script conditions (contain a regex or path).
+const NOT_AN_ITEM = /^meta:|^lich-|^no-auto-map$|^suit-yourself$|_|=~|\//
+
+// Head noun of an item name. DR's forageables are overwhelmingly regular families
+// — every tree yields a branch/limb/stick, every bush a berry — so matching the
+// last word covers the long tail without enumerating ~200 species by hand.
+const ITEM_HEAD = new RegExp('(?:^|\\s)(?:' + [
+  // wood
+  'branch', 'branche', 'branches', 'limb', 'stick', 'twig', 'log', 'splinter', 'chip', 'bark',
+  // plants
+  'root', 'roots', 'leaf', 'leave', 'leaves', 'vine', 'stem', 'weed', 'grass', 'moss',
+  'sap', 'cattail', 'fern', 'clover', 'thistle', 'reed', 'seed', 'needle', 'cone',
+  // flowers
+  'flower', 'flowers', 'blossom', 'pollen', 'rose', 'lavender', 'sage', 'chamomile', 'catnip',
+  // fungi
+  'toadstool', 'mushroom',
+  // fruit + food
+  'berry', 'berries', 'berrie', 'strawberry', 'strawberries', 'strawberrie',
+  'blueberry', 'blueberries', 'boysenberries', 'loganberries', 'gooseberries',
+  'olallieberry', 'taffelberries', 'cherry', 'lemon', 'apple', 'acorn',
+  'carrot', 'corn', 'turnip', 'scallion',
+  // animal / mineral
+  'shell', 'feather', 'bone', 'comb', 'rock', 'dirt',
+].join('|') + ')$')
+
+// Items whose names end in something too generic to match on ("cloth", "coin",
+// "tack"). These are DR's forage JUNK — the filler results a failed forage returns
+// — so they are common enough in the data to be worth naming explicitly.
+const ITEM_EXACT = new Set([
+  'shoe tack', 'torn cloth', 'tarnished Imperial coin', 'rusty nail', 'nail',
+  'old button', 'bread crumb', 'dust bunny', 'dust bunnie', 'grungy feather',
+  'wood chip', 'honey comb', 'pale toadstool',
+])
+
+// "sprig of lavender", "handful of blueberries" — the head noun is the item, but
+// the measure-word prefix is what the game actually reports.
+const ITEM_PREFIX = /^(?:sprig|handful|piece|bunch) of\s/
+
+// Typo/plural variants the crawl accumulated. Collapsing them stops a room from
+// listing "alder branch" and "alder branche" as two different things.
+const VARIANTS = [
+  [/branches?$/, 'branch'], [/branche$/, 'branch'],
+  [/leaves$/, 'leaf'], [/leave$/, 'leaf'],
+  [/strawberrie$/, 'strawberry'], [/berrie$/, 'berries'],
+  [/flowers$/, 'flower'],
+]
+
+function normItem(tag) {
+  let s = tag.trim()
+  for (const [re, to] of VARIANTS) if (re.test(s)) { s = s.replace(re, to); break }
+  return s
+}
+
+// A room's forageable items, deduped and sorted. Empty for the vast majority of
+// rooms — only ~4k of 18k carry any tags at all.
+function forageables(tags) {
+  const out = new Set()
+  for (const raw of tags ?? []) {
+    const tag = String(raw ?? '').trim()
+    if (!tag || NOT_AN_ITEM.test(tag)) continue
+    // "shard" alone is the city of Shard (cf. "shard bank"), not a gem shard.
+    if (tag === 'shard' || tag === 'herb' || tag === 'herbs' || tag === 'pile') continue
+    if (ITEM_EXACT.has(tag) || ITEM_PREFIX.test(tag) || ITEM_HEAD.test(tag)) out.add(normItem(tag))
+  }
+  return [...out].sort()
+}
+
 async function main() {
   const { classifyMove, fnv1a } = await loadMapModel()
 
@@ -139,6 +219,7 @@ async function main() {
     // that never appear in obvious paths, so hashing those would stop prebaked
     // rooms from ever matching an observed one.
     const obvious = parsePaths((r.paths ?? [])[0])
+    const forage  = forageables(r.tags)
     rooms.push({
       id: Number(r.id),
       ...(uids.length ? { uid: uids } : {}),
@@ -147,11 +228,14 @@ async function main() {
       // Content identity, precomputed so the app doesn't rehash 18k rooms on boot.
       h: fnv1a(desc),
       ...(obvious.length ? { e: obvious } : {}),
+      // Region — the crawl's own area name ("Riverhaven", "Velaka Desert"). Coarser
+      // and more human than the title-derived zone, and the only label the wilds
+      // rooms (whose titles carry no area at all) ever get.
       ...(r.location ? { loc: String(r.location) } : {}),
       x: exits,
       // Per-edge traversal seconds — the natural weight for route finding.
       ...(r.timeto && Object.keys(r.timeto).length ? { w: r.timeto } : {}),
-      ...(r.tags?.length ? { rf: r.tags } : {}),
+      ...(forage.length ? { f: forage } : {}),
     })
   }
 
@@ -174,6 +258,10 @@ async function main() {
   console.log(`rooms      ${rooms.length}${dropped ? ` (${dropped} dropped, no id)` : ''}`)
   console.log(`with uid   ${withUid} (${((withUid / rooms.length) * 100).toFixed(1)}%)`)
   console.log(`exits      ${rooms.reduce((a, r) => a + r.x.length, 0)} (${special} scripted/non-cardinal, ${unknown} unroutable)`)
+  const regions = new Set(rooms.map(r => r.loc).filter(Boolean))
+  const items   = new Set(rooms.flatMap(r => r.f ?? []))
+  console.log(`regions    ${rooms.filter(r => r.loc).length} rooms in ${regions.size} regions`)
+  console.log(`forage     ${rooms.filter(r => r.f).length} rooms, ${items.size} distinct items`)
   console.log(`version    ${roomsVersion}`)
   console.log(`wrote      ${path.relative(ROOT, outFile)} (${mb} MB)`)
 }

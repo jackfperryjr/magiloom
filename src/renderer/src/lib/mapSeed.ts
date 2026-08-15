@@ -20,7 +20,7 @@
 import {
   datasetToDb, mirrorArcs, isDataset, type Dataset,
 } from './mapDataset'
-import type { MapDB, MapNode, Zone } from './mapModel'
+import { MAP_DB_VERSION, type MapDB, type MapNode, type Zone } from './mapModel'
 
 /** Bumped in scripts/bake-layouts.js when placement changes. Must match. */
 export const LAYOUT_VERSION = 1
@@ -147,6 +147,38 @@ export function mergeSeed(recorded: MapDB, seed: MapDB): SeedResult {
   return { db: out, added, skipped, baked: false }
 }
 
+// A room the player has edited. Their annotation is recorded data even when the
+// room itself came from the dataset, so it has to survive into their store.
+const isAnnotated = (n: MapNode): boolean => !!(n.note || n.tag || n.color || n.pin)
+
+/**
+ * The part of a zone that belongs to the PLAYER — the only part their store may hold.
+ *
+ * Once seeded, a zone holds recorded and shipped rooms side by side, and every save
+ * writes a whole zone. Without this filter the first step into a seeded area would
+ * copy the entire shipped graph into the player's own files: tens of MB they never
+ * walked, and — worse — the recorded/shipped distinction that mergeSeed relies on to
+ * decide what wins would be gone, freezing today's dataset in place so later
+ * corrections to it could never reach them.
+ *
+ * Arcs follow their endpoints: one whose room was dropped is dropped too, since it
+ * would point at a room that is not in the file. Nothing real is lost — walking into
+ * a shipped room promotes it to recorded (see observeRoom), so every link the player
+ * has actually travelled has two surviving ends. Arcs leaving the zone are kept
+ * regardless: their far end lives in another file and can't be judged from here.
+ */
+export function recordedZone(zone: Zone): Zone {
+  const nodes: Record<string, MapNode> = {}
+  const dropped = new Set<string>()
+  for (const id in zone.nodes) {
+    const n = zone.nodes[id]
+    if (n.seed && !isAnnotated(n)) dropped.add(id)
+    else nodes[id] = n
+  }
+  if (dropped.size === 0) return zone
+  return { ...zone, nodes, arcs: zone.arcs.filter(a => !dropped.has(a.from) && !dropped.has(a.to)) }
+}
+
 // The built seed graph, kept after the first load. Clearing a zone has to put the
 // shipped rooms back immediately (see reseed), and re-parsing ~19k rooms to do it
 // would stall the UI on what should be an instant action.
@@ -167,6 +199,23 @@ let cachedSeed: MapDB | null = null
 export function reseed(recorded: MapDB): SeedResult {
   if (!cachedSeed) return { db: recorded, added: 0, skipped: 0, baked: false }
   return mergeSeed(recorded, cachedSeed)
+}
+
+/**
+ * Re-merge the shipped rooms into a single zone that arrived from another window.
+ *
+ * Zone files hold only what the player recorded (see recordedZone), so a zone read
+ * back off disk is a fill-only slice of what this window is displaying. Dropping it
+ * in as-is would erase the shipped rooms from the open map until the next launch,
+ * which is what makes this the counterpart of the persistence filter rather than an
+ * optimisation. Scoped to one zone because it runs on every step another character
+ * takes; a full reseed re-walks ~19k rooms and is far too slow for that.
+ */
+export function reseedZone(zone: Zone): Zone {
+  const sz = cachedSeed?.zones[zone.id]
+  if (!sz) return zone
+  const one = (z: Zone): MapDB => ({ version: MAP_DB_VERSION, zones: { [z.id]: z } })
+  return mergeSeed(one(zone), one(sz)).db.zones[zone.id] ?? zone
 }
 
 /** Whether a dataset was loaded — lets the UI word destructive actions honestly. */

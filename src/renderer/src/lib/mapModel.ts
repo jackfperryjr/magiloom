@@ -23,6 +23,12 @@ export interface MapNode {
   x:            number      // layout coords, in grid units
   y:            number
   z:            number      // level (up/down change this)
+  region?:      string      // coarse area name from the dataset ("Velaka Desert")
+  forage?:      string[]    // forageable items known to be found here
+  // Came from the shipped dataset rather than this player's own play. Rebuilt from
+  // the packaged file on every load, so it is never written to their store (see
+  // recordedZone) — and cleared the moment they actually walk into the room.
+  seed?:        true
   note?:        string      // freeform user note
   tag?:         string      // short waypoint label drawn on the node
   color?:       string      // node accent (room type / user highlight)

@@ -158,6 +158,10 @@ export function observeRoom(
     const n = z.nodes[existing]
     n.exits = obs.exits
     if (uid && !n.uid) n.uid = uid   // backfill id onto a node first recorded without one
+    // The player is standing in it, so it stops being merely shipped and becomes a
+    // room they have mapped — which is what lets it (and the links they walked to
+    // reach it) be written to their own store. See mapSeed.recordedZone.
+    delete n.seed
     if (obs.description && !n.descriptions.includes(obs.description)) {
       n.descriptions = [...n.descriptions, obs.description].slice(0, 6)
     }

@@ -19,6 +19,14 @@
   box-shadow: 0 4px 16px rgba(0,0,0,0.8), 0 0 0 1px rgba(139,134,248,0.04);
   animation: tooltip-in 0.12s ease;
 }
+/* Set when the tooltip text contains newlines (see GlobalTooltip). Wrapping has to
+   stay opt-in: nearly every tooltip is a short label that reads better on one line,
+   and a max-width would break those onto two. */
+.tooltip-custom[data-multiline] {
+  white-space: pre-line;
+  max-width: 300px;
+  line-height: 1.45;
+}
 @keyframes tooltip-in {
   from { opacity: 0; transform: translateY(-3px); }
   to   { opacity: 1; transform: translateY(0); }

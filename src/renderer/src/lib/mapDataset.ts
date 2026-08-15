@@ -11,9 +11,9 @@
  * The join is the delicate part. A room recorded live and the same room from the
  * dataset have to end up as ONE node, and there are two independent handles:
  *
- *   • uid — the game's native room number. Definitive, but only ~20% of dataset
- *     rooms carry one, because DR exposed room ids long after the community crawl
- *     this data comes from began.
+ *   • uid — the game's native room number. Definitive, and present on most (not
+ *     all) dataset rooms: DR exposed room ids long after the community crawl this
+ *     data comes from began, so coverage is good but has holes.
  *   • content — title + description hash + obvious exits. This is why node ids are
  *     minted with makeNodeId(roomSignature(...)), exactly as recordRoom does for a
  *     live observation: the same room seen either way lands on the same id without
@@ -43,7 +43,7 @@ export interface DatasetRoom {
   loc?: string      // coarse region ("Muspar'i Gate")
   x:    [number, string, string][]   // [destination id, literal move, canonical dir]
   w?:   Record<string, number>       // destination id → traversal seconds
-  rf?:  string[]                     // room tags ("town", "protected")
+  f?:   string[]                     // forageable items ("jadice flower", "oak limb")
 }
 
 export interface Dataset {
@@ -102,6 +102,13 @@ export function datasetToDb(doc: Dataset): MapDB {
       descriptions: r.desc ? [r.desc] : [],
       exits: r.e ?? [],
       x: 0, y: 0, z: 0,
+      // Marks this room as shipped rather than walked. Everything downstream treats
+      // the two identically; only persistence cares (see mapSeed.recordedZone).
+      seed: true,
+      // Reference data, not observations: the app never derives these from live
+      // play, so they only ever arrive with a dataset room.
+      ...(r.loc ? { region: r.loc } : {}),
+      ...(r.f?.length ? { forage: r.f } : {}),
     }
     // MapNode carries a single uid; an instanced room's extra uids are dropped
     // here rather than modelled, since identity only needs one definitive handle.

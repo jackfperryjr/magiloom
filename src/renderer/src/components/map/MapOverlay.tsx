@@ -5,7 +5,7 @@ import { mapDbAtom, currentNodeIdAtom, walkStateAtom, autoRecordAtom } from '../
 import { nodeZoneId, areaLayout, listAreas } from '../../lib/mapper'
 import { emptyDb, type MapNode, type Zone } from '../../lib/mapModel'
 import { parseGenieMap, mergeZones, exportGenieMap } from '../../lib/mapImport'
-import { reseed, hasSeed } from '../../lib/mapSeed'
+import { reseed, hasSeed, recordedZone } from '../../lib/mapSeed'
 import { MapView } from './MapView'
 
 const NODE_COLORS = ['', '#e0b050', '#6bc5a0', '#5fbcd4', '#7b8fe8', '#e06060', '#c78bd8']
@@ -63,8 +63,15 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
     const out: { id: string; title: string; zoneId: string; zoneName: string }[] = []
     for (const z of Object.values(db.zones)) {
       for (const n of Object.values(z.nodes)) {
-        if (n.title.toLowerCase().includes(q) || (n.note ?? '').toLowerCase().includes(q) || (n.tag ?? '').toLowerCase().includes(q)) {
-          out.push({ id: n.id, title: n.title, zoneId: z.id, zoneName: z.name })
+        // Region and forageables are searchable too, which is what turns the box
+        // into "where can I pick jadice flowers" rather than only room-name lookup.
+        const hit = n.title.toLowerCase().includes(q)
+          || (n.note ?? '').toLowerCase().includes(q)
+          || (n.tag ?? '').toLowerCase().includes(q)
+          || (n.region ?? '').toLowerCase().includes(q)
+          || (n.forage ?? []).some(f => f.toLowerCase().includes(q))
+        if (hit) {
+          out.push({ id: n.id, title: n.title, zoneId: z.id, zoneName: n.region || z.name })
           if (out.length >= 40) return out
         }
       }
@@ -73,7 +80,9 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
   }, [query, db.zones])
 
   // ── DB mutation helpers (persist the touched zone) ──────────────────────────
-  const persist = (z: Zone) => window.dr.map.saveZone(z).catch(() => {})
+  // recordedZone keeps the shipped rooms out of the player's store; a shipped room
+  // they annotated counts as theirs and is kept, so notes and labels survive.
+  const persist = (z: Zone) => window.dr.map.saveZone(recordedZone(z)).catch(() => {})
 
   const patchNode = (nodeId: string, patch: Partial<MapNode>) => {
     const zid = nodeZoneId(db, nodeId)
