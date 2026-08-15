@@ -174,23 +174,53 @@ export function hasSeed(): boolean {
   return cachedSeed !== null
 }
 
+/** Where the shipped dataset lives on the web build (see vite.web.config.ts). */
+const WEB_DATA_BASE = 'map-data/dr-prime'
+
+/**
+ * Read the dataset from whichever transport this build has.
+ *
+ * Desktop hands it over IPC from the main process, which can read the packaged
+ * resources directory. The web client has no main process, so it fetches the same
+ * files over HTTP. Both return raw JSON text; everything downstream is identical.
+ */
+async function fetchDataset(): Promise<{ rooms: string | null; layouts: string | null }> {
+  const api = window.dr?.map?.dataset
+  if (api) return api()
+
+  // Relative to the document, so this keeps working under a subpath deploy
+  // (the PWA is served from /app/), matching the build's relative `base`.
+  const get = async (name: string): Promise<string | null> => {
+    try {
+      const res = await fetch(new URL(`${WEB_DATA_BASE}/${name}`, document.baseURI).href)
+      return res.ok ? await res.text() : null
+    } catch {
+      return null
+    }
+  }
+  // Rooms first: without them the layouts are meaningless, and skipping the second
+  // request when there's no dataset avoids a pointless 404 on every load.
+  const rooms = await get('rooms.json')
+  if (!rooms) return { rooms: null, layouts: null }
+  return { rooms, layouts: await get('layouts.json') }
+}
+
 /**
  * Fetch the shipped dataset and merge it under `recorded`.
  * Returns the untouched db when no dataset is available (web client, or a package
  * built without one) — the map then behaves exactly as it did before.
  */
 export async function seedFromDataset(recorded: MapDB): Promise<SeedResult> {
-  const api = window.dr?.map?.dataset
-  if (!api) return { db: recorded, added: 0, skipped: 0, baked: false }
+  const none: SeedResult = { db: recorded, added: 0, skipped: 0, baked: false }
 
   let raw: { rooms: string | null; layouts: string | null }
   try {
-    raw = await api()
+    raw = await fetchDataset()
   } catch (err) {
     console.warn('[map] dataset unavailable:', err)
-    return { db: recorded, added: 0, skipped: 0, baked: false }
+    return none
   }
-  if (!raw?.rooms) return { db: recorded, added: 0, skipped: 0, baked: false }
+  if (!raw?.rooms) return none
 
   let doc: Dataset
   try {
