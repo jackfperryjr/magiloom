@@ -21,7 +21,9 @@
     "tools:preview": "vite preview --config vite.tools.config.ts",
     "test:tools": "node scripts/run-tests.js",
     "map:build-rooms": "node scripts/build-rooms.js",
-    "map:check": "node scripts/check-dataset.js"
+    "map:check": "node scripts/check-dataset.js",
+    "map:bake": "node scripts/bake-layouts.js",
+    "map:all": "npm run map:build-rooms && npm run map:bake && npm run map:check"
   },
   "dependencies": {
     "electron-updater": "^6.8.3",

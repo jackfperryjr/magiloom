@@ -50,14 +50,44 @@ async function main() {
   console.log(`index         ${idx.byUid.size} by uid, ${idx.bySig.size} by signature`)
   console.log(`content dupes ${doc.rooms.length - idx.bySig.size} rooms share a signature`)
 
+  // ── Baked layouts, when present ─────────────────────────────────────────────
+  // Two rooms on one grid cell render exactly on top of each other, which reads
+  // as a missing room rather than as a bug, so it is worth failing the build over.
+  const layoutFile = path.join(path.dirname(DATA), 'layouts.json')
+  let overlaps = 0, stale = false
+  if (fs.existsSync(layoutFile)) {
+    const L = JSON.parse(fs.readFileSync(layoutFile, 'utf8'))
+    stale = L.roomsVersion !== doc.roomsVersion
+    let placed = 0
+    for (const area of Object.values(L.areas ?? {})) {
+      const seen = new Set()
+      for (const [, x, y, z] of area.pos) {
+        const k = `${x},${y},${z}`
+        if (seen.has(k)) overlaps++
+        seen.add(k)
+        placed++
+      }
+    }
+    console.log(`layouts       ${Object.keys(L.areas ?? {}).length} areas, ${placed} rooms placed` +
+      (stale ? `  ⚠ baked against v${L.roomsVersion}, rooms are v${doc.roomsVersion}` : ''))
+  } else {
+    console.log(`layouts       (none — run npm run map:bake)`)
+  }
+
   // Inter-zone arcs are normal — an exit that leaves the area is still an exit,
   // and the layout draws those as portals. An arc pointing at a node that exists
   // in NO zone is a build bug.
-  if (dangling) {
-    console.error(`\n✗ ${dangling} dangling arcs (target node missing entirely)`)
+  const errs = []
+  if (dangling) errs.push(`${dangling} dangling arcs (target node missing entirely)`)
+  if (overlaps) errs.push(`${overlaps} rooms share a grid cell with another room`)
+  if (errs.length) {
+    for (const e of errs) console.error(`\n✗ ${e}`)
     process.exit(1)
   }
-  console.log(`\n✓ no dangling arcs`)
+  // A stale bake is a warning, not a failure: the runtime detects the version
+  // mismatch and lays out live, so the map is correct, just slower to open.
+  if (stale) console.log(`\n⚠ layouts are stale — re-run npm run map:bake`)
+  else console.log(`\n✓ dataset and layouts consistent`)
 }
 
 main().catch(err => { console.error(`\n✗ ${err.message}`); process.exit(1) })
