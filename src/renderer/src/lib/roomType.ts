@@ -18,14 +18,22 @@ export const ROOM_TYPE_META: Record<RoomType, { label: string; color: string }> 
 
 // Ambiguous words (bank/shop/inn) only count in the room TITLE or a user note/tag —
 // matching them in prose descriptions mis-tags rooms ("the west bank of the river").
+//
+// Vocabulary widened by scoring these rules against a curated set of real
+// destinations: DR names its establishments rather than labelling them, so
+// "Quentin's Healerium", "Riverhaven Hospital", "Faldesu Exchequer" and "Ishh's
+// Used Goods" carry no generic word at all. A carousel counts as a BANK, not a
+// shop — in DR it is the bank's storage, which is why the curated data points its
+// vault and carousel destinations at the same rooms.
+//
 // Ordered so more-specific types win when several could match.
 const TITLE_RULES: { type: RoomType; re: RegExp }[] = [
-  { type: 'bank',   re: /\bbank\b/ },
-  { type: 'healer', re: /\bhealer\b|\bempath\b|infirmary/ },
+  { type: 'bank',   re: /\bbank\b|exchequer|depository|\btellers?\b|money[- ]?changer|\bvault\b|\bexchange\b|carousel/ },
+  { type: 'healer', re: /\bhealer(?:'s|ium)?\b|\bempath\b|infirmary|hospital|\bclinic\b|\btriage\b|healing/ },
   { type: 'guild',  re: /\bguild\b/ },
-  { type: 'inn',    re: /\binn\b|\btavern\b|alehouse/ },
+  { type: 'inn',    re: /\binn\b|\btavern\b|alehouse|taproom/ },
   { type: 'travel', re: /\bdocks?\b|\bpiers?\b|\bstables?\b|shipyard|\bwagon\b|\bcarriage\b|\bferry\b|caravan/ },
-  { type: 'shop',   re: /\bshop\b|\bstore\b|emporium|pawnshop|\bwares\b|\bsmithy\b|\bforge\b/ },
+  { type: 'shop',   re: /\bshops?\b|\bstore\b|emporium|pawn|\bwares\b|\bsmithy\b|\bforg(?:e|ing)\b|repairs?\b|used goods|\bsupplies\b|outfitt|tannery|furrier|gem ?shop|alchem(?:ist|y)|herbalist|fletcher|bakery|locksmith|\bauction\b/ },
 ]
 // Strong, unambiguous signals that are safe to detect anywhere (incl. description).
 const BODY_RULES: { type: RoomType; re: RegExp }[] = [
@@ -69,10 +77,18 @@ export function roomType(n: TypeableRoom): RoomType | null {
   if (marks) for (const { type, re } of TITLE_RULES) if (re.test(marks)) return type
 
   if (!THOROUGHFARE.test(title)) {
-    for (const { type, re } of TITLE_RULES) {
-      if (!re.test(title)) continue
-      if (type === 'bank' && WATER_BANK.test(title)) continue   // a riverbank, not a vault
-      return type
+    // DR titles read "[Building or area, specific room]", and the SPECIFIC room is
+    // what you are standing in: "[Rest of Ages Inn, Caravan Stables]" is a stable,
+    // "[Ranger Guild, Carousel]" is a shop. Matching the whole string let the
+    // building win and mistyped every specialised room inside a named venue, so
+    // the last segment is tried on its own first.
+    const room = title.replace(/^\[?[^,\]]*,\s*/, '')
+    for (const scope of room && room !== title ? [room, title] : [title]) {
+      for (const { type, re } of TITLE_RULES) {
+        if (!re.test(scope)) continue
+        if (type === 'bank' && WATER_BANK.test(scope)) continue   // a riverbank, not a vault
+        return type
+      }
     }
   }
 
