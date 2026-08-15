@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef } from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { roomAtom, promptCountAtom, connectionStatusAtom, roundtimeAtom, appendScriptOutputAtom, currentGameMove, clearGameMove } from '../store/game'
 import { mapDbAtom, currentNodeIdAtom, autoRecordAtom, walkStateAtom } from '../store/map'
-import { classifyMove, roomSignature, parseRoomUid, stripRoomTag, type MapDB, type Zone } from '../lib/mapModel'
+import { classifyMove, roomSignature, parseRoomUid, stripRoomTag, emptyDb, type MapDB, type Zone } from '../lib/mapModel'
 import { observeRoom, recordArc, nodeZoneId, findRoute, findNode, matchRoom, firstUnwalkableLink } from '../lib/mapper'
+import { seedFromDataset } from '../lib/mapSeed'
 
 // A captured movement is only paired with the room change it caused if the change
 // lands within this window (a move + server round-trip). Beyond it, the room
@@ -68,10 +69,28 @@ export function useAutomapper() {
   const stuckTimer = useRef<number | null>(null)  // per-step arrival timeout
 
   // ── Load the shared map once, and merge zones other windows rewrite ──────────
+  // The player's recorded map lands first so the map is usable immediately, then
+  // the shipped dataset is merged UNDER it to fill in everywhere they haven't been.
+  // Seeding is deliberately not awaited before the first setDb: parsing ~19k rooms
+  // takes long enough to be visible, and there is no reason to hold the player's
+  // own map hostage to it.
   useEffect(() => {
     let cancelled = false
-    window.dr.map.load().then((loaded: MapDB) => {
-      if (!cancelled && loaded?.zones) setDb(loaded)
+    window.dr.map.load().then(async (loaded: MapDB) => {
+      if (cancelled) return
+      const recorded = loaded?.zones ? loaded : emptyDb()
+      setDb(recorded)
+      const seeded = await seedFromDataset(recorded)
+      if (cancelled || !seeded.added) return
+      // Seeded rooms are NOT persisted back through map.saveZone: they are
+      // regenerated from the shipped file on every load, and writing them into
+      // the player's own store would bloat it and blur which rooms they actually
+      // walked — the distinction the merge relies on to know what wins.
+      setDb(seeded.db)
+      if (MAP_DEBUG) {
+        console.log(`[automap] seeded ${seeded.added} rooms (${seeded.skipped} already known), ` +
+          `layouts ${seeded.baked ? 'baked' : `live${seeded.staleReason ? ` — ${seeded.staleReason}` : ''}`}`)
+      }
     }).catch(() => { /* no map yet */ })
     const off = window.dr.map.onZoneChanged((zone: Zone) => {
       if (zone?.id) setDb(prev => ({ ...prev, zones: { ...prev.zones, [zone.id]: zone } }))

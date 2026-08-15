@@ -8,6 +8,7 @@ import { GameConnection } from './game-connection'
 import { CmdScriptEngine } from './cmd-script-engine'
 import { BroadcastBus } from './broadcast-bus'
 import { MapStore, type StoredZone } from './map-store'
+import { loadRawDataset } from './map-dataset'
 import { LogStore, logSlug } from './log-store'
 import { SettingsStore } from './settings-store'
 import { sgeAuth } from './sge-auth'
@@ -529,6 +530,9 @@ function setupIpcHandlers(): void {
   ipcMain.handle('map:save-zone',   (_e, zone: StoredZone) => mapStore.saveZone(zone))
   ipcMain.handle('map:delete-zone', (_e, zoneId: string)   => mapStore.deleteZone(zoneId))
   ipcMain.handle('map:clear',       () => mapStore.clearAll())
+  // The shipped, read-only room graph + baked coordinates. Separate from the
+  // handlers above because nothing here is ever written back.
+  ipcMain.handle('map:dataset',     () => loadRawDataset())
   // Export the whole map (or one zone) to a user-chosen file for sharing/backup.
   ipcMain.handle('map:export', async (_e, content: string, defaultName: string) => {
     if (!mainWindow) return { ok: false }

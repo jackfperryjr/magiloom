@@ -190,6 +190,9 @@ interface DrAPI {
   }
   map: {
     load:       () => Promise<MapDB>
+    // Shipped room graph + baked coordinates, as raw JSON text. Absent on the web
+    // client, and either field is null when that file wasn't packaged.
+    dataset?:   () => Promise<{ rooms: string | null; layouts: string | null }>
     saveZone:   (zone: Zone) => Promise<void>
     deleteZone: (zoneId: string) => Promise<void>
     clear:      () => Promise<void>
