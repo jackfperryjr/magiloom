@@ -4,8 +4,7 @@ import { useAtom, useAtomValue } from 'jotai'
 import { mapDbAtom, currentNodeIdAtom, walkStateAtom, autoRecordAtom } from '../../store/map'
 import { nodeZoneId, areaLayout, listAreas } from '../../lib/mapper'
 import { emptyDb, type MapNode, type Zone } from '../../lib/mapModel'
-import { parseGenieMap, mergeZones, exportGenieMap } from '../../lib/mapImport'
-import { reseed, hasSeed, recordedZone } from '../../lib/mapSeed'
+import { reseed, hasSeed, recordedZone, clearRecorded } from '../../lib/mapSeed'
 import { MapView } from './MapView'
 
 const NODE_COLORS = ['', '#e0b050', '#6bc5a0', '#5fbcd4', '#7b8fe8', '#e06060', '#c78bd8']
@@ -107,67 +106,34 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
     })
   }
 
-  // Drag-to-place stores a manual `pin` on the room (grid-snapped); Tidy clears the
-  // pins of the currently-shown rooms so they snap back to the auto layout.
-  const hasPins = Object.values(zone.nodes).some(n => n.pin)
-  const tidy = () => {
-    const shown = Object.keys(zone.nodes)
-    // Clearing the pins is all that's needed — the layout is recomputed from the
-    // grid on every render, so the rooms snap back as soon as the override is gone.
+  // ── Clear ───────────────────────────────────────────────────────────────────
+  // Strip the zone back to its shipped rooms (see clearRecorded). Their file for
+  // the zone holds only their own rooms and annotations (see recordedZone), so once
+  // those are gone there is nothing left to store.
+  const clearRecordedInZone = (zid: string) => {
     setDb(prev => {
+      const z = prev.zones[zid]
+      if (!z) return prev
+      window.dr.map.deleteZone(zid).catch(() => {})
+      const kept = clearRecorded(z)
       const zones = { ...prev.zones }
-      const touched = new Set<string>()
-      for (const id of shown) {
-        const zid = nodeZoneId(prev, id); if (!zid) continue
-        const z = zones[zid]; const n = z?.nodes[id]
-        if (!n?.pin) continue
-        const { pin: _drop, ...rest } = n
-        zones[zid] = { ...z, nodes: { ...z.nodes, [id]: rest } }
-        touched.add(zid)
-      }
-      if (touched.size === 0) return prev
-      for (const zid of touched) persist(zones[zid])
+      if (kept) zones[zid] = kept
+      else delete zones[zid]
       return { ...prev, zones }
     })
-  }
-
-  // ── Import / export / clear ─────────────────────────────────────────────────
-  const doImport = async () => {
-    const file = await window.dr.app.openTextFile([{ name: 'Map', extensions: ['xml', 'map'] }])
-    if (!file?.content) return
-    const { zones: imported, summary } = parseGenieMap(file.content)
-    if (!imported.length) { flash('No zones found in that file.'); return }
-    setDb(prev => {
-      const merged = mergeZones(prev.zones, imported)
-      for (const z of imported) persist(merged[z.id])
-      return { ...prev, zones: merged }
-    })
-    setFocusId(Object.keys(imported[0].nodes)[0] ?? null)   // view the imported area
-    flash(`Imported ${summary.zones} zone(s), ${summary.nodes} rooms, ${summary.arcs} connections.`)
-  }
-
-  const doExport = async () => {
-    const content = exportGenieMap(Object.values(db.zones))
-    const res = await window.dr.map.export(content, 'magiloom-map.xml')
-    if (res.ok) flash('Map exported.')
+    setFocusId(null)
   }
 
   // Destructive actions go through an inline confirm bar (no native confirm()).
   const runConfirm = () => {
-    // Clearing removes what the PLAYER recorded. The shipped rooms are not theirs
-    // to delete — they are regenerated from the packaged dataset on every launch —
-    // so they are put straight back, and the map after a clear is the map you get
-    // on restart rather than an empty view that silently repopulates later.
     if (confirmState?.kind === 'zone' && zoneId) {
-      window.dr.map.deleteZone(zoneId).catch(() => {})
-      setDb(prev => {
-        const zones = { ...prev.zones }
-        delete zones[zoneId]
-        return reseed({ ...prev, zones }).db
-      })
-      setFocusId(null)
-      flash(hasSeed() ? 'Your mapping for this zone was cleared.' : 'Zone map cleared.')
+      clearRecordedInZone(zoneId)
+      flash('Cleared the rooms you recorded in this zone.')
     } else if (confirmState?.kind === 'all') {
+      // "Clear all" still goes through the whole-db path: the shipped rooms are not
+      // the player's to delete, so they are put straight back, and the map after a
+      // clear is the map you get on restart rather than an empty view that silently
+      // repopulates later.
       window.dr.map.clear().catch(() => {})
       setDb(reseed(emptyDb()).db)
       flash(hasSeed() ? 'Your recorded mapping was cleared.' : 'World map cleared.')
@@ -201,10 +167,7 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
             <input type="checkbox" checked={autoRecord} onChange={e => setAutoRecord(e.target.checked)} />
             Auto-record
           </label>
-          <button className="map-tb-btn map-text-btn" data-tooltip="Snap dragged rooms back to the auto layout" onClick={tidy} disabled={!hasPins}>Tidy</button>
-          <button className="map-tb-btn map-text-btn" onClick={doImport}>Import</button>
-          <button className="map-tb-btn map-text-btn" onClick={doExport} disabled={areas.length === 0}>Export</button>
-          <button className="map-tb-btn map-text-btn" onClick={() => zoneId && setConfirmState({ kind: 'zone', label: `Delete the recorded map for "${db.zones[zoneId]?.name ?? 'this zone'}"?` })} disabled={!zoneId}>Clear zone</button>
+          <button className="map-tb-btn map-text-btn" onClick={() => zoneId && setConfirmState({ kind: 'zone', label: `Clear the rooms you recorded in "${db.zones[zoneId]?.name ?? 'this zone'}"? Rooms from the shipped map are kept.` })} disabled={!zoneId}>Clear zone</button>
           {/* "Clear all" wipes the WHOLE map. On the web client that map is the shared
               server DB, and the server refuses a remote wipe (operator-only) — so the
               button would do nothing there. Desktop's map is the user's own local DB,
@@ -219,7 +182,9 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
         {confirmState && (
           <div className="map-confirm-bar">
             <span className="map-confirm-text">{confirmState.label}</span>
-            <button className="map-tb-btn map-text-btn map-confirm-yes" onClick={runConfirm}>Delete</button>
+            <button className="map-tb-btn map-text-btn map-confirm-yes" onClick={runConfirm}>
+              {confirmState.kind === 'zone' ? 'Clear' : 'Delete'}
+            </button>
             <button className="map-tb-btn map-text-btn" onClick={() => setConfirmState(null)}>Cancel</button>
           </div>
         )}

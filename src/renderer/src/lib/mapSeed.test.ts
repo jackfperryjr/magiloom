@@ -19,7 +19,7 @@
 
 import {
   mergeSeed, applyBakedLayouts, recordedZone, reseedZone, seedFromDataset,
-  LAYOUT_VERSION, type BakedLayouts,
+  clearRecorded, LAYOUT_VERSION, type BakedLayouts,
 } from './mapSeed'
 import { emptyDb, type MapDB, type MapNode, type Zone } from './mapModel'
 
@@ -226,6 +226,54 @@ const linksOf = (z: Zone): string => z.arcs.map(a => `${a.from}>${a.to}`).sort()
   check('the walked room stays the recorded one', back.nodes[walked].seed === undefined)
   check('shipped neighbour is still flagged',
     Object.values(back.nodes).filter(n => n.id !== walked).every(n => n.seed === true))
+}
+
+// ── Clearing a zone keeps the shipped rooms ─────────────────────────────────
+// "Clear zone" removes only what the player recorded. The previous implementation
+// deleted the whole zone and re-merged the dataset into the hole, which quietly
+// took the shipped rooms with it whenever the dataset had not loaded.
+{
+  const walked  = { ...node('walked'), title: '[Town, Walked]' }
+  const shipped = { ...node('shipped'), seed: true as const }
+  const annotated = { ...node('annotated'), seed: true as const, note: 'herbs here', tag: 'HRB', color: '#f00', pin: { x: 3, y: 4 } }
+
+  const zone: Zone = {
+    id: 'z', name: 'Town',
+    nodes: { walked, shipped, annotated },
+    arcs: [
+      { from: 'walked', to: 'shipped', dir: 'north', move: 'north' },
+      { from: 'shipped', to: 'annotated', dir: 'east', move: 'east' },
+    ],
+  }
+
+  const cleared = clearRecorded(zone)
+  check('the zone survives while shipped rooms remain', cleared !== null)
+  eq('the walked room is gone', Object.keys(cleared!.nodes).sort().join(','), 'annotated,shipped')
+  check('the plain shipped room is untouched', cleared!.nodes['shipped'] === shipped)
+
+  // An annotated shipped room stays, but the annotation was the player's — it goes.
+  const a = cleared!.nodes['annotated']
+  check('the annotated shipped room is kept', !!a)
+  check('its note is cleared', a.note === undefined)
+  check('its label is cleared', a.tag === undefined)
+  check('its colour is cleared', a.color === undefined)
+  check('its dragged position is cleared', a.pin === undefined)
+  check('but the room itself is intact', a.id === 'annotated' && a.seed === true)
+
+  // An arc loses its endpoint along with the room.
+  eq('arcs into the removed room are dropped',
+    cleared!.arcs.map(x => `${x.from}>${x.to}`).join(','), 'shipped>annotated')
+
+  // A zone the player mapped themselves has nothing to keep, so it goes entirely
+  // rather than lingering as an empty area in the browse list.
+  const ownOnly: Zone = { id: 'z', name: 'Town', nodes: { walked }, arcs: [] }
+  eq('a wholly player-recorded zone clears to nothing', clearRecorded(ownOnly), null)
+
+  // The important property: this does not depend on the dataset being loaded, which
+  // is exactly where the old delete-and-reseed approach failed open.
+  const shippedOnly: Zone = { id: 'z', name: 'Town', nodes: { shipped }, arcs: [] }
+  eq('a wholly shipped zone is left alone',
+    Object.keys(clearRecorded(shippedOnly)?.nodes ?? {}).join(','), 'shipped')
 }
 
 // ── Report ───────────────────────────────────────────────────────────────────
