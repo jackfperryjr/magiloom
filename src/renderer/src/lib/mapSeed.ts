@@ -179,37 +179,15 @@ export function recordedZone(zone: Zone): Zone {
   return { ...zone, nodes, arcs: zone.arcs.filter(a => !dropped.has(a.from) && !dropped.has(a.to)) }
 }
 
-/**
- * Strip a zone back to only its shipped rooms — the inverse of `recordedZone`.
- *
- * This is what "Clear zone" runs. Rooms the player walked are dropped, and their
- * annotations on shipped rooms are removed so those rooms return to plain; arcs
- * lose an endpoint along with the room it pointed at.
- *
- * Returns null when nothing is left, so the caller can drop the zone entirely
- * rather than leaving an empty one to render as a blank area.
- *
- * Deliberately keyed on the `seed` flag rather than deleting the zone and
- * re-merging the dataset into the hole. Both give the same map when the dataset is
- * loaded, but this cannot fail open: if seeding never finished or no dataset is
- * packaged, the re-merge is a no-op and the delete takes the shipped rooms with it.
- */
-export function clearRecorded(zone: Zone): Zone | null {
-  const nodes: Record<string, MapNode> = {}
-  const dropped = new Set<string>()
-  for (const id in zone.nodes) {
-    const n = zone.nodes[id]
-    if (!n.seed) { dropped.add(id); continue }
-    if (isAnnotated(n)) {
-      const { note: _note, tag: _tag, color: _color, pin: _pin, ...plain } = n
-      nodes[id] = plain
-    } else {
-      nodes[id] = n
-    }
-  }
-  if (Object.keys(nodes).length === 0) return null
-  return { ...zone, nodes, arcs: zone.arcs.filter(a => !dropped.has(a.from) && !dropped.has(a.to)) }
-}
+// NOTE: there is deliberately no "keep only the shipped rooms" helper here.
+//
+// It looks like the natural inverse of recordedZone, and it is wrong: `seed` is not
+// a durable marker of provenance. Walking into a shipped room clears it (see
+// observeRoom's `delete n.seed`) precisely so the room can be written to the
+// player's own store, which means an area they have actually travelled has no
+// seed-flagged rooms left. Filtering on the flag there keeps nothing and deletes the
+// town. "Clear zone" removes the zone and re-seeds instead — once the rooms are out
+// of the recorded map, the dataset supplies them again.
 
 // The built seed graph, kept after the first load. Clearing a zone has to put the
 // shipped rooms back immediately (see reseed), and re-parsing ~19k rooms to do it

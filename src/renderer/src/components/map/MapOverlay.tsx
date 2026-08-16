@@ -4,7 +4,7 @@ import { useAtom, useAtomValue } from 'jotai'
 import { mapDbAtom, currentNodeIdAtom, walkStateAtom, autoRecordAtom } from '../../store/map'
 import { nodeZoneId, areaLayout, listAreas } from '../../lib/mapper'
 import { emptyDb, type MapNode, type Zone } from '../../lib/mapModel'
-import { reseed, hasSeed, recordedZone, clearRecorded } from '../../lib/mapSeed'
+import { reseed, hasSeed, recordedZone } from '../../lib/mapSeed'
 import { MapView } from './MapView'
 
 const NODE_COLORS = ['', '#e0b050', '#6bc5a0', '#5fbcd4', '#7b8fe8', '#e06060', '#c78bd8']
@@ -107,19 +107,24 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
   }
 
   // ── Clear ───────────────────────────────────────────────────────────────────
-  // Strip the zone back to its shipped rooms (see clearRecorded). Their file for
-  // the zone holds only their own rooms and annotations (see recordedZone), so once
-  // those are gone there is nothing left to store.
+  /**
+   * Clear one zone: drop the player's file for it, then re-merge the shipped rooms.
+   *
+   * The re-merge is what makes this "only clears what you recorded", and it cannot
+   * be replaced by filtering on the `seed` flag. Walking into a shipped room clears
+   * that flag (observeRoom does `delete n.seed`, so the room can be written to the
+   * player's own store), which means an area they have actually travelled has no
+   * seed-flagged rooms left in it at all. Keeping "just the seed rooms" there keeps
+   * nothing — it deletes the town. Removing the zone and re-seeding is what restores
+   * those rooms, because once they are out of the recorded map the dataset supplies
+   * them again.
+   */
   const clearRecordedInZone = (zid: string) => {
+    window.dr.map.deleteZone(zid).catch(() => {})
     setDb(prev => {
-      const z = prev.zones[zid]
-      if (!z) return prev
-      window.dr.map.deleteZone(zid).catch(() => {})
-      const kept = clearRecorded(z)
       const zones = { ...prev.zones }
-      if (kept) zones[zid] = kept
-      else delete zones[zid]
-      return { ...prev, zones }
+      delete zones[zid]
+      return reseed({ ...prev, zones }).db
     })
     setFocusId(null)
   }
@@ -128,7 +133,7 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
   const runConfirm = () => {
     if (confirmState?.kind === 'zone' && zoneId) {
       clearRecordedInZone(zoneId)
-      flash('Cleared the rooms you recorded in this zone.')
+      flash(hasSeed() ? 'Cleared the rooms you recorded in this zone.' : 'Zone map cleared.')
     } else if (confirmState?.kind === 'all') {
       // "Clear all" still goes through the whole-db path: the shipped rooms are not
       // the player's to delete, so they are put straight back, and the map after a

@@ -19,7 +19,7 @@
 
 import {
   mergeSeed, applyBakedLayouts, recordedZone, reseedZone, seedFromDataset,
-  clearRecorded, LAYOUT_VERSION, type BakedLayouts,
+  LAYOUT_VERSION, type BakedLayouts,
 } from './mapSeed'
 import { emptyDb, type MapDB, type MapNode, type Zone } from './mapModel'
 
@@ -228,52 +228,41 @@ const linksOf = (z: Zone): string => z.arcs.map(a => `${a.from}>${a.to}`).sort()
     Object.values(back.nodes).filter(n => n.id !== walked).every(n => n.seed === true))
 }
 
-// ── Clearing a zone keeps the shipped rooms ─────────────────────────────────
-// "Clear zone" removes only what the player recorded. The previous implementation
-// deleted the whole zone and re-merged the dataset into the hole, which quietly
-// took the shipped rooms with it whenever the dataset had not loaded.
+// ── Clearing a zone: why it re-seeds instead of filtering ───────────────────
+// "Clear zone" must leave the shipped map behind. The tempting implementation is
+// "keep the rooms flagged `seed`" — it shipped in 180 and emptied whole towns,
+// because walking into a shipped room CLEARS that flag (observeRoom does
+// `delete n.seed`, so the room can be written to the player's store). An area the
+// player has travelled therefore has no seed-flagged rooms in it at all.
+//
+// The property that actually holds: a room dropped from the recorded map comes back
+// from the dataset on the next merge, flag or no flag. That is what makes removing
+// the zone and re-seeding correct where filtering is not.
 {
-  const walked  = { ...node('walked'), title: '[Town, Walked]' }
-  const shipped = { ...node('shipped'), seed: true as const }
-  const annotated = { ...node('annotated'), seed: true as const, note: 'herbs here', tag: 'HRB', color: '#f00', pin: { x: 3, y: 4 } }
+  const walked  = { ...node('walked') }                       // shipped, then walked
+  const ownRoom = { ...node('own'), title: '[Town, Own]' }     // never in the dataset
 
-  const zone: Zone = {
-    id: 'z', name: 'Town',
-    nodes: { walked, shipped, annotated },
-    arcs: [
-      { from: 'walked', to: 'shipped', dir: 'north', move: 'north' },
-      { from: 'shipped', to: 'annotated', dir: 'east', move: 'east' },
-    ],
-  }
+  // What the player's store holds for this zone after walking through it: every
+  // room looks recorded, because every room they entered lost its seed flag.
+  const recorded = db([walked, ownRoom])
+  check('a walked-through area carries no seed flags',
+    Object.values(recorded.zones['z'].nodes).every(n => n.seed === undefined))
 
-  const cleared = clearRecorded(zone)
-  check('the zone survives while shipped rooms remain', cleared !== null)
-  eq('the walked room is gone', Object.keys(cleared!.nodes).sort().join(','), 'annotated,shipped')
-  check('the plain shipped room is untouched', cleared!.nodes['shipped'] === shipped)
+  // Clearing = drop the zone, then re-merge the dataset.
+  const cleared: MapDB = { version: recorded.version, zones: {} }
+  const seed = db([{ ...node('walked'), seed: true as const }])
+  const after = mergeSeed(cleared, seed)
 
-  // An annotated shipped room stays, but the annotation was the player's — it goes.
-  const a = cleared!.nodes['annotated']
-  check('the annotated shipped room is kept', !!a)
-  check('its note is cleared', a.note === undefined)
-  check('its label is cleared', a.tag === undefined)
-  check('its colour is cleared', a.color === undefined)
-  check('its dragged position is cleared', a.pin === undefined)
-  check('but the room itself is intact', a.id === 'annotated' && a.seed === true)
+  eq('the shipped room comes back after clearing', nodesOf(after.db).join(','), 'walked')
+  check('and is marked as shipped again', after.db.zones['z'].nodes['walked'].seed === true)
+  eq('the room the player found themselves is gone', after.db.zones['z'].nodes['own'], undefined)
 
-  // An arc loses its endpoint along with the room.
-  eq('arcs into the removed room are dropped',
-    cleared!.arcs.map(x => `${x.from}>${x.to}`).join(','), 'shipped>annotated')
-
-  // A zone the player mapped themselves has nothing to keep, so it goes entirely
-  // rather than lingering as an empty area in the browse list.
-  const ownOnly: Zone = { id: 'z', name: 'Town', nodes: { walked }, arcs: [] }
-  eq('a wholly player-recorded zone clears to nothing', clearRecorded(ownOnly), null)
-
-  // The important property: this does not depend on the dataset being loaded, which
-  // is exactly where the old delete-and-reseed approach failed open.
-  const shippedOnly: Zone = { id: 'z', name: 'Town', nodes: { shipped }, arcs: [] }
-  eq('a wholly shipped zone is left alone',
-    Object.keys(clearRecorded(shippedOnly)?.nodes ?? {}).join(','), 'shipped')
+  // The guarantee the old (correct) approach relies on: re-seeding restores a room
+  // the player had recorded, because it is no longer in the recorded map to win.
+  const stillRecorded = mergeSeed(db([walked]), seed)
+  eq('a room still recorded is NOT replaced by the dataset copy', stillRecorded.added, 0)
+  check('the recorded copy keeps its own state',
+    stillRecorded.db.zones['z'].nodes['walked'].seed === undefined)
 }
 
 // ── Report ───────────────────────────────────────────────────────────────────
