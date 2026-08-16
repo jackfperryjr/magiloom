@@ -260,6 +260,16 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
                   <div className="map-ctx-item" onClick={() => { onWalkTo(ctx.id); setCtx(null) }}>Walk here</div>
                   <div className="map-ctx-item" onClick={() => setEdit({ id: ctx.id, field: 'tag', value: node?.tag ?? '' })}>{node?.tag ? 'Edit label…' : 'Set label…'}</div>
                   <div className="map-ctx-item" onClick={() => setEdit({ id: ctx.id, field: 'note', value: node?.note ?? '' })}>{node?.note ? 'Edit note…' : 'Add note…'}</div>
+                  {/* Dragging a room stores a manual `pin`; this is the way back. Only
+                      offered on a room that actually carries one, so the menu doesn't
+                      advertise an action that would do nothing. Dropping the pin is all
+                      that's needed — the layout is recomputed from the grid on every
+                      render, so the room snaps back as soon as the override is gone. */}
+                  {node?.pin && (
+                    <div className="map-ctx-item" onClick={() => { patchNode(ctx.id, { pin: undefined }); setCtx(null) }}>
+                      Reset position
+                    </div>
+                  )}
                   <div className="map-ctx-colors">
                     {NODE_COLORS.map(c => (
                       <button key={c || 'none'} className="map-ctx-swatch" data-tooltip={c || 'default (plain)'}
