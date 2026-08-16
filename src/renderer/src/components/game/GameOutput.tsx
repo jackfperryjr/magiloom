@@ -8,6 +8,7 @@ import { resolveAvatarSrc } from '../../lib/avatar'
 import { promptFromLook } from '../../lib/lookPortrait'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
 import type { Highlight } from '../ui/HighlightsModal'
+import { matchHighlight as matchHighlightRule } from '../../lib/rules'
 
 // ── Exp skill line helpers ────────────────────────────────────────────────────
 interface ParsedInfoPair  { label: string; value: string; bonus?: string }
@@ -110,18 +111,10 @@ const PRESET_CLASS: Record<string, string> = {
 let _disabledClasses: ReadonlySet<string> = new Set()
 export function setDisabledClasses(s: ReadonlySet<string>) { _disabledClasses = s }
 
+// Highlight matching lives in lib/rules.ts so the live renderer and the Test box in
+// the highlights editor run the same code (and both go through the regex guard).
 function matchHighlight(text: string, highlights: Highlight[]): Highlight | null {
-  for (const hl of highlights) {
-    if (!hl.enabled || !hl.pattern) continue
-    if (hl.class && _disabledClasses.has(hl.class)) continue
-    try {
-      const match = hl.isRegex
-        ? new RegExp(hl.pattern, 'i').test(text)
-        : text.toLowerCase().includes(hl.pattern.toLowerCase())
-      if (match) return hl
-    } catch { /* invalid regex */ }
-  }
-  return null
+  return matchHighlightRule(text, highlights, _disabledClasses)
 }
 
 // Splice inline bold substrings (and any clickable links) into `text`, returning

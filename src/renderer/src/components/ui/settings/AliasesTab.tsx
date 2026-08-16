@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react'
-import type { Alias } from '../../../lib/automation'
+import { expandAlias, type Alias } from '../../../lib/automation'
 import { ClassToggleStrip, distinctClasses } from '../ClassToggleStrip'
+import { RuleTester, NoMatch } from '../RuleTester'
 import { uid } from './util'
 
 // Settings → Aliases: first-word command aliases (with %-args) + user variables.
@@ -69,6 +70,22 @@ export function AliasesTab({
           + Add alias
         </button>
       </div>
+      {/* Runs the real alias expander, recursion and argument slots included. */}
+      <RuleTester
+        placeholder="Test: type a command as you would in game"
+        hint="Type a command above to see what it expands to."
+        render={line => {
+          const out = expandAlias(line, aliases)
+          if (out === line) return <NoMatch what="No alias matches — this would be sent as typed." />
+          return (
+            <div className="rule-tester-cmd">
+              <span className="rule-arrow">→</span>
+              <code>{out}</code>
+            </div>
+          )
+        }}
+      />
+
       <div className="settings-hint">
         Type the alias as the first word of a command. Use <code>%1</code>…<code>%9</code> for the
         words after it and <code>%0</code> for all of them (e.g. <code>kk</code> → <code>kill %1</code>).

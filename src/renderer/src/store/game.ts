@@ -7,6 +7,7 @@ import { isAtmospheric } from '../lib/atmospherics'
 import { correctionFromTimeLine, computeSky, isTimeReportLine, resetTimeCalibration, type SkyState } from '../lib/elanthianTime'
 import { weatherFromLine, weatherFromReportLine, isWeatherHeaderLine, regionFromLine, CLEAR, type WeatherState, type WeatherRegion } from '../lib/weather'
 import { computeMoonPositions, correctionFromMoonLine, type MoonCorrections, type MoonPosition } from '../lib/moons'
+import { applyGagSub as applyGagSubRules, type TextRule } from '../lib/rules'
 import type { AvatarCrop } from '../lib/avatar'
 import { injuriesFromImages, injuriesFromTouch, type Injuries } from '../lib/injuries'
 
@@ -693,34 +694,16 @@ export const resetSessionAtom = atom(null, (_get, set) => {
 // INGEST — a gag drops the line, a sub rewrites its text before it's shown. App
 // pushes the current character's gag/sub rules here whenever highlights load;
 // class gating is applied live via disabledClassesAtom in dispatch.
-export interface TextRule {
-  pattern: string; isRegex: boolean; action: 'gag' | 'sub'
-  replace?: string; enabled: boolean; class?: string
-}
+export type { TextRule }
+
+// The matching itself lives in lib/rules.ts, shared with the renderer and with the
+// Test box in the highlights editor, so every pattern goes through the regex guard
+// in one place. This just holds the current character's rules.
 let _gagSubRules: TextRule[] = []
 export function setGagSubRules(rules: TextRule[]): void { _gagSubRules = rules }
 
-const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
-// Returns the (possibly rewritten) text, or null when a gag suppresses the line.
 function applyGagSub(text: string, disabled: ReadonlySet<string>): string | null {
-  if (_gagSubRules.length === 0) return text
-  let out = text
-  for (const r of _gagSubRules) {
-    if (!r.enabled || !r.pattern || (r.class && disabled.has(r.class))) continue
-    if (r.action === 'gag') {
-      let hit = false
-      if (r.isRegex) { try { hit = new RegExp(r.pattern, 'i').test(out) } catch { hit = false } }
-      else hit = out.toLowerCase().includes(r.pattern.toLowerCase())
-      if (hit) return null
-    } else { // sub — replace every occurrence
-      try {
-        const re = new RegExp(r.isRegex ? r.pattern : escapeRe(r.pattern), 'gi')
-        out = out.replace(re, r.replace ?? '')
-      } catch { /* invalid regex — skip */ }
-    }
-  }
-  return out
+  return applyGagSubRules(text, _gagSubRules, disabled)
 }
 
 // ── Movement direction from the game's own confirmation ────────────────────────

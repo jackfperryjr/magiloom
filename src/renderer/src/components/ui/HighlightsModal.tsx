@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import type { Highlight } from '../../lib/themes'
 import { Tooltip } from './Tooltip'
 import { ClassToggleStrip, distinctClasses, toggleClassState } from './ClassToggleStrip'
+import { RuleTester, RegexWarning, NoMatch } from './RuleTester'
+import { previewHighlights } from '../../lib/rules'
 export type { Highlight }
 
 
@@ -171,6 +173,50 @@ function HighlightRow({ hl, onChange, onDelete }: {
           <button className="hl-options-done" onClick={() => setExpanded(false)}>Done ▲</button>
         </div>
       )}
+      <RegexWarning pattern={hl.pattern} isRegex={hl.isRegex} />
+    </div>
+  )
+}
+
+// What the whole rule set does to a test line, in the order the client does it:
+// gags and substitutes at ingest, then colouring. Uses the same functions the live
+// pipeline uses, so this can't drift from real behaviour.
+function HighlightPreview({ highlights, line }: { highlights: Highlight[]; line: string }) {
+  const p = previewHighlights(line, highlights)
+
+  if (p.gagged) {
+    return (
+      <div className="rule-tester-fired">
+        <div className="rule-tester-cmd">
+          <span className="hl-action-badge hl-action-gag">gag</span>
+          <span className="rule-tester-gagged">Line hidden{p.gaggedBy?.pattern ? <> by <code>{p.gaggedBy.pattern}</code></> : null}</span>
+        </div>
+      </div>
+    )
+  }
+
+  const styled = p.hl
+    ? { color: p.hl.color || undefined, background: p.hl.bgcolor || undefined, fontWeight: p.hl.bold ? 'bold' as const : undefined }
+    : undefined
+
+  if (!p.changed && !p.hl) return <NoMatch what="No highlight matches this line." />
+
+  return (
+    <div className="rule-tester-fired">
+      {p.changed && (
+        <div className="rule-tester-cmd">
+          <span className="hl-action-badge hl-action-sub">sub</span>
+          <span className="rule-tester-channels">
+            rewritten by {p.subbedBy.map(h => <code key={h.id}>{h.pattern}</code>)}
+          </span>
+        </div>
+      )}
+      <div className="rule-tester-line" style={styled}>{p.text}</div>
+      {p.hl && (
+        <div className="rule-tester-channels">
+          coloured by <code>{p.hl.pattern}</code>
+        </div>
+      )}
     </div>
   )
 }
@@ -223,6 +269,7 @@ export function HighlightsModal({ onClose, charName = '' }: { onClose: () => voi
             />
           ))}
           <button className="hl-add-btn" onClick={add}>+ Add highlight</button>
+          <RuleTester render={line => <HighlightPreview highlights={highlights} line={line} />} />
         </div>
         <div className="modal-footer">
           <button className="login-btn-secondary" onClick={onClose}>Cancel</button>
