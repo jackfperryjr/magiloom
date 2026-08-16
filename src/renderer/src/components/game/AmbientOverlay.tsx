@@ -15,11 +15,11 @@ import { LOCALE_TINT } from '../../lib/roomLocale'
 // ── Particle field (rain / snow) ────────────────────────────────────────────────
 // Density, fall speed and slant scale with intensity. Kept modest for perf; the
 // list is memoized on kind+level so it's only rebuilt when the weather changes.
-const COUNT = { rain: [0, 55, 85, 120, 160], snow: [0, 18, 34, 55, 90] }
-const DUR   = { rain: [0, 1.1, 0.9, 0.72, 0.55], snow: [0, 10, 8, 6.5, 5] }     // seconds to cross
-const ANGLE = { rain: [0, 5, 9, 15, 22] }                                       // rain: whole-field slant (deg)
+const COUNT = { rain: [0, 55, 85, 120, 160], snow: [0, 18, 34, 55, 90], dust: [0, 40, 70, 110, 150] }
+const DUR   = { rain: [0, 1.1, 0.9, 0.72, 0.55], snow: [0, 10, 8, 6.5, 5], dust: [0, 1.4, 1.1, 0.85, 0.6] }
+const ANGLE = { rain: [0, 5, 9, 15, 22], dust: [0, 38, 48, 58, 68] }             // whole-field slant (deg)
 const DRIFT = { snow: [0, 10, 13, 16, 19] }                                     // snow: max per-flake sideways drift (vh)
-const LEN   = { rain: [0, 14, 18, 23, 29] }                                     // streak length px (at mid depth)
+const LEN   = { rain: [0, 14, 18, 23, 29], dust: [0, 9, 12, 16, 20] }           // streak length px (at mid depth)
 const SNOW_GLYPHS = ['❄', '❅', '❆']                                             // varied flake shapes
 const FADE_MS = 1100                                                            // matches the CSS opacity transition
 
@@ -29,10 +29,13 @@ interface Particle {
   width?: number; alpha?: number                         // rain only — see `depth` below
 }
 
-function buildParticles(kind: 'rain' | 'snow', level: number): Particle[] {
+function buildParticles(kind: 'rain' | 'snow' | 'dust', level: number): Particle[] {
   const n = COUNT[kind][level] ?? 0
   const base = DUR[kind][level] ?? 1
   const snow = kind === 'snow'
+  // Blowing sand reuses the streak path (rain's geometry) with a far harder slant;
+  // only snow takes the glyph path.
+  const streakLen = kind === 'snow' ? 0 : (LEN[kind][level] ?? 12)
   const maxDrift = DRIFT.snow[level] ?? 13
   const out: Particle[] = []
   for (let i = 0; i < n; i++) {
@@ -50,7 +53,7 @@ function buildParticles(kind: 'rain' | 'snow', level: number): Particle[] {
       // Snowflakes are glyphs sized by font-size (bigger, and bigger with intensity);
       // raindrops are streaks whose length grows with intensity and nearness.
       size: snow ? 7 + level * 1.5 + Math.random() * 7
-                 : (LEN.rain[level] ?? 12) * (0.7 + depth * 0.7),
+                 : streakLen * (0.7 + depth * 0.7),
       glyph: snow ? SNOW_GLYPHS[(Math.random() * SNOW_GLYPHS.length) | 0] : undefined,
       spin: snow ? 6 + Math.random() * 10 : undefined,    // seconds per slow wobble
       // Per-flake straight-line drift → each flake falls at its own slight angle,
@@ -85,15 +88,15 @@ const WeatherParticles = memo(function WeatherParticles() {
   }, [w])
 
   const particles = useMemo(
-    () => (render ? buildParticles(render.kind as 'rain' | 'snow', render.level) : []),
+    () => (render ? buildParticles(render.kind as 'rain' | 'snow' | 'dust', render.level) : []),
     [render?.kind, render?.level],
   )
   if (!render) return null
 
-  const kind = render.kind as 'rain' | 'snow'
+  const kind = render.kind as 'rain' | 'snow' | 'dust'
   // Rain slants as a whole field (so the streaks tilt with the motion). Snow stays
   // upright and gets per-flake drift instead, so it falls mostly straight down.
-  const rainAngle = kind === 'rain' ? (ANGLE.rain[render.level] ?? 0) : 0
+  const rainAngle = kind === 'snow' ? 0 : (ANGLE[kind][render.level] ?? 0)
   return (
     <div
       className={`ambient-weather ambient-${kind}${hidden ? ' is-hidden' : ''}`}
@@ -147,8 +150,7 @@ function skyColor(sky: SkyState, w: WeatherState): string {
 function SkyTint() {
   const sky = useAtomValue(skyAtom)
   const w   = useAtomValue(weatherAtom)
-  if (!sky && w.kind === 'clear') return null
-  const bg = sky ? skyColor(sky, w) : `rgba(150,155,165,${0.06 + w.level * 0.025})`
+  const bg = skyColor(sky, w)
   // The colour feeds a gradient (in .ambient-sky) via this custom property, which also
   // lets it ease smoothly between dayparts (see the @property registration there).
   return <div className="ambient-sky" style={{ ['--ambient-sky-color' as string]: bg }} aria-hidden />
@@ -161,10 +163,8 @@ const SEASON_LABEL: Record<SkyState['season'], string> = { winter: 'Winter', spr
 function AmbientLabel() {
   const sky = useAtomValue(skyAtom)
   const w   = useAtomValue(weatherAtom)
-  const parts: string[] = []
-  if (sky) parts.push(SEASON_LABEL[sky.season], PHASE_LABEL[sky.phase])
+  const parts: string[] = [SEASON_LABEL[sky.season], PHASE_LABEL[sky.phase]]
   if (w.kind !== 'clear') parts.push(weatherLabel(w))
-  if (parts.length === 0) return null
   return <div className="ambient-label" aria-hidden>{parts.join(' · ')}</div>
 }
 

@@ -1,13 +1,14 @@
 import { useAtomValue } from 'jotai'
-import { skyAtom, moonsAtom } from '../../store/game'
-import type { SkyPhase, Season } from '../../lib/elanthianTime'
-import { MOON_BY_NAME } from '../../lib/moons'
+import { skyAtom, moonsAtom, weatherAtom } from '../../store/game'
+import { formatDate, type SkyPhase, type Season } from '../../lib/elanthianTime'
+import { MOON_BY_NAME, litPath } from '../../lib/moons'
+import { weatherLabel, trendLabel } from '../../lib/weather'
 
-// Sky panel: the sun tracking its arc across the day, plus the Elanthian time of
-// day. Everything here is deterministic from the clock (skyAtom, which recomputes
-// each tick), so it stays live and correct without any polling. Moons ride the same
-// arc off their rise/set model (moonsAtom, ported from Lich moonwatch) — seeded from
-// the community feed on connect, re-anchored live by passive rise/set lines.
+// Calendar panel: the Elanthian date and time of day, the sun on its arc, and the
+// three moons with their real phases and rise/set countdowns. Everything is
+// closed-form off the wall clock (skyAtom / moonsAtom, which recompute each tick), so
+// it is live and correct from the moment the panel mounts — nothing is polled and
+// nothing waits on the game.
 
 // "in 1h 23m" / "in 47m" from a millisecond countdown, for the moon timers.
 function inWhen(ms: number): string {
@@ -75,13 +76,10 @@ const CRATERS: [number, number, number][] = [
 const DOME = 'M 10,98 A 90,90 0 0 1 190,98 Z'
 const ARC  = 'M 10,98 A 90,90 0 0 1 190,98'   // the sun's path (east horizon → zenith → west)
 
-export function SkyPanel() {
+export function CalendarPanel() {
   const sky = useAtomValue(skyAtom)
   const moons = useAtomValue(moonsAtom)
-
-  if (!sky) {
-    return <div className="sky-panel"><div className="sky-panel-hint">Type <b>TIME</b> to sync the sky.</div></div>
-  }
+  const weather = useAtomValue(weatherAtom)
 
   const [top, horizon] = skyStops(sky.daylight, sky.dayProgress < 0.5)
   // The corner labels sit over the gradient, so their colour flips with the sky:
@@ -100,6 +98,8 @@ export function SkyPanel() {
   const sunUp = sky.isDay && t >= 0 && t <= 1
   const sunX = 100 - 90 * Math.cos(Math.PI * t)
   const sunY = 98 - 90 * Math.sin(Math.PI * t)
+
+  const trend = trendLabel(weather)
 
   return (
     <div className="sky-panel">
@@ -157,17 +157,22 @@ export function SkyPanel() {
 
         {/* moons on the same arc — each placed by how far through its "up" span it is
             (arc 0 = rising east → 1 = setting west). Dimmed in full daylight. Drawn as
-            a shaded sphere: tinted body → craters → terminator shadow → lit highlight. */}
+            a shaded sphere whose LIT fraction is the moon's real phase: a dark body,
+            the illuminated limb painted over it, then craters and spherical shading. */}
         {moons.filter(m => m.visible).map(m => {
           const meta = MOON_BY_NAME[m.name]
           const mx = 100 - 90 * Math.cos(Math.PI * m.arc)
           const my = 98 - 90 * Math.sin(Math.PI * m.arc)
           return (
             <g key={m.name} opacity={0.6 + 0.4 * starOpacity}
-               data-tooltip={`${m.name} — ${arcWord(m.arc)}; sets in ${inWhen(m.msToEvent)}`}
+               data-tooltip={`${m.name} — ${m.phase.label}, ${arcWord(m.arc)}; sets in ${inWhen(m.msToEvent)}`}
                style={{ cursor: 'help', filter: `saturate(${moonSat})` }}>
-              <circle cx={mx} cy={my} r={MOON_R * 1.9} fill={meta.glow} opacity=".4" className="moon-glow" />
-              <circle cx={mx} cy={my} r={MOON_R} fill={meta.color} />
+              <circle cx={mx} cy={my} r={MOON_R * 1.9} fill={meta.glow} opacity={0.15 + 0.35 * m.phase.illum} className="moon-glow" />
+              {/* unlit body, then the lit crescent/gibbous over it */}
+              <circle cx={mx} cy={my} r={MOON_R} fill={meta.color} opacity=".28" />
+              {m.phase.illum > 0.02 && (
+                <path d={litPath(mx, my, MOON_R, m.phase.illum, m.phase.waxing)} fill={meta.color} />
+              )}
               {CRATERS.map(([dx, dy, cr], i) => (
                 <circle key={i} cx={mx + dx} cy={my + dy} r={cr} fill="#000" opacity=".12" />
               ))}
@@ -179,25 +184,37 @@ export function SkyPanel() {
         })}
       </svg>
 
-      {/* Moon rise/set timers. Shown once at least one anchor is known. */}
-      {moons.length > 0 && (
-        <div className="sky-moons">
-          {moons.map(m => {
-            const meta = MOON_BY_NAME[m.name]
-            return (
-              <span key={m.name} className="sky-moon-chip" data-tooltip={meta.blurb}>
-                <span className="sky-moon-dot" style={{ background: meta.color, boxShadow: `0 0 5px ${meta.glow}` }} />
-                {m.name}
-                <span className="sky-moon-when">{m.visible ? 'sets' : 'rises'} in {inWhen(m.msToEvent)}</span>
-              </span>
-            )
-          })}
-        </div>
-      )}
+      {/* The date, and the weather with its trend when there is one to report. */}
+      <div className="sky-date">
+        <span className="sky-date-main">{formatDate(sky)}</span>
+        <span className="sky-date-sub">Year of the {sky.yearName}</span>
+      </div>
+      <div className="sky-weather">
+        {weatherLabel(weather)}
+        {trend && <span className={`sky-trend sky-trend-${weather.trend}`}>{trend}</span>}
+      </div>
+
+      {/* Moon phase + rise/set timers — always all three, since positions are computed
+          rather than waiting on a witnessed event. */}
+      <div className="sky-moons">
+        {moons.map(m => {
+          const meta = MOON_BY_NAME[m.name]
+          return (
+            <span key={m.name} className="sky-moon-chip" data-tooltip={`${meta.blurb} Currently ${m.phase.label}.`}>
+              <span className="sky-moon-dot" style={{ background: meta.color, boxShadow: `0 0 5px ${meta.glow}`, opacity: 0.35 + 0.65 * m.phase.illum }} />
+              {m.name}
+              <span className="sky-moon-when">{m.visible ? 'sets' : 'rises'} in {inWhen(m.msToEvent)}</span>
+            </span>
+          )
+        })}
+      </div>
 
       {/* Time-of-day labels tucked into the dome's empty top corners. Their colour
           flips with the sky (see labelStyle) so they stay readable day and night. */}
-      <div className="sky-corner sky-corner-l" style={labelStyle}>{DAYPART[sky.phase]}</div>
+      <div className="sky-corner sky-corner-l" style={labelStyle}>
+        {DAYPART[sky.phase]}
+        <div className="sky-segment">{sky.segment}</div>
+      </div>
       <div className="sky-corner sky-corner-r" style={labelStyle}>
         <div>{SEASON[sky.season]}</div>
         <div className="sky-anlas">{sky.anlasName}</div>

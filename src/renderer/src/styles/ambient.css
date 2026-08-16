@@ -93,6 +93,13 @@
   --ambient-snow-color: rgba(255, 255, 255, .92);
   --ambient-snow-glow:  rgba(200, 225, 255, .5);
 }
+/* Muspar'i blowing sand — the rain streak geometry in a warm grit colour, run at a
+   hard slant so it reads as wind-driven rather than falling. */
+.ambient-dust {
+  opacity: .6;
+  --ambient-dust-color: rgba(214, 180, 126, .9);
+}
+:root[data-theme="parchment"] .ambient-dust { --ambient-dust-color: rgba(122, 92, 46, .58); }
 :root[data-theme="parchment"] .ambient-rain { --ambient-rain-color: rgba(58, 78, 132, .62); }
 :root[data-theme="parchment"] .ambient-snow {
   --ambient-snow-color: rgba(255, 255, 255, .95);
@@ -119,6 +126,15 @@
     transparent,
     color-mix(in srgb, var(--ambient-rain-color) 40%, transparent) 40%,
     var(--ambient-rain-color) 78%);
+  animation: ambient-fall var(--fall, 1s) linear var(--delay, 0s) infinite;
+}
+.ambient-dust .ambient-particle {
+  width: 1.4px;
+  border-radius: 1px;
+  background: linear-gradient(to bottom,
+    transparent,
+    color-mix(in srgb, var(--ambient-dust-color) 45%, transparent) 45%,
+    var(--ambient-dust-color) 82%);
   animation: ambient-fall var(--fall, 1s) linear var(--delay, 0s) infinite;
 }
 .ambient-snow .ambient-particle {

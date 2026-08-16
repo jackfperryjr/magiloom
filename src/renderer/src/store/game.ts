@@ -4,9 +4,9 @@ import { classifyRoom } from '../lib/roomLocale'
 import type { GameEvent, LinkSpan, TextStyle, VitalField, StreamId } from '../lib/sge-parser'
 import { parseExpSkills } from '../lib/exp-parser'
 import { isAtmospheric } from '../lib/atmospherics'
-import { feedTimeLine, computeSky, isTimeReportLine, type SkyCalibration, type SkyState } from '../lib/elanthianTime'
-import { weatherFromLine, weatherFromReportLine, isWeatherHeaderLine, CLEAR, type WeatherState } from '../lib/weather'
-import { MOONS, computeMoonPosition, moonEventFromLine, type MoonName, type MoonAnchor, type MoonPosition } from '../lib/moons'
+import { correctionFromTimeLine, computeSky, isTimeReportLine, resetTimeCalibration, type SkyState } from '../lib/elanthianTime'
+import { weatherFromLine, weatherFromReportLine, isWeatherHeaderLine, regionFromLine, CLEAR, type WeatherState, type WeatherRegion } from '../lib/weather'
+import { computeMoonPositions, correctionFromMoonLine, type MoonCorrections, type MoonPosition } from '../lib/moons'
 import type { AvatarCrop } from '../lib/avatar'
 import { injuriesFromImages, injuriesFromTouch, type Injuries } from '../lib/injuries'
 
@@ -478,32 +478,28 @@ function bumpHeat(get: Getter, set: Setter, amount: number): void {
 
 // ── Ambient: weather + Elanthian sky (day/night) ────────────────────────────────
 // weatherAtom is driven by ambient weather messages + the `weather` command
-// (lib/weather.ts). skyCalibrationAtom holds the deterministic-clock anchor seeded
-// from one `TIME` report (lib/elanthianTime.ts); skyAtom recomputes the live
-// day/night state off tickAtom each second — no polling. Both feed AmbientOverlay.
+// (lib/weather.ts). skyAtom is closed-form off the wall clock (lib/elanthianTime.ts)
+// and recomputes each tick — no polling, and correct from the first frame, so it is
+// never null. skyCorrectionAtom carries the offset a TIME report taught us, if any.
+// Both feed AmbientOverlay and the Calendar panel.
 export const weatherAtom = atom<WeatherState>(CLEAR)
-export const skyCalibrationAtom = atom<SkyCalibration | null>(null)
-export const skyAtom = atom<SkyState | null>(get => {
+// Which weather message set the current room uses — latched off desert-only prose so
+// a Muspar'i reading isn't graded against the temperate table.
+export const weatherRegionAtom = atom<WeatherRegion>('standard')
+export const skyCorrectionAtom = atom<number>(0)
+export const skyAtom = atom<SkyState>(get => {
   get(tickAtom)  // re-evaluate every second so day/night advances live
-  const cal = get(skyCalibrationAtom)
-  return cal ? computeSky(Date.now(), cal) : null
+  return computeSky(Date.now(), get(skyCorrectionAtom))
 })
 
-// Moon rise/set tracking (ported from Lich `moonwatch`). moonAnchorsAtom holds the
-// last known rise/set event per moon — seeded once from the community feed on connect
-// (App.tsx) and re-anchored live by the passive rise/set lines caught in dispatch.
-// moonsAtom derives each moon's live position/visibility off tickAtom, deterministic
-// with no polling. See lib/moons.ts.
-export const moonAnchorsAtom = atom<Partial<Record<MoonName, MoonAnchor>>>({})
+// Moon positions are closed-form from each moon's orbit (lib/moons.ts): no anchor,
+// no network, correct on connect. moonCorrectionsAtom holds the per-moon offset that
+// a witnessed rise/set taught us, which is normally empty because the model already
+// agrees. moonsAtom recomputes off tickAtom so arcs and countdowns advance live.
+export const moonCorrectionsAtom = atom<MoonCorrections>({})
 export const moonsAtom = atom<MoonPosition[]>(get => {
   get(tickAtom)  // recompute each second so arc + countdowns advance live
-  const anchors = get(moonAnchorsAtom)
-  const now = Date.now()
-  return MOONS.map(m => m.name).filter(n => anchors[n]).map(n => computeMoonPosition(n, anchors[n]!, now))
-})
-// Merge new anchors (the feed seed, or a single passive event) into the map.
-export const setMoonAnchorsAtom = atom(null, (get, set, patch: Partial<Record<MoonName, MoonAnchor>>) => {
-  set(moonAnchorsAtom, { ...get(moonAnchorsAtom), ...patch })
+  return computeMoonPositions(Date.now(), get(moonCorrectionsAtom))
 })
 
 // True while the connect-time seed is fetching TIME/weather silently, so their
@@ -650,8 +646,12 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(castTimeAtom, 0)
   set(combatHeatRawAtom, { level: 0, at: 0 })
   set(weatherAtom, CLEAR)
-  set(skyCalibrationAtom, null)
-  set(moonAnchorsAtom, {})
+  set(weatherRegionAtom, 'standard')
+  // The clock and moon corrections are learned per world, not per character, and the
+  // model is right without them — but a fresh session re-derives them from scratch.
+  set(skyCorrectionAtom, 0)
+  set(moonCorrectionsAtom, {})
+  resetTimeCalibration()
   set(profilesAtom, {})
   set(selfNameAtom, '')
   // Note: serverAvatarsAtom is NOT reset — it's a name-keyed cache of shared
@@ -804,18 +804,27 @@ export const dispatchGameEventAtom = atom(
         // report lines are suppressed from the main output.
         if (event.stream === 'main') {
           const text = event.text
-          const w = weatherFromLine(text)
+          // Desert prose switches the whole reading to the Muspar'i message set; the
+          // region latches so it survives into lines that don't say either way.
+          const region = regionFromLine(text)
+          if (region) set(weatherRegionAtom, region)
+          const season = get(skyAtom).season
+          const readRegion = get(weatherRegionAtom)
+
+          const w = weatherFromLine(text, season, readRegion)
           if (w) set(weatherAtom, w)
           // Indoors, `weather` replies "That's a bit hard to do while inside." — there's
           // no sky to read, so fade the weather overlay out (set clear).
           const inside = /hard to do while inside|can't (?:do that|see the sky) (?:while |from )?inside/i.test(text)
           if (inside) set(weatherAtom, CLEAR)
-          const cal = feedTimeLine(text)
-          if (cal) set(skyCalibrationAtom, cal)
-          // Passive moon rise/set broadcast → re-anchor that moon's timeline. The line
-          // stays visible in main (like weather); it only updates the Sky panel.
-          const me = moonEventFromLine(text)
-          if (me) set(moonAnchorsAtom, { ...get(moonAnchorsAtom), [me.name]: me.anchor })
+          // A TIME report verifies the closed-form clock; it only returns a value when
+          // the report and the model actually disagree.
+          const corrected = correctionFromTimeLine(text, Date.now(), get(skyCorrectionAtom))
+          if (corrected !== null) set(skyCorrectionAtom, corrected)
+          // Same for a passive moon rise/set broadcast: normally the model already
+          // agrees and this is a no-op. The line stays visible in main (like weather).
+          const mc = correctionFromMoonLine(text, Date.now(), get(moonCorrectionsAtom))
+          if (mc) set(moonCorrectionsAtom, { ...get(moonCorrectionsAtom), [mc.name]: mc.correction })
 
           // The `weather` command prints "You glance up at the sky." then a state line
           // whose wording varies a lot ("The sky is a sharp, clear blue.", "A light rain
@@ -825,7 +834,7 @@ export const dispatchGameEventAtom = atom(
           // it so it's suppressed during a silent poll whatever it says.
           let reportLine = false
           if (_weatherReportWait > 0 && text.trim()) {
-            const r = weatherFromReportLine(text)
+            const r = weatherFromReportLine(text, season, readRegion)
             if (r) {
               _weatherReportWait = 0
               reportLine = true
@@ -838,7 +847,7 @@ export const dispatchGameEventAtom = atom(
             // The state sentence sometimes rides on the header line itself; if it does,
             // it's already been graded (weatherFromLine strips the header), so don't open
             // a window that a later line could answer.
-            const sameLine = weatherFromReportLine(text)
+            const sameLine = weatherFromReportLine(text, season, readRegion)
             if (sameLine) {
               reportLine = true
               if (!w && !inside) set(weatherAtom, sameLine)
