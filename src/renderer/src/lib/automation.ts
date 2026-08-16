@@ -2,6 +2,8 @@
 // chokepoint (aliases) and the incoming-stream tap (triggers) in
 // useGameConnection. No React, no IPC here.
 
+import { safeRegex } from './regexSafety'
+
 export interface Alias {
   id:      string
   pattern: string   // first word typed (case-insensitive), e.g. "kk"
@@ -86,9 +88,12 @@ export function matchTriggers(
   for (const t of triggers) {
     if (!t.enabled || !classActive(t.class, disabled) || !t.pattern.trim() || !t.command.trim()) continue
     if (t.isRegex) {
-      let re: RegExp | null = null
-      try { re = new RegExp(t.pattern, 'i') } catch { re = null }
+      // safeRegex benches a pattern that backtracks catastrophically, so one bad
+      // trigger can't stall the incoming-line tap. A benched pattern yields null
+      // here and is simply skipped, exactly like a malformed one.
+      const { re } = safeRegex(t.pattern)
       if (!re) continue
+      re.lastIndex = 0
       const m = re.exec(line)
       if (m) out.push(subMatch(t.command, m))
     } else if (line.toLowerCase().includes(t.pattern.toLowerCase())) {

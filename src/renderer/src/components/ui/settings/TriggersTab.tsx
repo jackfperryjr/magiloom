@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react'
-import type { Trigger } from '../../../lib/automation'
+import { matchTriggers, type Trigger } from '../../../lib/automation'
 import { ClassToggleStrip, distinctClasses } from '../ClassToggleStrip'
+import { RuleTester, RegexWarning, NoMatch } from '../RuleTester'
 import { uid } from './util'
 
 // Settings → Triggers: run a command when a line of game text matches.
@@ -67,6 +68,7 @@ export function TriggersTab({
             />
             <button className="hl-btn-icon hl-btn-delete" title="Delete"
               onClick={() => setTriggers(list => list.filter(x => x.id !== t.id))}>×</button>
+            <RegexWarning pattern={t.pattern} isRegex={t.isRegex} />
           </div>
         ))}
         <button className="hl-add-btn"
@@ -74,6 +76,22 @@ export function TriggersTab({
           + Add trigger
         </button>
       </div>
+
+      {/* Runs the real trigger matcher, so this is exactly what would fire. */}
+      <RuleTester render={line => {
+        const fired = matchTriggers(line, triggers)
+        if (fired.length === 0) return <NoMatch what="No trigger fires on this line." />
+        return (
+          <div className="rule-tester-fired">
+            {fired.map((cmd, i) => (
+              <div key={i} className="rule-tester-cmd">
+                <span className="rule-arrow">→</span>
+                <code>{cmd}</code>
+              </div>
+            ))}
+          </div>
+        )
+      }} />
       <div className="settings-hint">
         When a line of game text matches, the command fires automatically. Enable
         <code> .*</code> for a regular expression; then <code>%0</code> is the whole match and

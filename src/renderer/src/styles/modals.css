@@ -135,7 +135,8 @@
 
 /* Alias / trigger rule rows */
 .rule-list { display: flex; flex-direction: column; gap: 6px; }
-.rule-row { display: flex; align-items: center; gap: 6px; }
+/* Wraps so a row's regex warning can break onto its own full-width line. */
+.rule-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .rule-row-off { opacity: 0.5; }
 .rule-row .settings-input { flex: 1; min-width: 0; }
 .rule-row .rule-key { flex: 0 0 96px; }
@@ -152,6 +153,52 @@
 .rule-header .settings-section-label { border-bottom: none; padding-bottom: 0; }
 .rule-import-btn { flex: 0 0 auto; width: auto; padding: 4px 12px; font-size: 12px; }
 .rule-import-msg { color: var(--accent); }
+
+/* ── Regex guard warning ───────────────────────────────────────────────────── */
+/* Sits under its rule row, spanning the full width (the row is a flex line, so it
+   needs an explicit basis to break onto its own line). */
+.rule-warn {
+  flex: 0 0 100%;
+  display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+  margin: 2px 0 4px; padding: 5px 8px;
+  border-radius: 4px; border: 1px solid var(--warn, #d08a3a);
+  background: color-mix(in srgb, var(--warn, #d08a3a) 12%, transparent);
+  font-family: var(--font-ui); font-size: 11px; line-height: 1.4;
+}
+.rule-warn-tag {
+  flex: 0 0 auto; font-weight: 600; color: var(--warn, #d08a3a);
+  text-transform: uppercase; letter-spacing: .04em; font-size: 10px;
+}
+.rule-warn-msg { color: var(--text-dim); min-width: 0; }
+.rule-warn-invalid { border-color: var(--bad, #d0605a); background: color-mix(in srgb, var(--bad, #d0605a) 12%, transparent); }
+.rule-warn-invalid .rule-warn-tag { color: var(--bad, #d0605a); }
+
+/* ── "Test" box, shared by every rule editor ───────────────────────────────── */
+.rule-tester {
+  margin-top: 10px; padding: 8px;
+  border: 1px dashed var(--border-soft); border-radius: 5px;
+  background: color-mix(in srgb, var(--text-main) 3%, transparent);
+}
+.rule-tester-input { width: 100%; }
+.rule-tester-out {
+  margin-top: 7px; min-height: 20px;
+  font-family: var(--font-ui); font-size: 12px;
+}
+.rule-tester-idle, .rule-tester-none { color: var(--text-muted); font-style: italic; }
+.rule-tester-fired { display: flex; flex-direction: column; gap: 5px; }
+.rule-tester-cmd { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.rule-tester-cmd code {
+  font-family: var(--font-game); font-size: 13px; color: var(--text-main);
+  background: color-mix(in srgb, var(--text-main) 8%, transparent);
+  padding: 1px 5px; border-radius: 3px;
+}
+.rule-tester-channels { color: var(--text-muted); font-size: 11px; }
+.rule-tester-gagged { color: var(--text-muted); text-decoration: line-through; }
+/* The test line rendered as the game window would paint it. */
+.rule-tester-line {
+  font-family: var(--font-game); font-size: 15px; line-height: 1.35;
+  padding: 3px 5px; border-radius: 3px; word-break: break-word;
+}
 
 /* Custom notification alerts */
 .alert-quickadd { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }

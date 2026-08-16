@@ -4,6 +4,7 @@ import { convLinesAtom, outputLinesAtom, presenceModeAtom } from '../../store/ga
 import type { ConnectionStatus, OutputLine } from '../../store/game'
 import { messagingAvailable, openThreadAtom } from '../../store/messaging'
 import { speak } from '../../lib/tts'
+import { alertMatcher } from '../../lib/rules'
 
 export type NotifKind = 'mention' | 'whisper' | 'disconnect' | 'message'
 
@@ -87,17 +88,9 @@ const KIND_FREQ: Record<NotifKind, number> = { disconnect: 300, whisper: 680, me
 
 interface Toast { id: number; kind: string; title: string; text: string }
 
-// Compile a rule's pattern into a matcher. Substring is case-insensitive; a
-// malformed regex is skipped (never matches) rather than throwing.
-function ruleMatcher(rule: NotifRule): ((s: string) => boolean) | null {
-  const p = rule.pattern.trim()
-  if (!p) return null
-  if (rule.isRegex) {
-    try { const re = new RegExp(p, 'i'); return s => re.test(s) } catch { return null }
-  }
-  const needle = p.toLowerCase()
-  return s => s.toLowerCase().includes(needle)
-}
+// Compiling lives in lib/rules.ts, shared with the Test box in the alerts editor.
+// A blank, malformed, or benched pattern yields null and simply never matches.
+const ruleMatcher = alertMatcher
 
 const RULE_COOLDOWN_MS = 2000
 

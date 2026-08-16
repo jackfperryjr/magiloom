@@ -1,5 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { NotifSettings, NotifRule, PushSettings } from '../Notifications'
+import { alertMatches } from '../../../lib/rules'
+import { RuleTester, RegexWarning, NoMatch } from '../RuleTester'
 
 // Settings → Notifications: alerts, TTS, push, and user-defined custom alert rules.
 export function NotificationsTab({
@@ -177,9 +179,37 @@ export function NotificationsTab({
               </label>
               <button className="hl-btn-icon hl-btn-delete" data-tooltip="Delete"
                 onClick={() => setNotifRules(list => list.filter(x => x.id !== r.id))}>×</button>
+              <RegexWarning pattern={r.pattern} isRegex={r.isRegex} />
             </div>
           ))}
         </div>
+
+        {/* Runs the real alert matcher — these are the channels that would fire. */}
+        <RuleTester render={line => {
+          const hits = notifRules.filter(r => r.enabled && alertMatches(r, line))
+          if (hits.length === 0) return <NoMatch what="No alert fires on this line." />
+          return (
+            <div className="rule-tester-fired">
+              {hits.map(r => {
+                const channels = [
+                  r.toast   && 'Toast',
+                  r.desktop && 'Popup',
+                  r.sound   && 'Sound',
+                  r.tts     && 'Speak',
+                ].filter(Boolean) as string[]
+                return (
+                  <div key={r.id} className="rule-tester-cmd">
+                    <span className="rule-arrow">→</span>
+                    <code>{r.label || r.pattern}</code>
+                    <span className="rule-tester-channels">
+                      {channels.length ? channels.join(' · ') : 'no channels checked'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        }} />
         <div className="settings-hint">
           Popups only show when the window isn't focused; Do Not Disturb silences
           sound, popups, and speech. Alerts are shared across all characters.
