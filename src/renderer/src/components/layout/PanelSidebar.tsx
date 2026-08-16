@@ -17,7 +17,7 @@ export interface PanelConfig {
 const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'room',         label: 'Room',          visible: true  },
   { id: 'map',          label: 'Map',           visible: true  },
-  { id: 'sky',          label: 'Sky',           visible: false },
+  { id: 'sky',          label: 'Calendar',      visible: false },
   { id: 'body',         label: 'Body',          visible: false },
   { id: 'experience',   label: 'Experience',    visible: true  },
   { id: 'spells',       label: 'Active Spells', visible: false  },
