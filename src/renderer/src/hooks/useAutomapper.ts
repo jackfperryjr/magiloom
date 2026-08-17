@@ -56,6 +56,9 @@ export function useAutomapper() {
 
   const currentIdRef  = useRef<string | null>(null)
   const lastSigRef    = useRef<string>('')
+  // Last reason we bailed out of folding a room, so the log reports a state CHANGE
+  // rather than repeating itself on every prompt.
+  const lastSkipRef   = useRef<string>('')
   const pendingMoveRef = useRef<{ dir: string; move: string; ts: number } | null>(null)
   // Last command that wasn't recognised as movement but might still have been one.
   // Used only to give an otherwise-unwalkable link a command to replay.
@@ -228,6 +231,7 @@ export function useAutomapper() {
     if (status !== 'connected') { stopWalk(); return }
     currentIdRef.current = null
     lastSigRef.current   = ''
+    lastSkipRef.current  = ''
     pendingMoveRef.current = null; rawMoveRef.current = null; clearGameMove()
     setCurrentNode(null)
     stopWalk()
@@ -236,13 +240,33 @@ export function useAutomapper() {
   // ── Fold each room transition into the map (fires on every prompt) ───────────
   useEffect(() => {
     const r = roomRef.current
-    if (!r.name && !r.description) return               // pre-game / no room yet
+    // Both ways out of this effect used to be silent, which is the reason a map that
+    // had lost the character was so hard to tell apart from one that was working:
+    // every later step logs its decision, but the two that stop us getting there said
+    // nothing at all. Report the reason once when it changes — a prompt arrives every
+    // few seconds, so logging each one would bury the transition that matters.
+    const say = (reason: string) => {
+      if (!MAP_DEBUG || reason === lastSkipRef.current) return
+      lastSkipRef.current = reason
+      console.log(`[automap] ${reason}`)
+    }
+
+    if (!r.name && !r.description) {
+      // The room feed is not reaching us: no roomName and no roomDesc event has
+      // landed. Nothing downstream can run, so position never starts.
+      say(`waiting for room data (uid="${r.uid}", exits=${r.exits.length}) — no roomName/roomDesc yet`)
+      return
+    }
     // The uid leads the change key so that stepping between two rooms with
     // identical content (adjacent wilderness rooms are routinely byte-identical)
     // still registers as a transition instead of being swallowed as "same room".
     const sig = `${r.uid}|${roomSignature(r.name, r.description, r.exits)}`
-    if (sig === lastSigRef.current) return              // same room — nothing to do
+    if (sig === lastSigRef.current) {
+      say(`unchanged room signature "${stripRoomTag(r.name)}" — no transition to fold`)
+      return
+    }
     lastSigRef.current = sig
+    lastSkipRef.current = ''
 
     const prevId   = currentIdRef.current
     const prevNode = prevId ? findNode(dbRef.current, prevId) : null
