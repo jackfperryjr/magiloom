@@ -172,11 +172,16 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
             <input type="checkbox" checked={autoRecord} onChange={e => setAutoRecord(e.target.checked)} />
             Auto-record
           </label>
-          <button className="map-tb-btn map-text-btn" onClick={() => zoneId && setConfirmState({ kind: 'zone', label: `Clear the rooms you recorded in "${db.zones[zoneId]?.name ?? 'this zone'}"? Rooms from the shipped map are kept.` })} disabled={!zoneId}>Clear zone</button>
-          {/* "Clear all" wipes the WHOLE map. On the web client that map is the shared
-              server DB, and the server refuses a remote wipe (operator-only) — so the
-              button would do nothing there. Desktop's map is the user's own local DB,
-              where clearing is legitimate, so it's shown only there. */}
+          {/* Both clears are desktop-only, for the same reason: on the web client the
+              map is the shared server DB. A zone file there is the accumulated work of
+              everyone who has walked that area — nothing records who contributed what,
+              so there is no "your own" zone to clear, and deleting one erased geography
+              for every other player. The server now refuses both remotely, so these
+              would only ever raise an error. Desktop's map is the user's own local DB,
+              where clearing is legitimate. */}
+          {!isWeb && (
+            <button className="map-tb-btn map-text-btn" onClick={() => zoneId && setConfirmState({ kind: 'zone', label: `Clear the rooms you recorded in "${db.zones[zoneId]?.name ?? 'this zone'}"? Rooms from the shipped map are kept.` })} disabled={!zoneId}>Clear zone</button>
+          )}
           {!isWeb && (
             <button className="map-tb-btn map-text-btn" onClick={() => setConfirmState({ kind: 'all', label: 'Delete the ENTIRE recorded world map? This cannot be undone.' })} disabled={areas.length === 0}>Clear all</button>
           )}
