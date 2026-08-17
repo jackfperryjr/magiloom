@@ -1,12 +1,14 @@
-import { useAtomValue } from 'jotai'
-import { useEffect, useRef, useState, Fragment } from 'react'
+import { useAtomValue, useSetAtom } from 'jotai'
+import { useEffect, useMemo, useRef, useState, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  roomAtom, activeSpellAtom, activeSpellsAtom, inventoryLinesAtom,
+  roomAtom, activeSpellAtom, activeSpellsAtom, inventoryLinesAtom, handsAtom,
   expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom,
   avatarsAtom, selfNameAtom, serverAvatarsAtom, tickAtom, logonLinesAtom,
   type OutputLine,
 } from '../../store/game'
+import { invSnapshotAtom, invStatusAtom, refreshInventoryAtom } from '../../store/inventory'
+import { PLAYER, pathTo, weightOf, isContainer, childrenOf, type InvItem } from '../../lib/inventory'
 import { resolveAvatarSrc } from '../../lib/avatar'
 import { groupExpSkills } from '../../lib/expGroups'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
@@ -354,11 +356,84 @@ export function ConversationPanel() {
 }
 
 // ── Inventory Panel ────────────────────────────────────────────────────────────
-export function InventoryPanel() {
-  const lines = useAtomValue(inventoryLinesAtom)
-  return lines.length === 0
-    ? <div className="panel-empty">Type INV to see inventory</div>
-    : <div>{lines.map((line, i) => <div key={i} className="inv-line">{line}</div>)}</div>
+// A carry summary rather than a text dump: what's in each hand, what you're hauling,
+// and one line per thing you're wearing or holding. It reads the structured snapshot
+// (`_inventory manager`), so unlike the old INV capture it can't be silently wrong —
+// the full tree, and anything actionable, lives in the item manager.
+//
+// The inv text stream is still shown as a fallback when no snapshot has been taken,
+// so a character who typed INV isn't left staring at nothing.
+const INV_HEADER_RE = /^\s*(?:your worn items are|you are wearing)\s*:?\s*$/i
+
+export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
+  const lines    = useAtomValue(inventoryLinesAtom).filter(l => !INV_HEADER_RE.test(l))
+  const snapshot = useAtomValue(invSnapshotAtom)
+  const status   = useAtomValue(invStatusAtom)
+  const hands    = useAtomValue(handsAtom)
+  const refresh  = useSetAtom(refreshInventoryAtom)
+
+  // Everything hanging off the character — what you'd actually be carrying. Items on
+  // the ground are in the snapshot too, and are not your problem.
+  const carried = useMemo(() => {
+    if (!snapshot) return { total: 0, top: [] as InvItem[] }
+    let total = 0
+    const top: InvItem[] = []
+    for (const item of snapshot.items.values()) {
+      const root = item.parent === PLAYER ? PLAYER : pathTo(snapshot, item)[0]?.parent ?? item.parent
+      if (root !== PLAYER) continue
+      total += Math.max(0, weightOf(item) ?? 0)
+      if (item.parent === PLAYER) top.push(item)
+    }
+    return { total, top }
+  }, [snapshot])
+
+  return (
+    <div className="inv-sum">
+      <div className="inv-sum-tools">
+        {onManage && (
+          <button className="inv-mgr-btn" onClick={onManage}>Manage items…</button>
+        )}
+        <button
+          className="inv-mgr-btn"
+          disabled={status === 'loading'}
+          onClick={() => refresh(true)}
+        >{status === 'loading' ? 'Reading…' : 'Refresh'}</button>
+      </div>
+
+      <div className="inv-sum-hands">
+        <div><span className="inv-sum-label">Right</span><span>{hands.right || 'empty'}</span></div>
+        <div><span className="inv-sum-label">Left</span><span>{hands.left || 'empty'}</span></div>
+      </div>
+
+      {snapshot ? (
+        <>
+          <div className="inv-sum-carry">
+            <span className="inv-sum-label">Carrying</span>
+            <span data-tooltip="Total weight of everything on you, in the game's raw units — the scale isn't confirmed yet.">
+              {carried.total}
+            </span>
+          </div>
+          {carried.top.length === 0
+            ? <div className="panel-empty">Nothing worn or held.</div>
+            : carried.top.map(item => {
+                const count = isContainer(item) ? childrenOf(snapshot, item.id).length : null
+                return (
+                  <div key={item.id} className="inv-sum-row" onClick={onManage}>
+                    <span className="inv-sum-name">{item.name}</span>
+                    {count !== null && <span className="inv-sum-count">{count}</span>}
+                  </div>
+                )
+              })}
+        </>
+      ) : lines.length > 0 ? (
+        lines.map((line, i) => <div key={i} className="inv-line">{line}</div>)
+      ) : (
+        <div className="panel-empty">
+          {status === 'loading' ? 'Reading your inventory…' : 'Refresh to read your inventory.'}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Deaths Panel ───────────────────────────────────────────────────────────────
