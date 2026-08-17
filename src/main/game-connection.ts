@@ -22,7 +22,7 @@ export class GameConnection extends EventEmitter {
       this.socket!.write('\n', 'latin1')
       this.emit('connected')
     })
-    this.socket.on('data',  (c: string) => { this.buffer += c; this.flush() })
+    this.socket.on('data',  (c: string) => this.onData(c))
     this.socket.on('close', ()          => { this.emit('disconnected'); this.socket = null })
     this.socket.on('error', (e)         => this.emit('error', e.message))
     this.socket.connect(port, host)
@@ -47,7 +47,7 @@ export class GameConnection extends EventEmitter {
       s.write('/FE:STORMFRONT\n', 'latin1')
       this.emit('connected')
     })
-    s.on('data',  (c: string) => { this.buffer += c; this.flush() })
+    s.on('data',  (c: string) => this.onData(c))
     // Emit 'disconnected' only for a socket that actually connected — not a failed
     // retry, and even after disconnect() has already nulled this.socket.
     s.on('close', ()          => { if (connected) this.emit('disconnected'); if (this.socket === s) this.socket = null })
@@ -79,7 +79,7 @@ export class GameConnection extends EventEmitter {
       this.emit('log', 'Connected to ' + host + ':' + port)
       this.emit('connected')
     })
-    s.on('data',  (c: string) => { this.buffer += c; this.flush() })
+    s.on('data',  (c: string) => this.onData(c))
     s.on('close', ()          => { if (connected) this.emit('disconnected'); if (this.socket === s) this.socket = null })
     s.on('error', (err) => {
       s.destroy()
@@ -106,6 +106,16 @@ export class GameConnection extends EventEmitter {
   send(data: string): void {
     if (!this.socket || this.socket.destroyed) return
     this.socket.write(data.endsWith('\n') ? data : data + '\n', 'latin1')
+    this.emit('sent', data)
+  }
+
+  // Every socket 'data' handler funnels through here. 'raw' carries the bytes as the
+  // socket delivered them — before the tag-depth chunker below joins lines and
+  // rewrites whitespace — for consumers that need the stream verbatim.
+  private onData(chunk: string): void {
+    this.emit('raw', chunk)
+    this.buffer += chunk
+    this.flush()
   }
 
   /**
