@@ -29,7 +29,14 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
   const areas = useMemo(() => listAreas(db), [db])
 
   const [query, setQuery]   = useState('')
+  // Browsing pins the view. `focusId` is set by the area picker, the search results,
+  // and by clicking a room or an edge portal — anything that means "show me somewhere
+  // else". While it is set the map stays where you put it instead of following the
+  // character, which is what makes browsing usable at all; the Follow control below
+  // is the way back, and without it the map silently stopped tracking you the moment
+  // you looked anything up.
   const [focusId, setFocusId] = useState<string | null>(null)
+  const browsing = focusId !== null && focusId !== currentNodeId
   // One area at a time, rooted on the focused/searched room, else the current one.
   const rootId = focusId ?? currentNodeId ?? null
   const area = useMemo(() => areaLayout(db, rootId), [db, rootId])
@@ -168,6 +175,17 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
             value={query} onChange={e => setQuery(e.target.value)}
           />
           <div className="map-overlay-spacer" />
+          {/* Only offered while the view is pinned somewhere else — when it is already
+              following, the button would do nothing and its absence says so. */}
+          {browsing && (
+            <button
+              className="map-tb-btn map-text-btn map-follow-btn"
+              data-tooltip="Jump back to your character and follow as you move"
+              onClick={() => { setFocusId(null); setQuery('') }}
+            >
+              ◎ Follow
+            </button>
+          )}
           <label className="map-autorec" data-tooltip="Record new rooms as you walk">
             <input type="checkbox" checked={autoRecord} onChange={e => setAutoRecord(e.target.checked)} />
             Auto-record
