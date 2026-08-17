@@ -154,6 +154,14 @@
 .rule-import-btn { flex: 0 0 auto; width: auto; padding: 4px 12px; font-size: 12px; }
 .rule-import-msg { color: var(--accent); }
 
+/* Shown only while the map view is pinned away from the character, so it reads as
+   "you are browsing" as much as it is a way back. */
+.map-follow-btn {
+  flex: 0 0 auto; width: auto;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
 /* ── Regex guard warning ───────────────────────────────────────────────────── */
 /* Sits under its rule row, spanning the full width (the row is a flex line, so it
    needs an explicit basis to break onto its own line). */
