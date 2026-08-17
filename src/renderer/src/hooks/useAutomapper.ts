@@ -3,7 +3,7 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { roomAtom, promptCountAtom, connectionStatusAtom, roundtimeAtom, appendScriptOutputAtom, currentGameMove, clearGameMove } from '../store/game'
 import { mapDbAtom, currentNodeIdAtom, autoRecordAtom, walkStateAtom } from '../store/map'
 import { classifyMove, roomSignature, parseRoomUid, stripRoomTag, emptyDb, type MapDB, type Zone } from '../lib/mapModel'
-import { observeRoom, recordArc, nodeZoneId, findRoute, findNode, matchRoom, firstUnwalkableLink } from '../lib/mapper'
+import { observeRoom, locateRoom, recordArc, nodeZoneId, findRoute, findNode, matchRoom, firstUnwalkableLink } from '../lib/mapper'
 import { seedFromDataset, recordedZone, reseedZone } from '../lib/mapSeed'
 
 // A captured movement is only paired with the room change it caused if the change
@@ -361,15 +361,27 @@ export function useAutomapper() {
       ?? (rawRef && now - rawRef.ts < MOVE_WINDOW_MS ? rawRef.move : '')
     const placeFrom = prevId ? { id: prevId, dir, move: mvCmd } : null
 
+    // Auto-record off: still follow the character across the map that already
+    // exists — the shipped dataset plus whatever they recorded before — but add
+    // nothing to it. Position comes from the read-only lookup, never from whether
+    // a recording call happened to change the db: a matched room is rewritten in
+    // place (exits, uid backfill, `seed` cleared), so "the db is unchanged" was
+    // false even for rooms we had recognised, and the map never located anyone
+    // with recording turned off.
     if (!autoRef.current) {
-      const { db: probe, id } = observeRoom(dbRef.current, obs, placeFrom)
-      const known = probe === dbRef.current
-      currentIdRef.current = known ? id : null
-      setCurrentNode(known ? id : null)
+      const id = locateRoom(dbRef.current, obs, placeFrom)
+      currentIdRef.current = id
+      setCurrentNode(id)
       pendingMoveRef.current = null; rawMoveRef.current = null; clearGameMove()
       if (routeRef.current) {
-        if (known) onWalkArrival(id)
+        if (id) onWalkArrival(id)
         else stopWalk('walk interrupted (unknown room).')
+      }
+      if (id) lastSkipRef.current = ''
+      if (MAP_DEBUG) {
+        console.log(id
+          ? `[automap] locate "${title}"${uid ? ' #' + uid : ''} (auto-record off)`
+          : `[automap] "${title}"${uid ? ' #' + uid : ''} is not on the map and auto-record is off — position unknown`)
       }
       return
     }

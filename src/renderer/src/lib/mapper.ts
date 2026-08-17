@@ -141,15 +141,34 @@ function resolveExisting(
  * relative to `fromId` along `dir` when we know how we got here. Returns the
  * (possibly new) DB and the resolved node id.
  */
+/**
+ * Which room on the existing map is this observation, if any? Read-only: the whole
+ * identity decision observeRoom makes, with none of the recording.
+ *
+ * Split out so "where am I" and "fold this room in" can never disagree. Position
+ * tracking with auto-record OFF used to infer the answer from whether observeRoom
+ * had returned a new db object — but observeRoom rewrites a matched node too
+ * (exits refresh, a backfilled uid, dropping `seed`), so the identity check was
+ * always false and the map could never locate a character who wasn't recording.
+ */
+export function locateRoom(
+  db: MapDB,
+  obs: RoomObservation,
+  from?: { id: string; dir: string; move?: string } | null,
+): string | null {
+  const uid = obs.uid ?? parseRoomUid(obs.title) ?? undefined
+  // The native DR room id is the definitive identity — it beats every content/graph
+  // heuristic. Only without one do we fall back to resolveExisting.
+  return uid ? findByUid(db, uid) : resolveExisting(db, obs, from)
+}
+
 export function observeRoom(
   db: MapDB,
   obs: RoomObservation,
   from?: { id: string; dir: string; move?: string } | null,
 ): { db: MapDB; id: string } {
   const uid = obs.uid ?? parseRoomUid(obs.title) ?? undefined
-  // The native DR room id is the definitive identity — it beats every content/graph
-  // heuristic. Only without one do we fall back to resolveExisting.
-  const existing = uid ? findByUid(db, uid) : resolveExisting(db, obs, from)
+  const existing = locateRoom(db, obs, from)
   const zoneInfo = deriveZone(obs.title)
 
   if (existing) {
