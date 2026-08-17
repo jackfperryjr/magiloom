@@ -266,7 +266,6 @@ export function useAutomapper() {
       return
     }
     lastSigRef.current = sig
-    lastSkipRef.current = ''
 
     const prevId   = currentIdRef.current
     const prevNode = prevId ? findNode(dbRef.current, prevId) : null
@@ -301,6 +300,7 @@ export function useAutomapper() {
         dbRef.current = out; setDb(out); persistZoneOf(out, prevId!)
       }
       pendingMoveRef.current = null; rawMoveRef.current = null; clearGameMove()
+      lastSkipRef.current = ''
       if (MAP_DEBUG) console.log(`[automap] refresh "${title}"${uid ? ' #' + uid : ''} (same room)`)
       return
     }
@@ -326,6 +326,7 @@ export function useAutomapper() {
         setCurrentNode(anchor)
         pendingMoveRef.current = null; rawMoveRef.current = null; clearGameMove()
         if (routeRef.current) onWalkArrival(anchor)
+        lastSkipRef.current = ''
         if (MAP_DEBUG) console.log(`[automap] no-move/no-id "${title}" -> anchored`)
         return
       }
@@ -334,7 +335,14 @@ export function useAutomapper() {
         setCurrentNode(null)
         pendingMoveRef.current = null; rawMoveRef.current = null; clearGameMove()
         if (routeRef.current) stopWalk('walk interrupted (lost track).')
-        if (MAP_DEBUG) console.log(`[automap] no-move/no-id "${title}" -> position lost`)
+        // Losing track must not be permanent. The signature was latched above, before
+        // any of this ran, so leaving it set means this room can never be folded
+        // again: every later prompt sees an unchanged signature and returns, and the
+        // character stays unplaced until they happen to walk somewhere else. Release
+        // it, so the next prompt re-evaluates the same room — by then a <nav> id or a
+        // captured move may have arrived and it will anchor cleanly.
+        lastSigRef.current = ''
+        say(`no-move/no-id "${title}" -> position lost (retrying each prompt)`)
         return
       }
       // else fall through: connect it to the known previous room (dir 'special').
@@ -388,6 +396,7 @@ export function useAutomapper() {
 
     currentIdRef.current = next.id
     setCurrentNode(next.id)
+    lastSkipRef.current = ''
     pendingMoveRef.current = null; rawMoveRef.current = null; clearGameMove()
     if (routeRef.current) onWalkArrival(next.id)
   // Only re-run when a prompt arrives; all inputs are read from refs.
