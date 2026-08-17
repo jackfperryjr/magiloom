@@ -230,6 +230,20 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
           </div>
         )}
 
+        {/* Same honesty as the docked panel: with no position and nothing chosen to
+            browse, areaLayout would root on an arbitrary first room and present it as
+            where you are. The picker above still works, so browsing is unaffected. */}
+        {!rootId && (
+          <div className="map-overlay-body map-nopos">
+            <div className="map-nopos-title">Locating you…</div>
+            <div className="map-nopos-hint">
+              The map follows the room you are standing in. Move a room, or type <b>LOOK</b>,
+              to give it a fix — or pick an area above to browse the world map.
+            </div>
+          </div>
+        )}
+
+        {rootId && (
         <div className="map-overlay-body" onClick={() => setCtx(null)}>
           <MapView
             db={db}
@@ -248,6 +262,7 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
             className="map-view-large"
           />
         </div>
+        )}
 
         {ctx && (() => {
           const node = zone?.nodes[ctx.id]

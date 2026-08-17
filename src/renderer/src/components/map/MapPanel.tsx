@@ -17,6 +17,27 @@ export function MapPanel({ onNodeClick, onStopWalk, onExpand }: {
   // being inlined, which is what keeps the panel readable at a glance.
   const area = useMemo(() => areaLayout(db, currentNodeId), [db, currentNodeId])
 
+  // No position yet — say so instead of drawing a map. areaLayout falls back to an
+  // arbitrary first room when it has no root, which rendered a real room from
+  // somewhere else in the world as though you were standing in it: the map looked
+  // stuck on one place forever rather than looking like it had lost track of you.
+  if (!currentNodeId) {
+    return (
+      <div className="map-panel">
+        {onExpand && (
+          <button className="map-expand-btn" data-tooltip="Open full map" onClick={onExpand}>⤢</button>
+        )}
+        <div className="map-nopos">
+          <div className="map-nopos-title">Locating you…</div>
+          <div className="map-nopos-hint">
+            The map follows the room you are standing in. Move a room, or type <b>LOOK</b>,
+            to give it a fix.
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="map-panel">
       {onExpand && (

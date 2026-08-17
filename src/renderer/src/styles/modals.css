@@ -154,6 +154,15 @@
 .rule-import-btn { flex: 0 0 auto; width: auto; padding: 4px 12px; font-size: 12px; }
 .rule-import-msg { color: var(--accent); }
 
+/* "We don't know where you are" — shown instead of a map, because drawing some other
+   room in its place is indistinguishable from the map being stuck. */
+.map-nopos {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 18px 16px; text-align: center; min-height: 90px;
+}
+.map-nopos-title { font-family: var(--font-game); font-size: 14px; color: var(--text-main); }
+.map-nopos-hint { font-family: var(--font-ui); font-size: 11px; color: var(--text-muted); max-width: 42ch; line-height: 1.45; }
+
 /* Shown only while the map view is pinned away from the character, so it reads as
    "you are browsing" as much as it is a way back. */
 .map-follow-btn {
