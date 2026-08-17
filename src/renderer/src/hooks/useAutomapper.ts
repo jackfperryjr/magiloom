@@ -76,22 +76,41 @@ export function useAutomapper() {
   // own map hostage to it.
   useEffect(() => {
     let cancelled = false
-    window.dr.map.load().then(async (loaded: MapDB) => {
-      if (cancelled) return
-      const recorded = loaded?.zones ? loaded : emptyDb()
-      setDb(recorded)
-      const seeded = await seedFromDataset(recorded)
-      if (cancelled || !seeded.added) return
-      // Seeded rooms are NOT persisted back through map.saveZone: they are
-      // regenerated from the shipped file on every load, and writing them into
-      // the player's own store would bloat it and blur which rooms they actually
-      // walked — the distinction the merge relies on to know what wins.
-      setDb(seeded.db)
-      if (MAP_DEBUG) {
-        console.log(`[automap] seeded ${seeded.added} rooms (${seeded.skipped} already known), ` +
-          `layouts ${seeded.baked ? 'baked' : `live${seeded.staleReason ? ` — ${seeded.staleReason}` : ''}`}`)
+    // The recorded map and the shipped dataset are INDEPENDENT sources, so the load
+    // is allowed to fail without taking seeding down with it. It used to be chained
+    // inside this promise with a swallowing .catch, which meant one failed call —
+    // on web that is a round trip to the server — silently left the map empty with
+    // nothing logged. An unreachable recorded map should cost you your own rooms,
+    // not the whole world.
+    void (async () => {
+      let recorded = emptyDb()
+      try {
+        const loaded = await window.dr.map.load()
+        if (loaded?.zones) recorded = loaded
+      } catch (err) {
+        console.warn('[map] recorded map unavailable; showing the shipped map only:', err)
       }
-    }).catch(() => { /* no map yet */ })
+      if (cancelled) return
+      setDb(recorded)
+
+      try {
+        const seeded = await seedFromDataset(recorded)
+        if (cancelled) return
+        // Seeded rooms are NOT persisted back through map.saveZone: they are
+        // regenerated from the shipped file on every load, and writing them into
+        // the player's own store would bloat it and blur which rooms they actually
+        // walked — the distinction the merge relies on to know what wins.
+        if (seeded.added) setDb(seeded.db)
+        if (MAP_DEBUG) {
+          console.log(`[automap] seeded ${seeded.added} rooms (${seeded.skipped} already known), ` +
+            `layouts ${seeded.baked ? 'baked' : `live${seeded.staleReason ? ` — ${seeded.staleReason}` : ''}`}`)
+        }
+      } catch (err) {
+        // Never silent: a blank map with nothing in the console is the single
+        // hardest version of this to diagnose.
+        console.error('[map] seeding the shipped dataset failed; only recorded rooms will show:', err)
+      }
+    })()
     // Another window rewrote a zone. What it wrote is only ITS player's recorded
     // rooms, so the shipped ones have to be merged back in before it replaces what
     // we're displaying — otherwise a second character walking anywhere would empty
