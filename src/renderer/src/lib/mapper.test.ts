@@ -16,7 +16,7 @@
  * Run: npm run test:tools
  */
 
-import { areaLayout, listAreas, stripArea, firstUnwalkableLink, findRoute } from './mapper'
+import { areaLayout, listAreas, stripArea, firstUnwalkableLink, findRoute, locateRoom, observeRoom } from './mapper'
 import { parseGenieMap, exportGenieMap } from './mapImport'
 import type { MapDB, MapArc, MapNode, Zone } from './mapModel'
 
@@ -280,6 +280,36 @@ function cells(zone: Zone, origin: string): Record<string, [number, number]> {
   const r = findRoute(db, 'a', 'c')
   check('route: an unexplained obvious exit is inferred', !!r)
   eq('route: and it is the right one', r ? r.moves.join(',') : '', 'east,north')
+}
+
+// ── Locating a room must not depend on recording it ───────────────────────────
+// With auto-record off, the mapper still has to follow the character across the map
+// they already have. It used to decide "do I know this room?" by observing it and
+// checking whether the db came back unchanged — but observeRoom rewrites a room it
+// MATCHED as well (exits refresh, uid backfill, the shipped `seed` flag dropped), so
+// that check was false for every room, recognised or not, and the map answered
+// "Locating you…" forever. locateRoom is the same identity decision with no writing.
+{
+  const db = build({ a: 'Road', b: 'Road' }, [['a', 'b', 'east']])
+  // A room straight off the shipped dataset: never walked, so still flagged.
+  db.zones.z.nodes.b.seed = true
+  db.zones.z.nodes.b.exits = ['west']
+  const obs = { title: '[The Crossing, Road]', description: '', exits: ['west'], uid: 'b' }
+
+  eq('locate: a known room is found by its DR room number', locateRoom(db, obs), 'b')
+  const before = JSON.stringify(db)
+  locateRoom(db, obs, { id: 'a', dir: 'east', move: 'east' })
+  eq('locate: …without touching the map', JSON.stringify(db), before)
+
+  // The two must agree: whatever observeRoom folds this into is where we are.
+  eq('locate: agrees with observeRoom', locateRoom(db, obs), observeRoom(db, obs).id)
+  // And observing it really does rewrite the node — the reason identity can't be
+  // inferred from "the db is unchanged".
+  check('locate: observing a matched room still rewrites it', observeRoom(db, obs).db !== db)
+
+  const unknown = { title: '[The Crossing, Alley]', description: 'dark', exits: [], uid: 'zz' }
+  eq('locate: an unmapped room is null, not a new node', locateRoom(db, unknown), null)
+  eq('locate: …and the map still has two rooms', Object.keys(db.zones.z.nodes).length, 2)
 }
 
 // ── Export must be a faithful backup ──────────────────────────────────────────
