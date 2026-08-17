@@ -22,6 +22,7 @@ import { useMessaging } from './hooks/useMessaging'
 import { MapPanel } from './components/map/MapPanel'
 import { CalendarPanel } from './components/layout/CalendarPanel'
 import { BodyPanel, BodyOverlay } from './components/game/BodyPanel'
+import { ItemManager }           from './components/game/ItemManager'
 import { MapOverlay } from './components/map/MapOverlay'
 import {
   echoCommandAtom, beginSilentExpAtom, appendSystemLineAtom, tickAtom,
@@ -313,6 +314,7 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
   const [showHighlights, setShowHighlights] = useState(false)
   const [showMap,        setShowMap]        = useState(false)
   const [showBody,       setShowBody]       = useState(false)
+  const [showItems,      setShowItems]      = useState(false)
   const [sidebarWidth,   setSidebarWidth]   = useState<number | null>(null)
   const [functionKeys,   setFunctionKeys]   = useState<Record<string, string>>({})
   const appendSystemLine = useSetAtom(appendSystemLineAtom)
@@ -416,6 +418,7 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
   const renderPanelWithLich = useCallback((id: PanelId) => {
     if (id === 'map') return <MapPanel onNodeClick={automap.walkTo} onStopWalk={automap.stopWalk} onExpand={() => setShowMap(true)} />
     if (id === 'body') return <BodyPanel onExpand={() => setShowBody(true)} />
+    if (id === 'inventory') return <InventoryPanel onManage={() => setShowItems(true)} />
     return renderPanel(id)
   }, [automap])
 
@@ -475,6 +478,7 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
       {showHighlights && <HighlightsModal onClose={handleHighlightsClose} charName={charName} />}
       {showMap && <MapOverlay onClose={() => setShowMap(false)} onWalkTo={automap.walkTo} onStopWalk={automap.stopWalk} />}
       {showBody && <BodyOverlay onClose={() => setShowBody(false)} />}
+      {showItems && <ItemManager onClose={() => setShowItems(false)} />}
       <NotificationCenter charName={charName} status={status} />
       <GlobalTooltip />
     </div>

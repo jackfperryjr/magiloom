@@ -10,6 +10,7 @@ import { computeMoonPositions, correctionFromMoonLine, type MoonCorrections, typ
 import { applyGagSub as applyGagSubRules, type TextRule } from '../lib/rules'
 import type { AvatarCrop } from '../lib/avatar'
 import { injuriesFromImages, injuriesFromTouch, type Injuries } from '../lib/injuries'
+import { receiveInvEnvelopeAtom, clearInventoryAtom } from './inventory'
 
 export type { StreamId }
 
@@ -626,6 +627,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(deathsAtom, [])
   set(logonLinesAtom, [])
   set(inventoryLinesAtom, [])
+  set(clearInventoryAtom)
   set(roomAtom, { name: '', uid: '', description: '', exits: [], objs: '', players: [], playerNames: [] })
   set(vitalsAtom, {
     health:  { value: 100, max: 100 },
@@ -1100,6 +1102,12 @@ export const dispatchGameEventAtom = atom(
       case 'injuries':
         // A complete snapshot of the character's wounds/scars — replace wholesale.
         set(bodyInjuriesAtom, injuriesFromImages(event.images))
+        break
+
+      case 'inventoryTree':
+        // One envelope of a `_inventory manager` walk; store/inventory.ts owns the
+        // assembly and decides whether more branches need requesting.
+        set(receiveInvEnvelopeAtom, event.envelope)
         break
 
       case 'indicator':

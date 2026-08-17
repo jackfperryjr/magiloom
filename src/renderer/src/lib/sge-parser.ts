@@ -23,6 +23,25 @@ export interface LinkSpan {
   cmd:  string
 }
 
+/**
+ * One `<inventoryManager>` response, still in raw attribute form.
+ *
+ * The parser's job stops at "these tags arrived, here are their attributes" —
+ * typing, validating and assembling the item tree is lib/inventory.ts, which can be
+ * tested without feeding it XML. A big inventory answers across several envelopes:
+ * each `<continuation>` is a cursor to re-request, and `state` is set when the
+ * server refuses (`stale`) or the response was cut short (`malformed`, ours).
+ */
+export interface InvEnvelope {
+  id:     string
+  room:   string
+  root?:  string
+  after?: string
+  state?: string
+  items:         Record<string, string>[]
+  continuations: Record<string, string>[]
+}
+
 export type GameEvent =
   | { type: 'text';      text: string;   styles: TextStyle[]; stream: StreamId; links?: LinkSpan[]; bolds?: string[] }
   | { type: 'roomName';  name: string }
@@ -42,6 +61,7 @@ export type GameEvent =
   | { type: 'cast_time'; expires: number }
   | { type: 'percClear' }   // <clearStream id='percWindow'/> — active-spell list is being refreshed
   | { type: 'injuries';  images: { id: string; name: string }[] }  // <dialogData id='injuries'> snapshot
+  | { type: 'inventoryTree'; envelope: InvEnvelope }  // <inventoryManager> — reply to `_inventory manager <id>`
   | { type: 'prompt';    time: number }
 
 export type VitalField = 'health' | 'mana' | 'stamina' | 'spirit'
@@ -72,6 +92,7 @@ let _monoMode = false    // inside <output class="mono">…<output class=""> —
 let _lastRoomName = ''   // dedup: both the id='main' and id='room' streamWindows carry the same subtitle
 let _inInjuries  = false // inside <dialogData id='injuries'> — collecting body-injury <image> tags
 let _injuryImages: { id: string; name: string }[] = []
+let _invMgr: InvEnvelope | null = null  // inside <inventoryManager> — collecting <i>/<continuation>
 
 export function resetParser(): void {
   _stream             = 'main'
@@ -99,6 +120,7 @@ export function resetParser(): void {
   _lastRoomName       = ''
   _inInjuries         = false
   _injuryImages       = []
+  _invMgr             = null
 }
 
 function decodeEntities(s: string): string {
@@ -139,6 +161,10 @@ export function parseLine(raw: string): GameEvent[] {
     // The <d> link text has already been appended to buf via buf+=linkBuf in </d>,
     // so we only need to discard the stale link ref.
     if (_inExpSkill) { links = []; bolds = []; return }
+    // An inventory response is data, never output. Its <i/> tags are self-closing so
+    // there is normally nothing to swallow, but a stray text node inside the envelope
+    // must not reach the game window.
+    if (_invMgr) { buf = ''; links = []; bolds = []; return }
 
     const text = buf.replace(/[\r\n]+/g, ' ').replace(/  +/g, ' ').trim()
     buf = ''
@@ -553,6 +579,41 @@ export function parseLine(raw: string): GameEvent[] {
         break
       }
 
+      // ── Structured inventory — the reply to `_inventory manager <id>` ────
+      // <inventoryManager id room [root] [after] [state]>
+      //   <i id loc name weight [long] [encum] [in_max] [on_max] [in_selector] [flags] …/>
+      //   <continuation root last/>
+      // </inventoryManager>
+      // Nothing here is output; the whole envelope is handed to lib/inventory.ts.
+      case 'inventorymanager': {
+        flush()
+        const env: InvEnvelope = {
+          id:    attrs['id']   ?? '',
+          room:  attrs['room'] ?? '',
+          ...(attrs['root']  != null ? { root:  attrs['root']  } : {}),
+          ...(attrs['after'] != null ? { after: attrs['after'] } : {}),
+          ...(attrs['state'] != null ? { state: attrs['state'] } : {}),
+          items: [],
+          continuations: [],
+        }
+        // A refused request (state='stale') comes back as a self-closing tag with
+        // no body, so there is nothing to collect — emit it and stay closed.
+        if (tag.trimEnd().endsWith('/')) events.push({ type: 'inventoryTree', envelope: env })
+        else _invMgr = env
+        break
+      }
+      // <i> is only an item inside the envelope — elsewhere it's inline emphasis.
+      case 'i':
+        if (_invMgr) _invMgr.items.push(attrs)
+        break
+      case 'continuation':
+        if (_invMgr) _invMgr.continuations.push(attrs)
+        break
+      case '/inventorymanager':
+        if (_invMgr) { events.push({ type: 'inventoryTree', envelope: _invMgr }); _invMgr = null }
+        buf = ''
+        break
+
       // ── Inline inventory tags (<clearContainer/> + <inv>) ────────────────
       case 'clearcontainer':
         flush()
@@ -700,6 +761,13 @@ export function parseLine(raw: string): GameEvent[] {
 
       // ── Prompt ────────────────────────────────────────────────────────────
       case 'prompt':
+        // A prompt while collecting an inventory envelope means the response ended
+        // without its close tag. Hand over what arrived, flagged, rather than
+        // holding a half-built tree open until the next response confuses it.
+        if (_invMgr) {
+          events.push({ type: 'inventoryTree', envelope: { ..._invMgr, state: 'malformed' } })
+          _invMgr = null
+        }
         flush()
         _preXmlPhase = false
         _inInitialInventory = false

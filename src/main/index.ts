@@ -5,6 +5,7 @@ import * as lichFiles from './lich-files'
 import { autoUpdater } from 'electron-updater'
 import { LichManager, LichConnection } from './lich-manager'
 import { GameConnection } from './game-connection'
+import { inventoryProbeEnabled, probeSent, probeRaw } from './inventory-probe'
 import { CmdScriptEngine } from './cmd-script-engine'
 import { BroadcastBus } from './broadcast-bus'
 import { MapStore, type StoredZone } from './map-store'
@@ -540,6 +541,12 @@ function setupIpcHandlers(): void {
   // Session.charName). Desktop never loses it across a reload, but keeping the handler
   // symmetric with the web client keeps the dr.game API uniform.
   let currentCharName = ''
+  // Dev-only: capture the raw feed around `_inventory …` so the server's answer (or
+  // lack of one) is visible — sge-parser drops those tags silently. See inventory-probe.ts.
+  if (inventoryProbeEnabled) {
+    gameConn.on('sent', probeSent)
+    gameConn.on('raw',  probeRaw)
+  }
   gameConn.on('log',          (l: string) => lichLog('[game] ' + l))
   gameConn.on('data',         (r: string) => {
     send('game:data', r)
