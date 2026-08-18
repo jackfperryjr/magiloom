@@ -29,6 +29,7 @@ interface AppSettings {
   avatarCrops?:     Record<string, { zoom: number; px: number; py: number }>
   avatarTokens?:    Record<string, string>
   avatarShare?:     boolean
+  itemManagerView?: 'table' | 'cards'   // List/Cards choice in the item manager (global — a layout preference is about the person, not the character)
   verbs?:           string[]
   notifications?:   {
     sound:      boolean

@@ -32,6 +32,8 @@ interface Walk {
   asm:     InvAssembler
   pending: Set<string>                              // request ids awaiting an envelope
   timer:   ReturnType<typeof setTimeout> | null
+  retried: boolean                                  // whether the silent retry has been used
+  onSilence: () => void                             // what to do when the clock runs out
 }
 
 // One walk at a time. A response whose id isn't in `pending` belongs to a walk that
@@ -53,28 +55,52 @@ function endWalk(): void {
   _walk = null
 }
 
+/** (Re)start the silence clock. Any progress on a walk should push it back. */
+function armClock(walk: Walk): void {
+  if (walk.timer) clearTimeout(walk.timer)
+  walk.timer = setTimeout(() => { if (_walk === walk) walk.onSilence() }, RESPONSE_TIMEOUT)
+}
+
 /** Start (or restart) a walk. `keepSnapshot` leaves the old tree visible while reloading. */
 export const refreshInventoryAtom = atom(null, (_get, set, keepSnapshot = true) => {
   endWalk()
 
-  const id = nextRequestId()
-  const walk: Walk = { asm: new InvAssembler(), pending: new Set([id]), timer: null }
+  const walk: Walk = {
+    asm: new InvAssembler(), pending: new Set(), timer: null, retried: false,
+    onSilence: () => {},
+  }
   _walk = walk
 
   set(invStatusAtom, 'loading')
   set(invErrorAtom, null)
-  set(invPendingAtom, 1)
   if (!keepSnapshot) set(invSnapshotAtom, null)
 
-  walk.timer = setTimeout(() => {
-    if (_walk !== walk) return
+  const ask = (): void => {
+    const id = nextRequestId()
+    walk.pending.add(id)
+    set(invPendingAtom, walk.pending.size)
+    armClock(walk)
+    send(`_inventory manager ${id}`)
+  }
+
+  // The command is fire-and-forget over the game socket — no ack, no error reply — so
+  // a request that gets lost to a busy moment is indistinguishable from a broken
+  // feature. Retry once, silently, before saying anything: that turns most of those
+  // into a slightly slow refresh rather than an alarming "the game did not answer".
+  walk.onSilence = () => {
+    if (!walk.retried) {
+      walk.retried = true
+      walk.pending.clear()   // abandon the first request; a late reply is ignored
+      ask()
+      return
+    }
     endWalk()
     set(invStatusAtom, 'error')
-    set(invErrorAtom, 'The game did not answer. Try again, or check that you are connected.')
     set(invPendingAtom, 0)
-  }, RESPONSE_TIMEOUT)
+    set(invErrorAtom, 'The game hasn’t answered. Refresh to try again — if it keeps happening, check that you’re still connected.')
+  }
 
-  send(`_inventory manager ${id}`)
+  ask()
 })
 
 /** Fold in one `<inventoryManager>` envelope. Called from the game event stream. */
@@ -112,14 +138,16 @@ export const receiveInvEnvelopeAtom = atom(null, (_get, set, env: InvEnvelope) =
     send(`_inventory manager ${id} continue ${cursor.room} ${cursor.root} ${cursor.last}`)
   }
 
-  if (walk.timer) clearTimeout(walk.timer)
-  walk.timer = setTimeout(() => {
-    if (_walk !== walk) return
+  // Past the first envelope the server has clearly heard us, so a stall here is a
+  // different failure from silence at the start — say so, and don't re-ask (a repeated
+  // opening request would start a second walk against a half-built tree).
+  walk.onSilence = () => {
     endWalk()
     set(invStatusAtom, 'error')
-    set(invErrorAtom, 'The inventory stopped arriving part-way through. Refresh to try again.')
     set(invPendingAtom, 0)
-  }, RESPONSE_TIMEOUT)
+    set(invErrorAtom, 'The inventory stopped arriving part-way through. Refresh to try again.')
+  }
+  armClock(walk)
 
   set(invPendingAtom, walk.pending.size)
 })

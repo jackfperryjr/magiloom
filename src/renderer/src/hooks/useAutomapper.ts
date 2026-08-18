@@ -261,7 +261,16 @@ export function useAutomapper() {
     // identical content (adjacent wilderness rooms are routinely byte-identical)
     // still registers as a transition instead of being swallowed as "same room".
     const sig = `${r.uid}|${roomSignature(r.name, r.description, r.exits)}`
-    if (sig === lastSigRef.current) {
+    // The unchanged-signature short-circuit only applies once we actually know where
+    // we are. While the position is unknown there IS no transition to wait for: the
+    // room is not going to change on its own, so latching its signature meant the
+    // character stayed unplaced until they happened to walk somewhere else. That is
+    // why re-LOOKing never helped — it reproduces the same room content byte for byte,
+    // so the guard swallowed it, while moving produced a new signature and got through.
+    // Re-evaluating each prompt while lost is what lets the map find itself: the world
+    // map loads asynchronously, so the first attempt after connecting often runs
+    // against an empty db and only succeeds on a later pass.
+    if (sig === lastSigRef.current && currentIdRef.current) {
       say(`unchanged room signature "${stripRoomTag(r.name)}" — no transition to fold`)
       return
     }

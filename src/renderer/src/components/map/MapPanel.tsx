@@ -30,8 +30,9 @@ export function MapPanel({ onNodeClick, onStopWalk, onExpand }: {
         <div className="map-nopos">
           <div className="map-nopos-title">Locating you…</div>
           <div className="map-nopos-hint">
-            The map follows the room you are standing in. Move a room, or type <b>LOOK</b>,
-            to give it a fix.
+            The map is watching for a room it recognises and will pick you up on its own.
+            If it stays lost, this room isn't on the map yet — walk to a known one, or turn
+            on auto-record to add it.
           </div>
         </div>
       </div>
