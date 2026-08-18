@@ -237,8 +237,9 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
           <div className="map-overlay-body map-nopos">
             <div className="map-nopos-title">Locating you…</div>
             <div className="map-nopos-hint">
-              The map follows the room you are standing in. Move a room, or type <b>LOOK</b>,
-              to give it a fix — or pick an area above to browse the world map.
+              The map is watching for a room it recognises and will pick you up on its own.
+              If it stays lost, this room isn't on the map yet — walk to a known one, or turn
+              on auto-record to add it. You can still pick an area above to browse.
             </div>
           </div>
         )}

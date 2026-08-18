@@ -23,6 +23,7 @@ export interface AppSettings {
   avatars?:      Record<string, string> // lowercased character name → data URL
   avatarTokens?: Record<string, string> // account name → avatar-service bearer token
   avatarShare?:  boolean                // consent to publish avatars to the shared service
+  itemManagerView?: 'table' | 'cards'   // List/Cards choice in the item manager
   // Legacy global logging flag. Logging is now per character (see
   // CharScopedSettings.logging); this survives only as the fallback default so an
   // existing setup keeps logging until each character sets its own preference.

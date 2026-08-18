@@ -146,6 +146,36 @@ function matchingIds(snapshot: InvSnapshot, filter: string): Set<string> | null 
   return keep
 }
 
+// ── List / Cards preference ───────────────────────────────────────────────────
+type ItemView = 'table' | 'cards'
+
+/**
+ * Remembers the chosen view in global settings, not per character — which layout
+ * someone finds readable is about them, not about who they're playing.
+ *
+ * Reads once on mount and writes through on change. The initial render uses 'table'
+ * until the stored value arrives; that's a frame or two on open, and it beats
+ * blocking the panel on a settings round-trip.
+ */
+function useItemView(): [ItemView, (v: ItemView) => void] {
+  const [view, setView] = useState<ItemView>('table')
+
+  useEffect(() => {
+    let live = true
+    window.dr?.settings?.getAll?.().then(all => {
+      const saved = all?.itemManagerView
+      if (live && (saved === 'table' || saved === 'cards')) setView(saved)
+    }).catch(() => { /* no stored preference — the default stands */ })
+    return () => { live = false }
+  }, [])
+
+  const choose = (next: ItemView): void => {
+    setView(next)
+    window.dr?.settings?.patch?.({ itemManagerView: next })
+  }
+  return [view, choose]
+}
+
 // ── The view ──────────────────────────────────────────────────────────────────
 function ItemManagerBody({ detached, onDetach, onAttach, onClose }: {
   detached: boolean; onDetach: () => void; onAttach: () => void; onClose: () => void
@@ -161,7 +191,7 @@ function ItemManagerBody({ detached, onDetach, onAttach, onClose }: {
   const [selectedId, setSelected] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [hidden, setHidden]       = useState<Set<GroupId>>(new Set())
-  const [view, setView]           = useState<'table' | 'cards'>('table')
+  const [view, setView]           = useItemView()
   const [sent, setSent]           = useState('')
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
