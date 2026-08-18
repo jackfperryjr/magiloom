@@ -9,6 +9,7 @@ export function AppearanceTab({
   fontSize, setFontSize, outputBufferSize, setOutputBufferSize,
   isWeb, keepScreenOn, setKeepScreenOn,
   ambientRoomTint, setAmbientRoomTint, ambientHeat, setAmbientHeat,
+  ambientRoomEffects, setAmbientRoomEffects, ambientDeath, setAmbientDeath,
 }: {
   theme:               string
   previewTheme:        (id: string) => void
@@ -25,8 +26,12 @@ export function AppearanceTab({
   setKeepScreenOn:     Dispatch<SetStateAction<boolean>>
   ambientRoomTint:     boolean
   setAmbientRoomTint:  Dispatch<SetStateAction<boolean>>
-  ambientHeat:         boolean
-  setAmbientHeat:      Dispatch<SetStateAction<boolean>>
+  ambientHeat:            boolean
+  setAmbientHeat:         Dispatch<SetStateAction<boolean>>
+  ambientRoomEffects:     boolean
+  setAmbientRoomEffects:  Dispatch<SetStateAction<boolean>>
+  ambientDeath:           boolean
+  setAmbientDeath:        Dispatch<SetStateAction<boolean>>
 }) {
   return (
     <>
@@ -143,6 +148,24 @@ export function AppearanceTab({
         <div className="settings-hint">
           Flares a red glow around the panel during combat, flashing brighter when you
           take a hit, then fading as the fight settles.
+        </div>
+        <label className="settings-row">
+          <span className="settings-label">Room effects</span>
+          <input type="checkbox" checked={ambientRoomEffects} style={{ width: 'auto' }}
+            onChange={e => setAmbientRoomEffects(e.target.checked)} />
+        </label>
+        <div className="settings-hint">
+          Drifts embers up the panel at a forge or a lava field, and bubbles when
+          you're underwater. Only a handful of rooms in Elanthia have one.
+        </div>
+        <label className="settings-row">
+          <span className="settings-label">Death</span>
+          <input type="checkbox" checked={ambientDeath} style={{ width: 'auto' }}
+            onChange={e => setAmbientDeath(e.target.checked)} />
+        </label>
+        <div className="settings-hint">
+          Drains the colour out of the game panel while you're dead, and restores it
+          when you're raised.
         </div>
       </div>
 

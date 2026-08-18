@@ -1,5 +1,5 @@
 import { atom } from 'jotai'
-import { emptyDb, type MapDB } from '../lib/mapModel'
+import { emptyDb, type MapDB, type MapNode } from '../lib/mapModel'
 
 // ── Automapper live state ───────────────────────────────────────────────────────
 // The whole world map (all zones) lives in one atom, loaded once from the shared
@@ -10,6 +10,21 @@ export const mapDbAtom = atom<MapDB>(emptyDb())
 // The node id of the room the character is currently standing in (null until the
 // first room is recorded after connect).
 export const currentNodeIdAtom = atom<string | null>(null)
+
+// The current room's mapped node, or null when it isn't on the map yet. Zones hold
+// nodes in per-zone records with no global index, so this scans — but only when the
+// db or the current room actually changes, which is once per move at most, and it
+// saves every consumer writing the same loop. The ambient overlay reads the baked
+// locale/ambience off it (see store/game).
+export const currentNodeAtom = atom<MapNode | null>(get => {
+  const id = get(currentNodeIdAtom)
+  if (!id) return null
+  for (const z of Object.values(get(mapDbAtom).zones)) {
+    const n = z.nodes[id]
+    if (n) return n
+  }
+  return null
+})
 
 // Auto-record toggle. Persisted per-window in localStorage (a quick, no-IPC store
 // mirroring linkMode); the Settings "Maps" tab surfaces it. When off, the mapper

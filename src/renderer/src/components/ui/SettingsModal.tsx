@@ -48,6 +48,8 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [keepScreenOn,    setKeepScreenOn]    = useState(true)
   const [ambientRoomTint, setAmbientRoomTint] = useState(true)
   const [ambientHeat,     setAmbientHeat]     = useState(true)
+  const [ambientRoomEffects, setAmbientRoomEffects] = useState(true)
+  const [ambientDeath,       setAmbientDeath]       = useState(true)
   const [logging,         setLogging]         = useState(false)
   const [functionKeys,    setFunctionKeys]    = useState<Record<string, string>>({})
   const [aliases,         setAliases]         = useState<Alias[]>([])
@@ -109,6 +111,8 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setKeepScreenOn(s.keepScreenOn !== false)
       setAmbientRoomTint(s.ambientRoomTint !== false)
       setAmbientHeat(s.ambientHeat !== false)
+      setAmbientRoomEffects(s.ambientRoomEffects !== false)
+      setAmbientDeath(s.ambientDeath !== false)
       setNotif({ ...DEFAULT_NOTIF, ...(s.notifications ?? {}) })
       setPush({ ...DEFAULT_PUSH, ...(s.push ?? {}) })
       setNotifRules(s.notifRules ?? [])
@@ -140,6 +144,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
     saveCharAppearance(charName, { theme, fontSize, fontFamily, density })
     await window.dr.settings.patch({
       lichPath, scriptDir, outputBufferSize, keepScreenOn, ambientRoomTint, ambientHeat,
+      ambientRoomEffects, ambientDeath,
       notifications: notif, push, notifRules,
     })
     const varsRecord = Object.fromEntries(
@@ -193,6 +198,8 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                 keepScreenOn={keepScreenOn} setKeepScreenOn={setKeepScreenOn}
                 ambientRoomTint={ambientRoomTint} setAmbientRoomTint={setAmbientRoomTint}
                 ambientHeat={ambientHeat} setAmbientHeat={setAmbientHeat}
+                ambientRoomEffects={ambientRoomEffects} setAmbientRoomEffects={setAmbientRoomEffects}
+                ambientDeath={ambientDeath} setAmbientDeath={setAmbientDeath}
               />
             )}
 

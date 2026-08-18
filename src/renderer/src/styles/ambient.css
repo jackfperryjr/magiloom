@@ -159,6 +159,158 @@
   to   { rotate: 16deg; }
 }
 
+/* ── Fog / overcast ───────────────────────────────────────────────────────────
+   Weather severity 3–4 (heavy cloud, no precipitation) — the band of the game's own
+   0–9 scale that used to render nothing at all. Two offset gradient bands drifting
+   at different speeds and directions; where they cross, the haze thickens and thins
+   on its own without needing any particles. Strength rides a custom property so the
+   two severities share one rule. Sits just above the sky tint and below the weather
+   field, so a shower starting over fog layers correctly. */
+.ambient-fog {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: var(--fog-strength, .7);
+  transition: opacity 2.2s ease;
+}
+.ambient-fog.is-hidden { opacity: 0; }
+/* On parchment the pale haze is invisible against a light panel — darken it into a
+   grey overcast instead of brightening it. */
+:root[data-theme="parchment"] .ambient-fog { --ambient-fog-color: rgba(96, 104, 124, .16); }
+
+/* Two oversized bands drifting across each other. They are TRANSLATED rather than
+   background-position animated: a repeating gradient tiles, and the tile seam showed
+   up as a hard vertical edge down the panel instead of haze. Each band is far wider
+   than the panel and fades to transparent well before its own edges, so nothing can
+   present a boundary; the parent clips them. Transform also keeps this on the
+   compositor rather than repainting a gradient every frame. */
+.ambient-fog::before,
+.ambient-fog::after {
+  content: '';
+  position: absolute;
+  top: -25%;
+  bottom: -25%;
+  left: -110%;
+  width: 320%;
+  background: radial-gradient(closest-side ellipse,
+    var(--ambient-fog-color, rgba(196, 204, 216, .19)) 0%,
+    color-mix(in srgb, var(--ambient-fog-color, rgba(196, 204, 216, .19)) 45%, transparent) 45%,
+    transparent 78%);
+}
+/* Opposed directions and coprime-ish periods, so the two never resolve into a
+   pattern that visibly repeats. */
+.ambient-fog::before { animation: ambient-fog-drift 71s linear infinite; }
+.ambient-fog::after {
+  top: -10%;
+  height: 90%;
+  opacity: .75;
+  animation: ambient-fog-drift 97s linear infinite reverse;
+}
+
+@keyframes ambient-fog-drift {
+  from { transform: translateX(0); }
+  to   { transform: translateX(55%); }
+}
+
+/* ── Room ambience: rising motes ──────────────────────────────────────────────
+   Embers at a forge, bubbles underwater. Same motion (rise + sway), different
+   colour, size and speed. Above the weather field: a fire in the room is nearer to
+   you than the sky is. */
+.ambient-motes {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+  transition: opacity 1.4s ease;
+}
+.ambient-motes.is-hidden { opacity: 0; }
+.ambient-embers  { opacity: .85; }
+.ambient-bubbles { opacity: .6; }
+
+.ambient-mote {
+  position: absolute;
+  bottom: 0;
+  border-radius: 50%;
+  will-change: transform;
+  animation: ambient-rise var(--fall, 5s) linear var(--delay, 0s) infinite;
+}
+/* Embers: a hot core with a soft warm halo, flickering as they climb. The glow is
+   what sells it — a flat orange dot reads as confetti. */
+.ambient-embers .ambient-mote {
+  background: radial-gradient(circle,
+    var(--ambient-ember-core, rgba(255, 236, 190, .95)) 0%,
+    var(--ambient-ember-mid,  rgba(255, 150, 48, .85)) 45%,
+    transparent 72%);
+  box-shadow: 0 0 8px 2px var(--ambient-ember-glow, rgba(255, 122, 26, .7));
+  animation: ambient-rise var(--fall, 4s) linear var(--delay, 0s) infinite,
+             ambient-flicker 1.7s ease-in-out var(--delay, 0s) infinite alternate;
+}
+/* Bubbles: a rim-lit shell rather than a filled dot, so they read as hollow. */
+.ambient-bubbles .ambient-mote {
+  background: radial-gradient(circle at 32% 30%,
+    rgba(255, 255, 255, .5) 0%,
+    rgba(190, 226, 245, .12) 38%,
+    transparent 62%);
+  border: 1px solid var(--ambient-bubble-rim, rgba(198, 232, 250, .5));
+}
+/* Slow moving light through water, painted under the bubbles inside the same layer. */
+.ambient-caustics {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .5;
+  background:
+    radial-gradient(60% 40% at 30% 20%, rgba(120, 200, 235, .16), transparent 70%),
+    radial-gradient(70% 45% at 72% 60%, rgba(80, 170, 215, .14), transparent 72%);
+  background-size: 180% 160%, 200% 170%;
+  animation: ambient-caustic-drift 23s ease-in-out infinite alternate;
+}
+
+/* Rise from just below the panel to just above it, drifting sideways by --drift over
+   the climb. Mirrors ambient-fall, inverted. */
+@keyframes ambient-rise {
+  from { transform: translate(0, 8vh); }
+  to   { transform: translate(var(--drift, 0), -110vh); }
+}
+@keyframes ambient-flicker {
+  from { opacity: .35; }
+  to   { opacity: 1; }
+}
+@keyframes ambient-caustic-drift {
+  from { background-position:   0% 0%, 100% 100%; }
+  to   { background-position: 100% 60%,   0% 40%; }
+}
+
+/* ── Death ────────────────────────────────────────────────────────────────────
+   Drains the colour from everything below. `backdrop-filter` is the whole trick: it
+   desaturates what shows THROUGH the element, which a tint painted over the top
+   cannot do — a grey veil only dims coloured text, it never greys it. Sits above
+   every other ambient layer (z-index 4) so it drains those too.
+
+   The base rule is the fallback for anything without backdrop-filter support: a flat
+   cold veil, dimmer but at least legible as "something is wrong". Where support
+   exists the @supports block trades most of that veil for the real desaturation, so
+   the text stays readable instead of being washed out twice. */
+.ambient-death {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: rgba(16, 18, 24, .42);
+  transition: opacity 1.2s ease;
+}
+.ambient-death.is-hidden { opacity: 0; }
+@supports (backdrop-filter: grayscale(1)) or (-webkit-backdrop-filter: grayscale(1)) {
+  .ambient-death {
+    background: rgba(16, 18, 24, .16);
+    -webkit-backdrop-filter: grayscale(.9) brightness(.72) contrast(1.05);
+    backdrop-filter: grayscale(.9) brightness(.72) contrast(1.05);
+  }
+}
+
 .ambient-label {
   position: absolute;
   top: 6px;
@@ -217,4 +369,15 @@
   .ambient-particle { animation: none; }
   /* Keep the heat glow (a real combat cue) but drop the pulse to a steady rim. */
   .ambient-heat.is-hot { animation: none; }
+  /* The room and fog layers stay — they are colour, and colour is the point. Only
+     their motion goes, leaving a still haze and a still scatter of embers/bubbles.
+     The motes are positioned by their rise animation, so stopping it outright would
+     pile them all on the bottom edge; they get held mid-flight instead. */
+  .ambient-fog::before,
+  .ambient-fog::after { animation: none; }
+  .ambient-caustics { animation: none; }
+  .ambient-motes .ambient-mote {
+    animation: none;
+    transform: translate(var(--drift, 0), calc(-1 * var(--rise-hold, 55vh)));
+  }
 }

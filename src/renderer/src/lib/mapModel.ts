@@ -25,6 +25,11 @@ export interface MapNode {
   z:            number      // level (up/down change this)
   region?:      string      // coarse area name from the dataset ("Velaka Desert")
   forage?:      string[]    // forageable items known to be found here
+  // Baked ambient hints, as the single-character codes rooms.json ships (see
+  // lib/roomLocale + lib/roomAmbient). Reference data like `region` and `forage`:
+  // only ever arrives with a dataset room, never derived from live play.
+  locale?:      string      // room locale for the ambient tint
+  ambience?:    string      // room ambient effect (embers / underwater)
   // Came from the shipped dataset rather than this player's own play. Rebuilt from
   // the packaged file on every load, so it is never written to their store (see
   // recordedZone) — and cleared the moment they actually walk into the room.

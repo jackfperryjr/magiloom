@@ -1,6 +1,8 @@
 import { atom } from 'jotai'
 import type { Getter, Setter } from 'jotai'
-import { classifyRoom } from '../lib/roomLocale'
+import { classifyRoom, localeFromCode } from '../lib/roomLocale'
+import { ambienceFromCode } from '../lib/roomAmbient'
+import { currentNodeAtom } from './map'
 import type { GameEvent, LinkSpan, TextStyle, VitalField, StreamId } from '../lib/sge-parser'
 import { parseExpSkills } from '../lib/exp-parser'
 import { isAtmospheric } from '../lib/atmospherics'
@@ -231,13 +233,28 @@ export const beginTouchCaptureAtom = atom(null, (get, set, name: string) => {
 export interface RoomState { name: string; uid: string; description: string; exits: string[]; objs: string; players: string[]; playerNames: string[] }
 export const roomAtom = atom<RoomState>({ name: '', uid: '', description: '', exits: [], objs: '', players: [], playerNames: [] })
 
-// Coarse locale of the current room (cave / forest / tavern / …), inferred from its
-// name + description by keyword. Drives the ambient room-tint overlay; recomputes
-// whenever the room changes. See lib/roomLocale.ts.
+// Coarse locale of the current room (cave / forest / tavern / …). Drives the ambient
+// room-tint overlay; recomputes whenever the room changes.
+//
+// The BAKED value wins wherever the shipped map has the room. The live classifier
+// only ever sees one room, and over the shipped corpus that produced 5,121 pairs of
+// connected same-title rooms that classified differently — a tint that flickered as
+// you walked a street. The bake sees the graph and smooths those runs to one locale
+// (see scripts/build-rooms.js). Live classification stays the fallback for rooms the
+// crawl never recorded, where a flicker is still better than no tint at all.
 export const roomLocaleAtom = atom(get => {
+  const baked = get(currentNodeAtom)?.locale
+  if (baked) return localeFromCode(baked)
   const r = get(roomAtom)
   return classifyRoom(r.name, r.description)
 })
+
+// The room's ambient EFFECT (embers at a forge, underwater in a sunken ship), a
+// different axis from its locale colour — see lib/roomAmbient. Rare by design: ~2%
+// of rooms have one. Baked-only, deliberately. These effects are far more assertive
+// than a tint, so a live keyword guess putting drifting embers in the wrong room is
+// worth avoiding at the cost of missing unmapped ones.
+export const roomAmbienceAtom = atom(get => ambienceFromCode(get(currentNodeAtom)?.ambience))
 
 // Incremented on every server prompt (end of a command response). The automapper
 // watches this to know when the current room is fully populated so it can fold it
