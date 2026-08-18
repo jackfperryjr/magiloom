@@ -32,6 +32,7 @@
     "react-dom": "^18.3.0"
   },
   "devDependencies": {
+    "@electron/fuses": "^1.8.0",
     "@eslint/js": "^9.39.5",
     "@types/node": "^20.0.0",
     "@types/react": "^18.3.0",
@@ -52,6 +53,7 @@
     "appId": "com.magiloom.dragonrealms",
     "productName": "Lantern",
     "icon": "resources/icon.png",
+    "afterPack": "scripts/after-pack.js",
     "directories": {
       "output": "dist"
     },
