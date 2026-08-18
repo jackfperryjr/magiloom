@@ -68,10 +68,24 @@ function findMapDb() {
 // prebaked graph and the live mapper from drifting apart on, say, which verbs
 // count as travel.
 function loadMapModel() {
+  return bundle('mapModel', 'src/renderer/src/lib/mapModel.ts')
+}
+
+// Same trick for the two ambient classifiers, for the same reason: the live app
+// falls back to these exact functions for rooms the crawl never saw, so the baked
+// values and the live guesses have to come from one implementation.
+function loadClassifiers() {
+  return Promise.all([
+    bundle('roomLocale', 'src/renderer/src/lib/roomLocale.ts'),
+    bundle('roomAmbient', 'src/renderer/src/lib/roomAmbient.ts'),
+  ])
+}
+
+function bundle(name, entry) {
   fs.mkdirSync(CACHE, { recursive: true })
-  const out = path.join(CACHE, 'mapModel.mjs')
+  const out = path.join(CACHE, `${name}.mjs`)
   buildSync({
-    entryPoints: [path.join(ROOT, 'src/renderer/src/lib/mapModel.ts')],
+    entryPoints: [path.join(ROOT, entry)],
     outfile: out,
     bundle: true,
     platform: 'node',
@@ -79,6 +93,57 @@ function loadMapModel() {
     logLevel: 'warning',
   })
   return import('file://' + out.replace(/\\/g, '/'))
+}
+
+// ── Ambient locale smoothing ─────────────────────────────────────────────────
+// The room-locale classifier reads one room at a time, which is all the live app can
+// do. Over the whole corpus that produces 5,121 pairs of CONNECTED rooms sharing a
+// title but landing on different locales — [Muspar'i, Golden Heights] classifying
+// urban, then default, then urban as you walk west — because a keyword happens to
+// appear in one room's prose and not its neighbour's. The overlay tint flickered
+// through every one of them.
+//
+// The bake has the graph, so it can fix what the live classifier structurally cannot:
+// rooms that share a title AND are directly connected are one continuous place, so
+// they get one locale. Components are found by union-find over same-title edges, and
+// each component adopts the most common non-default locale among its members —
+// `default` never wins a vote it merely participates in, since a room being unmatched
+// is an absence of evidence rather than evidence of plainness.
+function smoothLocales(rooms, localeOf) {
+  const parent = new Map(rooms.map(r => [r.id, r.id]))
+  const find = a => {
+    while (parent.get(a) !== a) { parent.set(a, parent.get(parent.get(a))); a = parent.get(a) }
+    return a
+  }
+  const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(ra, rb) }
+
+  const titleOf = new Map(rooms.map(r => [r.id, r.t]))
+  for (const r of rooms) {
+    for (const [to] of r.x) {
+      if (!titleOf.has(to) || titleOf.get(to) !== r.t) continue
+      union(r.id, to)
+    }
+  }
+
+  const votes = new Map()
+  for (const r of rooms) {
+    const root = find(r.id)
+    const tally = votes.get(root) ?? (votes.set(root, new Map()), votes.get(root))
+    const l = localeOf.get(r.id)
+    if (l && l !== 'default') tally.set(l, (tally.get(l) ?? 0) + 1)
+  }
+
+  let changed = 0
+  for (const r of rooms) {
+    const tally = votes.get(find(r.id))
+    if (!tally || !tally.size) continue
+    let best = null, bestN = 0
+    // Ties resolve by locale name so the bake is deterministic across runs — an
+    // unstable tiebreak would show up as spurious churn in the shipped file's diff.
+    for (const [l, n] of [...tally].sort((a, b) => (a[0] < b[0] ? -1 : 1))) if (n > bestN) { best = l; bestN = n }
+    if (best && best !== localeOf.get(r.id)) { localeOf.set(r.id, best); changed++ }
+  }
+  return changed
 }
 
 // Lich stores titles with its own bracket wrapper around the game's, e.g.
@@ -177,8 +242,16 @@ function forageables(tags) {
   return [...out].sort()
 }
 
+const tallyBy = (rows, key) => {
+  const out = new Map()
+  for (const r of rows) { const k = key(r); if (k && k !== 'default') out.set(k, (out.get(k) ?? 0) + 1) }
+  return out
+}
+const fmtTally = t => [...t].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(', ') || 'none'
+
 async function main() {
   const { classifyMove, fnv1a } = await loadMapModel()
+  const [locale, ambient] = await loadClassifiers()
 
   const dbPath = findMapDb()
   console.log(`source     ${dbPath}`)
@@ -239,8 +312,26 @@ async function main() {
     })
   }
 
+  // ── Ambient bake ───────────────────────────────────────────────────────────
+  // Classify every room, smooth the locales across the graph, then attach both as
+  // single-character codes. Done here rather than in the room loop because smoothing
+  // needs every room and every edge to exist first.
+  const localeOf = new Map(rooms.map(r => [r.id, locale.classifyRoom(r.t, r.desc)]))
+  const rawTally = tallyBy(rooms, r => localeOf.get(r.id))
+  const smoothed = smoothLocales(rooms, localeOf)
+
+  let ambienceCount = 0
+  for (const r of rooms) {
+    const l = localeOf.get(r.id)
+    if (l && l !== 'default') r.lc = locale.LOCALE_CODE[l]
+    const a = ambient.classifyAmbience(r.t, r.desc)
+    if (a) { r.am = ambient.AMBIENCE_CODE[a]; ambienceCount++ }
+  }
+
   // A content hash of the graph, so the layout bake can tell whether its cached
-  // positions still correspond to these rooms.
+  // positions still correspond to these rooms. Deliberately covers only id/title/
+  // exits: the ambient fields are cosmetic, and rebaking 18k layout positions
+  // because a room's tint changed would be waste.
   const roomsVersion = fnv1a(JSON.stringify(rooms.map(r => [r.id, r.t, r.x])))
 
   const doc = {
@@ -262,6 +353,11 @@ async function main() {
   const items   = new Set(rooms.flatMap(r => r.f ?? []))
   console.log(`regions    ${rooms.filter(r => r.loc).length} rooms in ${regions.size} regions`)
   console.log(`forage     ${rooms.filter(r => r.f).length} rooms, ${items.size} distinct items`)
+  const finalTally = tallyBy(rooms, r => localeOf.get(r.id))
+  console.log(`locales    ${rooms.filter(r => r.lc).length} rooms tinted; ${smoothed} smoothed to match connected same-title rooms`)
+  console.log(`           ${fmtTally(rawTally)}  (before smoothing)`)
+  console.log(`           ${fmtTally(finalTally)}  (shipped)`)
+  console.log(`ambience   ${ambienceCount} rooms (${fmtTally(tallyBy(rooms.filter(r => r.am), r => r.am === 'e' ? 'embers' : 'underwater'))})`)
   console.log(`version    ${roomsVersion}`)
   console.log(`wrote      ${path.relative(ROOT, outFile)} (${mb} MB)`)
 }

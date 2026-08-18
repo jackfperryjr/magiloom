@@ -68,10 +68,31 @@ function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+// ── Wire format ───────────────────────────────────────────────────────────────
+// The locale is BAKED per room into rooms.json (scripts/build-rooms.js) and shipped,
+// so it is stored as a single character. Baking is not just a speed trick: the live
+// classifier only ever sees one room, and auditing it over the shipped corpus found
+// 5,121 pairs of CONNECTED rooms that share a title but classify differently — a
+// tint that flickered every time you walked through one of them. The bake sees the
+// whole graph and smooths those runs; see smoothLocales in the build script.
+export const LOCALE_CODE: Record<Exclude<RoomLocale, 'default'>, string> = {
+  underground: 'g', water: 'w', forest: 'f', indoor: 'n', urban: 'u',
+}
+const BY_CODE: Record<string, RoomLocale> = {
+  g: 'underground', w: 'water', f: 'forest', n: 'indoor', u: 'urban',
+}
+
+export function localeFromCode(code: string | undefined): RoomLocale {
+  return (code && BY_CODE[code]) || 'default'
+}
+
 // Classify a room by its name + description. The name is weighted first (checked on
 // its own before falling back to the whole blob) since a room's title is the most
 // reliable locale signal — "Kaerna Village, Herb Shop" should read as indoor even
 // if the description mentions the street outside.
+//
+// This remains the live fallback for rooms the shipped map has never heard of. Where
+// a baked locale exists it wins, because it had the graph to smooth against.
 export function classifyRoom(name: string, description = ''): RoomLocale {
   const title = name.toLowerCase()
   for (const c of COMPILED) if (c.re.test(title)) return c.locale

@@ -1,9 +1,11 @@
-import { memo, useMemo, useState, useEffect } from 'react'
+import { memo, useMemo, useState, useEffect, useRef } from 'react'
 import { useAtomValue } from 'jotai'
-import { skyAtom, weatherAtom, roomLocaleAtom, combatHeatAtom } from '../../store/game'
+import { skyAtom, weatherAtom, roomLocaleAtom, roomAmbienceAtom, combatHeatAtom, indicatorsAtom } from '../../store/game'
 import type { SkyState } from '../../lib/elanthianTime'
 import { weatherLabel, type WeatherState } from '../../lib/weather'
 import { LOCALE_TINT } from '../../lib/roomLocale'
+import type { RoomAmbience } from '../../lib/roomAmbient'
+import { useFadeMount, useDwell } from '../../hooks/useAmbient'
 
 // Subtle immersive weather + day/night layer painted over the game panel.
 // Purely decorative (pointer-events: none). It renders ONLY .ambient-* elements
@@ -66,26 +68,16 @@ function buildParticles(kind: 'rain' | 'snow' | 'dust', level: number): Particle
   return out
 }
 
-// Renders the particle field, easing it in on appearance and out on clear. When
-// the weather clears we keep the last field mounted (with `is-hidden` → opacity 0)
-// for one transition, then unmount. `render` is the weather actually on screen.
+// Renders the particle field, easing it in on appearance and out on clear. When the
+// weather clears the last field stays mounted (at opacity 0) for one transition and
+// is then unmounted — see useFadeMount, which owns that dance for every layer here.
+// `render` is the weather actually on screen.
+//
+// Weather deliberately does NOT dwell (see useDwell): it is an event, not a place,
+// and a storm that takes five seconds to appear reads as a bug.
 const WeatherParticles = memo(function WeatherParticles() {
   const w = useAtomValue(weatherAtom)
-  const [render, setRender] = useState<WeatherState | null>(w.kind === 'clear' ? null : w)
-  const [hidden, setHidden] = useState(true)             // start hidden so the first paint fades in
-
-  useEffect(() => {
-    if (w.kind !== 'clear') {
-      setRender(w)
-      // Two frames so the browser paints the is-hidden (opacity 0) state before we
-      // flip it, giving a real transition instead of an instant show.
-      const id = requestAnimationFrame(() => requestAnimationFrame(() => setHidden(false)))
-      return () => cancelAnimationFrame(id)
-    }
-    setHidden(true)                                       // fade out, then unmount
-    const t = window.setTimeout(() => setRender(null), FADE_MS)
-    return () => window.clearTimeout(t)
-  }, [w])
+  const { shown: render, hidden } = useFadeMount(w.kind === 'clear' ? null : w, FADE_MS)
 
   const particles = useMemo(
     () => (render ? buildParticles(render.kind as 'rain' | 'snow' | 'dust', render.level) : []),
@@ -122,6 +114,138 @@ const WeatherParticles = memo(function WeatherParticles() {
     </div>
   )
 })
+
+// ── Room ambience (embers / underwater) ─────────────────────────────────────────
+// Motes that RISE rather than fall: forge sparks and bubbles share the same motion,
+// differing only in speed, size and colour (see .ambient-embers / .ambient-bubbles).
+// Both are room-driven, so unlike weather they wait out the dwell below.
+//
+// Sized well under the weather fields — these run in small interior rooms where a
+// hundred particles would bury the text, and the effect wants to read as "there is a
+// fire here", not as precipitation.
+// Counts are set for how many are IN the panel at once, not how many exist: a mote
+// travels most of a viewport height, so at any moment a good share of the field is
+// off-panel. Rendering the first pass at 26 embers put about five on screen, which
+// read as stray specks rather than as a fire.
+const MOTES = {
+  embers:  { count: 44, dur: 4.2, size: [1.6, 3.6], sway: 6 },
+  bubbles: { count: 26, dur: 6.5, size: [2.5, 6.5], sway: 9 },
+} as const
+
+interface Mote { left: number; delay: number; dur: number; size: number; sway: number; alpha: number; hold: number }
+
+function buildMotes(kind: 'embers' | 'bubbles'): Mote[] {
+  const m = MOTES[kind]
+  const out: Mote[] = []
+  for (let i = 0; i < m.count; i++) {
+    out.push({
+      left:  Math.random() * 100,
+      delay: -Math.random() * m.dur,                        // negative → mid-flight at mount
+      dur:   m.dur * (0.7 + Math.random() * 0.6),
+      size:  m.size[0] + Math.random() * (m.size[1] - m.size[0]),
+      // Symmetric sideways drift over the climb, so the column wanders instead of
+      // rising in parallel lines.
+      sway:  (Math.random() - 0.5) * 2 * m.sway,
+      alpha: 0.4 + Math.random() * 0.6,
+      // Where this mote sits when reduced-motion holds the field still. Without a
+      // per-mote value they would all stop at the same height and read as a line.
+      hold:  Math.random() * 95,
+    })
+  }
+  return out
+}
+
+// How long a room-driven effect must be the current room's before it's allowed on
+// screen. These change on every step, and a corridor of rooms that classify
+// differently would strobe. Baking the classification (see lib/roomAmbient) removed
+// most of that, but a forge you merely walk THROUGH still shouldn't light the panel
+// up for one step. Started at 5s and came down: with the flicker already fixed in
+// the data, the dwell only has to outlast a single step, and 5s made walking TO a
+// forge feel like the effect was broken.
+const AMBIENCE_DWELL_MS = 3000
+const AMBIENCE_FADE_MS  = 1400
+
+const ROOM_EFFECT: Record<RoomAmbience, 'embers' | 'bubbles'> = {
+  embers:     'embers',
+  underwater: 'bubbles',
+}
+
+const RoomEffect = memo(function RoomEffect() {
+  const live = useAtomValue(roomAmbienceAtom)
+  const settled = useDwell(live, AMBIENCE_DWELL_MS)
+  const { shown, hidden } = useFadeMount(settled, AMBIENCE_FADE_MS)
+  const kind = shown ? ROOM_EFFECT[shown] : null
+  const motes = useMemo(() => (kind ? buildMotes(kind) : []), [kind])
+  if (!kind) return null
+
+  return (
+    <div className={`ambient-motes ambient-${kind}${hidden ? ' is-hidden' : ''}`} aria-hidden>
+      {/* Underwater gets a caustic wash behind the bubbles — the bubbles alone read as
+          a fizzy drink, the slow moving light is what makes it read as being under it. */}
+      {kind === 'bubbles' && <div className="ambient-caustics" />}
+      {motes.map((p, i) => (
+        <span
+          key={i}
+          className="ambient-mote"
+          style={{
+            left: `${p.left}%`,
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            opacity: p.alpha,
+            ['--fall' as string]: `${p.dur}s`,
+            ['--delay' as string]: `${p.delay}s`,
+            ['--drift' as string]: `${p.sway}vw`,
+            ['--rise-hold' as string]: `${p.hold}vh`,
+          }}
+        />
+      ))}
+    </div>
+  )
+})
+
+// ── Fog / overcast ──────────────────────────────────────────────────────────────
+// The one gap in the existing weather ladder. Severity 0–4 are SKY conditions and
+// renderLevel() maps all of them to 0, so "it is completely overcast" and "a thick
+// bank of grey clouds fills the sky from horizon to horizon" currently look exactly
+// like a bright clear day. 3 and 4 are the two that describe a sky heavy enough to
+// see, so they get a slow drifting haze — no particles, just two offset gradient
+// bands crossing at different speeds.
+//
+// Only outdoors-ish weather drives this, and only when it is NOT already
+// precipitating: rain and snow bring their own overcast look via skyColor below.
+const FOG_FADE_MS = 2200
+
+function FogLayer() {
+  const w = useAtomValue(weatherAtom)
+  const level = w.kind === 'clear' && w.severity >= 3 ? w.severity - 2 : null   // 1 | 2
+  const { shown, hidden } = useFadeMount(level, FOG_FADE_MS)
+  if (shown === null) return null
+  return (
+    <div
+      className={`ambient-fog${hidden ? ' is-hidden' : ''}`}
+      style={{ ['--fog-strength' as string]: shown === 2 ? '1' : '.55' }}
+      aria-hidden
+    />
+  )
+}
+
+// ── Death ───────────────────────────────────────────────────────────────────────
+// Being dead drains the colour out of the panel. `backdrop-filter` is what makes this
+// work: the wash sits ABOVE the text and desaturates what shows through it, which no
+// amount of tinting from an overlay could do (a translucent grey veil dims text but
+// leaves it coloured). Where backdrop-filter is unavailable the CSS falls back to a
+// flat grey veil — see .ambient-death.
+//
+// Death does not dwell. It is the one transition that has to land the instant it
+// happens.
+const DEATH_FADE_MS = 1200
+
+function DeathWash() {
+  const indicators = useAtomValue(indicatorsAtom)
+  const { shown, hidden } = useFadeMount(indicators.dead ? true : null, DEATH_FADE_MS)
+  if (!shown) return null
+  return <div className={`ambient-death${hidden ? ' is-hidden' : ''}`} aria-hidden />
+}
 
 // ── Day/night sky tint ──────────────────────────────────────────────────────────
 // A subtle top-down gradient whose colour tracks the Elanthian daypart and goes
@@ -209,24 +333,14 @@ const HEAT_OUT_MS  = 900    // decay + fade-out: slow enough that the 1 s heat t
 function CombatHeat() {
   const heat = useAtomValue(combatHeatAtom)
   // `level` is what's painted — kept at the last non-zero heat through the fade-out.
-  // `rising` records whether that change was a spike or the decay, so the duration
-  // matches the direction; it's derived from the previous painted level (not a ref of
-  // `heat`, which would already be updated by the time the element first mounts).
-  const [{ level, rising }, setPaint] = useState({ level: 0, rising: true })
-  const [hidden, setHidden] = useState(true)   // at opacity 0, for the fade in/out
-
-  useEffect(() => {
-    if (heat > 0) {
-      setPaint(p => ({ level: heat, rising: heat > p.level }))
-      // Two frames so the browser paints opacity 0 before we ramp — otherwise the
-      // first paint is already at the target and there's nothing to animate.
-      const id = requestAnimationFrame(() => requestAnimationFrame(() => setHidden(false)))
-      return () => cancelAnimationFrame(id)
-    }
-    setHidden(true)                            // fade out, then unmount
-    const t = window.setTimeout(() => setPaint({ level: 0, rising: true }), HEAT_OUT_MS)
-    return () => window.clearTimeout(t)
-  }, [heat])
+  const { shown, hidden } = useFadeMount(heat > 0 ? heat : null, HEAT_OUT_MS)
+  const level = shown ?? 0
+  // Whether the last change was a spike or the decay, so the transition duration can
+  // match the direction. Tracked against the previously PAINTED level rather than a
+  // ref of `heat`, which would already be updated by the time the element mounts.
+  const prev = useRef(0)
+  const rising = level > prev.current
+  prev.current = level
 
   if (level <= 0) return null
   // Opacity from heat, floored high enough that the thin bright border stays clearly
@@ -241,13 +355,17 @@ function CombatHeat() {
   )
 }
 
-// Read the two ambient visual toggles from global settings (default ON), re-reading
-// on save. Mirrors the settings:saved live-reload pattern used elsewhere.
+// Read the ambient visual toggles from global settings (default ON), re-reading on
+// save. Mirrors the settings:saved live-reload pattern used elsewhere.
 function useAmbientToggles() {
-  const [t, setT] = useState({ room: true, heat: true })
+  const [t, setT] = useState({ room: true, heat: true, effects: true, death: true })
   useEffect(() => {
-    const load = () => window.dr.settings.getAll().then(s =>
-      setT({ room: s.ambientRoomTint !== false, heat: s.ambientHeat !== false }))
+    const load = () => window.dr.settings.getAll().then(s => setT({
+      room:    s.ambientRoomTint !== false,
+      heat:    s.ambientHeat !== false,
+      effects: s.ambientRoomEffects !== false,
+      death:   s.ambientDeath !== false,
+    }))
     load()
     window.addEventListener('settings:saved', load)
     return () => window.removeEventListener('settings:saved', load)
@@ -265,8 +383,13 @@ export function AmbientOverlay() {
     <div className="ambient-layer" aria-hidden>
       {toggles.room && <RoomTint />}
       <SkyTint />
+      <FogLayer />
       <WeatherParticles />
+      {toggles.effects && <RoomEffect />}
       {toggles.heat && <CombatHeat />}
+      {/* Above every other layer: death drains what they painted, rather than
+          competing with them. */}
+      {toggles.death && <DeathWash />}
       <AmbientLabel />
     </div>
   )

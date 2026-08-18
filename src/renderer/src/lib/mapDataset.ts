@@ -44,6 +44,12 @@ export interface DatasetRoom {
   x:    [number, string, string][]   // [destination id, literal move, canonical dir]
   w?:   Record<string, number>       // destination id → traversal seconds
   f?:   string[]                     // forageable items ("jadice flower", "oak limb")
+  // Baked ambient-overlay hints, one character each and absent when there is none.
+  // See lib/roomLocale (LOCALE_CODE) and lib/roomAmbient (AMBIENCE_CODE) — the bake
+  // exists because the live classifiers see one room at a time and flickered across
+  // connected rooms that share a title.
+  lc?:  string                       // room locale, for the tint ('g' | 'w' | 'f' | 'n' | 'u')
+  am?:  string                       // room ambience effect ('e' embers | 'w' underwater)
 }
 
 export interface Dataset {
@@ -109,6 +115,8 @@ export function datasetToDb(doc: Dataset): MapDB {
       // play, so they only ever arrive with a dataset room.
       ...(r.loc ? { region: r.loc } : {}),
       ...(r.f?.length ? { forage: r.f } : {}),
+      ...(r.lc ? { locale: r.lc } : {}),
+      ...(r.am ? { ambience: r.am } : {}),
     }
     // MapNode carries a single uid; an instanced room's extra uids are dropped
     // here rather than modelled, since identity only needs one definitive handle.

@@ -67,9 +67,14 @@ interface AppSettings {
   keepScreenOn?:    boolean
   // Ambient visual layers over the game panel (see AmbientOverlay). Undefined = on.
   // Room tint colours the panel edges by locale; combat heat flares a red rim when
-  // fighting / taking hits.
-  ambientRoomTint?: boolean
-  ambientHeat?:     boolean
+  // fighting / taking hits; room effects are the per-place particle layers (forge
+  // embers, underwater bubbles); death drains the panel's colour while you're dead.
+  // The day/night sky tint and the weather field are not toggleable — they are the
+  // baseline the rest layers onto.
+  ambientRoomTint?:    boolean
+  ambientHeat?:        boolean
+  ambientRoomEffects?: boolean
+  ambientDeath?:       boolean
 }
 
 
