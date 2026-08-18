@@ -2,17 +2,25 @@ import { useAtomValue } from 'jotai'
 import { handsAtom, vitalsAtom } from '../../store/game'
 import type { ConnectionStatus } from '../../store/game'
 
+/**
+ * An empty hand, rendered the same way everywhere it appears. handsAtom stores ''
+ * for an empty hand (the game's own "Empty" is normalised away in the store), so
+ * this is the single placeholder — one spelling, one style.
+ */
+export function EmptyHand() {
+  return <span className="hand-empty">empty</span>
+}
+
 // ── Hand display ─────────────────────────────────────────────────────────────
 function HandDisplay() {
   const hands = useAtomValue(handsAtom)
-  const empty = <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>empty</span>
   return (
     <div className="hand-display">
       <span className="hand-label">L:</span>
-      <span className="hand-item">{hands.left ? hands.left : empty}</span>
+      <span className="hand-item">{hands.left || <EmptyHand />}</span>
       <span className="hand-sep">|</span>
       <span className="hand-label">R:</span>
-      <span className="hand-item">{hands.right ? hands.right : empty}</span>
+      <span className="hand-item">{hands.right || <EmptyHand />}</span>
     </div>
   )
 }

@@ -127,10 +127,14 @@
 .inv-mgr-card-where { font-size: 10.5px; color: var(--text-muted); }
 .inv-mgr-card-tags  { display: flex; gap: 4px; flex-wrap: wrap; }
 .inv-mgr-card-tags:empty { display: none; }
+/* Stats stack one per line, "label: value". The label column is fixed so the numbers
+   line up down the card instead of stepping in and out with the label lengths. */
 .inv-mgr-card-stats {
-  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 3px;
+  display: flex; flex-direction: column; gap: 1px; margin-top: 4px;
   font-size: 10.5px; color: var(--text-muted);
 }
+.inv-mgr-card-stat { display: flex; gap: 4px; cursor: help; }
+.inv-mgr-card-stat-label { min-width: 3.6em; }
 .inv-mgr-card-stats b {
   color: var(--text-dim); font-weight: 600; font-variant-numeric: tabular-nums;
 }
