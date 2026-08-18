@@ -303,6 +303,8 @@
 /* Pinned width so the hands slot never grows/shrinks with item text; each hand
    takes half and truncates. */
 .hand-item  { color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 0; min-width: 0; }
+/* An empty hand, wherever it's shown (HUD bar, Inventory summary). See EmptyHand. */
+.hand-empty { color: var(--text-dim); font-style: italic; }
 
 /* ── Timestamps ──────────────────────────────────────────────────────────── */
 

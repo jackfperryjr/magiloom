@@ -8,6 +8,7 @@ import {
   type OutputLine,
 } from '../../store/game'
 import { invSnapshotAtom, invStatusAtom, refreshInventoryAtom } from '../../store/inventory'
+import { EmptyHand } from '../game/HudBar'
 import { PLAYER, pathTo, weightOf, isContainer, childrenOf, type InvItem } from '../../lib/inventory'
 import { resolveAvatarSrc } from '../../lib/avatar'
 import { groupExpSkills } from '../../lib/expGroups'
@@ -401,8 +402,8 @@ export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
       </div>
 
       <div className="inv-sum-hands">
-        <div><span className="inv-sum-label">Right</span><span>{hands.right || 'empty'}</span></div>
-        <div><span className="inv-sum-label">Left</span><span>{hands.left || 'empty'}</span></div>
+        <div><span className="inv-sum-label">Right</span><span>{hands.right || <EmptyHand />}</span></div>
+        <div><span className="inv-sum-label">Left</span><span>{hands.left || <EmptyHand />}</span></div>
       </div>
 
       {snapshot ? (

@@ -464,16 +464,19 @@ function ItemCard({ snapshot, item, depth, carried, selected, onSelect }: {
       </span>
       <span className="inv-mgr-card-stats">
         {container && (
-          <span data-tooltip={COLUMNS.contents.hint}>
-            <b>{kids}</b> {COLUMNS.contents.label.toLowerCase()}
+          <span className="inv-mgr-card-stat" data-tooltip={COLUMNS.contents.hint}>
+            <span className="inv-mgr-card-stat-label">{COLUMNS.contents.label.toLowerCase()}:</span>
+            <b>{kids}</b>
           </span>
         )}
-        <span data-tooltip={COLUMNS.weight.hint}>
-          <b>{weightOf(item) ?? '—'}{carried > 0 ? `+${carried}` : ''}</b> {COLUMNS.weight.label.toLowerCase()}
+        <span className="inv-mgr-card-stat" data-tooltip={COLUMNS.weight.hint}>
+          <span className="inv-mgr-card-stat-label">{COLUMNS.weight.label.toLowerCase()}:</span>
+          <b>{weightOf(item) ?? '—'}{carried > 0 ? `+${carried}` : ''}</b>
         </span>
         {container && (
-          <span data-tooltip={COLUMNS.capacity.hint}>
-            <b>{capacityOf(item) ?? '—'}</b> {COLUMNS.capacity.label.toLowerCase()}
+          <span className="inv-mgr-card-stat" data-tooltip={COLUMNS.capacity.hint}>
+            <span className="inv-mgr-card-stat-label">{COLUMNS.capacity.label.toLowerCase()}:</span>
+            <b>{capacityOf(item) ?? '—'}</b>
           </span>
         )}
       </span>

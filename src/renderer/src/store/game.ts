@@ -248,7 +248,14 @@ export const promptCountAtom = atom<number>(0)
 export const inventoryLinesAtom = atom<string[]>([])
 
 // ── Hands ────────────────────────────────────────────────────────────────────
+// '' means the hand is empty — see handContent().
 export const handsAtom = atom<{ left: string; right: string }>({ left: '', right: '' })
+
+/** What the game reports for a hand, with its "Empty" placeholder reduced to ''. */
+export const handContent = (text: string): string => {
+  const trimmed = text.trim()
+  return /^empty$/i.test(trimmed) ? '' : trimmed
+}
 
 // ── Indicators ────────────────────────────────────────────────────────────────
 export const indicatorsAtom = atom<Record<string, boolean>>({})
@@ -997,9 +1004,14 @@ export const dispatchGameEventAtom = atom(
             break
           }
         }
-        // Route hand content
-        if (event.styles.some(s => s.preset === 'left'))  set(handsAtom, { ...get(handsAtom), left:  event.text.trim() })
-        if (event.styles.some(s => s.preset === 'right')) set(handsAtom, { ...get(handsAtom), right: event.text.trim() })
+        // Route hand content. The game says "Empty" for a bare hand, which is a state,
+        // not an item — normalise it to '' here so there is one representation of empty
+        // and every consumer can render it the same way. (Before this, a hand the game
+        // had reported showed the literal "Empty" while one it had not yet reported fell
+        // back to a component's own placeholder, so the same state looked different in
+        // different panels.)
+        if (event.styles.some(s => s.preset === 'left'))  set(handsAtom, { ...get(handsAtom), left:  handContent(event.text) })
+        if (event.styles.some(s => s.preset === 'right')) set(handsAtom, { ...get(handsAtom), right: handContent(event.text) })
         // Also route main-stream speech/whisper/thought to conv panel.
         // appendDedup handles the case where speech arrives in both the pushStream
         // and the main stream, so only the first copy is kept.
