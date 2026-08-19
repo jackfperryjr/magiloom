@@ -34,6 +34,8 @@ const TESTS = [
   'src/renderer/src/lib/weather.test.ts',
   'src/renderer/src/lib/rules.test.ts',
   'src/renderer/src/lib/roomAmbient.test.ts',
+  'src/renderer/src/lib/ambientMix.test.ts',
+  'src/renderer/src/lib/loginScene.test.ts',
 ]
 
 fs.mkdirSync(CACHE, { recursive: true })

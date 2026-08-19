@@ -3,6 +3,7 @@ import { Provider, useSetAtom, useAtomValue } from 'jotai'
 import { useGameConnection }  from './hooks/useGameConnection'
 import { useIsMobile }         from './hooks/useIsMobile'
 import { useAutomapper }       from './hooks/useAutomapper'
+import { useAmbientAudio }     from './hooks/useAmbientAudio'
 import { GameOutput, setHighlights, setSendFn, setOutputBuffer, setPlayerName, setDisabledClasses } from './components/game/GameOutput'
 import { CommandInput, StatusBar, WindowControls, HudBar, CharacterBar } from './components/game'
 import { AmbientOverlay } from './components/game/AmbientOverlay'
@@ -164,6 +165,9 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
   // Automapper: records rooms into the shared world map (movement is captured
   // universally via dr.game.onSent inside the hook).
   const automap = useAutomapper()
+  // Procedural ambient sound, driven by the same weather/room state AmbientOverlay
+  // paints. Opens no AudioContext at all until something actually wants to sound.
+  useAmbientAudio()
   const isMobile = useIsMobile()
   const { status, disconnect, send } = useGameConnection(charName)
   // App-level messaging subscription (web): keeps contacts/threads/unread live whether

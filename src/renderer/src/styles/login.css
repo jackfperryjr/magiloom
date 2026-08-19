@@ -51,6 +51,33 @@
   .resume-splash-spinner { animation-duration: 2.4s; }
 }
 
+/* Animated scene behind the sign-in card (components/ui/LoginArt.tsx).
+   Two stacked canvases so a scene change can crossfade; the second is idle
+   except during a fade. Purely decorative and never interactive. */
+.login-art {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.login-art canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transition: opacity 1.1s ease;
+}
+.login-art canvas.is-on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .login-art canvas { transition: none; }
+}
+
+/* The card and everything else on the login screen sit above the art. */
+.login-card,
+.login-screen > *:not(.login-art) { position: relative; z-index: 1; }
 .login-card {
   width: 360px;
   background: linear-gradient(180deg, color-mix(in srgb, var(--bg-panel) 90%, var(--accent)) 0%, var(--bg-panel) 100%);

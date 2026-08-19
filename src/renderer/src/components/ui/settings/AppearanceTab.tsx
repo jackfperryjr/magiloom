@@ -8,8 +8,6 @@ export function AppearanceTab({
   theme, previewTheme, density, setDensity, fontFamily, setFontFamily,
   fontSize, setFontSize, outputBufferSize, setOutputBufferSize,
   isWeb, keepScreenOn, setKeepScreenOn,
-  ambientRoomTint, setAmbientRoomTint, ambientHeat, setAmbientHeat,
-  ambientRoomEffects, setAmbientRoomEffects, ambientDeath, setAmbientDeath,
 }: {
   theme:               string
   previewTheme:        (id: string) => void
@@ -24,14 +22,6 @@ export function AppearanceTab({
   isWeb:               boolean
   keepScreenOn:        boolean
   setKeepScreenOn:     Dispatch<SetStateAction<boolean>>
-  ambientRoomTint:     boolean
-  setAmbientRoomTint:  Dispatch<SetStateAction<boolean>>
-  ambientHeat:            boolean
-  setAmbientHeat:         Dispatch<SetStateAction<boolean>>
-  ambientRoomEffects:     boolean
-  setAmbientRoomEffects:  Dispatch<SetStateAction<boolean>>
-  ambientDeath:           boolean
-  setAmbientDeath:        Dispatch<SetStateAction<boolean>>
 }) {
   return (
     <>
@@ -125,48 +115,6 @@ export function AppearanceTab({
           <option value={10000}>10,000 lines</option>
         </select>
       </label>
-      </div>
-
-      {/* Ambient visual layers painted over the game panel (AmbientOverlay). Both
-          default on; independent of the always-on day/night + weather layers. */}
-      <div className="settings-section">
-        <div className="settings-section-label">Ambient</div>
-        <label className="settings-row">
-          <span className="settings-label">Room tint</span>
-          <input type="checkbox" checked={ambientRoomTint} style={{ width: 'auto' }}
-            onChange={e => setAmbientRoomTint(e.target.checked)} />
-        </label>
-        <div className="settings-hint">
-          Tints the panel edges by locale — cool in caves, green in forests, warm in
-          taverns — to give each room a sense of place.
-        </div>
-        <label className="settings-row">
-          <span className="settings-label">Combat heat</span>
-          <input type="checkbox" checked={ambientHeat} style={{ width: 'auto' }}
-            onChange={e => setAmbientHeat(e.target.checked)} />
-        </label>
-        <div className="settings-hint">
-          Flares a red glow around the panel during combat, flashing brighter when you
-          take a hit, then fading as the fight settles.
-        </div>
-        <label className="settings-row">
-          <span className="settings-label">Room effects</span>
-          <input type="checkbox" checked={ambientRoomEffects} style={{ width: 'auto' }}
-            onChange={e => setAmbientRoomEffects(e.target.checked)} />
-        </label>
-        <div className="settings-hint">
-          Drifts embers up the panel at a forge or a lava field, and bubbles when
-          you're underwater. Only a handful of rooms in Elanthia have one.
-        </div>
-        <label className="settings-row">
-          <span className="settings-label">Death</span>
-          <input type="checkbox" checked={ambientDeath} style={{ width: 'auto' }}
-            onChange={e => setAmbientDeath(e.target.checked)} />
-        </label>
-        <div className="settings-hint">
-          Drains the colour out of the game panel while you're dead, and restores it
-          when you're raised.
-        </div>
       </div>
 
       {/* Keep-awake only applies to the PWA/browser; the desktop app manages power

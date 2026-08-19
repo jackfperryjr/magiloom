@@ -75,6 +75,22 @@ interface AppSettings {
   ambientHeat?:        boolean
   ambientRoomEffects?: boolean
   ambientDeath?:       boolean
+  // Procedural ambient sound (see lib/ambientAudio.ts) — rain while it rains, a
+  // fire in a forge, bubbles underwater. Synthesized, so there are no audio assets
+  // and intensity tracks weather severity directly. Undefined = on, matching the
+  // ambient visual layers above; volume undefined = 0.5.
+  ambientSound?:        boolean
+  ambientSoundVolume?:  number
+  ambientSoundLayers?:  { rain?: boolean; wind?: boolean; fire?: boolean; water?: boolean }
+  /** Go quiet while the window is hidden. Undefined = on. */
+  ambientSoundPauseHidden?: boolean
+  // Animated login-screen art (see components/ui/LoginArt.tsx). The scene is
+  // chosen from the real-world calendar and clock; loginArtScene pins one by key
+  // (see SCENES in lib/loginScene.ts) or is undefined/calendar to follow the
+  // calendar. Undefined = on.
+  loginArt?:         boolean
+  loginArtScene?:    string
+  loginArtHolidays?: boolean
 }
 
 
