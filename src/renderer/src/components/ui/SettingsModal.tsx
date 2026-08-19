@@ -10,6 +10,7 @@ import type { Alias, Trigger } from '../../lib/automation'
 import { parseGenieConfig, mergeAliases, mergeTriggers, mergeVars } from '../../lib/genieImport'
 import { toggleClassState } from './ClassToggleStrip'
 import { AppearanceTab } from './settings/AppearanceTab'
+import { AmbientTab, DEFAULT_SOUND, DEFAULT_LOGIN_ART, type SoundPrefs, type LoginArtPrefs } from './settings/AmbientTab'
 import { NotificationsTab } from './settings/NotificationsTab'
 import { AliasesTab } from './settings/AliasesTab'
 import { TriggersTab } from './settings/TriggersTab'
@@ -19,10 +20,11 @@ interface SettingsModalProps {
   onClose: () => void
 }
 
-type TabId = 'appearance' | 'notifications' | 'keybinds' | 'aliases' | 'triggers' | 'scripts' | 'lich'
+type TabId = 'appearance' | 'ambient' | 'notifications' | 'keybinds' | 'aliases' | 'triggers' | 'scripts' | 'lich'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'appearance',    label: 'Appearance' },
+  { id: 'ambient',       label: 'Ambient' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'keybinds',      label: 'Function Keys' },
   { id: 'aliases',       label: 'Aliases' },
@@ -50,6 +52,8 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [ambientHeat,     setAmbientHeat]     = useState(true)
   const [ambientRoomEffects, setAmbientRoomEffects] = useState(true)
   const [ambientDeath,       setAmbientDeath]       = useState(true)
+  const [sound,           setSound]           = useState<SoundPrefs>(DEFAULT_SOUND)
+  const [loginArt,        setLoginArt]        = useState<LoginArtPrefs>(DEFAULT_LOGIN_ART)
   const [logging,         setLogging]         = useState(false)
   const [functionKeys,    setFunctionKeys]    = useState<Record<string, string>>({})
   const [aliases,         setAliases]         = useState<Alias[]>([])
@@ -113,6 +117,22 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setAmbientHeat(s.ambientHeat !== false)
       setAmbientRoomEffects(s.ambientRoomEffects !== false)
       setAmbientDeath(s.ambientDeath !== false)
+      setSound({
+        on:          s.ambientSound !== false,
+        volume:      typeof s.ambientSoundVolume === 'number' ? s.ambientSoundVolume : DEFAULT_SOUND.volume,
+        pauseHidden: s.ambientSoundPauseHidden !== false,
+        layers: {
+          rain:  s.ambientSoundLayers?.rain  !== false,
+          wind:  s.ambientSoundLayers?.wind  !== false,
+          fire:  s.ambientSoundLayers?.fire  !== false,
+          water: s.ambientSoundLayers?.water !== false,
+        },
+      })
+      setLoginArt({
+        on:       s.loginArt !== false,
+        scene:    s.loginArtScene || 'calendar',
+        holidays: s.loginArtHolidays !== false,
+      })
       setNotif({ ...DEFAULT_NOTIF, ...(s.notifications ?? {}) })
       setPush({ ...DEFAULT_PUSH, ...(s.push ?? {}) })
       setNotifRules(s.notifRules ?? [])
@@ -145,6 +165,9 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
     await window.dr.settings.patch({
       lichPath, scriptDir, outputBufferSize, keepScreenOn, ambientRoomTint, ambientHeat,
       ambientRoomEffects, ambientDeath,
+      ambientSound: sound.on, ambientSoundVolume: sound.volume,
+      ambientSoundLayers: sound.layers, ambientSoundPauseHidden: sound.pauseHidden,
+      loginArt: loginArt.on, loginArtScene: loginArt.scene, loginArtHolidays: loginArt.holidays,
       notifications: notif, push, notifRules,
     })
     const varsRecord = Object.fromEntries(
@@ -196,10 +219,17 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                 outputBufferSize={outputBufferSize} setOutputBufferSize={setOutputBufferSize}
                 isWeb={isWeb}
                 keepScreenOn={keepScreenOn} setKeepScreenOn={setKeepScreenOn}
+              />
+            )}
+
+            {tab === 'ambient' && (
+              <AmbientTab
                 ambientRoomTint={ambientRoomTint} setAmbientRoomTint={setAmbientRoomTint}
                 ambientHeat={ambientHeat} setAmbientHeat={setAmbientHeat}
                 ambientRoomEffects={ambientRoomEffects} setAmbientRoomEffects={setAmbientRoomEffects}
                 ambientDeath={ambientDeath} setAmbientDeath={setAmbientDeath}
+                sound={sound} setSound={setSound}
+                loginArt={loginArt} setLoginArt={setLoginArt}
               />
             )}
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Tooltip } from './Tooltip'
+import { LoginArt } from './LoginArt'
 
 interface LoginFlowProps {
   onEnterGame: (characterName: string, accountName: string, watching?: boolean) => void
@@ -28,6 +29,7 @@ interface SavedAccount  { name: string; lastCharacter?: string }
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="login-screen">
+      <LoginArt />
       <div className="login-card">
         <img src="./icon.png" className="login-hero" alt="Lantern" />
         <div className="login-logo">LANTERN</div>
