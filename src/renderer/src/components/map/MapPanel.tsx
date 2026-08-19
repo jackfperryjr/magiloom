@@ -55,6 +55,9 @@ export function MapPanel({ onNodeClick, onStopWalk, onExpand }: {
         onExitClick={onNodeClick}
         walkActive={walk.active}
         onStopWalk={onStopWalk}
+        // The wheel belongs to the sidebar here — scrolling past the map shouldn't
+        // zoom it. Use the toolbar +/− to zoom, or the popout, which keeps the wheel.
+        wheelZoom={false}
       />
     </div>
   )

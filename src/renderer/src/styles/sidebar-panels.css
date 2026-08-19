@@ -501,6 +501,15 @@
   margin-top: 5px;
   font-family: var(--font-game);
 }
+/* Also-here / you-also-see had no size of their own, so they fell back to the
+   16px document default and read a notch bigger than the description and exits
+   around them. Size them like the rest of the panel. */
+.room-players,
+.room-objs {
+  font-size: 14px;
+  line-height: 1.35;
+  font-family: var(--font-game);
+}
 
 /* ── Vitals bar gradients (shared by the HUD mini-bars via `vital-<key>`) ──── */
 .vital-health  { background: linear-gradient(90deg, #6a0808, var(--health-color)); }

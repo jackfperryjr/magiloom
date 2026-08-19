@@ -47,19 +47,22 @@ export interface MapViewProps {
   onExitClick?:   (toId: string) => void   // travel/jump to the room beyond a portal
   walkActive?:    boolean
   onStopWalk?:    () => void
+  wheelZoom?:     boolean            // false = let the wheel scroll the page instead
   className?:     string
 }
 
 /**
  * Pan/zoom SVG renderer for one zone at one z-level. Nodes sit on a grid (x,y in
  * grid units); same-level arcs draw as lines; the current room pulses. Interaction
- * is pointer-based: drag the background to pan, wheel to zoom, drag a node to
- * reposition it (when onNodeDrag is set), click a node to walk. Auto-centers on the
- * current room as the character moves. Reused by MapPanel and MapOverlay.
+ * is pointer-based: drag the background to pan, wheel to zoom (unless wheelZoom is
+ * off — the sidebar panel wants the wheel for scrolling), drag a node to reposition
+ * it (when onNodeDrag is set), click a node to walk. Auto-centers on the current
+ * room as the character moves. Reused by MapPanel and MapOverlay.
  */
 export function MapView({
   zone, exits, labels, currentNodeId, selectedId, focusId,
-  onNodeClick, onNodeContext, onNodeDrag, onExitClick, walkActive, onStopWalk, className,
+  onNodeClick, onNodeContext, onNodeDrag, onExitClick, walkActive, onStopWalk,
+  wheelZoom = true, className,
 }: MapViewProps) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 300, h: 220 })
@@ -238,7 +241,8 @@ export function MapView({
       <svg
         className="map-svg" width="100%" height="100%"
         onPointerDown={onBgPointerDown} onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onWheel={onWheel}
+        onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
+        onWheel={wheelZoom ? onWheel : undefined}
       >
         <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
           {edges.map((e, i) => (
