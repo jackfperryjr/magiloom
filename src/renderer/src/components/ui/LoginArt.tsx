@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { pickScene, dailyRoll, SCENE, SCENES } from '../../lib/loginScene'
+import { SCENE_FX, fitCanvas, type Fx } from '../../lib/loginArtFx'
 
 import downpour   from '../../assets/login-art/downpour.jpg'
 import snowfall   from '../../assets/login-art/snowfall.jpg'
@@ -12,7 +13,9 @@ import blossom    from '../../assets/login-art/blossom.jpg'
 import harvest    from '../../assets/login-art/harvest.jpg'
 import hallows    from '../../assets/login-art/hallows.jpg'
 import yule       from '../../assets/login-art/yule.jpg'
-import fireworks  from '../../assets/login-art/fireworks.jpg'
+// Empty sky: every burst on this scene is animated (see SCENE_FX.fireworks), so
+// the painting deliberately has none of its own.
+import fireworks  from '../../assets/login-art/fireworks2.jpg'
 import clearnight from '../../assets/login-art/clearnight.jpg'
 
 /**
@@ -31,6 +34,10 @@ import clearnight from '../../assets/login-art/clearnight.jpg'
  *
  * Two stacked <img> layers remain so the dev cycler below can crossfade between
  * scenes; in normal use the second one is never filled.
+ *
+ * Over the image sits a transparent canvas carrying whatever moves in that scene —
+ * rain, snow, embers, birds (lib/loginArtFx.ts). Not every scene has one, and none
+ * of it runs under prefers-reduced-motion or while the window is hidden.
  */
 
 /** Indexed by SCENE — the order in lib/loginScene.ts, which the settings pin uses. */
@@ -84,6 +91,7 @@ export function LoginArt(): React.JSX.Element | null {
   // Which layer is in front, kept in a ref so alternation survives the effect
   // re-running (which it does on every dev-pin change).
   const sideRef = useRef(1)
+  const fxRef   = useRef<HTMLCanvasElement>(null)
 
   // Settings are global (no character is chosen yet at the login screen).
   useEffect(() => {
@@ -122,6 +130,66 @@ export function LoginArt(): React.JSX.Element | null {
     return () => { live = false }
   }, [prefs, pinned])
 
+  // ── The moving layer ────────────────────────────────────────────────────────
+  // Restarts whenever the scene changes (a dev-cycler step; never otherwise, since
+  // the daily pick doesn't rotate).
+  useEffect(() => {
+    const cv = fxRef.current
+    if (shown === null || !cv) return
+    const key = SCENES.find(s => s.index === shown)?.key
+    const make = key ? SCENE_FX[key] : undefined
+    if (!make) return
+    // Motion is the whole point of this layer, so reduced-motion gets nothing at
+    // all rather than a frozen frame of particles over an already-finished
+    // painting.
+    if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    const fx: Fx = make()
+    let raf: number | null = null
+    let last = 0, t = 0
+    let w = 0, h = 0
+
+    const first = fitCanvas(cv)
+    if (!first) return
+    let ctx = first.ctx
+
+    // Re-fit only when the element actually changes size: fitCanvas resets the
+    // backing store and the DPR transform, which is not free to do every frame.
+    const resize = (): void => {
+      const f = fitCanvas(cv)
+      if (!f) return
+      ctx = f.ctx
+      if (f.w !== w || f.h !== h) { w = f.w; h = f.h; fx.seed(w, h) }
+    }
+
+    const frame = (now: number): void => {
+      if (cv.clientWidth !== w || cv.clientHeight !== h) resize()
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016
+      last = now
+      t += dt
+      ctx.clearRect(0, 0, w, h)
+      fx.draw(ctx, w, h, t, dt)
+      raf = requestAnimationFrame(frame)
+    }
+
+    const stop = (): void => { if (raf !== null) { cancelAnimationFrame(raf); raf = null } }
+    const start = (): void => { if (raf === null) { last = 0; raf = requestAnimationFrame(frame) } }
+
+    resize()
+    start()
+    // Nothing should animate behind a hidden window — this runs on a phone too.
+    const onVis = (): void => { if (document.hidden) stop(); else start() }
+    document.addEventListener('visibilitychange', onVis)
+    window.addEventListener('resize', resize)
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVis)
+      window.removeEventListener('resize', resize)
+      stop()
+      ctx.clearRect(0, 0, w, h)
+    }
+  }, [shown])
+
   if (!prefs || !prefs.on) return null
 
   const cycle = (step: number): void => {
@@ -138,6 +206,7 @@ export function LoginArt(): React.JSX.Element | null {
           <img key={i} src={src || undefined} alt=""
             className={front === i && src ? 'is-on' : undefined} />
         ))}
+        <canvas ref={fxRef} className={shown !== null ? 'is-on' : undefined} />
       </div>
       {/* Dev build only — `import.meta.env.DEV` is a compile-time constant, so this
           whole block is dropped from a production bundle. */}
