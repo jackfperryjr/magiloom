@@ -1,7 +1,13 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
 import { useAtomValue } from 'jotai'
 import { Tooltip } from '../ui/Tooltip'
-import { IconArrowDownTray } from '../ui/Icons'
+import {
+  IconArrowDownTray,
+  IconPanelRoom, IconPanelMap, IconPanelSky, IconPanelBody, IconPanelExperience,
+  IconPanelSpells, IconPanelCombat, IconPanelAtmo, IconPanelConversation,
+  IconPanelMessages, IconPanelInventory, IconPanelDeaths, IconPanelConnections,
+  IconPanelScripts,
+} from '../ui/Icons'
 import { convLinesAtom } from '../../store/game'
 import { totalUnreadAtom, contactRequestsAtom, messagingAvailable } from '../../store/messaging'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -221,23 +227,32 @@ function Panel({
 // Clicking an icon scrolls that panel into view. The conversation icon shows an
 // unread dot when new lines arrive while its panel is off-screen; the dot clears
 // once the panel scrolls back into view (by click or manual scroll).
-// Every panel button auto-uses a custom image at public/panels/<id>.jpg if one
-// exists (cover-cropped to fill the tile), else falls back to the panel's capital
-// initial. So to give any panel a real icon, just drop `<panel-id>.jpg` into
-// public/panels — no code change. Panel ids: room, map, experience, spells,
-// combat, atmo, conversation, inventory, deaths, connections, scripts, lich.
+// Each panel button draws its glyph from Icons.tsx (see the "Panel rail glyphs"
+// section there). These replaced per-panel JPEGs in public/panels: a full
+// illustration cover-cropped into a 42px tile is unreadable, can't follow the
+// theme, and the art we had carried a generator watermark. currentColor SVG fixes
+// all three. A panel with no entry here falls back to its capital initial.
+const RAIL_ICONS: Partial<Record<PanelId, (p: { size?: number }) => React.ReactElement>> = {
+  room:         IconPanelRoom,
+  map:          IconPanelMap,
+  sky:          IconPanelSky,
+  body:         IconPanelBody,
+  experience:   IconPanelExperience,
+  spells:       IconPanelSpells,
+  combat:       IconPanelCombat,
+  atmo:         IconPanelAtmo,
+  conversation: IconPanelConversation,
+  messages:     IconPanelMessages,
+  inventory:    IconPanelInventory,
+  deaths:       IconPanelDeaths,
+  connections:  IconPanelConnections,
+  scripts:      IconPanelScripts,
+}
+
 function RailIcon({ id, label }: { id: PanelId; label: string }) {
-  const [failed, setFailed] = useState(false)
-  if (failed) return <span className="panel-rail-icon">{label.charAt(0).toUpperCase()}</span>
-  return (
-    <img
-      className="panel-rail-img"
-      src={`./panels/${id}.jpg`}
-      alt=""
-      draggable={false}
-      onError={() => setFailed(true)}
-    />
-  )
+  const Glyph = RAIL_ICONS[id]
+  if (!Glyph) return <span className="panel-rail-icon">{label.charAt(0).toUpperCase()}</span>
+  return <Glyph size={22} />
 }
 
 function PanelRail({ panels, scrollRef, onSelect, openPanel, onManage, manageBtnRef }: {
@@ -303,7 +318,8 @@ function PanelRail({ panels, scrollRef, onSelect, openPanel, onManage, manageBtn
       {panels.map(p => (
         <Tooltip key={p.id} text={p.label} placement="left">
           <span className="panel-rail-slot">
-            <button className="panel-rail-btn" onClick={() => select(p.id)} aria-label={p.label}>
+            {/* data-panel drives the per-panel glyph hue in sidebar-panels.css. */}
+            <button className="panel-rail-btn" data-panel={p.id} onClick={() => select(p.id)} aria-label={p.label}>
               <RailIcon id={p.id} label={p.label} />
             </button>
             {/* Outside the (overflow-hidden) button so it sits on top of the edge,

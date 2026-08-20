@@ -8,8 +8,7 @@ import {
   type OutputLine,
 } from '../../store/game'
 import { invSnapshotAtom, invStatusAtom, refreshInventoryAtom } from '../../store/inventory'
-import { EmptyHand } from '../game/HudBar'
-import { PLAYER, pathTo, weightOf, isContainer, childrenOf, type InvItem } from '../../lib/inventory'
+import { isClosed, summarizeCarried } from '../../lib/inventory'
 import { resolveAvatarSrc } from '../../lib/avatar'
 import { groupExpSkills } from '../../lib/expGroups'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
@@ -366,6 +365,16 @@ export function ConversationPanel() {
 // so a character who typed INV isn't left staring at nothing.
 const INV_HEADER_RE = /^\s*(?:your worn items are|you are wearing)\s*:?\s*$/i
 
+/**
+ * An empty hand. handsAtom stores '' for one (the game's own "Empty" is normalised
+ * away in the store), so this is the single placeholder — one spelling, one style.
+ * Lived in HudBar until the HUD's hands slot was removed as a duplicate of the two
+ * rows below; this panel is the only place hands are shown now.
+ */
+function EmptyHand() {
+  return <span className="hand-empty">empty</span>
+}
+
 export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
   const lines    = useAtomValue(inventoryLinesAtom).filter(l => !INV_HEADER_RE.test(l))
   const snapshot = useAtomValue(invSnapshotAtom)
@@ -375,18 +384,13 @@ export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
 
   // Everything hanging off the character — what you'd actually be carrying. Items on
   // the ground are in the snapshot too, and are not your problem.
-  const carried = useMemo(() => {
-    if (!snapshot) return { total: 0, top: [] as InvItem[] }
-    let total = 0
-    const top: InvItem[] = []
-    for (const item of snapshot.items.values()) {
-      const root = item.parent === PLAYER ? PLAYER : pathTo(snapshot, item)[0]?.parent ?? item.parent
-      if (root !== PLAYER) continue
-      total += Math.max(0, weightOf(item) ?? 0)
-      if (item.parent === PLAYER) top.push(item)
-    }
-    return { total, top }
-  }, [snapshot])
+  //
+  // This panel is the at-a-glance view, so it deliberately does NOT list what you're
+  // wearing: that's a dozen-odd rows of jewellery and armour that change maybe once a
+  // session, and it pushed the parts that DO change (hands, containers) off screen.
+  // Worn items collapse to a single count here and live in full in the pop-out
+  // manager. What's left is what you'd actually act on mid-session.
+  const carried = useMemo(() => snapshot ? summarizeCarried(snapshot) : null, [snapshot])
 
   return (
     <div className="inv-sum">
@@ -406,25 +410,38 @@ export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
         <div><span className="inv-sum-label">Left</span><span>{hands.left || <EmptyHand />}</span></div>
       </div>
 
-      {snapshot ? (
+      {snapshot && carried ? (
         <>
-          <div className="inv-sum-carry">
-            <span className="inv-sum-label">Carrying</span>
-            <span data-tooltip="Total weight of everything on you, in the game's raw units — the scale isn't confirmed yet.">
-              {carried.total}
-            </span>
+          {/* Three numbers, one row: what you're hauling, how many things that is,
+              and how much of it is worn (the list this panel used to spell out). */}
+          <div className="inv-sum-stats">
+            <div className="inv-sum-stat" data-tooltip="Total weight of everything on you, in the game's raw units.">
+              <span className="inv-sum-stat-n">{carried.weight}</span>
+              <span className="inv-sum-stat-k">load</span>
+            </div>
+            <div className="inv-sum-stat" data-tooltip="Every item on you, including things inside containers.">
+              <span className="inv-sum-stat-n">{carried.items}</span>
+              <span className="inv-sum-stat-k">items</span>
+            </div>
+            <div className="inv-sum-stat" data-tooltip="Items you're wearing. Open the manager to see them.">
+              <span className="inv-sum-stat-n">{carried.worn}</span>
+              <span className="inv-sum-stat-k">worn</span>
+            </div>
           </div>
-          {carried.top.length === 0
-            ? <div className="panel-empty">Nothing worn or held.</div>
-            : carried.top.map(item => {
-                const count = isContainer(item) ? childrenOf(snapshot, item.id).length : null
-                return (
-                  <div key={item.id} className="inv-sum-row" onClick={onManage}>
-                    <span className="inv-sum-name">{item.name}</span>
-                    {count !== null && <span className="inv-sum-count">{count}</span>}
-                  </div>
-                )
-              })}
+
+          {/* Containers, with how many things are directly inside each. Capacity is
+              deliberately not shown as a ratio: the server's weight and capacity
+              figures are on different raw scales (see weightOf/capacityOf), so any
+              "7/12" here would be invented. */}
+          {carried.containers.length === 0
+            ? <div className="panel-empty">Your containers are empty.</div>
+            : carried.containers.map(({ item, count }) => (
+                <div key={item.id} className="inv-sum-row" onClick={onManage}>
+                  <span className="inv-sum-name">{item.name}</span>
+                  {isClosed(item) && <span className="inv-sum-tag">closed</span>}
+                  <span className="inv-sum-count">{count}</span>
+                </div>
+              ))}
         </>
       ) : lines.length > 0 ? (
         lines.map((line, i) => <div key={i} className="inv-line">{line}</div>)

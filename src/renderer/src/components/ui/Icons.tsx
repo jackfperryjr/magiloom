@@ -115,6 +115,164 @@ export function IconPaperAirplane({ size = 16, className, style }: IconProps) {
   )
 }
 
+// ── Panel rail glyphs ─────────────────────────────────────────────────────────
+// One per sidebar panel, drawn on the same 24-grid as the Heroicons above but
+// hand-authored — the stock set has nothing for a doorway, crossed swords or a
+// skull. They render at 22px inside a 42px tile, so they're built for silhouette:
+// solid masses, no detail below ~1.5 units, counters (skull eyes, speech dots)
+// punched with fillRule="evenodd" so they stay open at size. currentColor
+// throughout, which is what lets them work on every theme.
+
+export function IconPanelRoom({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path fillRule="evenodd" clipRule="evenodd" d="M12 1.75A8.25 8.25 0 0 0 3.75 10v10.5c0 .69.56 1.25 1.25 1.25h14c.69 0 1.25-.56 1.25-1.25V10A8.25 8.25 0 0 0 12 1.75Zm0 3.5A4.75 4.75 0 0 0 7.25 10v9.5h9.5V10A4.75 4.75 0 0 0 12 5.25ZM15.4 15.9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />
+    </svg>
+  )
+}
+
+export function IconPanelMap({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path d="M8 4.2 2.9 6.35a.9.9 0 0 0-.55.83v11.6a.6.6 0 0 0 .83.55L8 17.5Z" />
+      <path d="M9.6 4.2v13.3l4.8 2V6.2Z" />
+      <path d="M16 6.2v13.3l5.15-2.17a.9.9 0 0 0 .55-.83V4.9a.6.6 0 0 0-.83-.55L16 6.2Z" />
+    </svg>
+  )
+}
+
+// Calendar panel: the sky dome with sun/moons/weather — a moon and star say
+// "time of day" far better than a date grid at this size.
+export function IconPanelSky({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path d="M15.8 4.2a8.4 8.4 0 1 0 3.85 11.3A6.9 6.9 0 0 1 15.8 4.2Z" />
+      <path d="M19.5 1.4 20.4 3.6 22.6 4.5 20.4 5.4 19.5 7.6 18.6 5.4 16.4 4.5 18.6 3.6Z" />
+    </svg>
+  )
+}
+
+// Arms-out figure, echoing the wound silhouette the Body panel itself draws.
+export function IconPanelBody({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path d="M12 1.4a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
+      <path d="M4.6 8.7h14.8a1.35 1.35 0 0 1 0 2.7H4.6a1.35 1.35 0 0 1 0-2.7Z" />
+      <path d="M9.5 8.5h5v6.2a1.3 1.3 0 0 1-1.3 1.3h-2.4a1.3 1.3 0 0 1-1.3-1.3Z" />
+      <path d="M9.4 14.6h2.2v6.3a1.1 1.1 0 1 1-2.2 0Z" />
+      <path d="M12.4 14.6h2.2v6.3a1.1 1.1 0 1 1-2.2 0Z" />
+    </svg>
+  )
+}
+
+export function IconPanelExperience({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path d="M4.5 13.5h3.25a.75.75 0 0 1 .75.75v6a.75.75 0 0 1-.75.75H4.5a.75.75 0 0 1-.75-.75v-6a.75.75 0 0 1 .75-.75Z" />
+      <path d="M10.375 8.25h3.25a.75.75 0 0 1 .75.75v11.25a.75.75 0 0 1-.75.75h-3.25a.75.75 0 0 1-.75-.75V9a.75.75 0 0 1 .75-.75Z" />
+      <path d="M16.25 3h3.25a.75.75 0 0 1 .75.75v16.5a.75.75 0 0 1-.75.75h-3.25a.75.75 0 0 1-.75-.75V3.75A.75.75 0 0 1 16.25 3Z" />
+    </svg>
+  )
+}
+
+export function IconPanelSpells({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path d="M12 2.2Q13.1 10.9 21.8 12 13.1 13.1 12 21.8 10.9 13.1 2.2 12 10.9 10.9 12 2.2Z" />
+      <path d="M19.4 2.6Q19.8 5.2 22.4 5.6 19.8 6 19.4 8.6 19 6 16.4 5.6 19 5.2 19.4 2.6Z" />
+    </svg>
+  )
+}
+
+// Crossed swords. The blades are tapered triangles rather than strokes — drawn as
+// plain strokes with wedge tips, the whole thing reads as a four-headed arrow.
+export function IconPanelCombat({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path d="M21.6 2.4 8.2 17.5 6.5 15.8Z" />
+      <path d="M2.4 2.4 17.5 15.8 15.8 17.5Z" />
+      <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <path d="M4.3 16.1 7.9 19.7" />
+        <path d="M19.7 16.1 16.1 19.7" />
+        <path d="M6.1 17.9 4.7 19.3" />
+        <path d="M17.9 17.9 19.3 19.3" />
+      </g>
+      <path d="M3.9 19.6a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Z" />
+      <path d="M20.1 19.6a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Z" />
+    </svg>
+  )
+}
+
+// Cloud built as overlapping circles + a base bar (union under nonzero fill) —
+// far more predictable at this size than a single swept outline.
+export function IconPanelAtmo({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path d="M9 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" />
+      <path d="M14.5 6.4a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Z" />
+      <path d="M17.6 10.9a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2Z" />
+      <path d="M6.6 13.4h11.4v4.7H6.6a2.35 2.35 0 0 1 0-4.7Z" />
+      <path d="M4.6 20.2h9a1.1 1.1 0 0 1 0 2.2h-9a1.1 1.1 0 0 1 0-2.2Z" />
+    </svg>
+  )
+}
+
+export function IconPanelConversation({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path fillRule="evenodd" clipRule="evenodd" d="M4.5 3h15A2.5 2.5 0 0 1 22 5.5v9A2.5 2.5 0 0 1 19.5 17H10.4l-4.2 3.7A.9.9 0 0 1 4.7 20V17h-.2A2.5 2.5 0 0 1 2 14.5v-9A2.5 2.5 0 0 1 4.5 3Zm3 6.25a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Zm4.5 0a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Zm4.5 0a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Z" />
+    </svg>
+  )
+}
+
+export function IconPanelMessages({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path d="M2.25 6.75A2.25 2.25 0 0 1 4.5 4.5h15a2.25 2.25 0 0 1 2.25 2.25v.2l-9.44 5.24a.75.75 0 0 1-.62 0L2.25 6.95Z" />
+      <path d="M2.25 8.66v8.59A2.25 2.25 0 0 0 4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V8.66l-8.71 4.83a2.25 2.25 0 0 1-2.08 0Z" />
+    </svg>
+  )
+}
+
+export function IconPanelInventory({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path d="M3 5.25A1.75 1.75 0 0 1 4.75 3.5h14.5A1.75 1.75 0 0 1 21 5.25v1.5A1.75 1.75 0 0 1 19.25 8.5H4.75A1.75 1.75 0 0 1 3 6.75Z" />
+      <path fillRule="evenodd" clipRule="evenodd" d="M4.25 10h15.5v8.25A2.75 2.75 0 0 1 17 21H7a2.75 2.75 0 0 1-2.75-2.75Zm5 2.75a.9.9 0 0 0 0 1.8h5.5a.9.9 0 0 0 0-1.8Z" />
+    </svg>
+  )
+}
+
+export function IconPanelDeaths({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path fillRule="evenodd" clipRule="evenodd" d="M12 2.25c-5.1 0-8.75 3.6-8.75 8.4 0 2.9 1.35 5.2 3.4 6.6v2.5A2.25 2.25 0 0 0 8.9 22h6.2a2.25 2.25 0 0 0 2.25-2.25v-2.5c2.05-1.4 3.4-3.7 3.4-6.6 0-4.8-3.65-8.4-8.75-8.4ZM8.6 9.2a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4Zm6.8 0a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4Zm-4.8 7.2a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8Zm2.8 0a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8Z" />
+    </svg>
+  )
+}
+
+// Logons/logoffs of other players — two figures, not a chain link.
+export function IconPanelConnections({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path d="M8.5 3.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" />
+      <path d="M2.5 18.2c0-3.15 2.7-5.7 6-5.7s6 2.55 6 5.7v1.05c0 .69-.56 1.25-1.25 1.25H3.75c-.69 0-1.25-.56-1.25-1.25Z" />
+      <path d="M17 5.25a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
+      <path d="M16.4 13.05c2.65.2 4.85 2.4 5.1 5.15.07.72-.53 1.3-1.25 1.3H16.2c.2-.4.3-.85.3-1.3v-1.05c0-1.5-.43-2.9-1.18-4.06.34-.03.7-.05 1.08-.04Z" />
+    </svg>
+  )
+}
+
+export function IconPanelScripts({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path fillRule="evenodd" clipRule="evenodd" d="M5 3.25h14A2.75 2.75 0 0 1 21.75 6v12A2.75 2.75 0 0 1 19 20.75H5A2.75 2.75 0 0 1 2.25 18V6A2.75 2.75 0 0 1 5 3.25Zm0 2A.75.75 0 0 0 4.25 6v12c0 .41.34.75.75.75h14c.41 0 .75-.34.75-.75V6a.75.75 0 0 0-.75-.75Z" />
+      <path d="M7.4 9.6 10.4 12.4 7.4 15.2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12.8 15.6h4.2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 // ── Window control icons ──────────────────────────────────────────────────────
 
 export function IconWinMinimize({ size = 10 }: { size?: number }) {

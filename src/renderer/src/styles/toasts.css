@@ -157,7 +157,7 @@
 }
 .avatar-modal-share input { cursor: pointer; }
 
-/* HUD bar (posture/status + roundtime + hands) — sits just above the command row. */
+/* HUD bar (vitals) — sits just above the command row. */
 .hud-bar {
   display: flex;
   align-items: center;
@@ -170,7 +170,7 @@
   font-family: var(--font-ui);
   font-size: 14px;
 }
-/* Vitals fill the bar; hands are pinned to a fixed slot on the right. */
+/* Vitals fill the bar. */
 .hud-vitals { display: flex; align-items: center; gap: 18px; flex: 1 1 auto; min-width: 0; }
 
 /* Thin vitals strip — top of the bottom cluster. */

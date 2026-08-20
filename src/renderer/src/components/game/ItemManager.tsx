@@ -93,7 +93,7 @@ function containedWeights(snapshot: InvSnapshot): Map<string, number> {
 // what it is. Scale is still uncalibrated — see weightOf/capacityOf in lib/inventory.
 const COLUMNS = {
   contents: { label: 'Items',  hint: 'How many items are directly inside this container.' },
-  weight:   { label: 'Weight', hint: 'The item’s own weight, in the game’s raw units. “+N” is what it carries inside. The scale isn’t confirmed yet.' },
+  weight:   { label: 'Weight', hint: 'The item’s own weight, in the game’s raw units. “+N” is what it carries inside.' },
   capacity: { label: 'Holds',  hint: 'How much this container can hold, in the game’s raw units. Blank means it isn’t a container.' },
 } as const
 

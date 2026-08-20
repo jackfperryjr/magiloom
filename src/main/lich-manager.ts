@@ -67,7 +67,7 @@ export class LichManager extends EventEmitter {
       `-g`, `${gameHost}:${gamePort}`,
     ]
 
-    this.emit('log', `Launching Lich: ${rubyPath} ${args.join(' ')}`)
+    this.emit('log', `[lich] Launching Lich: ${rubyPath} ${args.join(' ')}`)
     this.setStatus('starting')
     this._spawn(rubyPath, args)
 
@@ -114,7 +114,7 @@ export class LichManager extends EventEmitter {
       `--headless=${listenPort}`,
     ]
 
-    this.emit('log', `Launching Lich (headless, port ${listenPort}): ${rubyPath} ${args.join(' ')}`)
+    this.emit('log', `[lich] Launching Lich (headless, port ${listenPort}): ${rubyPath} ${args.join(' ')}`)
     this.setStatus('starting')
     this._spawn(rubyPath, args)
 
@@ -158,7 +158,7 @@ export class LichManager extends EventEmitter {
       '--dragonrealms',
     ]
 
-    this.emit('log', `Launching Lich (script mode): ${rubyPath} ${args.join(' ')}`)
+    this.emit('log', `[lich] Launching Lich (script mode): ${rubyPath} ${args.join(' ')}`)
     this.setStatus('starting')
     this._spawn(rubyPath, args)
     this._pollPort(port)
@@ -236,13 +236,17 @@ export class LichManager extends EventEmitter {
     // during a character switch surfaces as a spurious "Lich exited" failure.
     const current = () => this.process === proc
 
+    // Everything Lich prints is tagged '[lich]' so the client can tell process
+    // plumbing ("detachable client listening on …", session descriptors) apart from
+    // notices meant for the player — the game panel drops the tagged lines and only
+    // the login/diagnostic log keeps them.
     proc.stdout?.on('data', (d: Buffer) => {
-      d.toString().split('\n').filter(Boolean).forEach(l => { record(l); this.emit('log', l) })
+      d.toString().split('\n').filter(Boolean).forEach(l => { record(`[lich] ${l}`); this.emit('log', `[lich] ${l}`) })
     })
     proc.stderr?.on('data', (d: Buffer) => {
       d.toString().split('\n').filter(Boolean).forEach(l => {
-        record(`[stderr] ${l}`)
-        this.emit('log', `[stderr] ${l}`)
+        record(`[lich] [stderr] ${l}`)
+        this.emit('log', `[lich] [stderr] ${l}`)
         if (/error|failed|invalid|no such|cannot/i.test(l) && this.status !== 'ready' && current()) {
           this.setStatus('error')
           this.emit('error', l.trim())

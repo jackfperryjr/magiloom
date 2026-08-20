@@ -1,29 +1,6 @@
 import { useAtomValue } from 'jotai'
-import { handsAtom, vitalsAtom } from '../../store/game'
+import { vitalsAtom } from '../../store/game'
 import type { ConnectionStatus } from '../../store/game'
-
-/**
- * An empty hand, rendered the same way everywhere it appears. handsAtom stores ''
- * for an empty hand (the game's own "Empty" is normalised away in the store), so
- * this is the single placeholder — one spelling, one style.
- */
-export function EmptyHand() {
-  return <span className="hand-empty">empty</span>
-}
-
-// ── Hand display ─────────────────────────────────────────────────────────────
-function HandDisplay() {
-  const hands = useAtomValue(handsAtom)
-  return (
-    <div className="hand-display">
-      <span className="hand-label">L:</span>
-      <span className="hand-item">{hands.left || <EmptyHand />}</span>
-      <span className="hand-sep">|</span>
-      <span className="hand-label">R:</span>
-      <span className="hand-item">{hands.right || <EmptyHand />}</span>
-    </div>
-  )
-}
 
 // ── Vitals (compact bars) ─────────────────────────────────────────────────────
 const VITALS: { key: 'health' | 'mana' | 'stamina' | 'spirit'; label: string; color: string }[] = [
@@ -55,14 +32,15 @@ function VitalsGroup() {
 }
 
 // ── HUD bar — one thin strip directly above the command line ──────────────────
-// Vitals fill the width; hands are pinned to a fixed slot on the right. Posture and
-// conditions live in the StatusPanel beside the command line; roundtime in it.
+// Just the vitals, filling the width. Hands used to be pinned to a slot on the
+// right; the Inventory panel now shows both hands (and always did on mobile, where
+// the HUD slot was hidden), so the duplicate is gone. Posture and conditions live
+// in the StatusPanel beside the command line; roundtime in it.
 export function HudBar({ status }: { status: ConnectionStatus }) {
   if (status !== 'connected') return null
   return (
     <div className="hud-bar">
       <VitalsGroup />
-      <HandDisplay />
     </div>
   )
 }

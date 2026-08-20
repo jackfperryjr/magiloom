@@ -45,6 +45,13 @@ document.body.dataset.platform = window.dr.app.platform
 
 const EXP_POLL_ENABLED = false
 
+// Raw Lich process chatter, untagged. Main/server now prefixes everything Lich prints
+// with '[lich]', but a client can be talking to an older server build, so keep matching
+// the lines themselves: the detachable-client listen/attach/disconnect notices, the
+// launch command line, and the session descriptor Lich writes (path + its JSON body).
+const RAW_LICH_CHATTER =
+  /^(?:--- Lich:|Launching Lich\b|writing session descriptor\b|\{"name":)/
+
 function renderPanel(id: PanelId) {
   switch (id) {
     case 'room':         return <RoomPanel />
@@ -376,9 +383,10 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
     const unsub = window.dr.lich.onLog((line: string) => {
       const l = line.trimEnd()
       // Connection-plumbing chatter ([sge] auth steps, [game] connect/disconnect,
-      // [lich] proxy status) is noise in the game panel — drop it. Genuinely useful
-      // notices ([error], [script], …) still flow through.
-      if (l && !/^\[(?:sge|game|lich)\]/.test(l)) appendSystemLine(l)
+      // [lich] proxy status and raw Lich process output) is noise in the game panel —
+      // drop it. Genuinely useful notices ([error], [script], …) still flow through.
+      if (l && !/^\[(?:sge|game|lich|lichlog|stderr)\]/.test(l) && !RAW_LICH_CHATTER.test(l))
+        appendSystemLine(l)
     })
     return () => unsub()
   }, [appendSystemLine])
@@ -438,7 +446,7 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
 
   return (
     <div className="app-shell">
-      <StatusBar updateSlot={updateSlot} />
+      <StatusBar updateSlot={updateSlot} charName={charName} />
       <div className="main-area" ref={mainAreaRef}>
         <div className="game-col">
           <main className="game-output-wrap" onClick={() => {

@@ -288,22 +288,9 @@
 }
 .reconnect-close:hover { color: var(--text-bright); }
 
-/* ── Hand display (pinned slot in the HUD bar) ──────────────────────────────── */
-.hand-display {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 14px; font-family: var(--font-game);
-  background: var(--bg-input);
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
-  padding: 1px 10px;
-  flex: 0 0 340px; width: 340px;
-  overflow: hidden;
-}
-.hand-label { color: var(--accent); flex-shrink: 0; }
-/* Pinned width so the hands slot never grows/shrinks with item text; each hand
-   takes half and truncates. */
-.hand-item  { color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 0; min-width: 0; }
-/* An empty hand, wherever it's shown (HUD bar, Inventory summary). See EmptyHand. */
+/* An empty hand in the Inventory panel summary. See EmptyHand in PanelContent.
+   (The HUD bar's pinned hands slot was removed as a duplicate of that summary,
+   along with its .hand-display / .hand-label / .hand-item / .hand-sep rules.) */
 .hand-empty { color: var(--text-dim); font-style: italic; }
 
 /* ── Timestamps ──────────────────────────────────────────────────────────── */

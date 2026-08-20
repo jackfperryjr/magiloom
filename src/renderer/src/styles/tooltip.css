@@ -111,4 +111,3 @@
   color: var(--text-main);
 }
 .panel-ctx-item:hover { background: rgba(139,134,248,0.08); }
-.hand-sep   { color: var(--border); flex-shrink: 0; }
