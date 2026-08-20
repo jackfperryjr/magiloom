@@ -15,33 +15,123 @@ interface LoginFlowProps {
 type Screen =
   | 'account-list'
   | 'credentials'
+  | 'beacons'
   | 'instance-select'
   | 'character-select'
+  | 'chargen'
   | 'connecting'
   | 'magiloom-account'
   | 'watch-select'
 
+// The two entry screens are tabs of the same landing card; everything after them
+// is a step of the flow and hides the tab bar.
+const TABBED: Screen[] = ['credentials', 'beacons']
+
 interface SGECharacter  { id: string; name: string }
 interface SGEInstance   { code: string; name: string }
 interface SavedAccount  { name: string; lastCharacter?: string }
+// Mirrors AppSettings['loginPaths'][number] (env.d.ts) — the shapes in that file are
+// module-scoped, so the login screen restates the ones it uses, as it already does
+// for SGECharacter/SGEInstance/SavedAccount.
+interface LoginPath {
+  id:           string
+  account:      string
+  game:         GameCode
+  instance:     string
+  instanceName: string
+  charId:       string
+  charName:     string
+  lich:         boolean
+  usedAt:       number
+}
+
+/** Most-recently-walked path first. */
+const sortBeacons = (b: LoginPath[]): LoginPath[] =>
+  [...b].sort((x, y) => (y.usedAt ?? 0) - (x.usedAt ?? 0))
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, tabs }: { children: React.ReactNode; tabs?: React.ReactNode }) {
   return (
     <div className="login-screen">
       <LoginArt />
       <div className="login-card">
         <img src="./icon.png" className="login-hero" alt="Lantern" />
         <div className="login-logo">LANTERN</div>
-        <div className="login-logo-sub">DragonRealms Client</div>
-        {children}
+        {tabs}
+        {/* The card is a fixed size, so screens never resize it as you switch
+            tabs or step through the flow — the body scrolls instead. */}
+        <div className="login-body">{children}</div>
       </div>
     </div>
   )
 }
 
+// ─── Landing tabs ─────────────────────────────────────────────────────────────
+// Sign in (type an account) vs Beacons (one click down a remembered path).
+// Settings rides along on the right — the login card is the only way in before a
+// character exists, so it can't live behind the game UI.
+function TabBar({ tab, onTab, onSettings }: {
+  tab:        Screen
+  onTab:      (s: Screen) => void
+  onSettings: () => void
+}) {
+  return (
+    <div className="login-tabs">
+      <button className="login-tab" aria-selected={tab === 'credentials'}
+        onClick={() => onTab('credentials')}>Sign in</button>
+      <button className="login-tab" aria-selected={tab === 'beacons'}
+        onClick={() => onTab('beacons')}>Beacons</button>
+      <Tooltip text="Settings">
+        <button className="login-tab-settings" onClick={onSettings} aria-label="Settings">⚙</button>
+      </Tooltip>
+    </div>
+  )
+}
+
+// Back always renders LAST in a screen so it lands at the bottom of the card.
 function Back({ onClick }: { onClick: () => void }) {
-  return <button className="login-btn-secondary" onClick={onClick}>← Back</button>
+  return <button className="login-btn-secondary login-back" onClick={onClick}>← Back</button>
+}
+
+// ─── Game selector ────────────────────────────────────────────────────────────
+// Lives on the server screen (post-login) rather than the entry screens: which
+// games an account can play isn't knowable until SGE answers with its instance
+// list. Switching games re-filters that list by instance-code prefix.
+//
+// GemStone IV is shown but inert until its protocol support lands. A disabled
+// <button> would swallow the hover events its tooltip needs, so it stays
+// clickable-but-inert via aria-disabled instead.
+type GameCode = 'DR' | 'GS4'
+
+const GAMES: { code: GameCode; name: string; glyph: string; prefix: string; ready: boolean }[] = [
+  { code: 'DR',  name: 'DragonRealms', glyph: '🐉', prefix: 'DR', ready: true  },
+  { code: 'GS4', name: 'GemStone IV',  glyph: '💎', prefix: 'GS', ready: false },
+]
+
+const gamePrefix = (g: GameCode): string => GAMES.find(x => x.code === g)?.prefix ?? 'DR'
+
+function GameSelect({ game, onSelect }: { game: GameCode; onSelect: (g: GameCode) => void }) {
+  return (
+    <div className="login-games">
+      {GAMES.map(g => {
+        const btn = (
+          <button
+            key={g.code}
+            className="login-game-btn"
+            aria-disabled={!g.ready}
+            aria-pressed={game === g.code}
+            onClick={() => g.ready && onSelect(g.code)}
+          >
+            <span className="login-game-glyph">{g.glyph}</span>
+            <span className="login-game-name">{g.name}</span>
+          </button>
+        )
+        return g.ready
+          ? btn
+          : <Tooltip key={g.code} text="GemStone IV support is coming later">{btn}</Tooltip>
+      })}
+    </div>
+  )
 }
 
 // ─── Screen 1: Saved accounts ─────────────────────────────────────────────────
@@ -61,17 +151,16 @@ function SyncBadge({ account, onSignIn, onSignOut }: {
     : <button className="login-btn-secondary" onClick={onSignIn}>☁ Sign in to sync across devices</button>
 }
 
-function AccountListScreen({ accounts, onSelect, onForget, onForgetAccount, onAddNew, onSettings, syncBadge }: {
+function AccountListScreen({ accounts, onSelect, onForget, onForgetAccount, onAddNew, onBack }: {
   accounts:        SavedAccount[]
   onSelect:        (a: SavedAccount) => void
   onForget:        (name: string) => void
   onForgetAccount: (name: string) => void
   onAddNew:        () => void
-  onSettings:      () => void
-  syncBadge:       React.ReactNode
+  onBack:          () => void
 }) {
   return <>
-    <div className="login-screen-title">Welcome back</div>
+    <div className="login-screen-title">Your accounts</div>
     <div className="login-accounts-list">
       {accounts.map(a => (
         <button key={a.name} className="login-account-btn" onClick={() => onSelect(a)}>
@@ -98,16 +187,19 @@ function AccountListScreen({ accounts, onSelect, onForget, onForgetAccount, onAd
       ))}
     </div>
     <button className="login-btn-secondary" onClick={onAddNew}>+ Add account</button>
-    <button className="login-btn-secondary" onClick={onSettings}>⚙ Settings</button>
-    {syncBadge}
+    <Back onClick={onBack} />
   </>
 }
 
 // ─── Screen 2: Credentials ────────────────────────────────────────────────────
-function CredentialsScreen({ initialAccount, onSubmit, onBack, error, loading, syncBadge }: {
+// The landing screen. It shows only the last-used account (prefilled, with its
+// saved password) — the full saved-account list is one click away under
+// "Other accounts", which is also where accounts get added and forgotten.
+function CredentialsScreen({ initialAccount, onSubmit, onBack, onOtherAccounts, error, loading, syncBadge }: {
   initialAccount: string
   onSubmit:       (account: string, password: string) => void
   onBack?:        () => void
+  onOtherAccounts?: () => void
   error:          string
   loading:        boolean
   syncBadge?:     React.ReactNode
@@ -116,14 +208,17 @@ function CredentialsScreen({ initialAccount, onSubmit, onBack, error, loading, s
   const [password, setPassword] = useState('')
   const submit = () => { if (account && password) onSubmit(account, password) }
 
+  // initialAccount arrives asynchronously on the landing screen (it's the saved
+  // last-used account, read from settings after mount), so mirror it into the
+  // field rather than only seeding useState.
   useEffect(() => {
     if (!initialAccount) return
+    setAccount(initialAccount)
     window.dr.auth.getPassword(initialAccount).then(p => { if (p) setPassword(p) })
   }, [initialAccount])
 
+  // No screen title here — the selected tab above the card body already says it.
   return <>
-    {onBack && <Back onClick={onBack} />}
-    <div className="login-screen-title">Sign in</div>
     <div className="login-fields">
       <label className="login-label">Account name
         <input className="login-input" type="text" autoComplete="username"
@@ -140,50 +235,121 @@ function CredentialsScreen({ initialAccount, onSubmit, onBack, error, loading, s
       disabled={loading || !account || !password}>
       {loading ? 'Signing in…' : 'Sign in'}
     </button>
+    {onOtherAccounts && (
+      <button className="login-btn-secondary" onClick={onOtherAccounts}>Other accounts</button>
+    )}
     {syncBadge}
+    {onBack && <Back onClick={onBack} />}
   </>
 }
 
-// ─── Screen 3: Instance selection ─────────────────────────────────────────────
-// Friendly display names for known DR instances
-const INSTANCE_LABELS: Record<string, string> = {
-  DR:  'DragonRealms — Prime',
-  DRX: 'DragonRealms — Platinum',
-  DRF: 'DragonRealms — The Fallen',
-  DRT: 'DragonRealms — Prime Test',
-  DRD: 'DragonRealms — Development',
-}
-
-function InstanceSelectScreen({ instances, onSelect, onBack, error, loading }: {
-  instances: SGEInstance[]
-  onSelect:  (inst: SGEInstance) => void
-  onBack:    () => void
-  error:     string
-  loading:   boolean
+// ─── Beacons: one-click login routes ──────────────────────────────────────────
+// A beacon is a whole path back into the game — account → game → server →
+// character → Lich — recorded automatically the last time you walked it. One
+// click replays it: re-auth with the saved password, pick the server, pick the
+// character, connect.
+function BeaconsScreen({ beacons, onRun, onForget, error, loading }: {
+  beacons:  LoginPath[]
+  onRun:    (b: LoginPath) => void
+  onForget: (id: string) => void
+  error:    string
+  loading:  boolean
 }) {
-  // Filter to only DR instances — hide GS4, etc.
-  const drInstances = instances.filter(i => i.code.startsWith('DR'))
-
   return <>
-    <Back onClick={onBack} />
-    <div className="login-screen-title">Choose server</div>
+    {beacons.length === 0 && (
+      <p className="login-hint">
+        Sign in once and Lantern lights a beacon on the way — account, server, character
+        and Lich. After that, one click follows it straight back into the game.
+      </p>
+    )}
     <div className="login-accounts-list">
-      {drInstances.map(inst => (
-        <button key={inst.code}
-          className="login-account-btn"
-          onClick={() => !loading && onSelect(inst)}
+      {beacons.map(b => (
+        <button key={b.id}
+          className="login-account-btn login-beacon-btn"
+          data-inst={b.instance}
+          onClick={() => !loading && onRun(b)}
           disabled={loading}>
+          <span className="login-instance-dot" />
           <div className="login-account-info">
-            <span className="login-account-name">
-              {INSTANCE_LABELS[inst.code] ?? inst.name}
+            <span className="login-account-name">{b.charName}</span>
+            <span className="login-beacon-path">
+              {b.account} · {b.game} · {b.instanceName}{b.lich ? ' · Lich' : ''}
             </span>
-            <span className="login-account-last">{inst.code}</span>
+          </div>
+          <div className="login-account-actions">
+            <Tooltip text="Forget this beacon">
+              <span
+                className="login-account-forget"
+                onClick={e => { e.stopPropagation(); onForget(b.id) }}
+              >×</span>
+            </Tooltip>
           </div>
           <span className="login-account-arrow">›</span>
         </button>
       ))}
     </div>
     {error && <div className="login-error">{error}</div>}
+  </>
+}
+
+// ─── Screen 3: Instance selection ─────────────────────────────────────────────
+// Friendly display names for known DR instances. Each also gets its own accent
+// colour (see .login-instance-btn[data-inst] in login.css) so the servers are
+// tellable apart at a glance — Platinum and Prime Test especially, since picking
+// the wrong one is a wasted login.
+// The game name isn't repeated here — the game selector sits directly above.
+// Anything not listed falls back to the name SGE itself reports.
+const INSTANCE_LABELS: Record<string, string> = {
+  DR:  'Prime',
+  DRX: 'Platinum',
+  DRF: 'The Fallen',
+  DRT: 'Prime Test',
+  DRD: 'Development',
+  GS3: 'Prime',
+  GSX: 'Platinum',
+  GSF: 'Shattered',
+  GST: 'Test',
+}
+
+function InstanceSelectScreen({ instances, onSelect, onBack, error, loading, game, onGame }: {
+  instances: SGEInstance[]
+  onSelect:  (inst: SGEInstance) => void
+  onBack:    () => void
+  error:     string
+  loading:   boolean
+  game:      GameCode
+  onGame:    (g: GameCode) => void
+}) {
+  const shown = instances.filter(i => i.code.startsWith(gamePrefix(game)))
+
+  return <>
+    <div className="login-screen-title">Choose game &amp; server</div>
+    <GameSelect game={game} onSelect={onGame} />
+    {shown.length === 0 && (
+      <p className="login-hint">
+        No {game === 'GS4' ? 'GemStone IV' : 'DragonRealms'} servers on this account.
+      </p>
+    )}
+    <div className="login-accounts-list">
+      {shown.map(inst => (
+        <button key={inst.code}
+          className="login-account-btn login-instance-btn"
+          data-inst={inst.code}
+          onClick={() => !loading && onSelect(inst)}
+          disabled={loading}>
+          <span className="login-instance-dot" />
+          <div className="login-account-info">
+            <span className="login-account-name">
+              {INSTANCE_LABELS[inst.code] ?? inst.name}
+            </span>
+          </div>
+          <span className="login-instance-code">{inst.code}</span>
+          <span className="login-account-arrow">›</span>
+        </button>
+      ))}
+    </div>
+    {error && <div className="login-error">{error}</div>}
+    <Back onClick={onBack} />
   </>
 }
 
@@ -214,11 +380,13 @@ function LichToggle({ on, available, onChange }: {
 }
 
 // ─── Screen 4: Character select ───────────────────────────────────────────────
-function CharacterSelectScreen({ characters, lastCharId, onSelect, onBack, error, loading,
+function CharacterSelectScreen({ characters, lastCharId, onSelect, onCreate, onBack, error, loading,
   useLich, lichAvailable, onToggleLich }: {
   characters: SGECharacter[]
   lastCharId?: string
   onSelect:   (c: SGECharacter) => void
+  /** Omitted where the character generator isn't available (web). */
+  onCreate?:  () => void
   onBack:     () => void
   error:      string
   loading:    boolean
@@ -227,7 +395,6 @@ function CharacterSelectScreen({ characters, lastCharId, onSelect, onBack, error
   onToggleLich:  (on: boolean) => void
 }) {
   return <>
-    <Back onClick={onBack} />
     <div className="login-screen-title">Choose character</div>
     <div className="login-accounts-list">
       {characters.map(c => (
@@ -241,9 +408,142 @@ function CharacterSelectScreen({ characters, lastCharId, onSelect, onBack, error
           <span className="login-account-arrow">›</span>
         </button>
       ))}
+      {onCreate
+        ? <button className="login-account-btn login-account-new" onClick={onCreate} disabled={loading}>
+            <div className="login-account-info">
+              <span className="login-account-name">+ New character</span>
+            </div>
+            <span className="login-account-arrow">›</span>
+          </button>
+        // Web has no character generator (the IPC is desktop-only), so the slot
+        // stays visible but inert — aria-disabled, since a disabled <button>
+        // would swallow the hover events the tooltip needs.
+        : <Tooltip text="Character creation is only available in the desktop app">
+            <button className="login-account-btn login-account-new" aria-disabled="true">
+              <div className="login-account-info">
+                <span className="login-account-name">+ New character</span>
+              </div>
+              <span className="login-account-arrow">›</span>
+            </button>
+          </Tooltip>}
     </div>
     <LichToggle on={useLich} available={lichAvailable} onChange={onToggleLich} />
     {error && <div className="login-error">{error}</div>}
+    <Back onClick={onBack} />
+  </>
+}
+
+// ─── Character creation ───────────────────────────────────────────────────────
+// DragonRealms' character generator is a game session in its own right (see
+// main/chargen.ts). It talks line-oriented text over the Wizard front end, so
+// this screen is a console: the generator's own prompts, its numbered options
+// lifted into buttons, and a command line for anything else it asks for.
+
+/** Visible text of one generator line: Wizard control codes and tags removed. */
+function cleanGenLine(line: string): string {
+  return line
+    .split('\x1b')[0]                              // ESC-prefixed Wizard control codes
+    .replace(/<d\s+cmd=['"][^'"]*['"][^>]*>/gi, '')
+    .replace(/<\/d>/gi, '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/\r/g, '')
+}
+
+interface GenOption { cmd: string; label: string }
+
+/** Clickable choices in the generator's last screenful: <d cmd> links, then "N) label". */
+function genOptions(lines: string[]): GenOption[] {
+  const out  = new Map<string, GenOption>()
+  const tail = lines.slice(-14)
+  for (const raw of tail) {
+    for (const m of raw.matchAll(/<d\s+cmd=['"]([^'"]+)['"][^>]*>([^<]+)<\/d>/gi)) {
+      out.set(m[1].trim().toUpperCase(), { cmd: m[1].trim(), label: m[2].trim() })
+    }
+  }
+  if (out.size === 0) {
+    for (const raw of tail) {
+      for (const m of cleanGenLine(raw).matchAll(/(\d+)\)\s+(.+?)(?=\s{2,}\d+\)|\s*$)/g)) {
+        const cmd = `CHOOSE ${m[1]}`
+        out.set(cmd, { cmd, label: m[2].trim() })
+      }
+    }
+  }
+  return [...out.values()].slice(0, 12)
+}
+
+function CharGenScreen({ onLeave }: { onLeave: () => void }) {
+  const [lines,  setLines]  = useState<string[]>([])
+  const [ended,  setEnded]  = useState(false)
+  const [error,  setError]  = useState('')
+  const [input,  setInput]  = useState('')
+  const tailRef = useRef('')
+  const logRef  = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const api = window.dr.chargen
+    if (!api) { setError('Character creation is only available in the desktop app.'); return }
+    const unsubs = [
+      api.onData(chunk => {
+        // Reassemble across chunk boundaries — the generator does not align its
+        // writes to line ends.
+        tailRef.current += chunk.replace(/\r/g, '')
+        const parts = tailRef.current.split('\n')
+        tailRef.current = parts.pop() ?? ''
+        if (parts.length) setLines(prev => [...prev, ...parts].slice(-400))
+      }),
+      api.onError(m  => setError(m)),
+      api.onClosed(() => setEnded(true)),
+    ]
+    api.start().then(r => { if (!r.ok) { setError(r.error); setEnded(true) } })
+    return () => { unsubs.forEach(fn => fn()); api.stop() }
+  }, [])
+
+  // Follow the tail as the generator writes.
+  useEffect(() => { const el = logRef.current; if (el) el.scrollTop = el.scrollHeight }, [lines])
+
+  const send = (cmd: string) => {
+    if (ended || !cmd.trim()) return
+    setLines(prev => [...prev, `> ${cmd}`].slice(-400))
+    window.dr.chargen?.send(cmd)
+  }
+
+  const options = ended ? [] : genOptions(lines)
+
+  return <>
+    <div className="login-screen-title">Create a character</div>
+    <p className="login-hint" style={{ marginTop: 0 }}>
+      {ended
+        ? 'The generator session has ended. Sign in again — a character you finished creating will be in the list.'
+        : 'Answer the generator\'s prompts. When your character is finished, come back and sign in as them.'}
+    </p>
+    <div className="login-log login-chargen-log" ref={logRef}>
+      {lines.length === 0 && !error && <div className="login-log-line">Entering the character generator…</div>}
+      {lines.map((l, i) => {
+        const text = l.startsWith('> ') ? l : cleanGenLine(l)
+        return text.trim()
+          ? <div key={i} className={'login-log-line' + (l.startsWith('> ') ? ' login-chargen-echo' : '')}>{text}</div>
+          : null
+      })}
+    </div>
+    {options.length > 0 && (
+      <div className="login-chargen-options">
+        {options.map(o => (
+          <button key={o.cmd} className="login-btn-secondary login-chargen-option"
+            onClick={() => send(o.cmd)}>{o.label}</button>
+        ))}
+      </div>
+    )}
+    {!ended && (
+      <div className="login-chargen-entry">
+        <input className="login-input" value={input} autoFocus
+          placeholder="Type a command…"
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { send(input); setInput('') } }} />
+        <button className="login-btn" onClick={() => { send(input); setInput('') }}>Send</button>
+      </div>
+    )}
+    {error && <div className="login-error">{error}</div>}
+    <Back onClick={onLeave} />
   </>
 }
 
@@ -262,7 +562,7 @@ function ConnectingScreen({ characterName, logLines, error, onBack }: {
     {!error && <p className="login-hint">Connecting to DragonRealms…</p>}
     {error && <div className="login-error">{error}</div>}
     {logLines.length > 0 && <LoginLog lines={logLines} />}
-    {error && <button className="login-btn-secondary" onClick={onBack}>← Back</button>}
+    {error && <Back onClick={onBack} />}
   </>
 }
 
@@ -305,7 +605,6 @@ function MagiloomAccountScreen({ onDone, onBack }: {
   }
 
   return <>
-    {onBack && <Back onClick={onBack} />}
     <div className="login-screen-title">{mode === 'signup' ? 'Create account' : 'Sign in to Magiloom'}</div>
     <p className="login-hint" style={{ marginTop: 0 }}>
       {onBack
@@ -331,6 +630,7 @@ function MagiloomAccountScreen({ onDone, onBack }: {
     <button className="login-btn-secondary" onClick={() => { setError(''); setMode(mode === 'signup' ? 'signin' : 'signup') }}>
       {mode === 'signup' ? 'Have an account? Sign in' : 'New here? Create an account'}
     </button>
+    {onBack && <Back onClick={onBack} />}
   </>
 }
 
@@ -349,7 +649,6 @@ function WatchSelectScreen({ onWatch, onBack }: {
       .catch(() => setError('Could not load your running sessions.'))
   }, [])
   return <>
-    <Back onClick={onBack} />
     <div className="login-screen-title">Watch a session</div>
     <p className="login-hint" style={{ marginTop: 0 }}>Attach to a character already running on your account.</p>
     {sessions === null && !error && <p className="login-hint">Loading…</p>}
@@ -366,6 +665,7 @@ function WatchSelectScreen({ onWatch, onBack }: {
       ))}
     </div>
     {error && <div className="login-error">{error}</div>}
+    <Back onClick={onBack} />
   </>
 }
 
@@ -377,7 +677,7 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
   // server won't grant until we're authenticated.
   const requireAcct = !!window.dr.account?.required?.()
   const mustSignIn  = requireAcct && !window.dr.account?.isSignedIn?.()
-  const [screen,        setScreen]        = useState<Screen>(mustSignIn ? 'magiloom-account' : 'account-list')
+  const [screen,        setScreen]        = useState<Screen>(mustSignIn ? 'magiloom-account' : 'credentials')
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([])
   const [activeAccount, setActiveAccount] = useState('')
   const [instances,     setInstances]     = useState<SGEInstance[]>([])
@@ -399,11 +699,23 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
   const [lichAvailable, setLichAvailable] = useState(false)
   const useLichRef = useRef(false)
   const [magiAccount,   setMagiAccount]   = useState<MagiloomAccount | null>(null)
+  // Which Simutronics game to sign in to. Drives which instances the server screen
+  // lists; seeded from what the account actually has once SGE answers.
+  const [game,          setGame]          = useState<GameCode>('DR')
+  const [beacons,       setBeacons]       = useState<LoginPath[]>([])
+  // Where the connecting screen's Back should return to — the character list on a
+  // normal login, the beacon list when a beacon was replaying.
+  const [connectBack,   setConnectBack]   = useState<Screen>('character-select')
 
   useEffect(() => {
     Promise.all([window.dr.settings.getAll(), window.dr.lich.detectPath()])
       .then(([s, detected]) => {
         setSavedAccounts(s.accounts ?? [])
+        setBeacons(sortBeacons(s.loginPaths ?? []))
+        // Land on the last-used account, prefilled (its saved password fills in
+        // behind it). Other saved accounts are one click away. A "switch character"
+        // launch already named its account — don't overwrite it when this resolves.
+        if (s.lastAccount && !switchAccount) setActiveAccount(s.lastAccount)
         // Remember the last-played identity for the cold-resume fallback below.
         lastAccountRef.current  = s.lastAccount ?? ''
         lastCharNameRef.current = s.accounts?.find(a => a.name === s.lastAccount)?.lastCharacter ?? ''
@@ -414,9 +726,6 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
         setLichAvailable(available)
         const initial = s.connectWithLich ?? available
         setUseLich(initial); useLichRef.current = initial
-        // Skip straight to credentials when there are no saved DR accounts — but never
-        // jump out of the mandatory sign-in gate (that must be cleared first).
-        if (!s.accounts?.length && !mustSignIn) setScreen('credentials')
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -438,7 +747,7 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
   // After signing in/out, the socket re-buckets to the account (or device); pull the
   // now-current saved DR accounts for this identity and return to the list.
   const onMagiloomSignedIn = async (a: MagiloomAccount) => {
-    setMagiAccount(a); await refreshSettings(); setScreen('account-list')
+    setMagiAccount(a); await refreshSettings(); setScreen('credentials')
   }
   const onMagiloomSignOut = async () => {
     window.dr.account?.signOut(); setMagiAccount(null)
@@ -498,7 +807,86 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
   const refreshSettings = async () => {
     const s = await window.dr.settings.getAll()
     setSavedAccounts(s.accounts ?? [])
+    setBeacons(sortBeacons(s.loginPaths ?? []))
     return s
+  }
+
+  // ── Beacons ────────────────────────────────────────────────────────────────
+  // Light a beacon for the path just walked. One per account+server+character, so
+  // repeat logins refresh the existing entry (Lich choice, timestamp) instead of
+  // piling up duplicates.
+  const lightBeacon = async (inst: SGEInstance, char: SGECharacter, account: string, lich: boolean) => {
+    const s = await window.dr.settings.getAll()
+    const prior = s.loginPaths ?? []
+    const same = (b: LoginPath) =>
+      b.account.toLowerCase() === account.toLowerCase() &&
+      b.instance === inst.code &&
+      b.charName.toLowerCase() === char.name.toLowerCase()
+    const entry: LoginPath = {
+      id:           prior.find(same)?.id ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+      account,
+      game:         inst.code.startsWith('GS') ? 'GS4' : 'DR',
+      instance:     inst.code,
+      instanceName: INSTANCE_LABELS[inst.code] ?? inst.name,
+      charId:       char.id,
+      charName:     char.name,
+      lich,
+      usedAt:       Date.now(),
+    }
+    const loginPaths = [entry, ...prior.filter(b => !same(b))]
+    setBeacons(sortBeacons(loginPaths))
+    await window.dr.settings.patch({ loginPaths })
+  }
+
+  const forgetBeacon = async (id: string) => {
+    const s = await window.dr.settings.getAll()
+    const loginPaths = (s.loginPaths ?? []).filter(b => b.id !== id)
+    setBeacons(sortBeacons(loginPaths))
+    await window.dr.settings.patch({ loginPaths })
+  }
+
+  // Replay a saved path end to end. Every step can fail on its own (password
+  // forgotten, server down, character deleted), so each one reports where it broke
+  // rather than dumping the user back at the start with a generic error.
+  const runBeacon = async (b: LoginPath) => {
+    setError(''); setLogLines([])
+    const pw = await window.dr.auth.getPassword(b.account)
+    if (!pw) {
+      setActiveAccount(b.account)
+      setScreen('credentials')
+      setError(`No saved password for ${b.account} — sign in once to relight this beacon.`)
+      return
+    }
+    setActiveAccount(b.account); activeAccountRef.current = b.account
+    setGame(b.game)
+    setSelectedChar({ id: b.charId, name: b.charName })
+    selectedCharRef.current = { id: b.charId, name: b.charName }
+    setConnectBack('beacons')
+    setLoading(true); setScreen('connecting')
+
+    const login = await window.dr.auth.login(b.account, pw)
+    if (!login.ok) { setLoading(false); setError(login.error); return }
+    setInstances(login.instances)
+
+    const inst = await window.dr.auth.selectInstance(b.instance)
+    if (!inst.ok) { setLoading(false); setError(inst.error); return }
+    setCharacters(inst.characters)
+
+    // SGE character ids can be reissued; fall back to the name before giving up.
+    const char = inst.characters.find(c => c.id === b.charId)
+      ?? inst.characters.find(c => c.name.toLowerCase() === b.charName.toLowerCase())
+    if (!char) {
+      setLoading(false)
+      setError(`${b.charName} is no longer on ${b.account}.`)
+      return
+    }
+
+    selectedCharRef.current = char
+    setUseLich(b.lich); useLichRef.current = b.lich
+    const result = await window.dr.auth.selectCharacter(char.id, char.name, b.account, b.lich)
+    setLoading(false)
+    if (!result.ok) setError(result.error ?? 'Failed to connect.')
+    else await lightBeacon({ code: b.instance, name: b.instanceName }, char, b.account, b.lich)
   }
 
   // Step 1: credentials → instance list
@@ -511,7 +899,9 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
     setActiveAccount(account)
     setInstances(result.instances)
     await refreshSettings()
-    // If only one DR instance, skip the selection screen
+    // Nothing to choose with a single DR instance — skip the server screen. (Once
+    // GemStone is playable this also has to account for the game picker being the
+    // only reason to stop here.)
     const drOnly = result.instances.filter(i => i.code.startsWith('DR'))
     if (drOnly.length === 1) {
       await handleInstanceSelect(drOnly[0])
@@ -521,12 +911,15 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
   }
 
   // Step 2: instance → character list
+  const selectedInstRef = useRef<SGEInstance | null>(null)
   const handleInstanceSelect = async (inst: SGEInstance) => {
     setLoading(true); setError('')
     const result = await window.dr.auth.selectInstance(inst.code)
     setLoading(false)
     if (!result.ok) { setError(result.error); return }
+    selectedInstRef.current = inst
     setCharacters(result.characters)
+    setConnectBack('character-select')
     setScreen('character-select')
   }
 
@@ -538,7 +931,10 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
     setScreen('connecting')
     const result = await window.dr.auth.selectCharacter(char.id, char.name, activeAccount, useLichRef.current)
     setLoading(false)
-    if (!result.ok) setError(result.error ?? 'Failed to connect.')
+    if (!result.ok) { setError(result.error ?? 'Failed to connect.'); return }
+    // The path worked — remember it so it's one click next time.
+    const inst = selectedInstRef.current
+    if (inst) await lightBeacon(inst, char, activeAccount, useLichRef.current)
   }
 
   // "Switch character" shortcut: re-authenticate the current account with its saved
@@ -559,7 +955,9 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
   }, [switchAccount])
 
   return (
-    <Shell>
+    <Shell tabs={TABBED.includes(screen)
+      ? <TabBar tab={screen} onTab={s => { setError(''); setScreen(s) }} onSettings={onOpenSettings} />
+      : undefined}>
       {screen === 'account-list' && (
         <AccountListScreen
           accounts={savedAccounts}
@@ -567,27 +965,35 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
           onForget={name => window.dr.auth.forgetPassword(name)}
           onForgetAccount={async name => { await window.dr.auth.forgetAccount(name); await refreshSettings() }}
           onAddNew={() => { setActiveAccount(''); setError(''); setScreen('credentials') }}
-          onSettings={onOpenSettings}
-          syncBadge={accountFooter}
+          onBack={() => setScreen('credentials')}
         />
       )}
       {screen === 'magiloom-account' && (
         <MagiloomAccountScreen
           onDone={onMagiloomSignedIn}
-          onBack={mustSignIn ? undefined : () => setScreen('account-list')}
+          onBack={mustSignIn ? undefined : () => setScreen('credentials')}
         />
       )}
       {screen === 'watch-select' && (
-        <WatchSelectScreen onWatch={onWatchSession} onBack={() => setScreen('account-list')} />
+        <WatchSelectScreen onWatch={onWatchSession} onBack={() => setScreen('credentials')} />
       )}
       {screen === 'credentials' && (
         <CredentialsScreen
           initialAccount={activeAccount}
           onSubmit={handleCredentials}
-          onBack={savedAccounts.length > 0 ? () => setScreen('account-list') : undefined}
+          onOtherAccounts={savedAccounts.length > 0 ? () => { setError(''); setScreen('account-list') } : undefined}
           error={error}
           loading={loading}
           syncBadge={accountFooter}
+        />
+      )}
+      {screen === 'beacons' && (
+        <BeaconsScreen
+          beacons={beacons}
+          onRun={runBeacon}
+          onForget={forgetBeacon}
+          error={error}
+          loading={loading}
         />
       )}
       {screen === 'instance-select' && (
@@ -597,6 +1003,8 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
           onBack={() => setScreen('credentials')}
           error={error}
           loading={loading}
+          game={game}
+          onGame={setGame}
         />
       )}
       {screen === 'character-select' && (
@@ -604,6 +1012,7 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
           characters={characters}
           lastCharId={lastCharId}
           onSelect={handleCharacterSelect}
+          onCreate={window.dr.chargen ? () => { setError(''); setScreen('chargen') } : undefined}
           onBack={() => setScreen(instances.length > 1 ? 'instance-select' : 'credentials')}
           error={error}
           loading={loading}
@@ -612,12 +1021,17 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
           onToggleLich={toggleLich}
         />
       )}
+      {screen === 'chargen' && (
+        // Leaving drops the generator socket; the SGE session was consumed to
+        // launch it, so the way back to a character list is a fresh sign-in.
+        <CharGenScreen onLeave={() => { setError(''); setScreen('credentials') }} />
+      )}
       {screen === 'connecting' && (
         <ConnectingScreen
           characterName={selectedChar?.name ?? ''}
           logLines={logLines}
           error={error}
-          onBack={() => { setError(''); setScreen('character-select') }}
+          onBack={() => { setError(''); setScreen(connectBack) }}
         />
       )}
     </Shell>

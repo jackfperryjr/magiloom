@@ -1,0 +1,53 @@
+SCENE 13 — CLEAR NIGHT  (key: clearNight, night only)
+=====================================================
+
+SUBJECT
+A clear, moonless night sky over open country. Thousands of stars, mostly faint
+pinpricks with a handful of real standouts — uniform brightness reads as
+static, so vary it hard. A denser drift of stars runs diagonally across the
+upper frame standing in for the galactic band, softer and more granular than
+the individual stars around it, with a couple of dark dust lanes through it.
+
+Below, a faint airglow along the horizon, and a low dark landform — hills, a
+treeline — as the simplest possible silhouette. Nothing else. This is the quiet
+scene in the set.
+
+FORMAT
+16:9 landscape, 2560x1440, full-bleed. A pure background painting for a fantasy
+game's sign-in screen: nothing but the scene itself, edge to edge, with no
+graphic or interface elements of any kind in the image.
+
+COMPOSITION
+The galactic band brightens as it crosses the middle and the right, and the
+strongest stars are there. It enters thin and faint at the upper left. The left
+side of the picture is sparse, quiet sky with no standout stars in it. Leave
+the extreme bottom edge simple and unbusy.
+
+The picture is one continuous scene, evenly lit and evenly painted from edge to
+edge. Do not divide it into zones, and do not paint a band, column, ribbon,
+panel, frame or box anywhere in it; do not darken, shade, tint, blur or
+vignette one side relative to the other. The quiet side is quiet because
+nothing is happening there, not because something has been laid over it.
+
+LIGHT AND PALETTE
+No moon, no artificial light. Sky graduating from near-black blue-violet
+overhead (#05061a) through deep indigo (#0b1030) to a slightly lifted blue at
+the horizon (#2b3162). Stars in cold white with a few warm amber and pale blue
+ones scattered among them. Accent hues, used sparingly: periwinkle #6467dc and
+lantern amber #d07400.
+
+STYLE
+Painterly digital illustration with visible brushwork and soft cinematic
+lighting. Part of a set with painted character portraits, so the same hand:
+rich but restrained colour, forms read at a glance, no rendering fuss.
+
+NEGATIVE
+No text or lettering of any kind, no logo, no watermark, no signature, no
+border or frame, no panel, no card, no ribbon, no banner, no box, no rectangle
+of flat colour over any part of the image, no vignette, no darkened band or
+shaded column down one side, no gradient overlay across the frame, no
+photographic texture, no lens flare, no chromatic aberration, no HDR glow, no
+vector-flat shapes, no people or faces, no aurora, no nebula clouds in
+saturated pink or teal, no visible planets or moons, no star trails. No labels,
+captions, names, numbers, arrows or leader lines anywhere in the picture — this
+is a painting, not a diagram.

@@ -1,21 +1,54 @@
 import { useEffect, useRef, useState } from 'react'
-import { buildScenes, finishFrame, fit, type SceneEnv, type HatKind } from '../../lib/loginScenes'
-import { pickScene, SCENE_HAT } from '../../lib/loginScene'
+import { pickScene, dailyRoll, SCENE, SCENES } from '../../lib/loginScene'
+
+import downpour   from '../../assets/login-art/downpour.jpg'
+import snowfall   from '../../assets/login-art/snowfall.jpg'
+import clearday   from '../../assets/login-art/clearday.jpg'
+import threemoons from '../../assets/login-art/threemoons.jpg'
+import grove      from '../../assets/login-art/grove.jpg'
+import forge      from '../../assets/login-art/forge.jpg'
+import deepwater  from '../../assets/login-art/deepwater.jpg'
+import blossom    from '../../assets/login-art/blossom.jpg'
+import harvest    from '../../assets/login-art/harvest.jpg'
+import hallows    from '../../assets/login-art/hallows.jpg'
+import yule       from '../../assets/login-art/yule.jpg'
+import fireworks  from '../../assets/login-art/fireworks.jpg'
+import clearnight from '../../assets/login-art/clearnight.jpg'
 
 /**
- * The animated art behind the sign-in card.
+ * The art behind the sign-in card.
  *
- * One scene is chosen on mount from the calendar and clock (lib/loginScene.ts) and
- * held for 90 seconds — almost every login is shorter than that, so in practice you
- * see exactly one scene and it never changes under you. If a session does linger,
- * it crossfades to a fresh pick rather than cutting.
+ * ONE SCENE PER DAY. The pick comes from the calendar and clock (lib/loginScene.ts)
+ * off a roll seeded by the date, so it is the same all day — across reloads, a
+ * re-login, and two windows at once — and different tomorrow. It does not rotate
+ * while you sit here; an earlier version cycled every 90 seconds, which changed the
+ * art under anyone who left the screen open and made "today's scene" mean nothing.
  *
- * Two stacked canvases exist only to make that crossfade possible; the second one
- * is idle (and undrawn) except during a fade.
+ * The scenes are painted images (docs/login-art/ holds the prompts that generated
+ * them, and the notes on how they're framed: the composition stays quiet on the
+ * left so the sign-in card can sit over it). They replaced a set of procedurally
+ * drawn canvas scenes — lib/loginScenes.ts still holds that code, now unused.
+ *
+ * Two stacked <img> layers remain so the dev cycler below can crossfade between
+ * scenes; in normal use the second one is never filled.
  */
 
-const HOLD_MS = 90_000
-const FADE_MS = 1100
+/** Indexed by SCENE — the order in lib/loginScene.ts, which the settings pin uses. */
+const SCENE_ART: Record<number, string> = {
+  [SCENE.downpour]:   downpour,
+  [SCENE.snowfall]:   snowfall,
+  [SCENE.clearDay]:   clearday,
+  [SCENE.moons]:      threemoons,
+  [SCENE.grove]:      grove,
+  [SCENE.forge]:      forge,
+  [SCENE.deep]:       deepwater,
+  [SCENE.blossom]:    blossom,
+  [SCENE.harvest]:    harvest,
+  [SCENE.hallows]:    hallows,
+  [SCENE.yule]:       yule,
+  [SCENE.fireworks]:  fireworks,
+  [SCENE.clearNight]: clearnight,
+}
 
 interface Prefs {
   on:       boolean
@@ -26,17 +59,31 @@ interface Prefs {
 
 const DEFAULTS: Prefs = { on: true, pinned: null, holidays: true }
 
-interface Shown { idx: number; hat: HatKind | null }
+function choose(prefs: Prefs): number {
+  const now = new Date()
+  return pickScene(now, dailyRoll(now), { holidays: prefs.holidays, pinned: prefs.pinned }).scene
+}
 
-function choose(prefs: Prefs): Shown {
-  const p = pickScene(new Date(), Math.random(), { holidays: prefs.holidays, pinned: prefs.pinned })
-  return { idx: p.scene, hat: p.hat ?? SCENE_HAT[p.scene] ?? null }
+/** Resolve once the bitmap is decoded, so a crossfade never reveals a half-drawn image. */
+function preload(src: string): Promise<void> {
+  return new Promise(resolve => {
+    const img = new Image()
+    img.onload = img.onerror = () => resolve()
+    img.src = src
+  })
 }
 
 export function LoginArt(): React.JSX.Element | null {
   const [prefs, setPrefs] = useState<Prefs | null>(null)
-  const aRef = useRef<HTMLCanvasElement | null>(null)
-  const bRef = useRef<HTMLCanvasElement | null>(null)
+  const [srcs,  setSrcs]  = useState<[string, string]>(['', ''])
+  const [front, setFront] = useState(0)
+  const [shown, setShown] = useState<number | null>(null)
+  // Dev-only: hold one scene on screen instead of following the calendar, so the
+  // whole set can be flipped through without waiting out the 90-second hold.
+  const [pinned, setPinned] = useState<number | null>(null)
+  // Which layer is in front, kept in a ref so alternation survives the effect
+  // re-running (which it does on every dev-pin change).
+  const sideRef = useRef(1)
 
   // Settings are global (no character is chosen yet at the login screen).
   useEffect(() => {
@@ -54,95 +101,58 @@ export function LoginArt(): React.JSX.Element | null {
 
   useEffect(() => {
     if (!prefs || !prefs.on) return
-    const canvases = [aRef.current, bRef.current]
-    if (!canvases[0] || !canvases[1]) return
-    const el = canvases as HTMLCanvasElement[]
+    let live = true
 
-    const reduce = typeof matchMedia === 'function'
-      && matchMedia('(prefers-reduced-motion: reduce)').matches
+    const idx = pinned ?? choose(prefs)
+    const src = SCENE_ART[idx] ?? SCENE_ART[SCENE.clearNight]
+    preload(src).then(() => {
+      if (!live) return
+      // Alternate layers so the dev cycler crossfades instead of cutting.
+      const target = 1 - sideRef.current
+      sideRef.current = target
+      setSrcs(prev => {
+        const next = [...prev] as [string, string]
+        next[target] = src
+        return next
+      })
+      setFront(target)
+      setShown(idx)
+    })
 
-    // The scenes read `env.hat` while drawing, so it is set immediately before each
-    // canvas is drawn — during a crossfade the two layers can want different hats.
-    const env: SceneEnv = { hat: null }
-    const scenes = buildScenes(1, env)
-
-    let cur: Shown = choose(prefs)
-    let next: Shown | null = null
-    let front = 0
-    el[0].classList.add('is-on')
-    el[1].classList.remove('is-on')
-
-    let raf: number | null = null
-    let hold: ReturnType<typeof setTimeout> | null = null
-    let swap: ReturnType<typeof setTimeout> | null = null
-    let t0 = 0, last = 0
-
-    const paint = (canvas: HTMLCanvasElement, shown: Shown, t: number, dt: number): void => {
-      env.hat = shown.hat
-      const f = fit(canvas)
-      scenes[shown.idx](f.ctx, f.w, f.h, t, dt)
-      finishFrame(f.ctx, f.w, f.h, t, reduce)
-    }
-
-    const frame = (now: number): void => {
-      if (!t0) t0 = now
-      const t = (now - t0) / 1000
-      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016
-      last = now
-      paint(el[front], cur, t, dt)
-      if (next) paint(el[1 - front], next, t, dt)
-      raf = requestAnimationFrame(frame)
-    }
-
-    const stop = (): void => {
-      if (raf !== null) { cancelAnimationFrame(raf); raf = null }
-    }
-    const start = (): void => {
-      if (raf !== null) return
-      last = 0
-      raf = requestAnimationFrame(frame)
-    }
-
-    // Reduced motion gets one composed still frame — the particles are distributed
-    // as if mid-flight, so it reads as a paused scene rather than an empty one.
-    if (reduce) {
-      paint(el[front], cur, 3, 0.016)
-    } else {
-      start()
-      const rotate = (): void => {
-        next = choose(prefs)
-        el[1 - front].classList.add('is-on')
-        el[front].classList.remove('is-on')
-        swap = setTimeout(() => {
-          cur = next as Shown
-          next = null
-          front = 1 - front
-          hold = setTimeout(rotate, HOLD_MS)
-        }, FADE_MS)
-      }
-      hold = setTimeout(rotate, HOLD_MS)
-    }
-
-    // Nothing should animate behind a hidden window — this runs on a phone too.
-    const onVis = (): void => {
-      if (reduce) return
-      if (document.hidden) stop(); else start()
-    }
-    document.addEventListener('visibilitychange', onVis)
-
-    return () => {
-      document.removeEventListener('visibilitychange', onVis)
-      stop()
-      if (hold !== null) clearTimeout(hold)
-      if (swap !== null) clearTimeout(swap)
-    }
-  }, [prefs])
+    return () => { live = false }
+  }, [prefs, pinned])
 
   if (!prefs || !prefs.on) return null
+
+  const cycle = (step: number): void => {
+    const order = SCENES.map(s => s.index)
+    const at    = order.indexOf((pinned ?? shown ?? order[0]) as (typeof order)[number])
+    setPinned(order[(at + step + order.length) % order.length])
+  }
+  const label = SCENES.find(s => s.index === shown)
+
   return (
-    <div className="login-art" aria-hidden>
-      <canvas ref={aRef} />
-      <canvas ref={bRef} />
-    </div>
+    <>
+      <div className="login-art" aria-hidden>
+        {srcs.map((src, i) => (
+          <img key={i} src={src || undefined} alt=""
+            className={front === i && src ? 'is-on' : undefined} />
+        ))}
+      </div>
+      {/* Dev build only — `import.meta.env.DEV` is a compile-time constant, so this
+          whole block is dropped from a production bundle. */}
+      {import.meta.env.DEV && (
+        <div className="login-art-dev">
+          <button onClick={() => cycle(-1)} title="Previous scene">‹</button>
+          <span className="login-art-dev-name">
+            {label ? label.name : '…'}
+            <em>{pinned === null ? 'calendar' : `${SCENES.findIndex(s => s.index === pinned) + 1}/${SCENES.length}`}</em>
+          </span>
+          <button onClick={() => cycle(1)} title="Next scene">›</button>
+          <button onClick={() => setPinned(null)} disabled={pinned === null}
+            title="Back to the calendar pick">auto</button>
+        </div>
+      )}
+    </>
   )
 }

@@ -1,0 +1,82 @@
+SCENE 10 — HALLOWS  (key: hallows, holiday scene, night only)
+=============================================================
+
+SUBJECT
+All Hallows night, with the mascot out in it.
+
+A low, bloated moon hangs near the horizon, pale and sickly, with a couple of
+dark maria across it so it is not a flat disc. Bare crooked trees stand in
+silhouette. Ground fog drifts across the field in slabs, thicker in some bands
+than others, swallowing the base of everything. Two or three jack-o'-lanterns
+sit low in the middle distance, their carved faces guttering — the light inside
+them is unsteady, throwing a weak orange glow onto the fog immediately around
+each one and no further.
+
+THE MASCOT
+At about 83% across the frame, standing in the fog with his feet near the
+bottom edge and about a third of the frame tall: a small round-limbed ragdoll
+made of stitched amber-gold cloth (#e8a72c body, #c98720 in shadow, warm
+#f7cf6a highlights, dark brown stitching), with a large round head nearly half
+his total height, visible seams along his limbs, and a soft sheen high on one
+side of the head. Soft, hand-sewn, a little lopsided — a toy, not a creature.
+
+HE HAS NO EYES AND NO FACE. His only feature is a short row of stitch ticks low
+on the head, curving slightly, which reads as a small closed smile. Nothing
+else is marked on the head at all — no eyes, no button eyes, no nose, no brows.
+
+He is trying to be frightening. Both arms are raised in front of him, elbows
+bent and paws hanging loose, shoulders hunched and head thrust forward in a
+small clumsy lunge — the pose of something going "boo". He wears a black
+pointed witch's hat with a soft bend near the tip, tipped forward over the
+lunge. He is a soft toy with no face, so the attempt is entirely endearing
+rather than menacing; paint the effort, not the threat.
+
+He is lit by the same weak lantern glow as the fog and pushed well toward the
+scene's shadow colour, never glowing at full saturation — a mascot that stays
+bright while the world around him goes dark reads as pasted on. The nearest
+jack-o'-lantern catches him low, from in front, so the light comes up under him
+— that underlighting is doing far more of the spooky work than he is. Fog laps
+around his feet and he casts a faint contact shadow; without one he hovers.
+
+FORMAT
+16:9 landscape, 2560x1440, full-bleed. A pure background painting for a fantasy
+game's sign-in screen: nothing but the scene itself, edge to edge, with no
+graphic or interface elements of any kind in the image.
+
+COMPOSITION
+The jack-o'-lanterns, the moon and the crooked trees all belong in the middle
+and the right, with the mascot clear of them and no lantern or trunk directly
+behind him. The left side of the picture is open field running away into fog:
+no lantern, no trunk, no moon — nothing but drifting fog and dead grass. It is
+the emptiest part of the field, painted at the same exposure as the rest of it.
+
+The picture is one continuous scene, evenly lit and evenly painted from edge to
+edge. Do not divide it into zones, and do not paint a band, column, ribbon,
+panel, frame or box anywhere in it; do not darken, shade, tint, blur or
+vignette one side relative to the other. The quiet side is quiet because
+nothing is happening there, not because something has been laid over it.
+
+LIGHT AND PALETTE
+Two weak sources fighting: cold moonlight from behind, warm guttering orange
+from the lanterns in front. Everything between them is desaturated grey-green
+fog. Very low key — this is the darkest scene in the set. Accent hues: lantern
+amber #d07400 in the pumpkin glow, periwinkle #6467dc in the moonlit fog.
+
+STYLE
+Painterly digital illustration with visible brushwork and soft cinematic
+lighting. Part of a set with painted character portraits, so the same hand:
+rich but restrained colour, forms read at a glance, no rendering fuss. The
+mascot is painted with the same brush as the fog — same light, same edge
+quality — not dropped in as a sticker or a cartoon overlay.
+
+NEGATIVE
+No text or lettering of any kind, no logo, no watermark, no signature, no
+border or frame, no panel, no card, no ribbon, no banner, no box, no rectangle
+of flat colour over any part of the image, no vignette, no darkened band or
+shaded column down one side, no gradient overlay across the frame, no
+photographic texture, no lens flare, no chromatic aberration, no HDR glow, no
+vector-flat shapes, no gore, no ghosts, no gravestones, nothing cartoonishly
+spooky. No human figures and no human faces, and NO EYES on the mascot — no
+button eyes, no dots, no stitched crosses for eyes. His head carries nothing
+but the small stitched smile. No labels, captions, names, numbers, arrows or
+leader lines anywhere in the picture — this is a painting, not a diagram.

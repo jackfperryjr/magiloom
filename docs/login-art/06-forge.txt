@@ -1,0 +1,54 @@
+SCENE 06 — FORGE  (key: forge, any season, any time of day)
+===========================================================
+
+SUBJECT
+The inside of a smithy, lit only by its own coals. The forge itself is below
+the frame, so what you see is the glow coming up from the bottom edge and the
+sparks it throws — embers rising in a slow drifting column, hot yellow-white at
+the bottom, orange in the middle, dull red as they cool and die near the top.
+
+Everything else is silhouette: a dark bench, hanging tongs and hammers, a low
+sooty ceiling above, the far wall lost entirely. A single dark mass across the
+very bottom of the frame, curving slightly, reads as the near edge of the forge
+between camera and the coals.
+
+Nobody is working it. The room is warm and still and just been left.
+
+FORMAT
+16:9 landscape, 2560x1440, full-bleed. A pure background painting for a fantasy
+game's sign-in screen: nothing but the scene itself, edge to edge, with no
+graphic or interface elements of any kind in the image.
+
+COMPOSITION
+The ember column rises through the middle and the right. The left is the cold
+end of the room: bare wall and dark air the fire barely reaches, with no tools,
+no bench and no glow over there. Leave the extreme bottom edge simple and
+unbusy.
+
+The picture is one continuous scene, evenly lit and evenly painted from edge to
+edge. Do not divide it into zones, and do not paint a band, column, ribbon,
+panel, frame or box anywhere in it; do not darken, shade, tint, blur or
+vignette one side relative to the other. The quiet side is quiet because
+nothing is happening there, not because something has been laid over it.
+
+LIGHT AND PALETTE
+One light source, from below and out of frame. Deep purple-black in the upper
+corners (#0b0818 to #170f24), warming through wine and ember-red to a hot amber
+core at the bottom edge. Nothing in the frame is neutral grey — every shadow
+carries the fire's colour. Accent hues: lantern amber #d07400 leading, with
+periwinkle #6467dc only in the coldest upper corners.
+
+STYLE
+Painterly digital illustration with visible brushwork and soft cinematic
+lighting. Part of a set with painted character portraits, so the same hand:
+rich but restrained colour, forms read at a glance, no rendering fuss.
+
+NEGATIVE
+No text or lettering of any kind, no logo, no watermark, no signature, no
+border or frame, no panel, no card, no ribbon, no banner, no box, no rectangle
+of flat colour over any part of the image, no vignette, no darkened band or
+shaded column down one side, no gradient overlay across the frame, no
+photographic texture, no lens flare, no chromatic aberration, no HDR glow, no
+vector-flat shapes, no people or faces. Do not show the fire itself — only what
+it lights. No labels, captions, names, numbers, arrows or leader lines anywhere
+in the picture — this is a painting, not a diagram.

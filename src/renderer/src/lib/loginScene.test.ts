@@ -9,7 +9,7 @@
  * Run: npm run test:tools
  */
 
-import { pickScene, holidayFor, isNight, seasonOf, nthWeekday, SCENES, SCENE, WILDCARD } from './loginScene'
+import { pickScene, holidayFor, isNight, seasonOf, nthWeekday, dailyRoll, SCENES, SCENE, WILDCARD } from './loginScene'
 
 let passed = 0
 const failures: string[] = []
@@ -80,11 +80,73 @@ const nameOf = (i: number): string => SCENES[i].name
   eq('winter night keeps Snowfall',
     nameOf(pickScene(at(2026, 0, 15, 22), 0.9).scene), 'Snowfall')
 
-  // Three Moons is the wildcard that can only run at night.
+  // Three Moons is a summer wildcard, and can only run at night.
   const poolAt = (roll: number, hr: number): string => nameOf(pickScene(at(2026, 7, 10, hr), roll).scene)
-  const moonRoll = (WILDCARD / 4) * 1.5     // lands on index 1 of the anytime pool
-  eq('night wildcard can be Three Moons', poolAt(moonRoll, 22), 'Three Moons')
-  eq('day wildcard swaps it for Clear Day', poolAt(moonRoll, 13), 'Clear Day')
+  const second = WILDCARD * 0.75            // lands on index 1 of a two-scene pool
+  eq('night wildcard can be Three Moons', poolAt(second, 22), 'Three Moons')
+  eq('day wildcard swaps it for Clear Day', poolAt(second, 13), 'Clear Day')
+}
+
+// ── Seasonal wildcards ─────────────────────────────────────────────────────────
+// The seasonless scenes are not uniformly random: each season has its own two, so
+// the forge turns up when it's cold and deep water when it isn't.
+{
+  const first  = WILDCARD * 0.25            // index 0 of a two-scene pool
+  const second = WILDCARD * 0.75            // index 1
+  const wild = (m: number, d: number, roll: number, hr = 13): string =>
+    nameOf(pickScene(at(2026, m, d, hr), roll).scene)
+
+  eq('spring wildcard 1', wild(3, 15, first),  'Deep Water')
+  eq('spring wildcard 2', wild(3, 15, second), 'Downpour')
+  eq('summer wildcard 1', wild(6, 20, first),  'Deep Water')
+  eq('autumn wildcard 1', wild(9, 10, first),  'Forge')
+  eq('autumn wildcard 2', wild(9, 10, second), 'Downpour')
+  eq('winter wildcard 1', wild(0, 15, first),  'Forge')
+  eq('winter wildcard 2', wild(0, 15, second, 22), 'Three Moons')
+
+  // The scenes each season DOESN'T own must never arrive by wildcard.
+  let strays = 0
+  for (let n = 0; n < 365; n++) {
+    const d = new Date(2026, 0, 1 + n); d.setHours(13)
+    const season = seasonOf(d)
+    const allowed: Record<string, string[]> = {
+      spring: ['Deep Water', 'Downpour'], summer: ['Deep Water', 'Three Moons'],
+      autumn: ['Forge', 'Downpour'],      winter: ['Forge', 'Three Moons'],
+    }
+    for (const roll of [first, second]) {
+      const r = pickScene(d, roll, { holidays: false })
+      // rule 'clock' means the pick was swapped for the hour, which is its own test.
+      if (r.rule === 'random' && !allowed[season].includes(nameOf(r.scene))) strays++
+    }
+  }
+  eq('no wildcard escapes its season', strays, 0)
+}
+
+// ── One scene per day ──────────────────────────────────────────────────────────
+// The art must not change while someone sits on the login screen, and must not be
+// the same every day either.
+{
+  const day = (m: number, d: number): number => dailyRoll(at(2026, m, d))
+
+  eq('same day, same roll', day(5, 14), day(5, 14))
+  check('consecutive days differ', day(5, 14) !== day(5, 15),
+    `${day(5, 14)} vs ${day(5, 15)}`)
+  check('roll stays in range',
+    [...Array(400)].every((_, i) => { const r = day(0, 1 + i); return r >= 0 && r < 1 }))
+
+  // The hour must not move the roll — only the calendar day.
+  const morning = new Date(2026, 5, 14); morning.setHours(7)
+  const night   = new Date(2026, 5, 14); night.setHours(23)
+  eq('hour does not change the day roll', dailyRoll(morning), dailyRoll(night))
+
+  // Spread: over a year the wildcard should fire on a sane slice of days, not
+  // never (a constant hash) and not always (a broken range).
+  let wild = 0
+  for (let n = 0; n < 365; n++) {
+    const d = new Date(2026, 0, 1 + n)
+    if (dailyRoll(d) < WILDCARD) wild++
+  }
+  check('wildcards land on 15-35% of days', wild > 54 && wild < 128, `got ${wild}`)
 }
 
 // ── Pinning ────────────────────────────────────────────────────────────────────

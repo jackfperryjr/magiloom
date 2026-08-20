@@ -1,0 +1,50 @@
+SCENE 05 — GROVE  (key: grove, autumn, any time of day)
+=======================================================
+
+SUBJECT
+An autumn wood in a steady wind. Bare-ish deciduous trees in three depth
+layers, all leaning the same way in one gust — trunks barely moving, crowns
+bending, the outermost twigs whipping. Torn leaves stream through the air on
+that same wind, in rust, amber and dull gold. Leaf litter over the ground
+below.
+
+Atmospheric perspective does the work: the near trees are dark, warm and
+detailed; the middle distance is greyer; the furthest trees are little more
+than blue-grey shapes in haze. Overcast light, no visible sun.
+
+FORMAT
+16:9 landscape, 2560x1440, full-bleed. A pure background painting for a fantasy
+game's sign-in screen: nothing but the scene itself, edge to edge, with no
+graphic or interface elements of any kind in the image.
+
+COMPOSITION
+The big near trunks and the busiest branch tangle belong right of centre. The
+left side of the picture falls away into distance — hazy blue-grey trees with
+no detail in them, because they are far off, not because they have been dimmed.
+Leave the extreme bottom edge simple and unbusy.
+
+The picture is one continuous scene, evenly lit and evenly painted from edge to
+edge. Do not divide it into zones, and do not paint a band, column, ribbon,
+panel, frame or box anywhere in it; do not darken, shade, tint, blur or
+vignette one side relative to the other. The quiet side is quiet because
+nothing is happening there, not because something has been laid over it.
+
+LIGHT AND PALETTE
+Flat overcast light, cool grey-blue in the distance against warm rust and ochre
+in the foreground. Low-key overall. Accent hues, used sparingly: periwinkle
+#6467dc and lantern amber #d07400.
+
+STYLE
+Painterly digital illustration with visible brushwork and soft cinematic
+lighting. Part of a set with painted character portraits, so the same hand:
+rich but restrained colour, forms read at a glance, no rendering fuss.
+
+NEGATIVE
+No text or lettering of any kind, no logo, no watermark, no signature, no
+border or frame, no panel, no card, no ribbon, no banner, no box, no rectangle
+of flat colour over any part of the image, no vignette, no darkened band or
+shaded column down one side, no gradient overlay across the frame, no
+photographic texture, no lens flare, no chromatic aberration, no HDR glow, no
+vector-flat shapes, no people or faces. No path or road leading the eye out of
+frame. No labels, captions, names, numbers, arrows or leader lines anywhere in
+the picture — this is a painting, not a diagram.

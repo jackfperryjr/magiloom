@@ -1,6 +1,14 @@
 /**
  * Procedural login-screen scenes, drawn to a canvas at runtime.
  *
+ * NO LONGER RENDERED. As of feature set 196 the login screen shows painted images
+ * of these same thirteen scenes (assets/login-art/, generated from the prompts in
+ * docs/login-art/), and components/ui/LoginArt.tsx no longer calls buildScenes().
+ * Nothing imports this module but the HatKind type in lib/loginScene.ts, so it is
+ * erased from the bundle — it is kept only as the reference the paintings were
+ * matched to, and because it still holds the only drawing of Loomy in the repo.
+ * Delete it freely if that stops being worth the 1,800 lines.
+ *
  * No image assets: every scene is gradients, particles and shapes, so the login
  * screen costs nothing to download, themes correctly, and can vary with the
  * calendar. Which scene is shown is decided in lib/loginScene.ts — this module

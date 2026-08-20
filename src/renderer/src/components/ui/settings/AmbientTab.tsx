@@ -160,7 +160,7 @@ export function AmbientTab({
         </div>
       </div>
 
-      {/* Login art (lib/loginScenes.ts). Drawn, not downloaded, and picked from the
+      {/* Login art (components/ui/LoginArt.tsx). Painted scenes, picked from the
           real-world calendar — the login screen has no game session, so it can't
           know Elanthia's season. */}
       <div className="settings-section">
@@ -171,8 +171,9 @@ export function AmbientTab({
             onChange={e => setLoginArt(s => ({ ...s, on: e.target.checked }))} />
         </label>
         <div className="settings-hint">
-          Animated scenes behind the sign-in card, chosen by the date and time of
-          day. Nothing is downloaded; each one is drawn as you watch.
+          A painted scene behind the sign-in card — one a day, picked by the season,
+          the holiday and whether it's dark out. It won't change while you're
+          looking at it, and it ships with the app rather than being fetched.
         </div>
 
         <label className="settings-row">

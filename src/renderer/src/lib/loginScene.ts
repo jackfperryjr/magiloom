@@ -7,14 +7,17 @@
  *
  * Order of precedence:
  *   1. Holidays win outright, and the random pick can never override one.
- *   2. Otherwise a 1-in-4 wildcard from the scenes that belong to no season, so a
- *      season doesn't become monotonous over the three months it owns.
+ *   2. Otherwise a 1-in-4 wildcard from the two seasonless scenes that suit this
+ *      season, so a season doesn't become monotonous over the three months it owns.
  *   3. Otherwise the season's own scene.
  * Finally, anything that can only be daylight is swapped for the plain night sky
  * after dark (and vice versa) — holidays excepted, since Yule at noon is still Yule.
  *
- * Pure and dependency-free so it can be tested in plain node; the drawing lives in
- * lib/loginScenes.ts.
+ * The roll is an argument rather than a Math.random() call inside, so the app can
+ * feed it a per-day seed (dailyRoll) and the tests can feed it fixed values. One
+ * scene per day, not one per visit: see dailyRoll.
+ *
+ * Pure and dependency-free so it can be tested in plain node.
  */
 
 import type { HatKind } from './loginScenes'
@@ -129,8 +132,45 @@ const SEASON_SCENE = {
   summer: SCENE.clearDay, autumn: SCENE.grove,
 } as const
 
-/** Chance of showing an off-season scene instead of the season's own. */
+/**
+ * The scenes that belong to no season, and which seasons will have them anyway.
+ *
+ * Each is a mood the season can plausibly be in rather than a picture of it: the
+ * forge is somewhere to be when it's cold out, deep water reads as spring melt
+ * and summer swimming, rain belongs to the shoulder seasons, and a clear moonlit
+ * sky suits the long nights at either end of the year. Two per season, so a
+ * wildcard day still feels like a coin toss rather than a fixed alternate.
+ */
+const SEASON_WILDCARDS = {
+  spring: [SCENE.deep,  SCENE.downpour],
+  summer: [SCENE.deep,  SCENE.moons],
+  autumn: [SCENE.forge, SCENE.downpour],
+  winter: [SCENE.forge, SCENE.moons],
+} as const
+
+/** Chance of showing the season's wildcard instead of the season's own scene. */
 export const WILDCARD = 0.25
+
+/**
+ * A roll that is fixed for a whole calendar day.
+ *
+ * The login screen used to rotate every 90 seconds, which meant the art changed
+ * under anyone who left it open and made "today's scene" meaningless. Seeding the
+ * roll off the date instead gives one scene per day: stable across reloads, across
+ * a re-login, and across two windows open at once, and different tomorrow.
+ *
+ * Local calendar day, deliberately — the scene should turn over at the user's
+ * midnight, not UTC's.
+ */
+export function dailyRoll(date: Date): number {
+  const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+  let h = 2166136261
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return ((h >>> 0) % 100_000) / 100_000
+}
 
 /** Swap a scene that cannot be on screen at this hour for the plain sky. */
 function forHour(sceneIndex: number, night: boolean): number {
@@ -160,20 +200,21 @@ export function pickScene(date: Date, roll: number, opts: PickOptions = {}): Sce
     if (hol) return { scene: hol.scene, why: hol.why, rule: 'holiday', hat: hol.hat }
   }
 
-  const night = isNight(date)
+  const night  = isNight(date)
+  const season = seasonOf(date)
 
   if (roll < WILDCARD) {
-    const pool = SCENES.filter(s => s.tag === 'anytime')
+    const pool = SEASON_WILDCARDS[season]
     const pick = pool[Math.min(pool.length - 1, Math.floor((roll / WILDCARD) * pool.length))]
-    const swapped = forHour(pick.index, night)
-    return swapped === pick.index
-      ? { scene: swapped, why: 'wildcard', rule: 'random' }
+    const swapped = forHour(pick, night)
+    return swapped === pick
+      ? { scene: swapped, why: `${season} wildcard`, rule: 'random' }
       : { scene: swapped, why: night ? 'night' : 'day', rule: 'clock' }
   }
 
-  const seasonScene = SEASON_SCENE[seasonOf(date)]
+  const seasonScene = SEASON_SCENE[season]
   const out = forHour(seasonScene, night)
   return out === seasonScene
-    ? { scene: out, why: seasonOf(date), rule: 'season' }
+    ? { scene: out, why: season, rule: 'season' }
     : { scene: out, why: night ? 'night' : 'day', rule: 'clock' }
 }
