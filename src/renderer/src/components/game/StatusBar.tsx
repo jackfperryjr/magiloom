@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAtomValue } from 'jotai'
 import { Tooltip } from '../ui/Tooltip'
 import { roomAtom } from '../../store/game'
+import { roomDisplayName } from '../../lib/mapModel'
 import {
   IconWinMinimize, IconWinMaximize, IconWinRestore, IconWinClose,
 } from '../ui/Icons'
@@ -87,13 +88,15 @@ function useSessionInstance(charName: string) {
 /**
  * The room you're standing in, beside its id. Purely a readout — the Room panel is
  * where exits and description live — but the id alone told you nothing without one,
- * and the pair reads as one fact: "Town Square East (10041)".
+ * and the pair reads as one fact: `room 10041` · `The Crossing, Clanthew Boulevard`.
+ * Only the name itself shows here: DR's title punctuation ("[…]") and its trailing
+ * "(id)" tag are both dropped, the latter because the id chip already carries it.
  *
  * Long names are ellipsised rather than allowed to push the rest of the bar around;
  * the tooltip always carries the full name.
  */
 function RoomNameChip() {
-  const name = useAtomValue(roomAtom).name
+  const name = roomDisplayName(useAtomValue(roomAtom).name)
   if (!name) return null
   return (
     <Tooltip text={name}>
