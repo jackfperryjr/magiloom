@@ -268,7 +268,10 @@ export const THEMES: Theme[] = [
   },
   {
     id: 'ff4',
-    name: 'Final Fantasy IV',
+    // Display name is the series, not the entry: the palette is drawn from IV but
+    // it's meant to evoke Final Fantasy generally. The `ff4` id stays put — saved
+    // per-character prefs and every [data-theme="ff4"] rule key off it.
+    name: 'Final Fantasy',
     vars: {
       '--bg-shell':      '#020233',
       '--bg-panel':      'linear-gradient(180deg, #0000A8 0%, #000050 100%)',

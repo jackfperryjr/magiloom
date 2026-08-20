@@ -46,10 +46,9 @@
   .command-input-wrap > .character-bar .char-identity { flex: 0 0 auto; padding: 0; }
   .char-avatar { width: 54px; height: 54px; }
 
-  /* Only the posture shows inline; conditions live in its popup. Hands are hidden.
-     .hud-bar prefix beats the later base .hand-display rule's specificity. */
+  /* Only the posture shows inline; conditions live in its popup. (The hands slot
+     used to be hidden here too — it's now gone from the HUD bar entirely.) */
   .status-conds-inline { display: none; }
-  .hud-bar .hand-display { display: none; }
 
   /* Modals become full-width bottom sheets that slide up (like the panel sheets).
      The portrait lightbox keeps its centered zoom — exclude it. */

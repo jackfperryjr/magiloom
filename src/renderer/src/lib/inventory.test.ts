@@ -13,7 +13,7 @@
 import { parseLine, resetParser, type GameEvent, type InvEnvelope } from './sge-parser'
 import {
   InvAssembler, parseInvItem, validateTree, pathTo, isContainer, isClosed, isFixed,
-  depthOf, isBuried, childrenOf, type InvItem, type InvSnapshot,
+  depthOf, isBuried, childrenOf, summarizeCarried, type InvItem, type InvSnapshot,
 } from './inventory'
 
 let passed = 0
@@ -146,6 +146,57 @@ resetParser()
   eq('items in a worn container are at depth 1', depthOf(snap, razor), 1)
   check('nothing is buried behind a closed lid', !isBuried(snap, razor))
   eq('children found by parent id', childrenOf(snap, '57189137').length, 3)
+}
+
+// ── At-a-glance summary ───────────────────────────────────────────────────────
+resetParser()
+{
+  // The captured sample is a fully dressed character: backpack, workboots, jacket
+  // and trousers all worn, with three loose items inside the jacket.
+  const snap = snapshotOf(CAPTURED)
+  const sum  = summarizeCarried(snap)
+
+  // The bug this guards: every one of those four garments reports an in_max, so
+  // classifying each item as EITHER worn OR a container scored this outfit as 0 worn.
+  eq('worn counts every garment, container or not', sum.worn, 4)
+  eq('items counts contents too', sum.items, 7)
+  eq('load sums every raw weight', sum.weight, 109)
+
+  // ...and the same overlap means an unfiltered container list would name the
+  // trousers and the boots. Only the jacket is actually holding anything.
+  eq('only containers with contents are listed', sum.containers.length, 1)
+  eq('… and it is the jacket', sum.containers[0]?.item.noun, 'jacket')
+  eq('… with its child count', sum.containers[0]?.count, 3)
+}
+
+{
+  // Things at your feet are parented to the player but are on the ground: they
+  // must not land in the load, the item count, or the worn count.
+  const snap = snapshotOf(
+    "<inventoryManager id='feet' room='84105'>" +
+    `<i id='40' loc='worn,player' name="a,,cloak" weight='5'/>` +
+    `<i id='41' loc='atfeet,player' name="a heavy,iron,anvil" weight='900'/>` +
+    '</inventoryManager>',
+  )
+  const sum = summarizeCarried(snap)
+  eq('an anvil at your feet is not carried', sum.weight, 5)
+  eq('… nor counted as an item', sum.items, 1)
+  eq('… nor counted as worn', sum.worn, 1)
+}
+
+{
+  // Fullest container first, so the pack you're digging in is at the top.
+  const snap = snapshotOf(
+    "<inventoryManager id='sort' room='84105'>" +
+    `<i id='50' loc='worn,player' name="a,,satchel" weight='10' in_max='500'/>` +
+    `<i id='51' loc='worn,player' name="a,,pouch" weight='5' in_max='500'/>` +
+    `<i id='52' loc='in,50' name="a,,rock" weight='1'/>` +
+    `<i id='53' loc='in,51' name="a,,gem" weight='1'/>` +
+    `<i id='54' loc='in,51' name="a,,coin" weight='1'/>` +
+    '</inventoryManager>',
+  )
+  const sum = summarizeCarried(snap)
+  eq('containers sort fullest first', sum.containers.map(c => c.item.noun).join(','), 'pouch,satchel')
 }
 
 // ── Items in the room ─────────────────────────────────────────────────────────

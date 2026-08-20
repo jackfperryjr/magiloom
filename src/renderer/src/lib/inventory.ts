@@ -186,6 +186,61 @@ export function childrenOf(snapshot: InvSnapshot, parentId: string): InvItem[] {
   return out
 }
 
+// ── At-a-glance summary ───────────────────────────────────────────────────────
+
+export interface CarriedSummary {
+  /** Raw server weight units for everything on the character. */
+  weight: number
+  /** Every item on you, at any depth. */
+  items:  number
+  /** How many things you're wearing. */
+  worn:   number
+  /** Containers holding something, fullest first. */
+  containers: { item: InvItem; count: number }[]
+}
+
+/**
+ * What the Inventory panel shows at a glance.
+ *
+ * Two things here are easy to get wrong, which is why this is a tested function
+ * and not a useMemo in the panel:
+ *
+ * 1. Worn and container are INDEPENDENT axes, not alternatives. Nearly everything
+ *    wearable in DR reports an `in_max` — the captured sample in inventory.test.ts
+ *    has workboots at 120 and trousers at 100 — so classifying each item as either
+ *    worn or a container scores a fully dressed character as 0 worn.
+ * 2. `atfeet` items are parented to the player but are lying on the ground. They
+ *    are neither carried nor worn, and counting them inflates the load.
+ *
+ * Containers are filtered to those actually holding something: since the trousers
+ * technically qualify, listing them all would just rebuild the long worn list the
+ * panel is trying to avoid.
+ */
+export function summarizeCarried(snapshot: InvSnapshot): CarriedSummary {
+  let weight = 0
+  let items  = 0
+  let worn   = 0
+  const containers: { item: InvItem; count: number }[] = []
+
+  for (const item of snapshot.items.values()) {
+    if (item.relation === 'atfeet') continue
+    const root = item.parent === PLAYER ? PLAYER : pathTo(snapshot, item)[0]?.parent ?? item.parent
+    if (root !== PLAYER) continue
+
+    weight += Math.max(0, weightOf(item) ?? 0)
+    items++
+    if (item.parent !== PLAYER) continue
+
+    if (item.relation === 'worn') worn++
+    if (!isContainer(item)) continue
+    const count = childrenOf(snapshot, item.id).length
+    if (count > 0) containers.push({ item, count })
+  }
+
+  containers.sort((a, b) => b.count - a.count)
+  return { weight, items, worn, containers }
+}
+
 // ── Assembly ──────────────────────────────────────────────────────────────────
 
 export interface Cursor { room: string; root: string; last: string }
@@ -261,7 +316,7 @@ export class InvAssembler {
     const root = raw['root']
     const last = raw['last']
     if (!root || !last) throw new Error('continuation is missing root/last')
-    const key = `${this.room} ${root} ${last}`
+    const key = `${this.room}\u0000${root}\u0000${last}`
     if (this.seen.has(key)) throw new Error(`repeated continuation cursor ${root}/${last}`)
     this.seen.add(key)
     this.queue.push({ room: this.room, root, last })

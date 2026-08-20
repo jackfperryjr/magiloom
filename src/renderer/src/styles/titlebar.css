@@ -42,6 +42,63 @@
    same amount back on the left, so the help/update icons to its left don't move. */
 .titlebar-sep { width: 1px; height: 18px; flex-shrink: 0; background: var(--border); margin-left: 6px; margin-right: -6px; }
 
+/* ── Session chips (game/instance + room id) ──────────────────────────────────
+   Sit just right of the app icon, reading as a quiet breadcrumb for "which game,
+   which server, which room". Deliberately low-contrast: this is reference info
+   you glance at, not something competing with the game text below. The room chip
+   is a button (click copies the id), so it opts out of the title bar's drag. */
+.titlebar-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  flex-shrink: 0;
+  max-width: 190px;
+  padding: 2px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-input) 70%, transparent);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.titlebar-chip-k {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+.titlebar-chip-v {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.titlebar-chip-btn {
+  cursor: pointer;
+  transition: border-color .12s, background .12s, color .12s;
+}
+.titlebar-chip-btn:hover {
+  border-color: var(--border);
+  background: var(--bg-input);
+}
+.titlebar-chip-btn:hover .titlebar-chip-v { color: var(--text-bright); }
+/* Room ids are numeric — tabular figures stop the chip twitching as you walk.
+   A fixed min-width keeps the pill the same size whether it's showing a 5-digit
+   id or the `--` placeholder, so the chip never resizes underneath the cursor. */
+.titlebar-chip-room .titlebar-chip-v {
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  text-align: center;
+}
+/* No id for this room: present but plainly inert. */
+.titlebar-chip-v-empty { color: var(--text-dim); letter-spacing: .1em; }
+/* Narrow windows: the chips are the first thing that can go. */
+@media (max-width: 720px) {
+  .titlebar-chip { display: none; }
+}
+
 /* macOS: pad left so content clears the traffic-light buttons */
 body[data-platform="darwin"] .status-bar {
   padding-left: 80px;
