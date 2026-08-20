@@ -5,6 +5,18 @@ import type { MapDB, Zone } from './lib/mapModel'
 interface SGECharacter  { id: string; name: string }
 interface SGEInstance   { code: string; name: string }
 interface SavedAccount  { name: string; lastCharacter?: string }
+/** A saved one-click login route — see AppSettings.loginPaths. */
+interface LoginPath {
+  id:           string
+  account:      string
+  game:         'DR' | 'GS4'
+  instance:     string
+  instanceName: string
+  charId:       string
+  charName:     string
+  lich:         boolean
+  usedAt:       number
+}
 
 interface AppSettings {
   lichPath:         string
@@ -12,6 +24,9 @@ interface AppSettings {
   scriptDir:        string
   accounts:         SavedAccount[]
   lastAccount:      string
+  // Saved one-click login routes ("beacons"), recorded on every successful login:
+  // account → game → server → character → Lich. See components/ui/LoginFlow.tsx.
+  loginPaths?:      LoginPath[]
   fontSize:         number
   fontFamily:       string
   theme:            string
@@ -137,6 +152,16 @@ interface DrAPI {
     getPassword:    (account: string)                   => Promise<string | null>
     forgetPassword: (account: string)                   => Promise<void>
     forgetAccount:  (account: string)                   => Promise<void>
+  }
+  /** DragonRealms' character generator. Desktop only — undefined on web. */
+  chargen?: {
+    start: () => Promise<{ ok: true } | { ok: false; error: string }>
+    send:  (line: string) => Promise<void>
+    stop:  () => Promise<void>
+    onConnected: (cb: () => void)          => () => void
+    onData:      (cb: (t: string) => void) => () => void
+    onError:     (cb: (m: string) => void) => () => void
+    onClosed:    (cb: () => void)          => () => void
   }
   lich: {
     detectPath: () => Promise<string>

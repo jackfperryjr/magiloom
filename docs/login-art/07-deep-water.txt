@@ -1,0 +1,52 @@
+SCENE 07 — DEEP WATER  (key: deep, any season, any time of day)
+===============================================================
+
+SUBJECT
+Underwater, well below the surface, looking up and out. The surface is overhead
+as a rippling ceiling seen from beneath; caustics — crossing bands of light —
+run along it and scatter down. Long shafts of light come through at an angle
+and waver out of phase with each other. Marine snow drifts everywhere: fine
+suspended motes, brighter where the shafts catch them, which is what tells you
+this is a volume of water you are inside of rather than a flat blue field.
+
+The sea floor is a dark shelf across the bottom of the frame, mostly
+featureless, with the water going black in the corners. No fish, no wreck, no
+diver — the subject is the light and the water.
+
+FORMAT
+16:9 landscape, 2560x1440, full-bleed. A pure background painting for a fantasy
+game's sign-in screen: nothing but the scene itself, edge to edge, with no
+graphic or interface elements of any kind in the image.
+
+COMPOSITION
+The strongest light shafts and the brightest caustics fall through the middle
+and the right. The left is open water the shafts never reach — clear, empty,
+deepening blue with a little marine snow drifting in it. Leave the extreme
+bottom edge simple and unbusy.
+
+The picture is one continuous scene, evenly lit and evenly painted from edge to
+edge. Do not divide it into zones, and do not paint a band, column, ribbon,
+panel, frame or box anywhere in it; do not darken, shade, tint, blur or
+vignette one side relative to the other. The quiet side is quiet because
+nothing is happening there, not because something has been laid over it.
+
+LIGHT AND PALETTE
+One source, from above and to the right. Teal and blue-green near the surface
+falling to near-black blue at depth. The caustics are the brightest thing in
+the frame and they are thin, not broad. Accent hues, used sparingly: periwinkle
+#6467dc and lantern amber #d07400 (the latter only in the surface light).
+
+STYLE
+Painterly digital illustration with visible brushwork and soft cinematic
+lighting. Part of a set with painted character portraits, so the same hand:
+rich but restrained colour, forms read at a glance, no rendering fuss.
+
+NEGATIVE
+No text or lettering of any kind, no logo, no watermark, no signature, no
+border or frame, no panel, no card, no ribbon, no banner, no box, no rectangle
+of flat colour over any part of the image, no vignette, no darkened band or
+shaded column down one side, no gradient overlay across the frame, no
+photographic texture, no lens flare, no chromatic aberration, no HDR glow, no
+vector-flat shapes, no people or faces, no sea creatures, no bubbles rising in
+a stream. No labels, captions, names, numbers, arrows or leader lines anywhere
+in the picture — this is a painting, not a diagram.

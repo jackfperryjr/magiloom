@@ -1,0 +1,75 @@
+SCENE 09 — HARVEST  (key: harvest, holiday scene, any time of day)
+==================================================================
+
+SUBJECT
+A ripe wheat field under a harvest moon, with the mascot standing in it.
+
+The moon is big, low and amber, sitting just above the horizon and dominating
+the sky — the kind that looks impossibly large. The wheat fills the lower half
+of the frame, heavy-headed, all of it leaning together on one gust, with the
+grain heads catching the moonlight along their upper edges. A dark treeline and
+a couple of distant rooftops sit between the field and the horizon. Warm,
+still, late-autumn evening.
+
+THE MASCOT
+At about 82% across the frame, standing in the wheat with his feet near the
+bottom edge and about a third of the frame tall: a small round-limbed ragdoll
+made of stitched amber-gold cloth (#e8a72c body, #c98720 in shadow, warm
+#f7cf6a highlights, dark brown stitching), with a large round head nearly half
+his total height, visible seams along his limbs, and a soft sheen high on one
+side of the head. Soft, hand-sewn, a little lopsided — a toy, not a creature.
+
+HE HAS NO EYES AND NO FACE. His only feature is a short row of stitch ticks low
+on the head, curving slightly, which reads as a small closed smile. Nothing
+else is marked on the head at all — no eyes, no button eyes, no nose, no brows.
+
+He stands in three-quarter view looking out over the field, wearing a plain
+black pilgrim hat with a buckle.
+
+He is lit by the same moon as everything else and pushed toward the scene's own
+shadow colour, never glowing at full saturation — a mascot that stays bright
+while the world around him goes dark reads as pasted on. He casts a soft
+contact shadow where he meets the ground; without one he hovers. The wheat
+closes over his feet, so the field's foreground passes in front of him.
+
+FORMAT
+16:9 landscape, 2560x1440, full-bleed. A pure background painting for a fantasy
+game's sign-in screen: nothing but the scene itself, edge to edge, with no
+graphic or interface elements of any kind in the image.
+
+COMPOSITION
+The moon sits right of centre, roughly two-thirds across, and the mascot stands
+clear of it. The left side of the picture is open wheat running away to the
+treeline — no bright grain heads, nothing standing in it. Nothing in the frame
+competes with The mascot for attention.
+
+The picture is one continuous scene, evenly lit and evenly painted from edge to
+edge. Do not divide it into zones, and do not paint a band, column, ribbon,
+panel, frame or box anywhere in it; do not darken, shade, tint, blur or
+vignette one side relative to the other. The quiet side is quiet because
+nothing is happening there, not because something has been laid over it.
+
+LIGHT AND PALETTE
+One source: the moon. Deep blue-violet sky above, warming to amber at the
+horizon; the wheat in bronze and old gold where it is lit and near-black where
+it is not. Accent hues: lantern amber #d07400 leading, periwinkle #6467dc in
+the upper sky.
+
+STYLE
+Painterly digital illustration with visible brushwork and soft cinematic
+lighting. Part of a set with painted character portraits, so the same hand:
+rich but restrained colour, forms read at a glance, no rendering fuss. The
+mascot is painted with the same brush as the field — same light, same edge
+quality — not dropped in as a sticker or a cartoon overlay.
+
+NEGATIVE
+No text or lettering of any kind, no logo, no watermark, no signature, no
+border or frame, no panel, no card, no ribbon, no banner, no box, no rectangle
+of flat colour over any part of the image, no vignette, no darkened band or
+shaded column down one side, no gradient overlay across the frame, no
+photographic texture, no lens flare, no chromatic aberration, no HDR glow, no
+vector-flat shapes, no scarecrow. No human figures and no human faces, and NO
+EYES on the mascot — no button eyes, no dots, no stitched crosses for eyes. His
+head carries nothing but the small stitched smile. No labels, captions, names,
+numbers, arrows or leader lines anywhere in the picture — this is a painting,
+not a diagram.

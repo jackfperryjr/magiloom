@@ -13,6 +13,7 @@ import { loadRawDataset } from './map-dataset'
 import { LogStore, logSlug } from './log-store'
 import { SettingsStore } from './settings-store'
 import { sgeAuth } from './sge-auth'
+import { CharGenConnection } from './chargen'
 import type { SGELaunchKey } from './sge-auth'
 import { writeLichEntry } from './lich-entry'
 import { getAvatar, publishAvatar, deleteAvatar, isAvatarServiceEnabled } from './avatar-service'
@@ -90,6 +91,7 @@ function isOnScreen(s: WindowState): boolean {
 let mainWindow: BrowserWindow | null = null
 const lichManager = new LichManager()
 const gameConn    = new GameConnection()
+const charGen     = new CharGenConnection()
 const lichConn    = new LichConnection()
 const settings    = new SettingsStore(SHARED_DIR)
 const cmdEngine   = new CmdScriptEngine(
@@ -426,6 +428,32 @@ function setupIpcHandlers(): void {
     return { ok: true }
   })
 
+  // ── Character creation ──────────────────────────────────────────────────────
+  // Launching slot "0" opens DragonRealms' character generator as its own game
+  // session (see chargen.ts). It runs on the SGE session the login already
+  // established, so it must be started from the character list — the same place
+  // `L` would be sent for a real character.
+  ipcMain.handle('chargen:start', async () => {
+    if (!pendingSelectCharacter) return { ok: false, error: 'Session expired — sign in again.' }
+    let key: SGELaunchKey
+    try {
+      key = await pendingSelectCharacter('0')
+    } catch (e: unknown) {
+      const msg = String(e)
+      // The generator refuses accounts without an active subscription or trial.
+      return { ok: false, error: /PROBLEM/i.test(msg)
+        ? 'This account cannot create a character on this instance — an active subscription or trial is required.'
+        : msg }
+    }
+    // Consumed: the eaccess socket closes with the launch response either way.
+    pendingSelectCharacter = null
+    lichLog('[chargen] Connecting to the character generator at ' + key.host + ':' + key.port)
+    charGen.connect(key.host, key.port, key.key)
+    return { ok: true }
+  })
+  ipcMain.handle('chargen:send', (_e, line: string) => charGen.send(line))
+  ipcMain.handle('chargen:stop', () => charGen.disconnect())
+
   ipcMain.handle('lich:get-log',     () => lichLogBuffer.slice())
   ipcMain.handle('lich:detect-path', () => lichManager.getLichPath(settings.get('lichPath') || undefined))
   ipcMain.handle('lich:stop',        () => { lichManager.stop(); lichConn.disconnect() })
@@ -570,4 +598,12 @@ function setupIpcHandlers(): void {
   gameConn.on('connected',    ()          => { lichLog('[game] Connected'); send('game:connected') })
   gameConn.on('disconnected', ()          => { lichReadyDetected = false; currentCharName = ''; send('game:disconnected') })
   gameConn.on('error',        (e: string) => { lichLog('[game] Error: ' + e); send('game:error', e) })
+
+  // Character generator: raw text straight through to the login card's creator
+  // console. Nothing here touches the game store — a generator session is not a
+  // playable session, and no character exists yet to attribute it to.
+  charGen.on('connected', ()          => { lichLog('[chargen] Connected'); send('chargen:connected') })
+  charGen.on('data',      (t: string) => send('chargen:data', t))
+  charGen.on('error',     (e: string) => { lichLog('[chargen] Error: ' + e); send('chargen:error', e) })
+  charGen.on('closed',    ()          => { lichLog('[chargen] Session closed'); send('chargen:closed') })
 }

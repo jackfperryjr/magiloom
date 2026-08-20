@@ -7,6 +7,10 @@ export interface AppSettings {
   scriptDir:   string                  // folder holding native .cmd scripts ('' → default)
   accounts:    { name: string; lastCharacter?: string }[]
   lastAccount: string
+  // Saved one-click login routes ("beacons"): a whole path back into the game —
+  // account → game → server → character → Lich. Recorded automatically whenever a
+  // login succeeds, so the list is always real paths the user has actually walked.
+  loginPaths?: LoginPath[]
   fontSize:    number
   fontFamily:  string
   passwords:   Record<string, string>  // account name → base64 encrypted password
@@ -28,6 +32,21 @@ export interface AppSettings {
   // CharScopedSettings.logging); this survives only as the fallback default so an
   // existing setup keeps logging until each character sets its own preference.
   logging?:      boolean
+}
+
+// One saved login route. `charId` is SGE's per-account character id, which can be
+// reissued — the name is kept alongside it so a beacon can still resolve by name
+// when the id no longer matches.
+export interface LoginPath {
+  id:           string    // local key, not SGE's
+  account:      string
+  game:         'DR' | 'GS4'
+  instance:     string    // SGE instance code, e.g. DR / DRX / GS3
+  instanceName: string    // display label at the time it was saved
+  charId:       string
+  charName:     string
+  lich:         boolean
+  usedAt:       number
 }
 
 // The subset of settings that can be overridden per character.

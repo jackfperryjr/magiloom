@@ -1,0 +1,67 @@
+SCENE 04 — THREE MOONS  (key: moons, any season, night only)
+============================================================
+
+SUBJECT
+Three moons in one night sky, arcing across the upper half of the frame at
+different heights. They are three different bodies, and getting their colours,
+sizes and phases apart is the whole point of this scene.
+
+The leftmost of the three is a dull grey-violet moon, #8d8798, the coldest and
+least reflective of them, middle-sized, and shown as a thin crescent barely a
+fifth lit — most of its disc unlit and only just separable from the sky. The
+middle one is pale blue-white, #8fb6e8, the largest of the three and the
+brightest thing in the picture, nearly full: just short of a perfect circle,
+its terminator a shallow curve near one edge. The rightmost is a dusty
+rose-red, #d06a6a, muted rather than blood bright, the smallest of the three,
+and gibbous at about two-thirds lit.
+
+Each reads as a sphere, not a flat disc: visible maria as broad soft darkening,
+craters with a dark floor and a lit rim on the sunward side, and limb darkening
+toward the edge. All three are lit from the same direction, which is what sells
+them as three bodies in one sky.
+
+Thin cloud banks drift in front of them. Below, only a pair of soft ridgelines
+for a horizon, the far one lighter than the near one. A dense field of stars
+behind everything, and one faint shooting star, small, off to one side.
+
+FORMAT
+16:9 landscape, 2560x1440, full-bleed. A pure background painting for a fantasy
+game's sign-in screen: nothing but the scene itself, edge to edge, with no
+graphic or interface elements of any kind in the image.
+
+COMPOSITION
+All three moons sit across the middle and the right of the sky, in the order
+given above, none of them out at the far left. The near-left is open sky and
+thin cloud: no moon, no bright star. Leave the extreme bottom edge simple and
+unbusy.
+
+The picture is one continuous scene, evenly lit and evenly painted from edge to
+edge. Do not divide it into zones, and do not paint a band, column, ribbon,
+panel, frame or box anywhere in it; do not darken, shade, tint, blur or
+vignette one side relative to the other. The quiet side is quiet because
+nothing is happening there, not because something has been laid over it.
+
+LIGHT AND PALETTE
+Deep indigo and blue-black sky, graduating slightly warmer toward the horizon.
+The moons keep the three colours given above — grey-violet, blue-white,
+rose-red — and they must stay distinguishable from each other at a glance. The
+brightest value in the frame is the middle moon's lit face; nothing else
+competes with it. Accent hues, used sparingly: periwinkle #6467dc and lantern
+amber #d07400.
+
+STYLE
+Painterly digital illustration with visible brushwork and soft cinematic
+lighting. Part of a set with painted character portraits, so the same hand:
+rich but restrained colour, forms read at a glance, no rendering fuss.
+
+NEGATIVE
+No text or lettering of any kind, no logo, no watermark, no signature, no
+border or frame, no panel, no card, no ribbon, no banner, no box, no rectangle
+of flat colour over any part of the image, no vignette, no darkened band or
+shaded column down one side, no gradient overlay across the frame, no
+photographic texture, no lens flare, no chromatic aberration, no HDR glow, no
+vector-flat shapes, no people or faces. Do not draw the moons as three copies
+of one moon, do not give them all the same size, do not make them all white or
+all one colour, do not put them all in the same phase, and do not give them a
+ringed-planet look. No labels, captions, names, numbers, arrows or leader lines
+anywhere in the picture — this is a painting, not a diagram.

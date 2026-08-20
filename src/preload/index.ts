@@ -36,6 +36,18 @@ contextBridge.exposeInMainWorld('dr', {
     forgetPassword: (account: string)                   => ipcRenderer.invoke('auth:forget-password', account),
     forgetAccount:  (account: string)                   => ipcRenderer.invoke('auth:forget-account', account)
   },
+  // DragonRealms' character generator, run from the login card. Desktop only —
+  // the web client has no equivalent (see src/web/dr.ts), so the renderer treats
+  // a missing `chargen` as "creation unavailable here".
+  chargen: {
+    start: ()             => ipcRenderer.invoke('chargen:start'),
+    send:  (line: string) => ipcRenderer.invoke('chargen:send', line),
+    stop:  ()             => ipcRenderer.invoke('chargen:stop'),
+    onConnected: (cb: () => void)          => {                                               ipcRenderer.on('chargen:connected', cb); return () => ipcRenderer.removeListener('chargen:connected', cb) },
+    onData:      (cb: (t: string) => void) => { const h = (_e: unknown, t: string) => cb(t); ipcRenderer.on('chargen:data', h);      return () => ipcRenderer.removeListener('chargen:data', h) },
+    onError:     (cb: (m: string) => void) => { const h = (_e: unknown, m: string) => cb(m); ipcRenderer.on('chargen:error', h);     return () => ipcRenderer.removeListener('chargen:error', h) },
+    onClosed:    (cb: () => void)          => {                                               ipcRenderer.on('chargen:closed', cb);    return () => ipcRenderer.removeListener('chargen:closed', cb) },
+  },
   lich: {
     detectPath: ()                  => ipcRenderer.invoke('lich:detect-path'),
     getLog:     ()                  => ipcRenderer.invoke('lich:get-log'),

@@ -1,0 +1,60 @@
+SCENE 08 — BLOSSOM  (key: blossom, spring, daytime only)
+========================================================
+
+SUBJECT
+An orchard in full bloom, early on a spring morning — a place, seen from within
+it. A grass lane runs between two rows of old flowering trees, their trunks
+gnarled and leaning, their crowns meeting overhead so the lane passes under a
+loose canopy of blossom. The rows recede into soft distance, and past the last
+of them a low field and a line of hills fade into morning haze.
+
+The blossom grows in clusters on the wood, not scattered singly: five round
+petals around a small yellow centre, in warm white and the palest pink, thick
+enough on some boughs to hide the branch. Fallen petals lie drifted along the
+lane and caught in the grass. More drift down through the still air, turning as
+they fall.
+
+Somebody keeps this place — a dry-stone wall along one side, a worn path in the
+grass — but nobody is in it this early.
+
+FORMAT
+16:9 landscape, 2560x1440, full-bleed. A pure background painting for a fantasy
+game's sign-in screen: nothing but the scene itself, edge to edge, with no
+graphic or interface elements of any kind in the image.
+
+COMPOSITION
+Eye level, standing in the lane. The lane and the deepest recession of the rows
+belong in the middle and the right, so the picture opens up that way. The left
+is a near trunk and plain grass in the shade of it — no bright blossom cluster,
+no sunlit petal, nothing on that side worth stopping at. Leave the extreme
+bottom edge simple and unbusy.
+
+The picture is one continuous scene, evenly lit and evenly painted from edge to
+edge. Do not divide it into zones, and do not paint a band, column, ribbon,
+panel, frame or box anywhere in it; do not darken, shade, tint, blur or
+vignette one side relative to the other. The quiet side is quiet because
+nothing is happening there, not because something has been laid over it.
+
+LIGHT AND PALETTE
+Soft diffuse early light, no hard sun and no cast shadows with edges. Blossom
+in warm white and pale pink; wood in cool grey-brown; grass a muted spring
+green; the distance a hazy green-blue. Keep the overall exposure low for the
+season — this is first light, not midday. Accent hues, used sparingly:
+periwinkle #6467dc and lantern amber #d07400.
+
+STYLE
+Painterly digital illustration with visible brushwork and soft cinematic
+lighting. Part of a set with painted character portraits, so the same hand:
+rich but restrained colour, forms read at a glance, no rendering fuss.
+
+NEGATIVE
+No text or lettering of any kind, no logo, no watermark, no signature, no
+border or frame, no panel, no card, no ribbon, no banner, no box, no rectangle
+of flat colour over any part of the image, no vignette, no darkened band or
+shaded column down one side, no gradient overlay across the frame, no
+photographic texture, no lens flare, no chromatic aberration, no HDR glow, no
+vector-flat shapes, no people or faces. Not a close-up of branches against a
+blurred background — this is a landscape with depth, a foreground you stand in
+and a distance you can see into. No cherry-blossom festival lanterns, no
+buildings, no pagoda. No labels, captions, names, numbers, arrows or leader
+lines anywhere in the picture — this is a painting, not a diagram.
