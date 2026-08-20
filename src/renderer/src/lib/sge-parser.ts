@@ -10,7 +10,7 @@
  *   <d cmd='go north'>north</d>   — clickable link
  */
 
-export type StreamId = 'main' | 'exp' | 'combat' | 'atmo' | 'inv' | 'familiar' | 'speech' | 'lich'
+export type StreamId = 'main' | 'exp' | 'combat' | 'atmo' | 'inv' | 'familiar' | 'speech' | 'thoughts' | 'lich'
 
 export interface TextStyle {
   bold?:   boolean
@@ -53,6 +53,7 @@ export type GameEvent =
   | { type: 'playerArrived'; player: string }
   | { type: 'playerDeparted'; player: string }
   | { type: 'expSkill';  name: string; rank: number; pct: number; mind: string; mindWord?: string }
+  | { type: 'expClear';  name: string }   // empty <component id='exp X'/> — the skill decayed back to clear
   | { type: 'expMeta';   tdps?: number; favors?: number }
   | { type: 'vitals';    field: VitalField; value: number; max?: number; text?: string }
   | { type: 'indicator'; id: string; active: boolean }
@@ -65,6 +66,54 @@ export type GameEvent =
   | { type: 'prompt';    time: number }
 
 export type VitalField = 'health' | 'mana' | 'stamina' | 'spirit'
+
+/**
+ * `<pushStream id='…'/>` ids we recognise, mapped onto the streams this client
+ * actually keeps. Anything not listed falls back to 'main'.
+ *
+ * DR does NOT send one tidy `speech` stream: it splits player talk across several
+ * ids depending on how the words were produced — `talk` for say/whisper-in-room,
+ * `whispers` for directed whispers, and `conversation` for the room-conversation
+ * window. All three are the same thing as far as the Conversation panel cares, so
+ * they collapse onto 'speech' here. Before this, only the literal `speech` id was
+ * recognised and the rest fell through to 'main', which is why whispers and much
+ * of ordinary talk never reached the panel at all.
+ *
+ * `thoughts` is the ESP/amunet network feed and stays its own stream — it's a
+ * different conversation from the one happening in the room.
+ */
+const STREAM_MAP: Record<string, StreamId> = {
+  exp:      'exp',
+  combat:   'combat',
+  atmo:     'atmo',
+  inv:      'inv',
+  familiar: 'familiar',
+  speech:       'speech',
+  talk:         'speech',
+  whisper:      'speech',
+  whispers:     'speech',
+  conversation: 'speech',
+  thoughts: 'thoughts',
+  thought:  'thoughts',
+}
+
+/**
+ * The two shapes an `<component id='exp Skill'>` body arrives in.
+ *
+ * The bracketed form — "Athletics:  1,305 66% learning [ 17/34]" — is the usual one;
+ * the mindstate word is optional and the fraction may use round brackets. The word
+ * form — "Athletics:  1,305 66% learning" — carries no fraction at all and is what
+ * the summary rows fall back to. Only the bracketed form was matched before, so a
+ * fraction-less push was silently read as a TDP line and dropped.
+ *
+ * Ranks and totals are matched with commas allowed: DR groups four-digit figures
+ * ("TDPs: 3,348"), and a bare \d+ stopped at the comma — turning 3,348 TDPs into 3.
+ */
+const EXP_COMP_RE      = /:?\s*([\d,]+)\s+(\d+)%\s+(?:([a-zA-Z][a-zA-Z ]*?)\s+)?[[(]\s*(\d+\/\d+)\s*[\])]/
+const EXP_COMP_WORD_RE = /:\s*([\d,]+)\s+(\d+)%\s+([a-zA-Z][a-zA-Z ]*?)\s*$/
+
+/** Parse a possibly comma-grouped integer ("3,348" → 3348). */
+const num = (s: string): number => parseInt(s.replace(/,/g, ''), 10) || 0
 
 // ── Module-level stream state ──────────────────────────────────────────────────
 let _stream:     StreamId = 'main'
@@ -454,7 +503,12 @@ export function parseLine(raw: string): GameEvent[] {
         flush()
         const id = (attrs['id'] ?? '').toLowerCase()
         if (id.startsWith('exp ')) {
-          _inExpSkill = (attrs['id'] ?? '').slice(4).trim()  // preserve case
+          const skill = (attrs['id'] ?? '').slice(4).trim()  // preserve case
+          // A self-closing component has no body and no </component> to close it.
+          // Emit the clear here and stay closed — leaving _inExpSkill set would
+          // make the NEXT component's body get read as this skill's exp.
+          if (tag.trimEnd().endsWith('/')) events.push({ type: 'expClear', name: skill })
+          else _inExpSkill = skill
         } else if (id === 'room desc') {
           _inRoomDesc  = true
           _roomDescBuf = ''
@@ -485,25 +539,42 @@ export function parseLine(raw: string): GameEvent[] {
           // Parse: "     Aug:  305 66%  [ 1/34]"  (abbr already in buf)
           const raw2 = buf.replace(/[\r\n]+/g, ' ').trim()
           buf = ''
-          const sm = raw2.match(/:?\s*(\d+)\s+(\d+)%\s+(?:([a-zA-Z][a-zA-Z ]*?)\s+)?[[(]\s*(\d+\/\d+)\s*[\])]/)
+          const sm = raw2.match(EXP_COMP_RE)
+          const wm = sm ? null : raw2.match(EXP_COMP_WORD_RE)
           if (sm) {
             events.push({
               type:     'expSkill',
               name:     _inExpSkill,
-              rank:     parseInt(sm[1]),
+              rank:     num(sm[1]),
               pct:      parseInt(sm[2]),
               mindWord: sm[3]?.trim(),
               mind:     sm[4],
             })
+          } else if (wm) {
+            events.push({
+              type:     'expSkill',
+              name:     _inExpSkill,
+              rank:     num(wm[1]),
+              pct:      parseInt(wm[2]),
+              mindWord: wm[3].trim(),
+              mind:     '',
+            })
+          } else if (!raw2) {
+            // An exp component with no body at all is how DR says "this skill has
+            // decayed back to clear" — there is no 0% push to match. Without this
+            // the panel kept showing whatever the skill last learned, forever.
+            // (Only <component> is treated this way. <compDef> is the window's
+            // empty-by-design declaration and never reaches here — it isn't parsed.)
+            events.push({ type: 'expClear', name: _inExpSkill })
           } else {
-            // TDP / favor line: "TDPs: 3348  Favors: 50"
-            const tdpM = raw2.match(/TDPs?:\s*(\d+)/i)
-            const favM = raw2.match(/Favors?:\s*(\d+)/i)
+            // TDP / favor line: "TDPs: 3,348  Favors: 50"
+            const tdpM = raw2.match(/TDPs?:\s*([\d,]+)/i)
+            const favM = raw2.match(/Favors?:\s*([\d,]+)/i)
             if (tdpM || favM) {
               events.push({
                 type:   'expMeta',
-                tdps:   tdpM ? parseInt(tdpM[1]) : undefined,
-                favors: favM ? parseInt(favM[1]) : undefined,
+                tdps:   tdpM ? num(tdpM[1]) : undefined,
+                favors: favM ? num(favM[1]) : undefined,
               })
             }
           }
@@ -645,11 +716,7 @@ export function parseLine(raw: string): GameEvent[] {
       case 'pushstream': {
         flush()
         const id = (attrs['id'] ?? '').toLowerCase()
-        const map: Record<string, StreamId> = {
-          exp: 'exp', combat: 'combat', atmo: 'atmo',
-          inv: 'inv', familiar: 'familiar', speech: 'speech'
-        }
-        _stream = map[id] ?? 'main'
+        _stream = STREAM_MAP[id] ?? 'main'
         if (_preXmlPhase && _stream === 'inv') _inInitialInventory = true
         break
       }

@@ -15,7 +15,7 @@ import { PanelSidebar }       from './components/layout/PanelSidebar'
 import type { PanelId }       from './components/layout/PanelSidebar'
 import {
   RoomPanel, SpellsPanel,
-  ExperiencePanel, ConversationPanel, InventoryPanel,
+  ExperiencePanel, ConversationPanel, ThoughtsPanel, InventoryPanel,
   CombatPanel, AtmoPanel, DeathsPanel, ConnectionsPanel,
 } from './components/layout/PanelContent'
 import { MessagesPanel } from './components/layout/MessagesPanel'
@@ -28,7 +28,7 @@ import { MapOverlay } from './components/map/MapOverlay'
 import {
   echoCommandAtom, beginSilentExpAtom, appendSystemLineAtom, tickAtom,
   beginSilentSkySeedAtom, endSilentSkySeedAtom,
-  combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom, inventoryLinesAtom,
+  combatLinesAtom, atmoLinesAtom, convLinesAtom, thoughtLinesAtom, deathsAtom, inventoryLinesAtom,
   verbRawAtom, beginVerbCapture, endVerbCapture,
   avatarsAtom, avatarCropsAtom, selfNameAtom, resetSessionAtom,
   classStatesAtom, disabledClassesAtom, setGagSubRules,
@@ -61,6 +61,7 @@ function renderPanel(id: PanelId) {
     case 'combat':       return <CombatPanel />
     case 'atmo':         return <AtmoPanel />
     case 'conversation': return <ConversationPanel />
+    case 'thoughts':     return <ThoughtsPanel />
     case 'messages':     return <MessagesPanel />
     case 'inventory':    return <InventoryPanel />
     case 'deaths':       return <DeathsPanel />
@@ -245,6 +246,7 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
   const setCombat    = useSetAtom(combatLinesAtom)
   const setAtmo      = useSetAtom(atmoLinesAtom)
   const setConv      = useSetAtom(convLinesAtom)
+  const setThoughts  = useSetAtom(thoughtLinesAtom)
   const setDeaths    = useSetAtom(deathsAtom)
   const setLogon     = useSetAtom(logonLinesAtom)
   const setInventory = useSetAtom(inventoryLinesAtom)
@@ -271,6 +273,7 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
       case 'combat':       return () => setCombat([])
       case 'atmo':         return () => setAtmo([])
       case 'conversation': return () => setConv([])
+      case 'thoughts':     return () => setThoughts([])
       case 'deaths':       return () => setDeaths([])
       case 'connections':  return () => setLogon([])
       case 'inventory':    return () => setInventory([])

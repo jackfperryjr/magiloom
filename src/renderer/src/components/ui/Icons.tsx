@@ -225,6 +225,18 @@ export function IconPanelConversation({ size = 16, className, style }: IconProps
   )
 }
 
+// ESP / amunet traffic — a thought bubble, so it reads as "not said out loud"
+// against the Conversation panel's squared-off speech bubble.
+export function IconPanelThoughts({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path d="M8.2 3.5a4.1 4.1 0 0 0-3.94 5.24A3.9 3.9 0 0 0 5.6 16.2h9.3a4.4 4.4 0 0 0 1.36-8.58A4.6 4.6 0 0 0 8.2 3.5Z" />
+      <path d="M6.3 17.9a1.9 1.9 0 1 0 0 3.8 1.9 1.9 0 0 0 0-3.8Z" />
+      <path d="M11.4 19.7a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Z" />
+    </svg>
+  )
+}
+
 export function IconPanelMessages({ size = 16, className, style }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>

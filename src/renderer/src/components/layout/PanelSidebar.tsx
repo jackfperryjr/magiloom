@@ -5,6 +5,7 @@ import {
   IconArrowDownTray,
   IconPanelRoom, IconPanelMap, IconPanelSky, IconPanelBody, IconPanelExperience,
   IconPanelSpells, IconPanelCombat, IconPanelAtmo, IconPanelConversation,
+  IconPanelThoughts,
   IconPanelMessages, IconPanelInventory, IconPanelDeaths, IconPanelConnections,
   IconPanelScripts,
 } from '../ui/Icons'
@@ -12,7 +13,7 @@ import { convLinesAtom } from '../../store/game'
 import { totalUnreadAtom, contactRequestsAtom, messagingAvailable } from '../../store/messaging'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
-export type PanelId = 'room' | 'map' | 'sky' | 'body' | 'experience' | 'spells' | 'conversation' | 'messages' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'connections' | 'scripts'
+export type PanelId = 'room' | 'map' | 'sky' | 'body' | 'experience' | 'spells' | 'conversation' | 'thoughts' | 'messages' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'connections' | 'scripts'
 
 export interface PanelConfig {
   id:      PanelId
@@ -30,6 +31,7 @@ const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'combat',       label: 'Combat',        visible: true },
   { id: 'atmo',         label: 'Atmosphere',    visible: false },
   { id: 'conversation', label: 'Conversation',  visible: true },
+  { id: 'thoughts',     label: 'Thoughts',      visible: false },
   // Character-to-character messaging — only where the client has a magiserver link
   // (web today). Omitted on desktop so it isn't a dead panel; reconcilePanels drops it
   // from any saved layout there too. See store/messaging.ts.
@@ -242,6 +244,7 @@ const RAIL_ICONS: Partial<Record<PanelId, (p: { size?: number }) => React.ReactE
   combat:       IconPanelCombat,
   atmo:         IconPanelAtmo,
   conversation: IconPanelConversation,
+  thoughts:     IconPanelThoughts,
   messages:     IconPanelMessages,
   inventory:    IconPanelInventory,
   deaths:       IconPanelDeaths,

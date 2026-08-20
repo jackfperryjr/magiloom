@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import {
   roomAtom, activeSpellAtom, activeSpellsAtom, inventoryLinesAtom, handsAtom,
-  expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, deathsAtom,
+  expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, thoughtLinesAtom, deathsAtom,
   avatarsAtom, selfNameAtom, serverAvatarsAtom, tickAtom, logonLinesAtom,
   type OutputLine,
 } from '../../store/game'
@@ -351,6 +351,49 @@ export function ConversationPanel() {
         )
       })}
       {card && <ProfileCard {...card} onClose={() => setCard(null)} />}
+    </ScrollPanel>
+  )
+}
+
+// ── Thoughts Panel ─────────────────────────────────────────────────────────────
+// The ESP/amunet network, kept apart from the Conversation panel: it's a different
+// room's worth of talk and on a busy network it buries what's actually being said
+// in front of you.
+//
+// A networked thought reads "[General]-Prime:Someone: "text"" — a channel, the
+// instance it came from, the sender, then the message. Splitting those out lets the
+// channel become a chip and the sender a name, so the feed scans like a chat log
+// instead of a wall of brackets. Anything that doesn't fit (a local "You think…",
+// a system notice, an unfamiliar network format) falls back to the whole line, so
+// nothing is ever hidden just because it wasn't recognised.
+const THOUGHT_RE = /^\s*\[([^\]]+)\](?:\s*-\s*([A-Za-z]+))?\s*:\s*([A-Za-z][\w'-]*)\s*:\s*(.*)$/
+
+interface ParsedThought { channel?: string; sender?: string; body: string }
+
+function parseThought(l: OutputLine): ParsedThought {
+  const m = THOUGHT_RE.exec(l.text)
+  if (m) return { channel: m[1].trim(), sender: m[3], body: m[4].trim() }
+  return { sender: l.speaker, body: l.text }
+}
+
+export function ThoughtsPanel() {
+  const lines = useAtomValue(thoughtLinesAtom)
+  if (lines.length === 0) return <div className="panel-empty">No thoughts yet</div>
+  return (
+    <ScrollPanel deps={[lines.length]}>
+      {lines.map((l: OutputLine) => {
+        const t = parseThought(l)
+        return (
+          <div key={l.id} className="thought-line">
+            <span className="panel-line-time">{convTime(l.timestamp)}</span>
+            <span className="thought-msg">
+              {t.channel && <span className="thought-channel">{t.channel}</span>}
+              {t.sender  && <span className="thought-sender">{t.sender}</span>}
+              <span className="thought-text">{t.body}</span>
+            </span>
+          </div>
+        )
+      })}
     </ScrollPanel>
   )
 }

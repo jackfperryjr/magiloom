@@ -128,6 +128,30 @@
   font-size: 14px; padding: 1px 0; line-height: 1.35;
   color: var(--text-dim); font-style: italic; font-family: var(--font-game);
 }
+/* ── Thoughts panel ──────────────────────────────────────────────────────── */
+/* One row per networked thought: time, channel chip, sender, message. The row
+   wraps rather than clipping — ESP messages run long and the sidebar is narrow. */
+.thought-line {
+  display: flex; align-items: baseline;
+  font-size: 14px; padding: 2px 0; line-height: 1.35;
+  font-family: var(--font-game); color: var(--text-main);
+}
+/* Everything after the timestamp shares one wrapping block, so a long message
+   hangs indented under itself instead of reflowing back beneath the clock. */
+.thought-msg { flex: 1; min-width: 0; }
+.thought-channel {
+  font-family: var(--font-ui); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .04em;
+  color: var(--color-thought);
+  background: color-mix(in oklab, var(--color-thought) 16%, transparent);
+  border-radius: 3px; padding: 0 4px; margin-right: 6px;
+  white-space: nowrap;
+}
+.thought-sender {
+  color: var(--color-thought); font-weight: 600; margin-right: 6px;
+}
+.thought-text { color: var(--text-main); }
+
 /* Leading timestamp on combat/atmo panel lines */
 .panel-line-time {
   font-family: var(--font-ui); font-size: 11px; color: var(--text-dim);

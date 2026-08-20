@@ -133,6 +133,11 @@ export const expLinesAtom     = atom<OutputLine[]>([])
 export const combatLinesAtom  = atom<OutputLine[]>([])
 export const atmoLinesAtom    = atom<OutputLine[]>([])
 export const convLinesAtom    = atom<OutputLine[]>([])
+// ESP / amunet traffic — the `thoughts` stream, plus any `thought`-preset line that
+// arrives untagged on main. Deliberately separate from convLinesAtom: thoughts are a
+// different conversation from the one happening in the room, and mixing them made the
+// Conversation panel unreadable on a busy network.
+export const thoughtLinesAtom = atom<OutputLine[]>([])
 export const deathsAtom       = atom<OutputLine[]>([])
 
 // ── Connections (logon / logoff / disconnect monitor) ──────────────────────────
@@ -648,6 +653,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(combatLinesAtom, [])
   set(atmoLinesAtom, [])
   set(convLinesAtom, [])
+  set(thoughtLinesAtom, [])
   set(deathsAtom, [])
   set(logonLinesAtom, [])
   set(inventoryLinesAtom, [])
@@ -945,9 +951,12 @@ export const dispatchGameEventAtom = atom(
             // Don't echo atmo to main output — it clutters it
             break
           case 'speech': {
-            const isSpeech = line.styles.some(s => ['speech','whisper','thought'].includes(s.preset ?? ''))
+            // DR tags speech with a preset most of the time, but not always — a
+            // `talk`/`whispers`/`conversation` push is itself the statement that this
+            // line is somebody talking, so the quote is enough. Requiring a preset
+            // here dropped every untagged say straight back into main output.
             const isScript = /^\S+:\s/.test(line.text) || /\.lic\b/.test(line.text)
-            if (isSpeech && /"/.test(line.text) && !isScript) {
+            if (/"/.test(line.text) && !isScript) {
               set(convLinesAtom, appendDedup(get(convLinesAtom), { ...line, speaker: extractSpeaker(line.text) }, 200))
             } else {
               set(outputLinesAtom, appendDedup(get(outputLinesAtom), line))
@@ -955,6 +964,9 @@ export const dispatchGameEventAtom = atom(
             }
             break
           }
+          case 'thoughts':
+            set(thoughtLinesAtom, appendDedup(get(thoughtLinesAtom), { ...line, speaker: extractSpeaker(line.text) }, 200))
+            break
           default: {
             const isHandUpdate = event.styles.some(s => s.preset === 'left' || s.preset === 'right')
             if (!isHandUpdate && !_silentExpBatch) {
@@ -1029,10 +1041,15 @@ export const dispatchGameEventAtom = atom(
         // different panels.)
         if (event.styles.some(s => s.preset === 'left'))  set(handsAtom, { ...get(handsAtom), left:  handContent(event.text) })
         if (event.styles.some(s => s.preset === 'right')) set(handsAtom, { ...get(handsAtom), right: handContent(event.text) })
-        // Also route main-stream speech/whisper/thought to conv panel.
-        // appendDedup handles the case where speech arrives in both the pushStream
-        // and the main stream, so only the first copy is kept.
-        if (event.styles.some(s => ['speech','whisper','thought'].includes(s.preset ?? '')) && /"/.test(event.text) && !/^\S+:\s/.test(event.text) && !/\.lic\b/.test(event.text)) {
+        // Also route main-stream speech/whisper/thought to their panels. appendDedup
+        // handles the case where a line arrives on both the pushStream and the main
+        // stream, so only the first copy is kept. Thoughts split off to their own
+        // panel: on a live ESP network they otherwise drown out room conversation.
+        const preset   = event.styles.find(s => ['speech','whisper','thought'].includes(s.preset ?? ''))?.preset
+        const quoted   = /"/.test(event.text) && !/^\S+:\s/.test(event.text) && !/\.lic\b/.test(event.text)
+        if (preset === 'thought' && event.stream !== 'thoughts') {
+          set(thoughtLinesAtom, appendDedup(get(thoughtLinesAtom), { ...line, speaker: extractSpeaker(line.text) }, 200))
+        } else if (preset && quoted) {
           set(convLinesAtom, appendDedup(get(convLinesAtom), { ...line, speaker: extractSpeaker(line.text) }, 200))
         }
         break
@@ -1100,6 +1117,19 @@ export const dispatchGameEventAtom = atom(
           ? exp.skills.map((s, i) => i === idx ? skill : s)
           : [...exp.skills, skill]
         set(expAtom, { ...exp, skills })
+        break
+      }
+
+      // DR announces decay by pushing an EMPTY exp component for the skill rather
+      // than a 0% one, so this is the only live signal that a skill went back to
+      // clear. Unknown names are ignored — the exp window declares components for
+      // skills the character has never trained.
+      case 'expClear': {
+        const exp = get(expAtom)
+        const idx = exp.skills.findIndex(s => s.name === event.name)
+        if (idx >= 0 && exp.skills[idx].pct > 0) {
+          set(expAtom, { ...exp, skills: exp.skills.map((s, i) => i === idx ? clearSkillExp(s) : s) })
+        }
         break
       }
 
