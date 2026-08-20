@@ -18,6 +18,7 @@
 
 import { areaLayout, listAreas, stripArea, firstUnwalkableLink, findRoute, locateRoom, observeRoom } from './mapper'
 import { parseGenieMap, exportGenieMap } from './mapImport'
+import { roomDisplayName } from './mapModel'
 import type { MapDB, MapArc, MapNode, Zone } from './mapModel'
 
 let passed = 0
@@ -377,6 +378,24 @@ function cells(zone: Zone, origin: string): Record<string, [number, number]> {
     eq('export: "out" stays a non-compass link', arc.dir, 'special')
     eq('export: …and keeps its command', arc.move, 'out')
   }
+}
+
+// ── Room title → display name ──────────────────────────────────────────────────
+// The title bar shows the name beside the room id, so the chip drops both DR's
+// bracket punctuation and the trailing id tag.
+{
+  eq('display: brackets and id tag both go',
+    roomDisplayName('[The Crossing, Clanthew Boulevard] (10041)'), 'The Crossing, Clanthew Boulevard')
+  eq('display: an untagged title still loses its brackets',
+    roomDisplayName('[Wilds, Pine Needle Path]'), 'Wilds, Pine Needle Path')
+  eq('display: the "(**)" no-id tag goes too',
+    roomDisplayName('[Wilds, Pine Needle Path] (**)'), 'Wilds, Pine Needle Path')
+  eq('display: a bracketless title is left alone',
+    roomDisplayName('Ranik Museum'), 'Ranik Museum')
+  // A paren inside the name is part of the name — only a trailing numeric tag goes.
+  eq('display: an interior paren survives',
+    roomDisplayName('[Crossing, Bank (Teller)]'), 'Crossing, Bank (Teller)')
+  eq('display: nothing in, nothing out', roomDisplayName(''), '')
 }
 
 // ── Report ─────────────────────────────────────────────────────────────────────

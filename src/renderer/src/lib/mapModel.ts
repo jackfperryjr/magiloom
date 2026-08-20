@@ -158,6 +158,16 @@ export function stripRoomTag(title: string): string {
   return title.replace(/\s*\((?:\d+|\*+)\)\s*$/, '').trim()
 }
 
+// Just the room's name, for readouts that show it beside its id:
+//   "[The Crossing, Clanthew Boulevard] (10041)" → "The Crossing, Clanthew Boulevard"
+// The brackets are DR's title punctuation rather than part of the name, and the
+// trailing tag is the id we already display on its own. A title that arrives
+// without brackets (some rooms send a bare name) is left as-is.
+export function roomDisplayName(title: string): string {
+  const stripped = stripRoomTag(title)
+  return stripped.replace(/^\[(.*)\]$/s, '$1').trim()
+}
+
 // ── Signature / identity ──────────────────────────────────────────────────────
 // FNV-1a hash of normalized text (same construction as hashLook in store/game.ts).
 export function fnv1a(text: string): string {
