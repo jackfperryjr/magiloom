@@ -11,7 +11,10 @@ import { weatherFromLine, weatherFromReportLine, isWeatherHeaderLine, regionFrom
 import { computeMoonPositions, correctionFromMoonLine, type MoonCorrections, type MoonPosition } from '../lib/moons'
 import { applyGagSub as applyGagSubRules, type TextRule } from '../lib/rules'
 import type { AvatarCrop } from '../lib/avatar'
-import { injuriesFromImages, injuriesFromTouch, type Injuries } from '../lib/injuries'
+import {
+  injuriesFromImages, injuriesFromTouch, injuryModeCommand, isHealthy,
+  DEFAULT_INJURY_MODE, type Injuries,
+} from '../lib/injuries'
 import { receiveInvEnvelopeAtom, clearInventoryAtom } from './inventory'
 
 export type { StreamId }
@@ -214,11 +217,58 @@ export const patientBodyAtom = atom<PatientBody | null>(null)
 export type BodySubject = 'character' | 'patient'
 export const bodySubjectAtom = atom<BodySubject>('character')
 
+// Which injury view the game is reporting (see INJURY_MODE_LABEL). The window
+// only ever shows one layer at a time, so switching this re-requests the feed —
+// it's a live query, not a display filter. Seeded from settings on load and
+// written through on change; also re-sent on connect (see useGameConnection).
+export const injuryModeAtom = atom<number>(DEFAULT_INJURY_MODE)
+
+// True between asking for a view and the game answering. Without it an empty
+// figure would read as "Unharmed" during the round trip, which is a lie.
+export const injuryPendingAtom = atom<boolean>(false)
+let _injuryPendingTimer = 0
+
+export const setInjuryModeAtom = atom(null, (get, set, mode: number) => {
+  if (mode === get(injuryModeAtom)) return
+  set(injuryModeAtom, mode)
+  window.dr?.settings?.patch?.({ injuryMode: mode })
+  // The previous view's snapshot describes a different layer/kind, so drop it
+  // rather than show stale wounds under the new heading until the reply lands.
+  set(bodyInjuriesAtom, {})
+  if (get(connectionStatusAtom) !== 'connected') return
+  window.dr.game.send(injuryModeCommand(mode))
+  set(injuryPendingAtom, true)
+  // Give up waiting eventually: with nothing to report the game sends nothing,
+  // and an empty view is then the honest answer.
+  window.clearTimeout(_injuryPendingTimer)
+  _injuryPendingTimer = window.setTimeout(() => set(injuryPendingAtom, false), 3000)
+})
+
+// Render the figure as a text list instead (accessibility, and small panels).
+export const bodyTextModeAtom = atom<boolean>(false)
+export const setBodyTextModeAtom = atom(null, (_get, set, on: boolean) => {
+  set(bodyTextModeAtom, on)
+  window.dr?.settings?.patch?.({ bodyTextMode: on })
+})
+
 // TOUCH capture: after an empath sends `touch <patient>`, we buffer the response
 // lines (a health assessment) until the next prompt, parse them into the
 // patient's wounds (injuriesFromTouch), and show them on the Patient view. The
 // diagnostic link expires, so the panel offers a Refresh (re-touch) that re-arms
 // this. The response still echoes to the main output (not suppressed).
+// Whose body an injuries window describes. The plain `injuries` window is the
+// logged-in character (→ null); DR also pushes windows about other people, whose
+// id carries a suffix ("injuriesMelete") and whose title usually names them
+// ("Melete's Injuries"). Prefer the title — it's the human-readable one — and fall
+// back to the id suffix. Returns null for our own window.
+export function injuryDialogSubject(dialogId: string, title = ''): string | null {
+  const suffix = dialogId.trim().replace(/^injuries/i, '').replace(/[^A-Za-z]/g, '')
+  if (!suffix) return null
+  const fromTitle = title.match(/([A-Z][a-z]+)(?:'s)?\s+injur/i)?.[1]
+  const name = fromTitle || suffix
+  return name.charAt(0).toUpperCase() + name.slice(1)
+}
+
 let _touchName: string | null = null
 let _touchBuf: string[] = []
 export const beginTouchCaptureAtom = atom(null, (get, set, name: string) => {
@@ -1158,10 +1208,19 @@ export const dispatchGameEventAtom = atom(
         break
       }
 
-      case 'injuries':
-        // A complete snapshot of the character's wounds/scars — replace wholesale.
-        set(bodyInjuriesAtom, injuriesFromImages(event.images))
+      case 'injuries': {
+        // A complete snapshot of one body's wounds/scars — replace wholesale.
+        const injuries = injuriesFromImages(event.images)
+        const who      = injuryDialogSubject(event.dialogId, event.title)
+        if (!who) { set(bodyInjuriesAtom, injuries); set(injuryPendingAtom, false); break }
+        // A window about someone else (an empath's patient). Structured data beats
+        // the TOUCH text scrape, so it wins and cancels any capture in flight.
+        set(patientBodyAtom, { name: who, injuries })
+        set(bodySubjectAtom, 'patient')
+        _touchName = null
+        _touchBuf  = []
         break
+      }
 
       case 'inventoryTree':
         // One envelope of a `_inventory manager` walk; store/inventory.ts owns the
@@ -1198,8 +1257,14 @@ export const dispatchGameEventAtom = atom(
         // least one line has arrived, so an unrelated prompt (vitals fire often)
         // between sending `touch` and the reply doesn't close an empty capture.
         if (_touchName && _touchBuf.length > 0) {
-          const name = _touchName
-          set(patientBodyAtom, { name, injuries: injuriesFromTouch(_touchBuf) })
+          const name    = _touchName
+          const scraped = injuriesFromTouch(_touchBuf)
+          // The scrape is heuristic: an empty result on a refresh is far more
+          // likely a parse miss than a patient who healed between touches, so
+          // don't blank a reading we already have.
+          const prev = get(patientBodyAtom)
+          const keepPrev = isHealthy(scraped) && prev?.name === name && !isHealthy(prev.injuries)
+          if (!keepPrev) set(patientBodyAtom, { name, injuries: scraped })
           _touchName = null
           _touchBuf  = []
         }

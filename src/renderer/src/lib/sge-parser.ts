@@ -32,6 +32,19 @@ export interface LinkSpan {
  * each `<continuation>` is a cursor to re-request, and `state` is set when the
  * server refuses (`stale`) or the response was cut short (`malformed`, ours).
  */
+/**
+ * One `<image>` inside an injuries dialog. Beyond the `name` severity token, the
+ * server may hand us a `scar` rank in its own attribute (which wins over `name`)
+ * and a `cmd` — the exact game command for acting on that location. Preferring
+ * the server's own command beats guessing one client-side.
+ */
+export interface InjuryImage {
+  id:    string
+  name:  string
+  scar?: string
+  cmd?:  string
+}
+
 export interface InvEnvelope {
   id:     string
   room:   string
@@ -61,7 +74,10 @@ export type GameEvent =
   | { type: 'roundtime'; expires: number }
   | { type: 'cast_time'; expires: number }
   | { type: 'percClear' }   // <clearStream id='percWindow'/> — active-spell list is being refreshed
-  | { type: 'injuries';  images: { id: string; name: string }[] }  // <dialogData id='injuries'> snapshot
+  // <dialogData id='injuries'> snapshot. `dialogId` distinguishes the character's
+  // own window ("injuries") from the per-person windows DR opens for an empath
+  // ("injuries<Name>"); `title` carries that window's caption.
+  | { type: 'injuries';  images: InjuryImage[]; dialogId: string; title: string }
   | { type: 'inventoryTree'; envelope: InvEnvelope }  // <inventoryManager> — reply to `_inventory manager <id>`
   | { type: 'prompt';    time: number }
 
@@ -139,8 +155,10 @@ let _inInitialInventory = false  // suppress initial container dump until --- se
 let _shopDetailBuf = ''  // accumulate SHOP item details across lines
 let _monoMode = false    // inside <output class="mono">…<output class=""> — render ASCII verbatim (guild registers, maps, tables)
 let _lastRoomName = ''   // dedup: both the id='main' and id='room' streamWindows carry the same subtitle
-let _inInjuries  = false // inside <dialogData id='injuries'> — collecting body-injury <image> tags
-let _injuryImages: { id: string; name: string }[] = []
+let _inInjuries  = false // inside an injuries <dialogData> — collecting body-injury <image> tags
+let _injuryDialog = ''   // that dialog's id ('injuries' = self, 'injuries<Name>' = someone else)
+let _injuryTitle  = ''   // and its caption, which names the person the window is about
+let _injuryImages: InjuryImage[] = []
 let _invMgr: InvEnvelope | null = null  // inside <inventoryManager> — collecting <i>/<continuation>
 
 export function resetParser(): void {
@@ -168,6 +186,8 @@ export function resetParser(): void {
   _monoMode           = false
   _lastRoomName       = ''
   _inInjuries         = false
+  _injuryDialog       = ''
+  _injuryTitle        = ''
   _injuryImages       = []
   _invMgr             = null
 }
@@ -933,13 +953,19 @@ export function parseLine(raw: string): GameEvent[] {
         break
 
       // ── Body injuries: <dialogData id='injuries'><image id='head' name='Injury1'/>…</dialogData> ──
-      // A complete snapshot of the character's wounds/scars, one <image> per body
-      // location. We collect the child <image> tags and emit them as one event on
-      // the closing tag. Other dialogData windows (minivitals, etc.) are ignored.
+      // A complete snapshot of a body's wounds/scars, one <image> per location. We
+      // collect the child <image> tags and emit them as one event on the closing
+      // tag. The id is 'injuries' for the logged-in character; DR also pushes
+      // per-person windows ('injuries<Name>') — an empath TOUCHing a patient gets
+      // one — so we accept any id starting with 'injuries' and let the store route
+      // it. Other dialogData windows (minivitals, etc.) are ignored.
       case 'dialogdata': {
         flush()
-        if ((attrs['id'] ?? '').toLowerCase() === 'injuries') {
+        const did = (attrs['id'] ?? '').trim()
+        if (did.toLowerCase().startsWith('injuries')) {
           _inInjuries   = true
+          _injuryDialog = did
+          _injuryTitle  = (attrs['title'] ?? '').trim()
           _injuryImages = []
         }
         break
@@ -947,15 +973,20 @@ export function parseLine(raw: string): GameEvent[] {
       case '/dialogdata': {
         flush()
         if (_inInjuries) {
-          events.push({ type: 'injuries', images: _injuryImages })
+          events.push({ type: 'injuries', images: _injuryImages, dialogId: _injuryDialog, title: _injuryTitle })
           _inInjuries   = false
+          _injuryDialog = ''
+          _injuryTitle  = ''
           _injuryImages = []
         }
         break
       }
       case 'image': {
         if (_inInjuries && attrs['id']) {
-          _injuryImages.push({ id: attrs['id'], name: attrs['name'] ?? '' })
+          const img: InjuryImage = { id: attrs['id'], name: attrs['name'] ?? '' }
+          if (attrs['scar']) img.scar = attrs['scar']
+          if (attrs['cmd'])  img.cmd  = attrs['cmd']
+          _injuryImages.push(img)
         }
         break
       }

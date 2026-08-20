@@ -20,6 +20,7 @@ import {
 } from './components/layout/PanelContent'
 import { MessagesPanel } from './components/layout/MessagesPanel'
 import { useMessaging } from './hooks/useMessaging'
+import { useSessionSnapshot } from './hooks/useSessionSnapshot'
 import { MapPanel } from './components/map/MapPanel'
 import { CalendarPanel } from './components/layout/CalendarPanel'
 import { BodyPanel, BodyOverlay } from './components/game/BodyPanel'
@@ -31,6 +32,7 @@ import {
   combatLinesAtom, atmoLinesAtom, convLinesAtom, thoughtLinesAtom, deathsAtom, inventoryLinesAtom,
   verbRawAtom, beginVerbCapture, endVerbCapture,
   avatarsAtom, avatarCropsAtom, selfNameAtom, resetSessionAtom,
+  injuryModeAtom, bodyTextModeAtom,
   classStatesAtom, disabledClassesAtom, setGagSubRules,
   logonLinesAtom, appendLogonAtom,
 } from './store/game'
@@ -169,7 +171,7 @@ function ColResize({ onDrag }: { onDrag: (dx: number) => void }) {
 
 
 // ── Game layout ───────────────────────────────────────────────────────────────
-function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSettings, onRequestConnect, onSwitchCharacter, updateSlot }: { charName: string; accountName: string; watching: boolean; onLeaveWatch: () => void; onOpenSettings: () => void; onRequestConnect: () => void; onSwitchCharacter: () => void; updateSlot: React.ReactNode }) {
+function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, onOpenSettings, onRequestConnect, onSwitchCharacter, updateSlot }: { charName: string; accountName: string; watching: boolean; resumed: boolean; onLeaveWatch: () => void; onOpenSettings: () => void; onRequestConnect: () => void; onSwitchCharacter: () => void; updateSlot: React.ReactNode }) {
   // Automapper: records rooms into the shared world map (movement is captured
   // universally via dr.game.onSent inside the hook).
   const automap = useAutomapper()
@@ -178,6 +180,10 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
   useAmbientAudio()
   const isMobile = useIsMobile()
   const { status, disconnect, send } = useGameConnection(charName)
+  // Carry room/exp/hands across a reload. The game announces those once, on
+  // change, so a session resumed mid-hunt would otherwise show nothing until the
+  // character next moves. See lib/sessionSnapshot.ts.
+  useSessionSnapshot(charName, resumed)
   // App-level messaging subscription (web): keeps contacts/threads/unread live whether
   // or not the Messages panel is open. Inert on desktop until it grows a msg transport.
   useMessaging(charName, status === 'connected')
@@ -252,6 +258,8 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
   const setInventory = useSetAtom(inventoryLinesAtom)
   const setAvatars   = useSetAtom(avatarsAtom)
   const setAvatarCrops = useSetAtom(avatarCropsAtom)
+  const setInjuryMode  = useSetAtom(injuryModeAtom)
+  const setBodyTextMode = useSetAtom(bodyTextModeAtom)
   const setClassStates = useSetAtom(classStatesAtom)
   const disabledClasses = useAtomValue(disabledClassesAtom)
 
@@ -346,6 +354,10 @@ function GameLayout({ charName, accountName, watching, onLeaveWatch, onOpenSetti
       if (s.outputBufferSize) setOutputBuffer(s.outputBufferSize)
       if (s.avatars)          setAvatars(s.avatars)
       if (s.avatarCrops)      setAvatarCrops(s.avatarCrops)
+      // Body panel view prefs — seeded before connect so the injury request that
+      // fires on connect asks for the view the player last chose.
+      if (typeof s.injuryMode === 'number' && s.injuryMode >= 0 && s.injuryMode <= 5) setInjuryMode(s.injuryMode)
+      if (typeof s.bodyTextMode === 'boolean') setBodyTextMode(s.bodyTextMode)
       // Seed the global default highlight set once; per-character loading reads it
       // as the fallback for characters that haven't customised their highlights.
       if (!s.highlights || s.highlights.length === 0) {
@@ -573,7 +585,11 @@ function AppInner() {
 
   const updateSlot = <UpdateIcon offline={offline} updateReady={launchUpdate} />
 
-  const enterGame = (name: string, account: string, watch = false) => { setCharName(name); setAccountName(account); setWatching(watch); setInGame(true); setShowReconnect(false); setSwitchAccount(null) }
+  // True only when we attached to a session that was already running (the resume
+  // path below), which is the one case where the game will never re-announce the
+  // room/exp/hands it pushed before we reloaded. Gates the snapshot restore.
+  const [resumedSession, setResumedSession] = useState(false)
+  const enterGame = (name: string, account: string, watch = false, resumed = false) => { setCharName(name); setAccountName(account); setWatching(watch); setResumedSession(resumed); setInGame(true); setShowReconnect(false); setSwitchAccount(null) }
   const closeReconnect = () => { setShowReconnect(false); setSwitchAccount(null) }
   // Open the reconnect overlay: "connect" starts the full login flow; "switch"
   // jumps straight to the current account's character list.
@@ -603,7 +619,9 @@ function AppInner() {
     const settle = (enter?: { name: string; account: string }) => {
       if (settled) return
       settled = true
-      if (enter) enterGame(enter.name, enter.account)
+      // Anything that settles WITH a character came from a live server session:
+      // nothing reconnected, so the snapshot is the only way those panels refill.
+      if (enter) enterGame(enter.name, enter.account, false, true)
       setResuming(false)
     }
     void (async () => {
@@ -644,7 +662,7 @@ function AppInner() {
       {!inGame && <div className="app-titlebar-shell">{updateSlot}<WindowControls /></div>}
       {!inGame
         ? <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} />
-        : <GameLayout charName={charName} accountName={accountName} watching={watching} onLeaveWatch={leaveWatch} onOpenSettings={() => setShowSettings(true)} onRequestConnect={openConnect} onSwitchCharacter={openSwitchCharacter} updateSlot={updateSlot} />
+        : <GameLayout charName={charName} accountName={accountName} watching={watching} resumed={resumedSession} onLeaveWatch={leaveWatch} onOpenSettings={() => setShowSettings(true)} onRequestConnect={openConnect} onSwitchCharacter={openSwitchCharacter} updateSlot={updateSlot} />
       }
       {inGame && showReconnect && (
         <div className="reconnect-overlay">

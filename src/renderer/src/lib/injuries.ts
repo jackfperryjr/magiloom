@@ -17,18 +17,53 @@
  * carries `Injury0`. Each dialogData block is a COMPLETE snapshot — anything not
  * listed is healthy.
  *
- * NOTE: the exact wire strings are the well-documented StormFront convention;
- * they haven't been diffed against a live DR/Lich capture in this repo yet, so
+ * Two extra `<image>` attributes matter, both confirmed against a reference
+ * implementation reading the same feed:
+ *   • `scar='N'` — a scar rank in its own attribute. When present it WINS over
+ *     whatever `name` says, and the location is a scar rather than a wound.
+ *   • `cmd='…'`  — the exact game command for acting on that location. We run the
+ *     server's own command rather than a guessed one wherever it's offered.
+ *
+ * NOTE: the `name` severity strings are the well-documented StormFront convention
+ * but haven't been diffed against a live DR/Lich capture in this repo, so
  * `parseInjuryName` is deliberately lenient (case-insensitive, accepts the
  * `wound`/`nerves` synonyms). If a real log shows different tokens, widen it here.
  */
 
-// The 14 locations DR tracks. Order is head→toe, left/right paired, nsys last.
+import type { InjuryImage } from './sge-parser'
+
+// ── Which wounds the game reports ───────────────────────────────────────────
+// DR's injury window shows ONE view at a time, chosen with the underscore command
+//   _injury <mode> -1
+// Modes pair a layer (external 0-2 / internal 3-5) with what to show: wounds,
+// scars, or the worse of the two. Without sending this the client only ever sees
+// the server's default view — internal wounds stay invisible, which is exactly the
+// kind you want to know about. We send it on connect and whenever the view changes.
+export type InjuryLayer = 'external' | 'internal'
+export type InjuryKind  = 'wound' | 'scar' | 'both'
+
+export const INJURY_MODE_LABEL = [
+  'External wounds', 'External scars', 'External (worst of wound/scar)',
+  'Internal wounds', 'Internal scars', 'Internal (worst of wound/scar)',
+] as const
+
+export const DEFAULT_INJURY_MODE = 2  // external, worse of wound/scar — the most informative default
+
+export const injuryLayer = (mode: number): InjuryLayer => (mode >= 3 ? 'internal' : 'external')
+export const injuryKind  = (mode: number): InjuryKind  => (['wound', 'scar', 'both'] as const)[mode % 3]
+
+// Recombine a layer + kind back into a mode number (the two toggle rows).
+export const injuryMode = (layer: InjuryLayer, kind: InjuryKind): number =>
+  (layer === 'internal' ? 3 : 0) + { wound: 0, scar: 1, both: 2 }[kind]
+
+export const injuryModeCommand = (mode: number): string => `_injury ${mode} -1`
+
+// The 16 locations DR tracks. Order is head→toe, left/right paired, nsys last.
 export const BODY_PARTS = [
   'head', 'neck', 'leftEye', 'rightEye',
   'chest', 'abdomen', 'back',
   'leftArm', 'rightArm', 'leftHand', 'rightHand',
-  'leftLeg', 'rightLeg',
+  'leftLeg', 'rightLeg', 'leftFoot', 'rightFoot',
   'nsys',
 ] as const
 
@@ -39,12 +74,13 @@ export const PART_LABEL: Record<BodyPart, string> = {
   head: 'Head', neck: 'Neck', leftEye: 'Left eye', rightEye: 'Right eye',
   chest: 'Chest', abdomen: 'Abdomen', back: 'Back',
   leftArm: 'Left arm', rightArm: 'Right arm', leftHand: 'Left hand', rightHand: 'Right hand',
-  leftLeg: 'Left leg', rightLeg: 'Right leg',
+  leftLeg: 'Left leg', rightLeg: 'Right leg', leftFoot: 'Left foot', rightFoot: 'Right foot',
   nsys: 'Nervous system',
 }
 
-// Per-location state: a wound level and a scar level, each 0–3 (0 = none).
-export interface PartInjury { wound: number; scar: number }
+// Per-location state: a wound level and a scar level, each 0–3 (0 = none), plus
+// the server-supplied command for acting on the location when it offers one.
+export interface PartInjury { wound: number; scar: number; cmd?: string }
 export type Injuries = Partial<Record<BodyPart, PartInjury>>
 
 // Severity words for tooltips (index = level).
@@ -64,6 +100,7 @@ const PART_ALIASES: Record<string, BodyPart> = {
   leftarm: 'leftArm', rightarm: 'rightArm',
   lefthand: 'leftHand', righthand: 'rightHand',
   leftleg: 'leftLeg', rightleg: 'rightLeg',
+  leftfoot: 'leftFoot', rightfoot: 'rightFoot',
   nsys: 'nsys', nerves: 'nsys', nervous: 'nsys',
 }
 
@@ -85,17 +122,26 @@ export function parseInjuryName(name: string): ParsedInjuryName | null {
   return { kind: 'wound', level }
 }
 
-// Build an Injuries snapshot from the raw {id,name} pairs of one dialogData block.
-export function injuriesFromImages(images: { id: string; name: string }[]): Injuries {
+// Build an Injuries snapshot from the <image> tags of one dialogData block. An
+// explicit `scar='N'` attribute takes priority over the `name` token; a `cmd` is
+// carried through so the UI can run the game's own command for that location.
+export function injuriesFromImages(images: InjuryImage[]): Injuries {
   const out: Injuries = {}
   for (const img of images) {
     const part = normalizePart(img.id)
     if (!part) continue
-    const parsed = parseInjuryName(img.name)
-    if (!parsed) continue
+    const scarAttr = img.scar ? parseInt(img.scar, 10) : NaN
+    const parsed   = Number.isFinite(scarAttr) && scarAttr > 0
+      ? { kind: 'scar' as const, level: scarAttr }
+      : parseInjuryName(img.name)
+    const cmd = img.cmd?.trim() || undefined
+    // A location can be listed as healthy but still carry a command; keep the
+    // command either way so the entry isn't dropped on the floor.
+    if (!parsed && !cmd) continue
     const cur = out[part] ?? { wound: 0, scar: 0 }
-    if (parsed.kind === 'scar') cur.scar = Math.max(cur.scar, parsed.level)
-    else                        cur.wound = Math.max(cur.wound, parsed.level) // nsys stored as wound level
+    if (parsed?.kind === 'scar')  cur.scar  = Math.max(cur.scar,  parsed.level)
+    else if (parsed)              cur.wound = Math.max(cur.wound, parsed.level) // nsys stored as wound level
+    if (cmd) cur.cmd = cmd
     out[part] = cur
   }
   return out
@@ -134,6 +180,10 @@ export function describePart(part: BodyPart, pi?: PartInjury): string {
 // (e.g. "TAKE Melete head"), and everything at once with "TAKE <patient> everything".
 // See https://elanthipedia.play.net/Empath_healing#Healing_patients
 // The nervous system (nsys) has no body-part token, so it isn't taken by location.
+// Feet are absent too — DR reports them as locations, but whether TAKE addresses
+// them by name is unconfirmed, so they're only actionable via a server-sent `cmd`.
+// This whole map is the FALLBACK: when the game supplies a command for a location
+// (PartInjury.cmd) we send that instead of anything built here.
 const DR_TAKE_PART: Partial<Record<BodyPart, string>> = {
   head: 'head', neck: 'neck', leftEye: 'left eye', rightEye: 'right eye',
   chest: 'chest', abdomen: 'abdomen', back: 'back',
@@ -141,16 +191,19 @@ const DR_TAKE_PART: Partial<Record<BodyPart, string>> = {
   leftLeg: 'left leg', rightLeg: 'right leg',
 }
 
-export function canTakePart(part: BodyPart): boolean {
-  return DR_TAKE_PART[part] !== undefined
+export function canTakePart(part: BodyPart, pi?: PartInjury): boolean {
+  return Boolean(pi?.cmd) || DR_TAKE_PART[part] !== undefined
 }
 
-// The `TAKE <patient> <part> [scar]` command for one location — wounds take
-// priority; a scar-only location transfers the scar. Null if the location can't
-// be taken (nsys) or is unharmed.
+// The command for acting on one location. The server's own `cmd` wins when the
+// game sent one; otherwise we fall back to `TAKE <patient> <part> [scar]` — wounds
+// take priority, a scar-only location transfers the scar. Null if the location
+// can't be addressed (nsys, feet) or is unharmed.
 export function takeWoundCommand(patient: string, part: BodyPart, pi?: PartInjury): string | null {
+  if (!pi) return null
+  if (pi.cmd) return pi.cmd
   const bp = DR_TAKE_PART[part]
-  if (!bp || !pi) return null
+  if (!bp) return null
   if (pi.wound > 0) return `take ${patient} ${bp}`
   if (pi.scar  > 0) return `take ${patient} ${bp} scar`
   return null
@@ -175,6 +228,7 @@ const PART_MATCHERS: [RegExp, BodyPart][] = [
   [/\bright hand\b/i, 'rightHand'], [/\bleft hand\b/i, 'leftHand'],
   [/\bright arm\b/i,  'rightArm'],  [/\bleft arm\b/i,  'leftArm'],
   [/\bright leg\b/i,  'rightLeg'],  [/\bleft leg\b/i,  'leftLeg'],
+  [/\bright foot\b/i, 'rightFoot'], [/\bleft foot\b/i, 'leftFoot'],
   [/\bhead\b/i, 'head'], [/\bneck\b/i, 'neck'], [/\bchest\b/i, 'chest'],
   [/\babdomen\b/i, 'abdomen'], [/\bback\b/i, 'back'],
   [/nervous system|\bnerves?\b/i, 'nsys'],
@@ -225,6 +279,7 @@ export function sampleInjuries(): Injuries {
     rightArm: { wound: 3, scar: 0 },
     leftLeg:  { wound: 0, scar: 2 },
     abdomen:  { wound: 1, scar: 0 },
+    rightFoot:{ wound: 1, scar: 0 },
     nsys:     { wound: 2, scar: 0 },
   }
 }
