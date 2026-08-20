@@ -84,6 +84,26 @@ function useSessionInstance(charName: string) {
  * there's nothing to copy, so that state renders as a plain span — no button, no
  * hover affordance, nothing to click.
  */
+/**
+ * The room you're standing in, beside its id. Purely a readout — the Room panel is
+ * where exits and description live — but the id alone told you nothing without one,
+ * and the pair reads as one fact: "Town Square East (10041)".
+ *
+ * Long names are ellipsised rather than allowed to push the rest of the bar around;
+ * the tooltip always carries the full name.
+ */
+function RoomNameChip() {
+  const name = useAtomValue(roomAtom).name
+  if (!name) return null
+  return (
+    <Tooltip text={name}>
+      <span className="titlebar-chip titlebar-chip-roomname">
+        <span className="titlebar-chip-v">{name}</span>
+      </span>
+    </Tooltip>
+  )
+}
+
 function RoomIdChip() {
   const uid = useAtomValue(roomAtom).uid
   const [copied, setCopied] = useState(false)
@@ -141,6 +161,7 @@ export function StatusBar({ updateSlot, charName = '' }: { updateSlot?: React.Re
       <img src="./icon.png" className="app-icon" alt="" aria-hidden />
       <InstanceChip charName={charName} />
       <RoomIdChip />
+      <RoomNameChip />
       <div className="status-bar-spacer" />
       <Tooltip text="Guide">
         <button

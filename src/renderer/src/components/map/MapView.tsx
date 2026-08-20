@@ -10,6 +10,8 @@ const GRID = 50
 const NODE_R = 11
 const ZOOM_MIN = 0.35
 const ZOOM_MAX = 2.6
+// One press of the toolbar +/− buttons. Also the unit `initialZoom` is expressed in.
+const ZOOM_STEP = 1.2
 const DRAG_THRESHOLD = 4   // px of movement before a node press becomes a drag
 // Below this zoom, per-room lettering is unreadable and just muddies the map, so
 // only the street labels survive.
@@ -48,6 +50,7 @@ export interface MapViewProps {
   walkActive?:    boolean
   onStopWalk?:    () => void
   wheelZoom?:     boolean            // false = let the wheel scroll the page instead
+  initialZoom?:   number             // zoom the view starts at; 1 = the toolbar's "home"
   className?:     string
 }
 
@@ -62,12 +65,12 @@ export interface MapViewProps {
 export function MapView({
   zone, exits, labels, currentNodeId, selectedId, focusId,
   onNodeClick, onNodeContext, onNodeDrag, onExitClick, walkActive, onStopWalk,
-  wheelZoom = true, className,
+  wheelZoom = true, initialZoom = 1, className,
 }: MapViewProps) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 300, h: 220 })
   const [pan, setPan]   = useState({ x: 0, y: 0 })
-  const [zoom, setZoom] = useState(1)
+  const [zoom, setZoom] = useState(() => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, initialZoom)))
   const [level, setLevel] = useState(0)
 
   useLayoutEffect(() => {
@@ -332,8 +335,8 @@ export function MapView({
             <button className="map-tb-btn" data-tooltip="Level down" onClick={() => setLevel(l => l - 1)}>▼</button>
           </span>
         )}
-        <button className="map-tb-btn" data-tooltip="Zoom out" onClick={() => zoomBy(1 / 1.2)}>−</button>
-        <button className="map-tb-btn" data-tooltip="Zoom in" onClick={() => zoomBy(1.2)}>+</button>
+        <button className="map-tb-btn" data-tooltip="Zoom out" onClick={() => zoomBy(1 / ZOOM_STEP)}>−</button>
+        <button className="map-tb-btn" data-tooltip="Zoom in" onClick={() => zoomBy(ZOOM_STEP)}>+</button>
         <button className="map-tb-btn" data-tooltip="Center on me" onClick={() => centerOn(currentNode)} disabled={!currentNode}>◎</button>
       </div>
     </div>

@@ -92,6 +92,12 @@
   min-width: 40px;
   text-align: center;
 }
+/* The room name, sitting right of the id. It gets more room than the other chips
+   (DR room names run long — "Kaal Utewg, Old Growth") and a touch more contrast,
+   since it's the half of the pair a person can actually read. It follows the id
+   rather than leading it so the id keeps a fixed position as you walk. */
+.titlebar-chip-roomname { max-width: 280px; }
+.titlebar-chip-roomname .titlebar-chip-v { color: var(--text-main); }
 /* No id for this room: present but plainly inert. */
 .titlebar-chip-v-empty { color: var(--text-dim); letter-spacing: .1em; }
 /* Narrow windows: the chips are the first thing that can go. */

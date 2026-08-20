@@ -58,6 +58,10 @@ export function MapPanel({ onNodeClick, onStopWalk, onExpand }: {
         // The wheel belongs to the sidebar here — scrolling past the map shouldn't
         // zoom it. Use the toolbar +/− to zoom, or the popout, which keeps the wheel.
         wheelZoom={false}
+        // The sidebar is a narrow column, so the full-map default zoom only ever
+        // showed a couple of rooms around you. Start two toolbar clicks further out
+        // so the surrounding block fits; the popout keeps the 1:1 default.
+        initialZoom={1 / (1.2 * 1.2)}
       />
     </div>
   )
