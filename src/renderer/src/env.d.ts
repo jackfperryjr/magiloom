@@ -45,6 +45,8 @@ interface AppSettings {
   avatarTokens?:    Record<string, string>
   avatarShare?:     boolean
   itemManagerView?: 'table' | 'cards'   // List/Cards choice in the item manager (global — a layout preference is about the person, not the character)
+  injuryMode?:      number   // which injury view the Body panel asks the game for, 0-5 (see lib/injuries.ts)
+  bodyTextMode?:    boolean  // render the Body panel as a text list instead of the figure
   verbs?:           string[]
   notifications?:   {
     sound:      boolean

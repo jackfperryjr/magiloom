@@ -1,8 +1,13 @@
 import { useEffect, useCallback, useRef } from 'react'
 import { useSetAtom, useAtom, useAtomValue } from 'jotai'
 import { parseLine, resetParser } from '../lib/sge-parser'
-import { connectionStatusAtom, dispatchGameEventAtom, appendDisconnectNoticeAtom, appendScriptOutputAtom, echoCommandAtom, linkModeAtom, broadcastReceiveAtom, classStatesAtom, disabledClassesAtom } from '../store/game'
+import { connectionStatusAtom, dispatchGameEventAtom, appendDisconnectNoticeAtom, appendScriptOutputAtom, echoCommandAtom, linkModeAtom, broadcastReceiveAtom, classStatesAtom, disabledClassesAtom, injuryModeAtom } from '../store/game'
 import { expandAlias, matchTriggers, substituteVars, type Alias, type Trigger } from '../lib/automation'
+import { injuryModeCommand } from '../lib/injuries'
+
+// How long after connect to ask the game which injury view to report. The login
+// burst has to settle first, or the request lands before the game will answer it.
+const INJURY_REQUEST_DELAY_MS = 1200
 
 // Ignore a repeat firing of the same trigger command within this window, so a
 // trigger whose command re-produces its own matching line can't storm the game.
@@ -35,6 +40,10 @@ export function useGameConnection(charName = '') {
   useEffect(() => { disabledRef.current = disabledClasses }, [disabledClasses])
   const classStatesRef = useRef(classStates)
   useEffect(() => { classStatesRef.current = classStates }, [classStates])
+  // Same for the injury view — read at connect time, not a listener dependency.
+  const injuryMode = useAtomValue(injuryModeAtom)
+  const injuryModeRef = useRef(injuryMode)
+  useEffect(() => { injuryModeRef.current = injuryMode }, [injuryMode])
   // Push this window's receive opt-in down to the main-process bus.
   useEffect(() => { window.dr.broadcast.setReceive(receive) }, [receive])
 
@@ -173,20 +182,31 @@ export function useGameConnection(charName = '') {
   }, [echoCommand, runLocal])
 
   useEffect(() => {
+    // The injury window reports one view at a time and the game won't volunteer
+    // which; ask for the one the player picked, every time we connect.
+    let injuryTimer = 0
+    const requestInjuryView = (): void => {
+      window.clearTimeout(injuryTimer)
+      injuryTimer = window.setTimeout(
+        () => window.dr.game.send(injuryModeCommand(injuryModeRef.current)),
+        INJURY_REQUEST_DELAY_MS,
+      )
+    }
+
     // When GameLayout mounts, we may have already connected (the connected
     // event fired before this hook ran). Ask for current status immediately.
     window.dr.game.getStatus().then((s: string) => {
-      if (s === 'connected')    setStatus('connected')
+      if (s === 'connected')    { setStatus('connected'); requestInjuryView() }
       if (s === 'disconnected') setStatus('disconnected')
     })
 
     const unsubs = [
-      window.dr.game.onConnected(()       => { resetParser(); setStatus('connected') }),
+      window.dr.game.onConnected(()       => { resetParser(); setStatus('connected'); requestInjuryView() }),
       window.dr.game.onDisconnected(()    => { setStatus('disconnected'); appendDisconnectNotice() }),
       window.dr.game.onError(()           => { setStatus('error'); appendDisconnectNotice() }),
       window.dr.game.onData((raw: string) => { parseLine(raw).forEach(dispatch); runTriggers(raw) })
     ]
-    return () => unsubs.forEach(fn => fn())
+    return () => { window.clearTimeout(injuryTimer); unsubs.forEach(fn => fn()) }
   }, [dispatch, setStatus, appendDisconnectNotice, runTriggers])
 
   return { status, disconnect, send }
