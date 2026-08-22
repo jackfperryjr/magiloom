@@ -5,9 +5,12 @@ import {
   roomAtom, activeSpellAtom, activeSpellsAtom, inventoryLinesAtom, handsAtom,
   expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, thoughtLinesAtom, deathsAtom,
   avatarsAtom, selfNameAtom, serverAvatarsAtom, tickAtom, logonLinesAtom,
+  connectionStatusAtom, promptCountAtom,
   type OutputLine,
 } from '../../store/game'
-import { invSnapshotAtom, invStatusAtom, refreshInventoryAtom } from '../../store/inventory'
+import {
+  invSnapshotAtom, invStatusAtom, invErrorAtom, refreshInventoryAtom, ensureInventoryAtom,
+} from '../../store/inventory'
 import { isClosed, summarizeCarried } from '../../lib/inventory'
 import { resolveAvatarSrc } from '../../lib/avatar'
 import { groupExpSkills } from '../../lib/expGroups'
@@ -422,8 +425,25 @@ export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
   const lines    = useAtomValue(inventoryLinesAtom).filter(l => !INV_HEADER_RE.test(l))
   const snapshot = useAtomValue(invSnapshotAtom)
   const status   = useAtomValue(invStatusAtom)
+  const error    = useAtomValue(invErrorAtom)
   const hands    = useAtomValue(handsAtom)
   const refresh  = useSetAtom(refreshInventoryAtom)
+  const ensure   = useSetAtom(ensureInventoryAtom)
+  const conn     = useAtomValue(connectionStatusAtom)
+  const prompts  = useAtomValue(promptCountAtom)
+
+  // Take a walk on our own rather than waiting to be asked. Without this the panel
+  // only ever had a snapshot if you'd opened the item manager, so a session where
+  // you just typed INV fell through to the raw text below — the structured view was
+  // opt-in by accident. `idle` is also what clearInventoryAtom resets to, so this
+  // re-arms after a reconnect or a character switch.
+  //
+  // Gated on a prompt having arrived: `_inventory manager` is fire-and-forget, and
+  // one sent while the character is still logging in is simply lost, which costs a
+  // 12s timeout and a retry before anything appears.
+  useEffect(() => {
+    if (conn === 'connected' && prompts > 0) ensure()
+  }, [status, conn, prompts, ensure])
 
   // Everything hanging off the character — what you'd actually be carrying. Items on
   // the ground are in the snapshot too, and are not your problem.
@@ -486,12 +506,20 @@ export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
                 </div>
               ))}
         </>
-      ) : lines.length > 0 ? (
-        lines.map((line, i) => <div key={i} className="inv-line">{line}</div>)
+      ) : status === 'loading' ? (
+        <div className="panel-empty">Reading your inventory…</div>
       ) : (
-        <div className="panel-empty">
-          {status === 'loading' ? 'Reading your inventory…' : 'Refresh to read your inventory.'}
-        </div>
+        <>
+          {/* A failed walk used to fall straight through to the text dump, which
+              looked like the panel had simply reverted — say what happened instead.
+              The dump still follows it: stale text beats nothing while you retry. */}
+          {status === 'error' && error && <div className="inv-sum-error">{error}</div>}
+          {lines.length > 0
+            ? lines.map((line, i) => <div key={i} className="inv-line">{line}</div>)
+            : status !== 'error' && (
+                <div className="panel-empty">Refresh to read your inventory.</div>
+              )}
+        </>
       )}
     </div>
   )
