@@ -50,8 +50,8 @@
   padding: 3px 2px 5px;
 }
 .look-avatar {
-  width: 84px;
-  height: 108px;
+  width: 168px;
+  height: 216px;
   flex: none;
   object-fit: cover;
   border-radius: 8px;
@@ -65,6 +65,10 @@
   overflow-wrap: anywhere;
 }
 .look-card-line { min-height: 1em; }
+/* Narrow panes can't spare 168px beside the text — keep the original size */
+@media (max-width: 768px) {
+  .look-avatar { width: 84px; height: 108px; }
+}
 .look-avatar-zoomable { cursor: zoom-in; }
 .look-avatar-zoomable:hover { border-color: var(--accent); }
 
