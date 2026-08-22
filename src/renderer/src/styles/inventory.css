@@ -200,6 +200,12 @@
 .inv-sum { padding: 6px 8px 8px; font-size: 12px; }
 .inv-sum-tools { display: flex; gap: 6px; margin-bottom: 8px; }
 
+/* Why the structured view isn't there — sits above the raw INV text fallback. */
+.inv-sum-error {
+  margin-bottom: 6px; padding: 4px 0;
+  font-size: 11px; line-height: 1.35; color: var(--color-warning);
+}
+
 .inv-sum-hands { margin-bottom: 6px; }
 .inv-sum-hands div {
   display: flex; justify-content: space-between; gap: 8px; padding: 1px 0;

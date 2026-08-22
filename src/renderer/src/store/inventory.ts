@@ -103,6 +103,18 @@ export const refreshInventoryAtom = atom(null, (_get, set, keepSnapshot = true) 
   ask()
 })
 
+/**
+ * "Make sure there's a snapshot" — for views that want one on sight rather than on
+ * a button press. A no-op if a walk is already running or has already produced a
+ * tree, so several mounted views can each ask without racing each other into
+ * duplicate walks (`_walk` is set synchronously by refresh, so a second caller in
+ * the same tick sees it even before any re-render).
+ */
+export const ensureInventoryAtom = atom(null, (get, set) => {
+  if (_walk || get(invStatusAtom) !== 'idle') return
+  set(refreshInventoryAtom, false)
+})
+
 /** Fold in one `<inventoryManager>` envelope. Called from the game event stream. */
 export const receiveInvEnvelopeAtom = atom(null, (_get, set, env: InvEnvelope) => {
   const walk = _walk
