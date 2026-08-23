@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { THEMES } from '../../../lib/themes'
+import { SettingRow, Toggle } from './Field'
 
 // Settings → Appearance: theme picker, layout density, display (font/buffer).
 // Game-output logging used to live here as a global toggle; it's per character now
@@ -25,7 +26,8 @@ export function AppearanceTab({
 }) {
   return (
     <>
-      <div className="settings-section">
+      {/* Wide: the swatch grid wants the full width to show more than two per row. */}
+      <div className="settings-section settings-section-wide">
         <div className="settings-section-label">Theme</div>
         <div className="theme-grid">
           {THEMES.map(t => (
@@ -60,8 +62,7 @@ export function AppearanceTab({
 
       <div className="settings-section">
         <div className="settings-section-label">Layout</div>
-        <label className="settings-row">
-          <span className="settings-label">Density</span>
+        <SettingRow label="Density" hint="How much breathing room panels and rows get.">
           <select
             className="settings-input"
             value={density}
@@ -70,51 +71,48 @@ export function AppearanceTab({
             <option value="cozy">Cozy</option>
             <option value="compact">Compact</option>
           </select>
-        </label>
+        </SettingRow>
       </div>
 
       <div className="settings-section">
         <div className="settings-section-label">Display</div>
-      <label className="settings-row">
-        <span className="settings-label">Font family</span>
-        <select
-          className="settings-input"
-          value={fontFamily}
-          onChange={e => setFontFamily(e.target.value)}
-        >
-          <option>Cascadia Code</option>
-          <option>Fira Code</option>
-          <option>Consolas</option>
-          <option>Courier New</option>
-          <option>monospace</option>
-        </select>
-      </label>
-      <label className="settings-row">
-        <span className="settings-label">Font size</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <SettingRow label="Font family" hint="Used for game output and anything else monospaced.">
+          <select
+            className="settings-input"
+            value={fontFamily}
+            onChange={e => setFontFamily(e.target.value)}
+          >
+            <option>Cascadia Code</option>
+            <option>Fira Code</option>
+            <option>Consolas</option>
+            <option>Courier New</option>
+            <option>monospace</option>
+          </select>
+        </SettingRow>
+        <SettingRow label="Font size">
           <input
             type="range" min={10} max={18} value={fontSize}
+            aria-label="Font size"
             onChange={e => setFontSize(Number(e.target.value))}
-            style={{ width: 100 }}
+            style={{ width: 120 }}
           />
-          <span style={{ fontSize: 11, color: 'var(--text-dim)', minWidth: 30 }}>
-            {fontSize}px
-          </span>
-        </div>
-      </label>
-      <label className="settings-row">
-        <span className="settings-label">Output buffer</span>
-        <select
-          className="settings-input"
-          value={outputBufferSize}
-          onChange={e => setOutputBufferSize(Number(e.target.value))}
+          <span className="setting-readout">{fontSize}px</span>
+        </SettingRow>
+        <SettingRow
+          label="Output buffer"
+          hint="How many lines of scrollback to keep. Larger uses more memory."
         >
-          <option value={1000}>1,000 lines</option>
-          <option value={2500}>2,500 lines</option>
-          <option value={5000}>5,000 lines</option>
-          <option value={10000}>10,000 lines</option>
-        </select>
-      </label>
+          <select
+            className="settings-input"
+            value={outputBufferSize}
+            onChange={e => setOutputBufferSize(Number(e.target.value))}
+          >
+            <option value={1000}>1,000 lines</option>
+            <option value={2500}>2,500 lines</option>
+            <option value={5000}>5,000 lines</option>
+            <option value={10000}>10,000 lines</option>
+          </select>
+        </SettingRow>
       </div>
 
       {/* Keep-awake only applies to the PWA/browser; the desktop app manages power
@@ -122,15 +120,13 @@ export function AppearanceTab({
       {isWeb && (
         <div className="settings-section">
           <div className="settings-section-label">Mobile</div>
-          <label className="settings-row">
-            <span className="settings-label">Keep screen awake</span>
-            <input type="checkbox" checked={keepScreenOn} style={{ width: 'auto' }}
-              onChange={e => setKeepScreenOn(e.target.checked)} />
-          </label>
-          <div className="settings-hint">
-            Holds the display on while connected to the game, so your phone or tablet
-            won't dim or lock mid-session. Only active while a character is connected.
-          </div>
+          <SettingRow
+            label="Keep screen awake"
+            hint="Holds the display on while connected to the game, so your phone or tablet
+                  won't dim or lock mid-session. Only active while a character is connected."
+          >
+            <Toggle checked={keepScreenOn} onChange={setKeepScreenOn} label="Keep screen awake" />
+          </SettingRow>
         </div>
       )}
     </>

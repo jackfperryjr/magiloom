@@ -14,6 +14,7 @@ import { AmbientTab, DEFAULT_SOUND, DEFAULT_LOGIN_ART, type SoundPrefs, type Log
 import { NotificationsTab } from './settings/NotificationsTab'
 import { AliasesTab } from './settings/AliasesTab'
 import { TriggersTab } from './settings/TriggersTab'
+import { SettingRow } from './settings/Field'
 
 interface SettingsModalProps {
   charName?: string
@@ -244,7 +245,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
             )}
 
             {tab === 'keybinds' && (
-              <div className="settings-section">
+              <div className="settings-section settings-section-wide">
                 <div className="settings-section-label">Function Keys</div>
                 <div className="fk-grid">
                   {FK_KEYS.map(key => (
@@ -281,13 +282,21 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
             )}
 
             {tab === 'scripts' && (
-              <div className="settings-section">
+              <div className="settings-section settings-section-wide">
                 <div className="settings-section-label">Native Scripts</div>
-                <div className="settings-label">Script folder</div>
-                <div className="settings-path-row">
+                <SettingRow
+                  stacked
+                  label="Script folder"
+                  hint={<>
+                    Lantern runs Genie/Wizard-style <code>.cmd</code> scripts from this folder —
+                    type <code>.name</code> in the command bar to run one (<code>.stop</code> halts all).
+                    If no folder is set, Lantern uses <code>{defaultScriptDir}</code>.
+                  </>}
+                >
                   <input
                     className="settings-input settings-input-mono"
                     type="text"
+                    aria-label="Script folder"
                     placeholder={defaultScriptDir}
                     value={scriptDir}
                     onChange={e => setScriptDir(e.target.value)}
@@ -304,57 +313,53 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                       className="login-btn-secondary"
                       style={{ minWidth: 72 }}
                       onClick={() => setScriptDir('')}
-                      title="Fall back to the default folder"
+                      data-tooltip="Fall back to the default folder"
                     >
                       Default
                     </button>
                   )}
-                </div>
-                <div className="settings-hint">
-                  Lantern runs Genie/Wizard-style <code>.cmd</code> scripts from this folder —
-                  type <code>.name</code> in the command bar to run one (<code>.stop</code> halts all).
-                  If no folder is set, Lantern uses <code>{defaultScriptDir}</code>.
-                </div>
+                </SettingRow>
                 <CmdFilesEditor />
               </div>
             )}
 
             {tab === 'lich' && (
-              <div className="settings-section">
+              <div className="settings-section settings-section-wide">
                 <div className="settings-section-label">Lich</div>
                 {/* The Lich path points at a LOCAL Lich install, which only the
                     desktop app has — the web client's Lich runs server-side, so
                     there is nothing for the user to locate. */}
                 {!isWeb && (
-                  <>
-                    <div className="settings-label">Lich path</div>
-                    <div className="settings-path-row">
-                      <input
-                        className="settings-input settings-input-mono"
-                        type="text"
-                        placeholder="C:\Ruby4Lich5\Lich5\lich.rbw"
-                        value={lichPath}
-                        onChange={e => setLichPath(e.target.value)}
-                      />
-                      <button
-                        className="login-btn-secondary"
-                        style={{ minWidth: 84 }}
-                        onClick={async () => {
-                          const f = await window.dr.app.chooseFile([
-                            { name: 'Lich', extensions: ['rbw', 'rb'] },
-                            { name: 'All Files', extensions: ['*'] },
-                          ])
-                          if (f) setLichPath(f)
-                        }}
-                      >
-                        Browse…
-                      </button>
-                    </div>
-                    <div className="settings-hint">
+                  <SettingRow
+                    stacked
+                    label="Lich path"
+                    hint={<>
                       Point this at your <code>lich.rbw</code> (or <code>lich.rb</code>) to launch Lich at login.
                       Leave blank to connect directly without Lich.
-                    </div>
-                  </>
+                    </>}
+                  >
+                    <input
+                      className="settings-input settings-input-mono"
+                      type="text"
+                      aria-label="Lich path"
+                      placeholder="C:\Ruby4Lich5\Lich5\lich.rbw"
+                      value={lichPath}
+                      onChange={e => setLichPath(e.target.value)}
+                    />
+                    <button
+                      className="login-btn-secondary"
+                      style={{ minWidth: 84 }}
+                      onClick={async () => {
+                        const f = await window.dr.app.chooseFile([
+                          { name: 'Lich', extensions: ['rbw', 'rb'] },
+                          { name: 'All Files', extensions: ['*'] },
+                        ])
+                        if (f) setLichPath(f)
+                      }}
+                    >
+                      Browse…
+                    </button>
+                  </SettingRow>
                 )}
                 <LichFilesEditor charName={charName} />
                 <LogFilesViewer charName={charName} logging={logging} setLogging={setLogging} />

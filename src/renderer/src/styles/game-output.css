@@ -87,7 +87,7 @@
 [data-density="compact"] .game-line { min-height: 0; }
 [data-density="compact"] .game-separator { height: 0.4em; }
 
-/* Labeled divider (Discord "new messages" style) — a line with a label at the
+/* Labeled divider ("new messages" style) — a line with a label at the
    right end. The "Disconnected" variant is themed red. */
 .game-divider {
   display: flex;

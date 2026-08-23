@@ -31,7 +31,7 @@ export function Tooltip({ children, text, placement = 'auto' }: {
   }, [])
 
   // Anchored 'left' placement (used by the panel rail): sits to the left of the
-  // element, vertically centred, and stays put while hovering (Discord-style).
+  // element, vertically centred, and stays put while hovering.
   // The wrapper is display:contents, so we measure its first real child element.
   const showLeft = useCallback((e: React.MouseEvent) => {
     const child = (e.currentTarget as HTMLElement).firstElementChild

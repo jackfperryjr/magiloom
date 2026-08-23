@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import type { NotifSettings, NotifRule, PushSettings } from '../Notifications'
 import { alertMatches } from '../../../lib/rules'
 import { RuleTester, RegexWarning, NoMatch } from '../RuleTester'
+import { SettingRow, Toggle } from './Field'
 
 // Settings → Notifications: alerts, TTS, push, and user-defined custom alert rules.
 export function NotificationsTab({
@@ -23,100 +24,86 @@ export function NotificationsTab({
     <>
       <div className="settings-section">
         <div className="settings-section-label">Alerts</div>
-        <label className="settings-row">
-          <span className="settings-label">Play sound</span>
-          <input type="checkbox" checked={notif.sound} style={{ width: 'auto' }}
-            onChange={e => setNotif(n => ({ ...n, sound: e.target.checked }))} />
-        </label>
-        <label className="settings-row">
-          <span className="settings-label">Desktop popups</span>
-          <input type="checkbox" checked={notif.desktop} style={{ width: 'auto' }}
-            onChange={e => setNotif(n => ({ ...n, desktop: e.target.checked }))} />
-        </label>
-        <div className="settings-hint">
-          Desktop popups only appear when the window isn't focused. Do Not Disturb silences sound and popups.
-        </div>
+        <SettingRow label="Play sound">
+          <Toggle checked={notif.sound} onChange={v => setNotif(n => ({ ...n, sound: v }))} label="Play sound" />
+        </SettingRow>
+        <SettingRow
+          label="Desktop popups"
+          hint="Only appear when the window isn't focused. Do Not Disturb silences sound and popups."
+        >
+          <Toggle checked={notif.desktop} onChange={v => setNotif(n => ({ ...n, desktop: v }))} label="Desktop popups" />
+        </SettingRow>
       </div>
+
       <div className="settings-section">
         <div className="settings-section-label">Notify me about</div>
-        <label className="settings-row">
-          <span className="settings-label">Mentions</span>
-          <input type="checkbox" checked={notif.mention} style={{ width: 'auto' }}
-            onChange={e => setNotif(n => ({ ...n, mention: e.target.checked }))} />
-        </label>
-        <label className="settings-row">
-          <span className="settings-label">Whispers</span>
-          <input type="checkbox" checked={notif.whisper} style={{ width: 'auto' }}
-            onChange={e => setNotif(n => ({ ...n, whisper: e.target.checked }))} />
-        </label>
-        <label className="settings-row">
-          <span className="settings-label">Chat</span>
-          <input type="checkbox" checked={notif.message} style={{ width: 'auto' }}
-            onChange={e => setNotif(n => ({ ...n, message: e.target.checked }))} />
-        </label>
-        <label className="settings-row">
-          <span className="settings-label">Disconnects</span>
-          <input type="checkbox" checked={notif.disconnect} style={{ width: 'auto' }}
-            onChange={e => setNotif(n => ({ ...n, disconnect: e.target.checked }))} />
-        </label>
+        <SettingRow label="Mentions">
+          <Toggle checked={notif.mention} onChange={v => setNotif(n => ({ ...n, mention: v }))} label="Mentions" />
+        </SettingRow>
+        <SettingRow label="Whispers">
+          <Toggle checked={notif.whisper} onChange={v => setNotif(n => ({ ...n, whisper: v }))} label="Whispers" />
+        </SettingRow>
+        <SettingRow label="Chat">
+          <Toggle checked={notif.message} onChange={v => setNotif(n => ({ ...n, message: v }))} label="Chat" />
+        </SettingRow>
+        <SettingRow label="Disconnects">
+          <Toggle checked={notif.disconnect} onChange={v => setNotif(n => ({ ...n, disconnect: v }))} label="Disconnects" />
+        </SettingRow>
       </div>
+
       <div className="settings-section">
         <div className="settings-section-label">Speak aloud (text-to-speech)</div>
-        <label className="settings-row">
-          <span className="settings-label">Speak mentions</span>
-          <input type="checkbox" checked={!!notif.ttsMention} style={{ width: 'auto' }}
-            onChange={e => setNotif(n => ({ ...n, ttsMention: e.target.checked }))} />
-        </label>
-        <label className="settings-row">
-          <span className="settings-label">Speak whispers</span>
-          <input type="checkbox" checked={!!notif.ttsWhisper} style={{ width: 'auto' }}
-            onChange={e => setNotif(n => ({ ...n, ttsWhisper: e.target.checked }))} />
-        </label>
-        <div className="settings-hint">Reads the line aloud using your system voice. Custom alerts have their own “Speak” option below.</div>
+        <SettingRow
+          label="Speak mentions"
+          hint="Reads the line aloud using your system voice."
+        >
+          <Toggle checked={!!notif.ttsMention} onChange={v => setNotif(n => ({ ...n, ttsMention: v }))} label="Speak mentions" />
+        </SettingRow>
+        <SettingRow
+          label="Speak whispers"
+          hint="Custom alerts have their own “Speak” switch, below."
+        >
+          <Toggle checked={!!notif.ttsWhisper} onChange={v => setNotif(n => ({ ...n, ttsWhisper: v }))} label="Speak whispers" />
+        </SettingRow>
       </div>
 
       <div className="settings-section">
         <div className="settings-section-label">Push notifications</div>
-        <label className="settings-row">
-          <span className="settings-label">Notify me when the app is closed</span>
-          <input type="checkbox" checked={push.enabled} style={{ width: 'auto' }}
-            onChange={e => setPush(p => ({ ...p, enabled: e.target.checked }))} />
-        </label>
-        <label className="settings-row" style={push.enabled ? undefined : { opacity: 0.5 }}>
-          <span className="settings-label">Mentions of my name</span>
-          <input type="checkbox" checked={push.mention} disabled={!push.enabled} style={{ width: 'auto' }}
-            onChange={e => setPush(p => ({ ...p, mention: e.target.checked }))} />
-        </label>
-        <label className="settings-row" style={push.enabled ? undefined : { opacity: 0.5 }}>
-          <span className="settings-label">Whispers</span>
-          <input type="checkbox" checked={push.whisper} disabled={!push.enabled} style={{ width: 'auto' }}
-            onChange={e => setPush(p => ({ ...p, whisper: e.target.checked }))} />
-        </label>
-        <label className="settings-row" style={push.enabled ? undefined : { opacity: 0.5 }}>
-          <span className="settings-label">Room speech (says)</span>
-          <input type="checkbox" checked={push.speech} disabled={!push.enabled} style={{ width: 'auto' }}
-            onChange={e => setPush(p => ({ ...p, speech: e.target.checked }))} />
-        </label>
-        <label className="settings-row" style={push.enabled ? undefined : { opacity: 0.5 }}>
-          <span className="settings-label">Thoughts (ESP)</span>
-          <input type="checkbox" checked={push.thought} disabled={!push.enabled} style={{ width: 'auto' }}
-            onChange={e => setPush(p => ({ ...p, thought: e.target.checked }))} />
-        </label>
-        <label className="settings-row" style={push.enabled ? undefined : { opacity: 0.5 }}>
-          <span className="settings-label">Direct Chat</span>
-          <input type="checkbox" checked={push.message} disabled={!push.enabled} style={{ width: 'auto' }}
-            onChange={e => setPush(p => ({ ...p, message: e.target.checked }))} />
-        </label>
-        <div className="settings-hint">
-          Sent by the Magiloom server to your phone or desktop even when the app is closed — like a messaging app.
-          Web app only; on mobile, use <strong>Add to Home Screen</strong> and allow notifications first. Room speech can be noisy in a crowded room.
-        </div>
+        <SettingRow
+          label="Notify me when the app is closed"
+          hint="Sent by the Magiloom server to your phone or desktop even when the app is
+                closed — like a messaging app. Web app only; on mobile, use Add to Home
+                Screen and allow notifications first."
+        >
+          <Toggle checked={push.enabled} onChange={v => setPush(p => ({ ...p, enabled: v }))} label="Push notifications" />
+        </SettingRow>
+        <SettingRow label="Mentions of my name" disabled={!push.enabled}>
+          <Toggle checked={push.mention} disabled={!push.enabled} label="Push mentions"
+            onChange={v => setPush(p => ({ ...p, mention: v }))} />
+        </SettingRow>
+        <SettingRow label="Whispers" disabled={!push.enabled}>
+          <Toggle checked={push.whisper} disabled={!push.enabled} label="Push whispers"
+            onChange={v => setPush(p => ({ ...p, whisper: v }))} />
+        </SettingRow>
+        <SettingRow label="Room speech (says)" hint="Can be noisy in a crowded room." disabled={!push.enabled}>
+          <Toggle checked={push.speech} disabled={!push.enabled} label="Push room speech"
+            onChange={v => setPush(p => ({ ...p, speech: v }))} />
+        </SettingRow>
+        <SettingRow label="Thoughts (ESP)" disabled={!push.enabled}>
+          <Toggle checked={push.thought} disabled={!push.enabled} label="Push thoughts"
+            onChange={v => setPush(p => ({ ...p, thought: v }))} />
+        </SettingRow>
+        <SettingRow label="Direct Chat" disabled={!push.enabled}>
+          <Toggle checked={push.message} disabled={!push.enabled} label="Push direct chat"
+            onChange={v => setPush(p => ({ ...p, message: v }))} />
+        </SettingRow>
       </div>
 
-      <div className="settings-section">
+      {/* Wide: each rule is a pattern field plus five switches on one line. */}
+      <div className="settings-section settings-section-wide">
         <div className="settings-section-label">Custom alerts</div>
         <div className="settings-hint" style={{ marginTop: 0 }}>
-          Watch for any incoming text — a character name, a phrase, or a <code>.*</code> regex — and fire the channels you check on each row.
+          Watch for any incoming text — a character name, a phrase, or a <code>.*</code> regex — and fire the channels you switch on for each row.
         </div>
         <div className="alert-quickadd">
           <input
@@ -136,11 +123,9 @@ export function NotificationsTab({
           )}
           {notifRules.map(r => (
             <div key={r.id} className={'rule-row' + (r.enabled ? '' : ' rule-row-off')}>
-              <input
-                type="checkbox"
-                checked={r.enabled}
-                data-tooltip="Enabled"
-                onChange={e => patchRule(r.id, { enabled: e.target.checked })}
+              <Toggle
+                checked={r.enabled} size="sm" label="Enabled"
+                onChange={v => patchRule(r.id, { enabled: v })}
               />
               <input
                 className="settings-input settings-input-mono"
@@ -149,34 +134,31 @@ export function NotificationsTab({
                 spellCheck={false}
                 onChange={e => patchRule(r.id, { pattern: e.target.value, label: r.label || e.target.value })}
               />
-              <label className="rule-regex" data-tooltip="Regular expression">
-                <input
-                  type="checkbox"
-                  checked={r.isRegex}
-                  onChange={e => patchRule(r.id, { isRegex: e.target.checked })}
-                />
-                .*
-              </label>
-              <label className="alert-ch" data-tooltip="App toast">
-                <input type="checkbox" checked={r.toast}
-                  onChange={e => patchRule(r.id, { toast: e.target.checked })} />
-                Toast
-              </label>
-              <label className="alert-ch" data-tooltip="Desktop popup (when window unfocused)">
-                <input type="checkbox" checked={r.desktop}
-                  onChange={e => patchRule(r.id, { desktop: e.target.checked })} />
-                Popup
-              </label>
-              <label className="alert-ch" data-tooltip="Sound">
-                <input type="checkbox" checked={r.sound}
-                  onChange={e => patchRule(r.id, { sound: e.target.checked })} />
-                Sound
-              </label>
-              <label className="alert-ch" data-tooltip="Speak the matched line aloud">
-                <input type="checkbox" checked={!!r.tts}
-                  onChange={e => patchRule(r.id, { tts: e.target.checked })} />
-                Speak
-              </label>
+              <span className="rule-regex" data-tooltip="Regular expression">
+                <span>.*</span>
+                <Toggle checked={r.isRegex} size="sm" label="Regular expression"
+                  onChange={v => patchRule(r.id, { isRegex: v })} />
+              </span>
+              <span className="alert-ch" data-tooltip="App toast">
+                <span>Toast</span>
+                <Toggle checked={r.toast} size="sm" label="Toast"
+                  onChange={v => patchRule(r.id, { toast: v })} />
+              </span>
+              <span className="alert-ch" data-tooltip="Desktop popup (when window unfocused)">
+                <span>Popup</span>
+                <Toggle checked={r.desktop} size="sm" label="Popup"
+                  onChange={v => patchRule(r.id, { desktop: v })} />
+              </span>
+              <span className="alert-ch" data-tooltip="Sound">
+                <span>Sound</span>
+                <Toggle checked={r.sound} size="sm" label="Sound"
+                  onChange={v => patchRule(r.id, { sound: v })} />
+              </span>
+              <span className="alert-ch" data-tooltip="Speak the matched line aloud">
+                <span>Speak</span>
+                <Toggle checked={!!r.tts} size="sm" label="Speak"
+                  onChange={v => patchRule(r.id, { tts: v })} />
+              </span>
               <button className="hl-btn-icon hl-btn-delete" data-tooltip="Delete"
                 onClick={() => setNotifRules(list => list.filter(x => x.id !== r.id))}>×</button>
               <RegexWarning pattern={r.pattern} isRegex={r.isRegex} />
@@ -202,7 +184,7 @@ export function NotificationsTab({
                     <span className="rule-arrow">→</span>
                     <code>{r.label || r.pattern}</code>
                     <span className="rule-tester-channels">
-                      {channels.length ? channels.join(' · ') : 'no channels checked'}
+                      {channels.length ? channels.join(' · ') : 'no channels switched on'}
                     </span>
                   </div>
                 )

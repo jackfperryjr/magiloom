@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Tooltip } from './Tooltip'
+import { SettingRow, Toggle } from './settings/Field'
 
 // Game-output logs, embedded in Settings → Lich beside the setups/scripts editor.
 // Logging is per character (the toggle here writes CharSettings.logging), and the
@@ -61,29 +62,26 @@ export function LogFilesViewer({ charName = '', logging, setLogging }: LogFilesV
       <div className="lf-embed-head">
         <span className="settings-label" style={{ margin: 0 }}>Logs</span>
         {files.length > 0 && slug && (
-          <label className="lf-log-filter">
-            <input type="checkbox" checked={mine} onChange={e => setMine(e.target.checked)} />
+          <span className="lf-log-filter">
             <span>Only {charName}</span>
-          </label>
+            <Toggle checked={mine} onChange={setMine} size="sm" label={`Only ${charName}`} />
+          </span>
         )}
       </div>
 
-      <label className="settings-row">
-        <input
-          type="checkbox"
+      <SettingRow
+        label={<>Log {charName || 'this character'}&apos;s game output</>}
+        hint="Writes one file per character per day. Saved with the rest of Settings, and
+              applies to the character you're playing right now."
+        disabled={!charName}
+      >
+        <Toggle
           checked={logging}
-          style={{ width: 'auto' }}
-          onChange={e => setLogging(e.target.checked)}
+          onChange={setLogging}
           disabled={!charName}
+          label="Log game output"
         />
-        <span className="settings-label" style={{ margin: 0 }}>
-          Log {charName || 'this character'}&apos;s game output
-        </span>
-      </label>
-      <div className="settings-hint">
-        Writes one file per character per day. Saved with the rest of Settings, and
-        applies to the character you&apos;re playing right now.
-      </div>
+      </SettingRow>
 
       <div className="lf-body lf-body-embed">
         <div className="lf-list">

@@ -104,7 +104,7 @@
   line-height: 1.5;
 }
 
-/* Discord-style panel rail: the sidebar + rail share one flex wrapper so the
+/* Icon rail: the sidebar + rail share one flex wrapper so the
    aside flexes and the rail stays a fixed-width full-height column beside it. */
 .panel-sidebar-wrap {
   flex: 1;
@@ -127,7 +127,7 @@
   overflow-x: hidden;
 }
 .panel-rail::-webkit-scrollbar { width: 0; }
-/* Slot wraps the (overflow-hidden) button so the Discord-style hover pill can sit
+/* Slot wraps the (overflow-hidden) button so the hover pill can sit
    in the right gutter without being clipped. */
 .panel-rail-slot {
   position: relative;

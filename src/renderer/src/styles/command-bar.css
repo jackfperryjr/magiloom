@@ -270,7 +270,7 @@
 .char-identity:hover { background: rgba(255, 255, 255, 0.05); }
 .char-identity:hover .char-avatar { border-color: var(--border-accent); }
 .char-identity:hover .char-name { color: var(--text-bright); }
-/* Discord-style: the sub-line slides from presence up to the account name */
+/* The sub-line slides from presence up to the account name */
 .char-identity:hover .char-sub.has-account .char-sub-track { transform: translateY(-16px); }
 .char-name {
   max-width: 100%;
@@ -307,7 +307,7 @@
 .char-presence { color: var(--text-muted); }
 .char-account { color: var(--text-dim); }
 
-/* Discord-style icon buttons in the character bar */
+/* Icon buttons in the character bar */
 .char-actions {
   display: flex;
   align-items: center;
@@ -356,7 +356,7 @@
   position: absolute; left: 50%; top: 50%;
   /* content-box so the border adds AROUND the red core (border-box would eat
      the 2px core down to nothing). The border matches the button surface, so
-     the slash reads as a cut-out gap over the icon — Discord muted-mic style. */
+     the slash reads as a cut-out gap over the icon, like a muted-mic badge. */
   box-sizing: content-box;
   width: 22px; height: 2px; border-radius: 3px;
   background: currentColor;

@@ -78,7 +78,7 @@
   --map-room:       #2a2456;
   --map-room-hover: #39337a;
   /* Connectors are pitched against the sheet, not against a panel: several themes
-     set --border almost black (Discord's is darker than its own map sheet), which
+     set --border almost black (darker than the map sheet it sits on), which
      left the streets all but invisible once the map got its own surface. */
   --map-line:       #5f58a8;
 
