@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import { expandAlias, type Alias } from '../../../lib/automation'
 import { ClassToggleStrip, distinctClasses } from '../ClassToggleStrip'
 import { RuleTester, NoMatch } from '../RuleTester'
+import { Toggle } from './Field'
 import { uid } from './util'
 
 // Settings → Aliases: first-word command aliases (with %-args) + user variables.
@@ -19,7 +20,8 @@ export function AliasesTab({
 }) {
   return (
     <>
-    <div className="settings-section">
+    {/* Wide: rule rows are a line of fields, not a label/control pair. */}
+    <div className="settings-section settings-section-wide">
       <div className="rule-header">
         <span className="settings-section-label">Aliases</span>
         <button className="login-btn-secondary rule-import-btn" onClick={importGenie}>Import…</button>
@@ -32,11 +34,11 @@ export function AliasesTab({
         )}
         {aliases.map(a => (
           <div key={a.id} className={'rule-row' + (a.enabled ? '' : ' rule-row-off')}>
-            <input
-              type="checkbox"
+            <Toggle
               checked={a.enabled}
-              title="Enabled"
-              onChange={e => setAliases(list => list.map(x => x.id === a.id ? { ...x, enabled: e.target.checked } : x))}
+              size="sm"
+              label="Enabled"
+              onChange={v => setAliases(list => list.map(x => x.id === a.id ? { ...x, enabled: v } : x))}
             />
             <input
               className="settings-input settings-input-mono rule-key"
@@ -56,12 +58,12 @@ export function AliasesTab({
             <input
               className="settings-input settings-input-mono rule-class"
               placeholder="class"
-              title="Class (optional) — toggle groups on/off"
+              data-tooltip="Class (optional) — toggle groups on/off"
               value={a.class ?? ''}
               spellCheck={false}
               onChange={e => setAliases(list => list.map(x => x.id === a.id ? { ...x, class: e.target.value.trim() || undefined } : x))}
             />
-            <button className="hl-btn-icon hl-btn-delete" title="Delete"
+            <button className="hl-btn-icon hl-btn-delete" data-tooltip="Delete"
               onClick={() => setAliases(list => list.filter(x => x.id !== a.id))}>×</button>
           </div>
         ))}
@@ -93,7 +95,7 @@ export function AliasesTab({
       </div>
     </div>
 
-    <div className="settings-section">
+    <div className="settings-section settings-section-wide">
       <div className="settings-section-label">Variables</div>
       <div className="rule-list">
         {vars.length === 0 && (

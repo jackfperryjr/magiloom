@@ -67,7 +67,7 @@ export interface OutputLine {
   links?:     LinkSpan[]
   bolds?:     string[]   // inline-bold substrings within `text`
   separator?: boolean
-  divider?:   string   // labeled separator line (e.g. "Disconnected"), Discord-style
+  divider?:   string   // labeled separator line (e.g. "Disconnected")
   speaker?:   string   // for conversation lines: who is talking (for the avatar)
   look?:      { name: string; lines: string[] }  // LOOK-at-player block: portrait card
 }
@@ -119,7 +119,7 @@ function appendDedup(lines: OutputLine[], line: OutputLine, max: number = _outpu
 // Main game output (stream = 'main' + echoes)
 export const outputLinesAtom  = atom<OutputLine[]>([])
 
-// Append a Discord-style "Disconnected" divider to the main output, marking
+// Append a labeled "Disconnected" divider to the main output, marking
 // where the connection dropped. Guarded so repeated disconnect events (or a
 // disconnect with no intervening output) don't stack multiple dividers.
 export const appendDisconnectNoticeAtom = atom(null, (get, set) => {

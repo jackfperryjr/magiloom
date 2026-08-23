@@ -42,7 +42,7 @@
 .exp-group-head:first-child td { padding-top: 2px; }
 
 /* ── Conversation / inventory lines ─────────────────────────────────────── */
-/* ── Conversation panel (Discord-style chat) ─────────────────────────────── */
+/* ── Conversation panel (grouped chat bubbles) ───────────────────────────── */
 .conv-msg { display: flex; gap: 9px; align-items: flex-start; padding: 4px 0; }
 .conv-avatar {
   width: 34px; height: 34px; flex: 0 0 34px;
@@ -109,7 +109,7 @@
   cursor: col-resize;
   background: transparent;
   flex-shrink: 0;
-  /* Single thin hairline seam (Discord separates columns with contrast, not a bar) */
+  /* Single thin hairline seam — columns separate by contrast, not by a bar */
   border: none;
   transition: background .15s, border-color .15s;
   z-index: 10;
@@ -321,7 +321,7 @@
 
 /* ── Settings version label ──────────────────────────────────────────────── */
 .settings-version {
-  font-size: 11px; color: var(--text-muted);
+  font-size: 13px; color: var(--text-muted);
   margin-right: auto;
 }
 

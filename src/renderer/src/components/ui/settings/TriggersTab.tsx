@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import { matchTriggers, type Trigger } from '../../../lib/automation'
 import { ClassToggleStrip, distinctClasses } from '../ClassToggleStrip'
 import { RuleTester, RegexWarning, NoMatch } from '../RuleTester'
+import { Toggle } from './Field'
 import { uid } from './util'
 
 // Settings → Triggers: run a command when a line of game text matches.
@@ -16,7 +17,8 @@ export function TriggersTab({
   importMsg:   string
 }) {
   return (
-    <div className="settings-section">
+    // Wide: rule rows are a line of fields, not a label/control pair.
+    <div className="settings-section settings-section-wide">
       <div className="rule-header">
         <span className="settings-section-label">Triggers</span>
         <button className="login-btn-secondary rule-import-btn" onClick={importGenie}>Import…</button>
@@ -29,11 +31,11 @@ export function TriggersTab({
         )}
         {triggers.map(t => (
           <div key={t.id} className={'rule-row' + (t.enabled ? '' : ' rule-row-off')}>
-            <input
-              type="checkbox"
+            <Toggle
               checked={t.enabled}
-              title="Enabled"
-              onChange={e => setTriggers(list => list.map(x => x.id === t.id ? { ...x, enabled: e.target.checked } : x))}
+              size="sm"
+              label="Enabled"
+              onChange={v => setTriggers(list => list.map(x => x.id === t.id ? { ...x, enabled: v } : x))}
             />
             <input
               className="settings-input settings-input-mono"
@@ -42,14 +44,15 @@ export function TriggersTab({
               spellCheck={false}
               onChange={e => setTriggers(list => list.map(x => x.id === t.id ? { ...x, pattern: e.target.value } : x))}
             />
-            <label className="rule-regex" title="Regular expression">
-              <input
-                type="checkbox"
+            <span className="rule-regex" data-tooltip="Regular expression">
+              <span>.*</span>
+              <Toggle
                 checked={t.isRegex}
-                onChange={e => setTriggers(list => list.map(x => x.id === t.id ? { ...x, isRegex: e.target.checked } : x))}
+                size="sm"
+                label="Regular expression"
+                onChange={v => setTriggers(list => list.map(x => x.id === t.id ? { ...x, isRegex: v } : x))}
               />
-              .*
-            </label>
+            </span>
             <span className="rule-arrow">→</span>
             <input
               className="settings-input settings-input-mono"
@@ -61,12 +64,12 @@ export function TriggersTab({
             <input
               className="settings-input settings-input-mono rule-class"
               placeholder="class"
-              title="Class (optional) — toggle groups on/off"
+              data-tooltip="Class (optional) — toggle groups on/off"
               value={t.class ?? ''}
               spellCheck={false}
               onChange={e => setTriggers(list => list.map(x => x.id === t.id ? { ...x, class: e.target.value.trim() || undefined } : x))}
             />
-            <button className="hl-btn-icon hl-btn-delete" title="Delete"
+            <button className="hl-btn-icon hl-btn-delete" data-tooltip="Delete"
               onClick={() => setTriggers(list => list.filter(x => x.id !== t.id))}>×</button>
             <RegexWarning pattern={t.pattern} isRegex={t.isRegex} />
           </div>

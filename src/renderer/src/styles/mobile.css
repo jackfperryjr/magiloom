@@ -63,6 +63,29 @@
     border-radius: 16px 16px 0 0;
     animation: magiloom-slide-up .28s cubic-bezier(0.16, 1, 0.3, 1);
   }
+  /* Settings is the exception: it stays a full-screen page rather than a sheet.
+     It's the deepest screen in the app (eight tabs, file editors), and a 94dvh
+     sheet would spend the scarcest rows on a peek of the game behind it. */
+  .modal-overlay > .settings-modal {
+    max-height: 100dvh; height: 100dvh;
+    border-radius: 0;
+  }
+  /* One column, and the nav becomes a scrolling strip across the top — a 188px
+     rail would eat half a phone's width. */
+  .settings-layout { flex-direction: column; }
+  .settings-nav {
+    width: 100%;
+    flex-direction: row;
+    gap: 4px;
+    padding: 8px 10px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .settings-nav-item { flex: 0 0 auto; white-space: nowrap; }
+  .settings-content { padding: 14px 16px 22px; gap: 18px; }
+
   /* The character menu rises from the avatar with the same motion. */
   .char-menu { animation: magiloom-slide-up .24s cubic-bezier(0.16, 1, 0.3, 1); }
 }

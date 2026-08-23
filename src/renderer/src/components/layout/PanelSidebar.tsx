@@ -224,7 +224,7 @@ function Panel({
   )
 }
 
-// ── Discord-style panel rail ────────────────────────────────────────────────────
+// ── Panel icon rail ─────────────────────────────────────────────────────────────
 // A narrow full-height rail beside the sidebar with one icon per open panel.
 // Clicking an icon scrolls that panel into view. The conversation icon shows an
 // unread dot when new lines arrive while its panel is off-screen; the dot clears
@@ -332,7 +332,7 @@ function PanelRail({ panels, scrollRef, onSelect, openPanel, onManage, manageBtn
           </span>
         </Tooltip>
       ))}
-      {/* Discord-style "add" button — opens the add/remove-panels manager. Always
+      {/* The "add" button — opens the add/remove-panels manager. Always
           present, so panels can be re-added even when none are showing (and it works
           on mobile, where the sidebar header is hidden). */}
       <Tooltip text="Add or remove panels" placement="left">

@@ -258,7 +258,7 @@ const convTime = (ts: number): string => {
 }
 
 // Group consecutive lines from the same speaker AND message type into one chat
-// bubble, so the avatar + header show once per turn (Discord-style). Lines with
+// bubble, so the avatar + header show once per turn. Lines with
 // no detected speaker stand on their own as plain system text.
 function groupConversation(lines: OutputLine[]): { speaker?: string; preset?: string; target?: string; lines: OutputLine[] }[] {
   const groups: { speaker?: string; preset?: string; target?: string; lines: OutputLine[] }[] = []

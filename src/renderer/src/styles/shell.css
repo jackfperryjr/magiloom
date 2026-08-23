@@ -43,7 +43,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  /* Discord "message area": a lighter content surface, square and edge-to-separator */
+  /* Message area: a lighter content surface, square and edge-to-separator */
   background: var(--bg-panel);
 }
 
