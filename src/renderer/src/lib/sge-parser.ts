@@ -338,9 +338,12 @@ export function parseLine(raw: string): GameEvent[] {
     // preserving leading whitespace so the game's ASCII framing stays aligned.
     // Must run before the trim + lich-table routing below, which would otherwise
     // strip the indentation and split the box across streams.
+    // The stream is whatever is currently open, NOT always main: DR sends the worn-item
+    // refresh (and other side-panel feeds) as bare indented lines, and hardcoding 'main'
+    // here dumped the whole list into the game window every time mono was on.
     if (_monoMode) {
       const monoText = decodeEntities(raw).replace(/[\r\n]+$/, '')
-      if (monoText.trim()) events.push({ type: 'text', text: monoText, styles: [{ preset: 'mono' }], stream: 'main' })
+      if (monoText.trim()) events.push({ type: 'text', text: monoText, styles: [{ preset: 'mono' }], stream: _stream })
       return events
     }
     const text = decodeEntities(raw).trim()
@@ -863,6 +866,11 @@ export function parseLine(raw: string): GameEvent[] {
         // without this reset the stream would stay stuck (e.g. every line after a
         // combat hit — room arrivals, prompts — would keep routing to combat).
         _stream = 'main'
+        // Same reasoning for the mono toggle: an ASCII block (register, map, table)
+        // is answered and finished within one server message, so a prompt is proof
+        // its closing tag isn't coming. Without this a single missed close leaves
+        // every later line rendering as preformatted text.
+        _monoMode = false
         events.push({ type: 'prompt', time: parseInt(attrs['time'] ?? '0', 10) })
         break
       case '/prompt':
@@ -950,6 +958,14 @@ export function parseLine(raw: string): GameEvent[] {
       case 'output':
         flush()
         _monoMode = (attrs['class'] ?? '').toLowerCase().includes('mono')
+        break
+      // DR normally ends a block by re-opening the tag with an empty class, but it
+      // also closes some of them the ordinary way. Without this the toggle is
+      // one-way: mono stays on for the rest of the session, and every tag-free line
+      // after it renders verbatim (see the plain-text branch above).
+      case '/output':
+        flush()
+        _monoMode = false
         break
 
       // ── Body injuries: <dialogData id='injuries'><image id='head' name='Injury1'/>…</dialogData> ──

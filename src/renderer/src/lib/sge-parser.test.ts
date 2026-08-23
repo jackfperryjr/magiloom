@@ -84,6 +84,58 @@ eq('thoughts gets its own stream',  streamOf('thoughts'),     'thoughts')
 eq('combat still routes to combat', streamOf('combat'),       'combat')
 eq('an unknown stream falls back to main', streamOf('nosuchstream'), 'main')
 
+// ── Monospace blocks ─────────────────────────────────────────────────────────
+// <output class="mono"/> makes DR's ASCII blocks (guild registers, maps, tables)
+// render verbatim, indentation and all. Two things about it have to hold, because
+// together they leaked DR's worn-item refresh into the game window: the toggle has
+// to turn back OFF, and while it's on it must not steal text from other streams.
+/** Text events (stream + text) from a sequence of lines, past the login phase. */
+function feed(lines: string[]): { stream: string; text: string }[] {
+  resetParser()
+  parseLine('<prompt time="1">&gt;</prompt>')
+  return lines.flatMap(l => parseLine(l))
+    .filter((e): e is Extract<GameEvent, { type: 'text' }> => e.type === 'text')
+    .map(e => ({ stream: e.stream, text: e.text }))
+}
+
+// The worn-item refresh DR sends after every wear/remove/stow: bare indented lines
+// on the inv stream, which belong to the Inventory panel and nowhere else.
+const WORN = [
+  "<pushStream id='inv'/>\n",
+  '  a pair of copper zills\n',
+  '  some faded silk slippers\n',
+  '<popStream/>\n',
+  'You slide a pair of copper zills onto your finger.\n',
+]
+
+{
+  const out = feed(['<output class="mono"/>\n', '  +----+\n'])
+  eq('a mono line keeps its indentation', out[0]?.text, '  +----+')
+  eq('and stays on main when main is open', out[0]?.stream, 'main')
+}
+{
+  const out = feed(['<output class="mono"/>\n', ...WORN])
+  eq('mono does not pull inv text into main', out.filter(l => l.stream === 'inv').length, 2)
+  eq('the action line is still main', out[out.length - 1]?.stream, 'main')
+}
+// DR closes the block by re-opening the tag empty, but a plain close has to work
+// too — the toggle used to be one-way, so one missed close stuck for the session.
+eq(
+  'an empty class ends mono',
+  feed(['<output class="mono"/>\n', '<output class=""/>\n', '  a pair of copper zills\n'])[0]?.text,
+  'a pair of copper zills',
+)
+eq(
+  'a closing tag ends mono',
+  feed(['<output class="mono"/>\n', '</output>\n', '  a pair of copper zills\n'])[0]?.text,
+  'a pair of copper zills',
+)
+eq(
+  'a prompt ends mono',
+  feed(['<output class="mono"/>\n', '<prompt time="2">&gt;</prompt>\n', '  a pair of copper zills\n'])[0]?.text,
+  'a pair of copper zills',
+)
+
 // ── Exp components ───────────────────────────────────────────────────────────
 /** Parse one exp component and return the single exp event it produced. */
 function expEvent(id: string, body: string): GameEvent | undefined {
