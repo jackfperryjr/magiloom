@@ -186,6 +186,88 @@ export function childrenOf(snapshot: InvSnapshot, parentId: string): InvItem[] {
   return out
 }
 
+// ── Sorting ───────────────────────────────────────────────────────────────────
+
+export type InvSortKey = 'location' | 'name' | 'weight' | 'contents' | 'capacity'
+export type InvSortDir = 'asc' | 'desc'
+export interface InvSort { key: InvSortKey; dir: InvSortDir }
+
+/** Location order is the server's own depth-first order — the tree as the game sees it. */
+export const DEFAULT_SORT: InvSort = { key: 'location', dir: 'asc' }
+
+/** Which direction reads as "most interesting first" when a key is first chosen. */
+export const NATURAL_DIR: Record<InvSortKey, InvSortDir> = {
+  location: 'asc', name: 'asc', weight: 'desc', contents: 'desc', capacity: 'desc',
+}
+
+const SORT_KEYS = new Set<string>(Object.keys(NATURAL_DIR))
+
+/** Guard for a sort read back out of stored settings, which could be anything. */
+export function isInvSort(value: unknown): value is InvSort {
+  if (!value || typeof value !== 'object') return false
+  const { key, dir } = value as Record<string, unknown>
+  return typeof key === 'string' && SORT_KEYS.has(key) && (dir === 'asc' || dir === 'desc')
+}
+
+interface SortEntry { item: InvItem; index: number; num: number | null }
+
+/**
+ * Sort one row of siblings.
+ *
+ * Siblings, not the whole tree: an item's position is only meaningful under its own
+ * container, so sorting is applied at each level and the nesting survives. Sorting
+ * the flattened rows instead would scatter a pack's contents away from the pack.
+ *
+ * Two rules the callers rely on:
+ *
+ * 1. Items with no value for the key — an unknown weight, a non-container under
+ *    "Holds" — always sink to the bottom, in both directions. Reversing the order
+ *    should not float the blanks to the top.
+ * 2. Ties fall back to the name, then to the server's order, so the list is stable
+ *    and repeatable rather than shuffling between refreshes.
+ *
+ * The sort value is computed once per item rather than inside the comparator:
+ * `childrenOf` walks the whole snapshot, so reading it per comparison would turn a
+ * pack rat's inventory into an O(n² log n) render.
+ */
+export function sortItems(snapshot: InvSnapshot, items: InvItem[], sort: InvSort): InvItem[] {
+  if (sort.key === 'location') return sort.dir === 'desc' ? items.slice().reverse() : items.slice()
+
+  const byName = (a: InvItem, b: InvItem): number =>
+    // The bare noun first: in DR nearly every name begins with "a"/"some", so sorting
+    // on the display name just files the whole inventory under A.
+    a.noun.localeCompare(b.noun, undefined, { numeric: true }) ||
+    a.name.localeCompare(b.name, undefined, { numeric: true })
+
+  const value = (item: InvItem): number | null => {
+    switch (sort.key) {
+      case 'weight':   return weightOf(item)
+      case 'capacity': return capacityOf(item)
+      case 'contents': return isContainer(item) ? childrenOf(snapshot, item.id).length : null
+      default:         return null      // 'name' sorts on text; 'location' returned above
+    }
+  }
+
+  const dir = sort.dir === 'desc' ? -1 : 1
+  const entries: SortEntry[] = items.map((item, index) => ({ item, index, num: value(item) }))
+
+  entries.sort((a, b) => {
+    if (sort.key !== 'name') {
+      if (a.num === null || b.num === null) {
+        if (a.num !== b.num) return a.num === null ? 1 : -1
+      } else if (a.num !== b.num) {
+        return (a.num - b.num) * dir
+      }
+    } else {
+      const cmp = byName(a.item, b.item) * dir
+      if (cmp !== 0) return cmp
+    }
+    return byName(a.item, b.item) || a.index - b.index
+  })
+
+  return entries.map(e => e.item)
+}
+
 // ── At-a-glance summary ───────────────────────────────────────────────────────
 
 export interface CarriedSummary {
