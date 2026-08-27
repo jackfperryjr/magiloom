@@ -13,7 +13,8 @@
 import { parseLine, resetParser, type GameEvent, type InvEnvelope } from './sge-parser'
 import {
   InvAssembler, parseInvItem, validateTree, pathTo, isContainer, isClosed, isFixed,
-  depthOf, isBuried, childrenOf, summarizeCarried, type InvItem, type InvSnapshot,
+  depthOf, isBuried, childrenOf, summarizeCarried, sortItems, isInvSort, PLAYER,
+  type InvItem, type InvSnapshot, type InvSortKey, type InvSortDir,
 } from './inventory'
 
 let passed = 0
@@ -197,6 +198,61 @@ resetParser()
   )
   const sum = summarizeCarried(snap)
   eq('containers sort fullest first', sum.containers.map(c => c.item.noun).join(','), 'pouch,satchel')
+}
+
+// ── Sorting ───────────────────────────────────────────────────────────────────
+{
+  // A deliberately awkward spread: an item with an unknown weight, a container
+  // holding nothing, and a plain garment that is not a container at all — the three
+  // cases where a key has no value to sort on.
+  const snap = snapshotOf(
+    "<inventoryManager id='s' room='84105'>" +
+    `<i id='60' loc='worn,player' name="a,,satchel" weight='10' in_max='500'/>` +
+    `<i id='61' loc='in,60' name="a,,rock" weight='7'/>` +
+    `<i id='62' loc='in,60' name="an ancient,silver,amulet" weight='2'/>` +
+    `<i id='63' loc='worn,player' name="a,,cloak" weight='30'/>` +
+    `<i id='64' loc='worn,player' name="a,,belt" weight='4' in_max='120'/>` +
+    `<i id='65' loc='worn,player' name="a,,anklet" weight='-1'/>` +
+    '</inventoryManager>',
+  )
+  const worn = [...snap.items.values()].filter(i => i.parent === PLAYER)
+  const by = (key: InvSortKey, dir: InvSortDir): string =>
+    sortItems(snap, worn, { key, dir }).map(i => i.noun).join(',')
+
+  eq('location sorting leaves the game’s order alone', by('location', 'asc'), 'satchel,cloak,belt,anklet')
+  eq('… and reverses on demand',                       by('location', 'desc'), 'anklet,belt,cloak,satchel')
+
+  // Names begin with "a"/"some" almost universally in DR, so sorting on the display
+  // name would file the whole inventory under A. The noun is what people read.
+  eq('name sorts by the noun', by('name', 'asc'), 'anklet,belt,cloak,satchel')
+  eq('… and reverses',         by('name', 'desc'), 'satchel,cloak,belt,anklet')
+  eq('the noun wins over the leading adjectives',
+     sortItems(snap, childrenOf(snap, '60'), { key: 'name', dir: 'asc' }).map(i => i.noun).join(','),
+     'amulet,rock')
+
+  eq('weight sorts heaviest first', by('weight', 'desc'), 'cloak,satchel,belt,anklet')
+  // The bug this guards: reversing must not float the blanks to the top. An unknown
+  // weight is not "the lightest thing you own", it is a thing we know nothing about.
+  eq('… and unknown weights stay at the bottom either way', by('weight', 'asc'), 'belt,satchel,cloak,anklet')
+
+  // Non-containers have no capacity at all — different from a capacity of zero — so
+  // they sink, and tie among themselves by name.
+  eq('capacity sorts roomiest first', by('capacity', 'desc'), 'satchel,belt,anklet,cloak')
+  eq('… and non-containers still sink when reversed', by('capacity', 'asc'), 'belt,satchel,anklet,cloak')
+
+  // The belt IS a container, just an empty one, so it ranks above the things that
+  // can't hold anything rather than beside them.
+  eq('contents sorts fullest first', by('contents', 'desc'), 'satchel,belt,anklet,cloak')
+  eq('an empty container still outranks a non-container', by('contents', 'asc'), 'belt,satchel,anklet,cloak')
+
+  const before = worn.map(i => i.id).join(',')
+  sortItems(snap, worn, { key: 'weight', dir: 'desc' })
+  eq('sorting does not disturb the caller’s array', worn.map(i => i.id).join(','), before)
+
+  check('a stored sort is accepted', isInvSort({ key: 'weight', dir: 'desc' }))
+  check('an unknown key is not', !isInvSort({ key: 'colour', dir: 'desc' }))
+  check('a bad direction is not', !isInvSort({ key: 'weight', dir: 'sideways' }))
+  check('junk is not', !isInvSort('weight'))
 }
 
 // ── Items in the room ─────────────────────────────────────────────────────────

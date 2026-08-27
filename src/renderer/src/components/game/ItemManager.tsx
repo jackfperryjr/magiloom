@@ -8,8 +8,9 @@ import {
   invSnapshotAtom, invStatusAtom, invErrorAtom, invPendingAtom, refreshInventoryAtom,
 } from '../../store/inventory'
 import {
-  type InvItem, type InvSnapshot, PLAYER, ROOM,
+  type InvItem, type InvSnapshot, type InvSort, type InvSortKey, PLAYER, ROOM,
   isContainer, isClosed, weightOf, capacityOf, childrenOf,
+  sortItems, isInvSort, DEFAULT_SORT, NATURAL_DIR,
 } from '../../lib/inventory'
 import { actionsFor, destinationsFor, putIn } from '../../lib/inventoryCommands'
 
@@ -97,6 +98,42 @@ const COLUMNS = {
   capacity: { label: 'Holds',  hint: 'How much this container can hold, in the game’s raw units. Blank means it isn’t a container.' },
 } as const
 
+// ── Sorting ───────────────────────────────────────────────────────────────────
+// Sorting reorders siblings and leaves the nesting alone (see sortItems), so these
+// apply just as well to the cards, where the tree is implied rather than drawn.
+const SORTS: { key: InvSortKey; label: string; hint: string }[] = [
+  { key: 'location', label: 'Location', hint: 'The game’s own order — held, then worn, in the order it lists them.' },
+  { key: 'name',     label: 'Name',     hint: 'By the item’s noun, so “a rugged brown backpack” files under B rather than A.' },
+  { key: 'weight',   label: 'Weight',   hint: 'By the item’s own weight. Unknown weights sit at the bottom.' },
+  { key: 'contents', label: 'Items',    hint: 'By how many things are directly inside. Anything that isn’t a container sits at the bottom.' },
+  { key: 'capacity', label: 'Holds',    hint: 'By how much the container can hold. Anything that isn’t a container sits at the bottom.' },
+]
+
+const sortLabel = (key: InvSortKey): string => SORTS.find(s => s.key === key)?.label ?? key
+
+const ariaSort = (sort: InvSort, key: InvSortKey): 'ascending' | 'descending' | 'none' =>
+  sort.key !== key ? 'none' : sort.dir === 'asc' ? 'ascending' : 'descending'
+
+/**
+ * A column heading that sorts by its own column. The caret's space is held even when
+ * the column isn't the active one, so switching columns doesn't shuffle the widths.
+ */
+function SortHeader({ sort, sortKey, label, hint, onSort }: {
+  sort: InvSort; sortKey: InvSortKey; label: string; hint: string; onSort: (k: InvSortKey) => void
+}) {
+  const on = sort.key === sortKey
+  return (
+    <button
+      className={'inv-mgr-sortbtn' + (on ? ' inv-mgr-sortbtn-on' : '')}
+      data-tooltip={`${hint} Click to sort by this.`}
+      onClick={() => onSort(sortKey)}
+    >
+      <span>{label}</span>
+      <span className="inv-mgr-caret" aria-hidden="true">{on ? (sort.dir === 'asc' ? '▲' : '▼') : ''}</span>
+    </button>
+  )
+}
+
 function EyeIcon({ off = false }: { off?: boolean }) {
   return (
     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
@@ -111,13 +148,13 @@ function EyeIcon({ off = false }: { off?: boolean }) {
 // ── Rows ──────────────────────────────────────────────────────────────────────
 interface Row { item: InvItem; depth: number }
 
-/** Flatten a container's subtree into rows, honouring collapse state. */
-function rowsUnder(snapshot: InvSnapshot, parentId: string, depth: number, collapsed: Set<string>, visible: Set<string> | null): Row[] {
+/** Flatten a container's subtree into rows, honouring collapse state and sort. */
+function rowsUnder(snapshot: InvSnapshot, parentId: string, depth: number, collapsed: Set<string>, visible: Set<string> | null, sort: InvSort): Row[] {
   const out: Row[] = []
-  for (const child of childrenOf(snapshot, parentId)) {
+  for (const child of sortItems(snapshot, childrenOf(snapshot, parentId), sort)) {
     if (visible && !visible.has(child.id)) continue
     out.push({ item: child, depth })
-    if (!collapsed.has(child.id)) out.push(...rowsUnder(snapshot, child.id, depth + 1, collapsed, visible))
+    if (!collapsed.has(child.id)) out.push(...rowsUnder(snapshot, child.id, depth + 1, collapsed, visible, sort))
   }
   return out
 }
@@ -146,34 +183,45 @@ function matchingIds(snapshot: InvSnapshot, filter: string): Set<string> | null 
   return keep
 }
 
-// ── List / Cards preference ───────────────────────────────────────────────────
+// ── Layout preferences ────────────────────────────────────────────────────────
 type ItemView = 'table' | 'cards'
 
+interface ItemPrefs {
+  view: ItemView; setView: (v: ItemView) => void
+  sort: InvSort;  setSort: (s: InvSort) => void
+}
+
 /**
- * Remembers the chosen view in global settings, not per character — which layout
- * someone finds readable is about them, not about who they're playing.
+ * Remembers the chosen view and sort in global settings, not per character — which
+ * layout someone finds readable is about them, not about who they're playing.
  *
- * Reads once on mount and writes through on change. The initial render uses 'table'
- * until the stored value arrives; that's a frame or two on open, and it beats
- * blocking the panel on a settings round-trip.
+ * Reads once on mount and writes through on change. The initial render uses the
+ * defaults until the stored values arrive; that's a frame or two on open, and it
+ * beats blocking the panel on a settings round-trip. The stored sort is validated
+ * rather than trusted, since settings.json is a file a user can hand-edit.
  */
-function useItemView(): [ItemView, (v: ItemView) => void] {
+function useItemPrefs(): ItemPrefs {
   const [view, setView] = useState<ItemView>('table')
+  const [sort, setSort] = useState<InvSort>(DEFAULT_SORT)
 
   useEffect(() => {
     let live = true
     window.dr?.settings?.getAll?.().then(all => {
-      const saved = all?.itemManagerView
-      if (live && (saved === 'table' || saved === 'cards')) setView(saved)
-    }).catch(() => { /* no stored preference — the default stands */ })
+      if (!live) return
+      const savedView = all?.itemManagerView
+      if (savedView === 'table' || savedView === 'cards') setView(savedView)
+      const savedSort = all?.itemManagerSort
+      if (isInvSort(savedSort)) setSort(savedSort)
+    }).catch(() => { /* no stored preference — the defaults stand */ })
     return () => { live = false }
   }, [])
 
-  const choose = (next: ItemView): void => {
-    setView(next)
-    window.dr?.settings?.patch?.({ itemManagerView: next })
+  return {
+    view,
+    setView: next => { setView(next); window.dr?.settings?.patch?.({ itemManagerView: next }) },
+    sort,
+    setSort: next => { setSort(next); window.dr?.settings?.patch?.({ itemManagerSort: next }) },
   }
-  return [view, choose]
 }
 
 // ── The view ──────────────────────────────────────────────────────────────────
@@ -191,7 +239,7 @@ function ItemManagerBody({ detached, onDetach, onAttach, onClose }: {
   const [selectedId, setSelected] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [hidden, setHidden]       = useState<Set<GroupId>>(new Set())
-  const [view, setView]           = useItemView()
+  const { view, setView, sort, setSort } = useItemPrefs()
   const [sent, setSent]           = useState('')
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -233,19 +281,33 @@ function ItemManagerBody({ detached, onDetach, onAttach, onClose }: {
   const groups = useMemo(() => {
     if (!snapshot) return []
     return GROUPS.map(group => {
-      const roots: Row[] = []
-      for (const item of snapshot.items.values()) {
-        if (groupOf(item) !== group.id) continue
+      // Sorting happens per group, so "heaviest first" ranks what you're wearing
+      // against the rest of what you're wearing — not against a rock on the ground.
+      const tops = [...snapshot.items.values()].filter(item => groupOf(item) === group.id)
+      const rows: Row[] = []
+      for (const item of sortItems(snapshot, tops, sort)) {
         if (visible && !visible.has(item.id)) continue
-        roots.push({ item, depth: 0 })
-        if (!collapsed.has(item.id)) roots.push(...rowsUnder(snapshot, item.id, 1, collapsed, visible))
+        rows.push({ item, depth: 0 })
+        if (!collapsed.has(item.id)) rows.push(...rowsUnder(snapshot, item.id, 1, collapsed, visible, sort))
       }
-      return { ...group, rows: roots }
+      return { ...group, rows }
     }).filter(g => g.rows.length > 0)
-  }, [snapshot, visible, collapsed])
+  }, [snapshot, visible, collapsed, sort])
 
   const shown      = groups.filter(g => !hidden.has(g.id))
   const totalShown = shown.reduce((n, g) => n + g.rows.length, 0)
+
+  // Picking a different key uses that key's natural direction — heaviest first, but
+  // names A→Z; picking the current key again flips it. The select and the column
+  // headers both come through here, so the two can never disagree.
+  const chooseSort = (key: InvSortKey): void => setSort(
+    key === sort.key ? { key, dir: sort.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: NATURAL_DIR[key] },
+  )
+
+  const dirLabel =
+    sort.key === 'location' ? (sort.dir === 'asc' ? 'Game order' : 'Reversed')
+    : sort.key === 'name'   ? (sort.dir === 'asc' ? 'A → Z' : 'Z → A')
+    : sort.dir === 'asc'    ? 'Lowest first' : 'Highest first'
 
   const toggleGroup = (id: GroupId): void => setHidden(prev => {
     const next = new Set(prev)
@@ -294,6 +356,25 @@ function ItemManagerBody({ detached, onDetach, onAttach, onClose }: {
           onChange={e => setFilter(e.target.value)}
         />
         {filter && <span className="inv-mgr-count">{totalShown} shown</span>}
+        <div className="inv-mgr-sort">
+          <label className="inv-mgr-sort-label" htmlFor="inv-sort">Sort</label>
+          <select
+            id="inv-sort"
+            className="inv-mgr-sort-select"
+            value={sort.key}
+            data-tooltip={SORTS.find(s => s.key === sort.key)?.hint}
+            onChange={e => chooseSort(e.target.value as InvSortKey)}
+          >
+            {SORTS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
+          <Tooltip text={`${dirLabel} — click to reverse`}>
+            <button
+              className="inv-mgr-sortdir"
+              aria-label={`Sorted by ${sortLabel(sort.key).toLowerCase()}, ${dirLabel.toLowerCase()}. Reverse.`}
+              onClick={() => chooseSort(sort.key)}
+            >{sort.dir === 'asc' ? '↑' : '↓'}</button>
+          </Tooltip>
+        </div>
         <div className="inv-mgr-viewtoggle" role="group" aria-label="View">
           {(['table', 'cards'] as const).map(mode => (
             <button
@@ -345,10 +426,18 @@ function ItemManagerBody({ detached, onDetach, onAttach, onClose }: {
                 <table className="inv-mgr-table">
                   <thead>
                     <tr>
-                      <th scope="col" className="inv-mgr-th-name">Item</th>
+                      <th scope="col" className="inv-mgr-th-name" aria-sort={ariaSort(sort, 'name')}>
+                        <SortHeader sort={sort} sortKey="name" label="Item" hint={SORTS[1].hint} onSort={chooseSort} />
+                      </th>
                       {(['contents', 'weight', 'capacity'] as const).map(key => (
-                        <th key={key} scope="col" className="inv-mgr-th-num">
-                          <span data-tooltip={COLUMNS[key].hint}>{COLUMNS[key].label}</span>
+                        <th key={key} scope="col" className="inv-mgr-th-num" aria-sort={ariaSort(sort, key)}>
+                          <SortHeader
+                            sort={sort}
+                            sortKey={key}
+                            label={COLUMNS[key].label}
+                            hint={COLUMNS[key].hint}
+                            onSort={chooseSort}
+                          />
                         </th>
                       ))}
                     </tr>
