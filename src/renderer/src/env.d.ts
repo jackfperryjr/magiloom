@@ -18,6 +18,14 @@ interface LoginPath {
   usedAt:       number
 }
 
+/** A click-to-run button in the Scripts panel — see lib/quickActions.ts. */
+interface QuickAction {
+  id:     string
+  label:  string
+  kind:   'command' | 'cmd' | 'lich'
+  target: string
+}
+
 interface AppSettings {
   lichPath:         string
   connectWithLich?: boolean            // login toggle: route this session through Lich
@@ -34,6 +42,7 @@ interface AppSettings {
   density:          'cozy' | 'compact'
   outputBufferSize: number
   functionKeys:     Record<string, string>
+  quickActions?:    QuickAction[]
   aliases?:         { id: string; pattern: string; command: string; enabled: boolean; class?: string }[]
   triggers?:        { id: string; pattern: string; isRegex: boolean; command: string; enabled: boolean; class?: string }[]
   highlights:       unknown[]
@@ -114,6 +123,7 @@ interface AppSettings {
 
 interface CharSettings {
   functionKeys: Record<string, string>
+  quickActions: QuickAction[]
   aliases:      NonNullable<AppSettings['aliases']>
   triggers:     NonNullable<AppSettings['triggers']>
   highlights:   unknown[]
