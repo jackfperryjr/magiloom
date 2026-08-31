@@ -709,7 +709,11 @@ export const beginSilentExpAtom = atom(null, () => {
 export const lichScriptsAtom = atom<LichScript[]>([])
 let _lichListWait   = 0
 let _lichListSilent = false
-const LICH_LIST_WINDOW = 4
+// Counted in 'lich'-stream lines, which is where the reply lands — so game text
+// can't consume the window. Generous because every running script's own chatter
+// ([name: ...]) shares that stream, and someone with six scripts up can easily
+// emit a few lines in the millisecond or two before Lich answers.
+const LICH_LIST_WINDOW = 12
 
 /** Open the read window before sending `;list`. Silent polls hide the reply. */
 export const beginLichListAtom = atom(null, (_get, _set, silent: boolean) => {
@@ -959,7 +963,12 @@ export const dispatchGameEventAtom = atom(
         }
         // Lich's `;list` reply. Only read while a poll is in flight, so ordinary
         // `--- Lich:` notices are never mistaken for a script list.
-        if (event.stream === 'main' && _lichListWait > 0) {
+        //
+        // This is the 'lich' stream, NOT 'main': the parser retags every `--- Lich:`
+        // line onto its own stream (see lichOutput in lib/sge-parser.ts) so Lich
+        // chatter can be styled apart from game text. Gating this on 'main' meant it
+        // never ran at all — the reply was neither parsed nor suppressed.
+        if (event.stream === 'lich' && _lichListWait > 0) {
           const list = parseLichList(event.text)
           if (list) {
             set(lichScriptsAtom, list)
