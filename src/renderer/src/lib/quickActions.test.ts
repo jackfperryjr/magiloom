@@ -73,6 +73,16 @@ const deepEq = (name: string, got: unknown, want: unknown): void =>
     { name: 'sloot', paused: false },
     { name: 'bigshot', paused: true },
   ])
+  // A real reply from Jack's session — six scripts, hyphens and trailing digits.
+  deepEq('a real six-script reply',
+    parseLichList('--- Lich: afk2, almanac, sanowret-crystal, t2, hunting-buddy2, combat-trainer2'), [
+      { name: 'afk2', paused: false },
+      { name: 'almanac', paused: false },
+      { name: 'sanowret-crystal', paused: false },
+      { name: 't2', paused: false },
+      { name: 'hunting-buddy2', paused: false },
+      { name: 'combat-trainer2', paused: false },
+    ])
   // Script names on disk carry dots, dashes and underscores.
   deepEq('punctuated script names', parseLichList('--- Lich: go2, my-script, an_alias.lic'), [
     { name: 'go2', paused: false },

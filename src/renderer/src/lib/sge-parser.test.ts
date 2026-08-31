@@ -84,6 +84,22 @@ eq('thoughts gets its own stream',  streamOf('thoughts'),     'thoughts')
 eq('combat still routes to combat', streamOf('combat'),       'combat')
 eq('an unknown stream falls back to main', streamOf('nosuchstream'), 'main')
 
+// Lich's own chatter is retagged onto the 'lich' stream by content, with no
+// pushStream involved. The Scripts panel's `;list` reader keys off this, and
+// gating that reader on 'main' instead silently did nothing at all — so the
+// routing is asserted here rather than assumed.
+/** The stream a bare (non-XML) line lands on, past the login phase. */
+function bareStream(text: string): string | undefined {
+  resetParser()
+  parseLine('<prompt time="1">&gt;</prompt>')
+  return parseLine(text).find(e => e.type === 'text')?.stream
+}
+eq('a --- Lich: notice routes to lich', bareStream('--- Lich: no active scripts'), 'lich')
+eq('a real ;list reply routes to lich',
+  bareStream('--- Lich: afk2, almanac, sanowret-crystal, t2, hunting-buddy2, combat-trainer2'), 'lich')
+eq('script chatter routes to lich', bareStream('[bigshot: hunting]'), 'lich')
+eq('ordinary game text still routes to main', bareStream('You see a small rock.'), 'main')
+
 // ── Monospace blocks ─────────────────────────────────────────────────────────
 // <output class="mono"/> makes DR's ASCII blocks (guild registers, maps, tables)
 // render verbatim, indentation and all. Two things about it have to hold, because
