@@ -35,7 +35,9 @@ import {
   injuryModeAtom, bodyTextModeAtom,
   classStatesAtom, disabledClassesAtom, setGagSubRules,
   logonLinesAtom, appendLogonAtom,
+  lichScriptsAtom, beginLichListAtom,
 } from './store/game'
+import { quickActionCommand, quickActionLabel, type QuickAction } from './lib/quickActions'
 import { DEFAULT_HIGHLIGHTS, type Highlight } from './lib/themes'
 import { loadCharAppearance, applyAppearance } from './lib/charSettings'
 import { IconExclamationTriangle, IconArrowDownTray } from './components/ui/Icons'
@@ -68,12 +70,15 @@ function renderPanel(id: PanelId) {
     case 'inventory':    return <InventoryPanel />
     case 'deaths':       return <DeathsPanel />
     case 'connections':  return <ConnectionsPanel />
-    case 'scripts':      return <ScriptsPanel />
     default:             return null
   }
 }
 
-// ── Native .cmd scripts side panel ────────────────────────────────────────────
+// ── Scripts side panel ────────────────────────────────────────────────────────
+// Two sections, both about *doing* rather than browsing: the quick buttons the
+// player configured (Settings → Hotkeys), and everything currently active —
+// native .cmd scripts and, when Lich is attached, Lich's own. The .cmd library
+// listing lives in Settings → Scripts; this panel deliberately doesn't repeat it.
 interface ScriptStatus { id: number; name: string; state: string }
 
 // The engine's `pause` command parks a script in a 'paused' state, but a timed
@@ -81,61 +86,145 @@ interface ScriptStatus { id: number; name: string; state: string }
 // worth flagging distinctly. Map 'paused' → 'running' for the panel.
 const scriptStateLabel = (state: string): string => (state === 'paused' ? 'running' : state)
 
-function ScriptsPanel() {
-  const [available, setAvailable] = useState<string[]>([])
-  const [running,   setRunning]   = useState<ScriptStatus[]>([])
+// How often to ask Lich what's running. Lich has no push channel for this, so a
+// poll is the only option; `;list` is instant and round-trip free of roundtime,
+// and its reply is swallowed (see beginLichListAtom), so this is invisible.
+const LICH_LIST_POLL_MS = 10_000
 
-  const refresh = useCallback(() => { window.dr.script.list().then(setAvailable) }, [])
+const FK_ORDER = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12']
+
+function ScriptsPanel({ send, echo, connected, charName }: {
+  send:      (cmd: string) => void
+  echo:      (cmd: string) => void
+  connected: boolean
+  charName:  string
+}) {
+  const [quick,   setQuick]   = useState<QuickAction[]>([])
+  const [running, setRunning] = useState<ScriptStatus[]>([])
+  const [fkeys,   setFkeys]   = useState<Record<string, string>>({})
+  const lich          = useAtomValue(lichScriptsAtom)
+  const beginLichList = useSetAtom(beginLichListAtom)
+
+  const pollLich = useCallback(() => {
+    if (!connected) return
+    beginLichList(true)
+    send(';list')
+  }, [connected, beginLichList, send])
+
+  // Quick buttons and function keys are both per-character, and both editable
+  // mid-session in Settings → Hotkeys.
+  useEffect(() => {
+    const load = () => window.dr.settings.getChar(charName).then(c => {
+      setQuick(c.quickActions || [])
+      setFkeys(c.functionKeys || {})
+    })
+    load()
+    window.addEventListener('settings:saved', load)
+    return () => window.removeEventListener('settings:saved', load)
+  }, [charName])
 
   useEffect(() => {
-    refresh()
     window.dr.script.running().then(setRunning)
-    const onSaved = () => refresh()          // script folder may have changed
-    window.addEventListener('settings:saved', onSaved)
-    window.addEventListener('scripts:changed', onSaved)   // a script was created/deleted in the editor
-    const unsub = window.dr.script.onStatus((s: ScriptStatus) => {
+    return window.dr.script.onStatus((s: ScriptStatus) => {
       setRunning(prev => {
         const rest = prev.filter(p => p.id !== s.id)
         return s.state === 'stopped' ? rest : [...rest, s]
       })
     })
-    return () => {
-      window.removeEventListener('settings:saved', onSaved)
-      window.removeEventListener('scripts:changed', onSaved)
-      unsub()
-    }
-  }, [refresh])
+  }, [])
+
+  useEffect(() => {
+    if (!connected) return
+    pollLich()
+    const id = window.setInterval(pollLich, LICH_LIST_POLL_MS)
+    return () => window.clearInterval(id)
+  }, [connected, pollLich])
+
+  const runQuick = (a: QuickAction) => {
+    const cmd = quickActionCommand(a)
+    if (!cmd) return
+    echo(cmd)
+    send(cmd)
+  }
+
+  const fkeyList = FK_ORDER
+    .map(key => ({ key, cmd: fkeys[key]?.trim() ?? '' }))
+    .filter(f => f.cmd)
+
+  // Lich confirms a kill in its own time, and the next scheduled poll can be ten
+  // seconds out — long enough for the row to look stuck. Re-ask shortly after.
+  const killLich = (cmd: string) => {
+    echo(cmd)
+    send(cmd)
+    window.setTimeout(pollLich, 600)
+  }
+
+  const activeCount = running.length + lich.length
+  const stopAll = () => {
+    window.dr.script.stop()
+    if (lich.length > 0) killLich(';kill all')
+  }
 
   return (
     <div className="lich-panel script-panel">
-      <div className="lich-panel-status">
-        <span>{available.length} script{available.length === 1 ? '' : 's'}</span>
-        {running.length > 0 && (
-          <button className="script-stopall" onClick={() => window.dr.script.stop()}>Stop all</button>
-        )}
-        <button className="script-refresh" onClick={refresh} title="Rescan folder">⟳</button>
-      </div>
-
-      {running.length > 0 && (
-        <div className="script-running-list">
-          {running.map(r => (
-            <div key={r.id} className="script-row script-row-running">
-              <span className="script-name">{r.name}</span>
-              <span className="script-state">{scriptStateLabel(r.state)}</span>
-              <button className="script-stop-btn" onClick={() => window.dr.script.stop(r.id)} title="Stop">■</button>
-            </div>
+      {(quick.length > 0 || fkeyList.length > 0) && (
+        <div className="quick-grid">
+          {quick.map(a => (
+            <button
+              key={a.id}
+              className={'quick-btn quick-btn-' + a.kind}
+              onClick={() => runQuick(a)}
+              data-tooltip={quickActionCommand(a)}
+            >
+              {quickActionLabel(a)}
+            </button>
+          ))}
+          {fkeyList.map(f => (
+            <button
+              key={f.key}
+              className="quick-btn quick-btn-fkey"
+              onClick={() => { echo(f.cmd); send(f.cmd) }}
+              data-tooltip={f.cmd}
+            >
+              <span className="quick-fkey">{f.key}</span>{f.cmd}
+            </button>
           ))}
         </div>
       )}
 
-      {available.length === 0
-        ? <div className="lich-panel-empty">No .cmd scripts found. Set a folder in Settings → Scripts.</div>
-        : available.map(name => (
-            <div key={name} className="script-row">
-              <span className="script-name">{name}</span>
-              <button className="script-run-btn" onClick={() => window.dr.script.run(name)} title="Run">▶</button>
-            </div>
-          ))}
+      <div className="lich-panel-status">
+        <span>{activeCount === 0 ? 'Nothing running' : `${activeCount} active`}</span>
+        {activeCount > 0 && <button className="script-stopall" onClick={stopAll}>Stop all</button>}
+        <button className="script-refresh" onClick={pollLich} data-tooltip="Ask Lich what's running">⟳</button>
+      </div>
+
+      {running.map(r => (
+        <div key={`cmd:${r.id}`} className="script-row script-row-running">
+          <span className="script-badge script-badge-cmd">.cmd</span>
+          <span className="script-name">{r.name}</span>
+          <span className="script-state">{scriptStateLabel(r.state)}</span>
+          <button className="script-stop-btn" onClick={() => window.dr.script.stop(r.id)} data-tooltip="Stop">■</button>
+        </div>
+      ))}
+
+      {lich.map(s => (
+        <div key={`lich:${s.name}`} className="script-row script-row-running">
+          <span className="script-badge script-badge-lich">lich</span>
+          <span className="script-name">{s.name}</span>
+          <span className="script-state">{s.paused ? 'paused' : 'running'}</span>
+          <button
+            className="script-stop-btn"
+            onClick={() => killLich(`;kill ${s.name}`)}
+            data-tooltip={`;kill ${s.name}`}
+          >■</button>
+        </div>
+      ))}
+
+      {activeCount === 0 && quick.length === 0 && fkeyList.length === 0 && (
+        <div className="lich-panel-empty">
+          Nothing running. Add quick buttons in Settings → Hotkeys.
+        </div>
+      )}
     </div>
   )
 }
@@ -446,8 +535,13 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
     if (id === 'map') return <MapPanel onNodeClick={automap.walkTo} onStopWalk={automap.stopWalk} onExpand={() => setShowMap(true)} />
     if (id === 'body') return <BodyPanel onExpand={() => setShowBody(true)} />
     if (id === 'inventory') return <InventoryPanel onManage={() => setShowItems(true)} />
+    // Scripts needs the live command path (quick buttons, `;list`, `;kill`), which
+    // only exists inside the layout — same reason as the map/body panels above.
+    if (id === 'scripts') return (
+      <ScriptsPanel send={send} echo={echoCommand} connected={status === 'connected'} charName={charName} />
+    )
     return renderPanel(id)
-  }, [automap])
+  }, [automap, send, echoCommand, status, charName])
 
   const handleColDrag = useCallback((dx: number) => {
     const el = mainAreaRef.current

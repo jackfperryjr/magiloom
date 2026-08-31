@@ -10,6 +10,7 @@ import { correctionFromTimeLine, computeSky, isTimeReportLine, resetTimeCalibrat
 import { weatherFromLine, weatherFromReportLine, isWeatherHeaderLine, regionFromLine, CLEAR, type WeatherState, type WeatherRegion } from '../lib/weather'
 import { computeMoonPositions, correctionFromMoonLine, type MoonCorrections, type MoonPosition } from '../lib/moons'
 import { applyGagSub as applyGagSubRules, type TextRule } from '../lib/rules'
+import { parseLichList, type LichScript } from '../lib/quickActions'
 import type { AvatarCrop } from '../lib/avatar'
 import {
   injuriesFromImages, injuriesFromTouch, injuryModeCommand, isHealthy,
@@ -653,6 +654,12 @@ export const echoCommandAtom = atom(
       _expBatchNames  = new Set()
       _silentExpBatch = false  // manual send wins over any pending background poll
     }
+    // A hand-typed `;list` refreshes the Scripts panel too — read the reply, but
+    // leave it on screen: the player asked to see it.
+    if (/^;\s*(?:l|la|list)(?:\s+all)?$/i.test(command.trim())) {
+      _lichListWait   = LICH_LIST_WINDOW
+      _lichListSilent = false
+    }
   }
 )
 
@@ -689,6 +696,25 @@ export const appendSystemLineAtom = atom(
 // for the zero-active-skills case where the batch never opens at all.
 export const beginSilentExpAtom = atom(null, () => {
   _silentExpBatch = true
+})
+
+// ── Lich `;list` poll ─────────────────────────────────────────────────────────
+// Lich has no push channel for "what's running", so the Scripts panel asks it the
+// only way there is: send `;list` and read the one-line reply. The reply is
+// parsed by parseLichList (lib/quickActions.ts) and, when the poll was ours,
+// swallowed so the panel doesn't cost the player a screenful of chatter.
+//
+// The window is measured in eligible lines rather than milliseconds so a slow
+// round-trip can't close it early; the prompt handler shuts it either way.
+export const lichScriptsAtom = atom<LichScript[]>([])
+let _lichListWait   = 0
+let _lichListSilent = false
+const LICH_LIST_WINDOW = 4
+
+/** Open the read window before sending `;list`. Silent polls hide the reply. */
+export const beginLichListAtom = atom(null, (_get, _set, silent: boolean) => {
+  _lichListWait   = LICH_LIST_WINDOW
+  _lichListSilent = silent
 })
 
 // ── Session reset ───────────────────────────────────────────────────────────
@@ -745,6 +771,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   // web client, whose local `avatars` bucket is empty so every image is shared.
   set(aiAvatarsAtom, {})
   set(presenceModeAtom, 'online')
+  set(lichScriptsAtom, [])
   // Note: verbRawAtom / verbInfoAtom are game-global (same for every character)
   // and cached in settings, so they are deliberately NOT reset here.
 
@@ -768,6 +795,8 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _spellBatch        = null
   _skySeedSilent     = false
   _weatherReportWait = 0
+  _lichListWait      = 0
+  _lichListSilent    = false
   _gameMove          = null
 })
 
@@ -926,6 +955,19 @@ export const dispatchGameEventAtom = atom(
           // recognized weather / time / indoors replies.
           if (_skySeedSilent && (w || inside || reportLine || isTimeReportLine(text) || isWeatherHeaderLine(text))) {
             return
+          }
+        }
+        // Lich's `;list` reply. Only read while a poll is in flight, so ordinary
+        // `--- Lich:` notices are never mistaken for a script list.
+        if (event.stream === 'main' && _lichListWait > 0) {
+          const list = parseLichList(event.text)
+          if (list) {
+            set(lichScriptsAtom, list)
+            _lichListWait = 0
+            if (_lichListSilent) { _lichListSilent = false; return }
+            _lichListSilent = false
+          } else if (event.text.trim()) {
+            _lichListWait--
           }
         }
         // Active-spell list ("Name (N roisaen)"): accumulate into the current

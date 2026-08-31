@@ -15,6 +15,7 @@ export interface AppSettings {
   fontFamily:  string
   passwords:   Record<string, string>  // account name → base64 encrypted password
   functionKeys: Record<string, string> // e.g. { F1: 'attack', F2: 'spell' }
+  quickActions?: QuickAction[]         // click-to-run buttons in the Scripts panel
   aliases?:     { id: string; pattern: string; command: string; enabled: boolean; class?: string }[]
   triggers?:    { id: string; pattern: string; isRegex: boolean; command: string; enabled: boolean; class?: string }[]
   highlights?:  unknown[]              // global default set; per-character overrides live in `characters`
@@ -50,9 +51,20 @@ export interface LoginPath {
   usedAt:       number
 }
 
+// One click-to-run button in the Scripts panel. `kind` decides how `target` is
+// dispatched: a raw game command, a native .cmd script (".target"), or a Lich
+// script (";target"). Args ride along in `target` — the whole string is sent.
+export interface QuickAction {
+  id:     string
+  label:  string
+  kind:   'command' | 'cmd' | 'lich'
+  target: string
+}
+
 // The subset of settings that can be overridden per character.
 export interface CharScopedSettings {
   functionKeys?: Record<string, string>
+  quickActions?: QuickAction[]
   aliases?:      AppSettings['aliases']
   triggers?:     AppSettings['triggers']
   highlights?:   unknown[]
@@ -71,6 +83,7 @@ export interface CharScopedSettings {
 // the character hasn't set them, so the renderer can apply its own defaults).
 export interface ResolvedCharSettings {
   functionKeys: Record<string, string>
+  quickActions: QuickAction[]
   aliases:      NonNullable<AppSettings['aliases']>
   triggers:     NonNullable<AppSettings['triggers']>
   highlights:   unknown[]
@@ -128,6 +141,7 @@ export class SettingsStore {
     const c = (name ? this.data.characters?.[this.charKey(name)] : undefined) ?? {}
     return {
       functionKeys: c.functionKeys ?? this.data.functionKeys ?? {},
+      quickActions: c.quickActions ?? this.data.quickActions ?? [],
       aliases:      c.aliases      ?? this.data.aliases      ?? [],
       triggers:     c.triggers     ?? this.data.triggers     ?? [],
       highlights:   c.highlights   ?? this.data.highlights   ?? [],

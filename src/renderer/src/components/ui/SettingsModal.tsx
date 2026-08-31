@@ -7,11 +7,13 @@ import { LichFilesEditor } from './LichFilesEditor'
 import { LogFilesViewer } from './LogFilesViewer'
 import { CmdFilesEditor } from './CmdFilesEditor'
 import type { Alias, Trigger } from '../../lib/automation'
+import type { QuickAction } from '../../lib/quickActions'
 import { parseGenieConfig, mergeAliases, mergeTriggers, mergeVars } from '../../lib/genieImport'
 import { toggleClassState } from './ClassToggleStrip'
 import { AppearanceTab } from './settings/AppearanceTab'
 import { AmbientTab, DEFAULT_SOUND, DEFAULT_LOGIN_ART, type SoundPrefs, type LoginArtPrefs } from './settings/AmbientTab'
 import { NotificationsTab } from './settings/NotificationsTab'
+import { HotkeysTab } from './settings/HotkeysTab'
 import { AliasesTab } from './settings/AliasesTab'
 import { TriggersTab } from './settings/TriggersTab'
 import { SettingRow } from './settings/Field'
@@ -21,13 +23,13 @@ interface SettingsModalProps {
   onClose: () => void
 }
 
-type TabId = 'appearance' | 'ambient' | 'notifications' | 'keybinds' | 'aliases' | 'triggers' | 'scripts' | 'lich'
+type TabId = 'appearance' | 'ambient' | 'notifications' | 'hotkeys' | 'aliases' | 'triggers' | 'scripts' | 'lich'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'appearance',    label: 'Appearance' },
   { id: 'ambient',       label: 'Ambient' },
   { id: 'notifications', label: 'Notifications' },
-  { id: 'keybinds',      label: 'Function Keys' },
+  { id: 'hotkeys',       label: 'Hotkeys' },
   { id: 'aliases',       label: 'Aliases' },
   { id: 'triggers',      label: 'Triggers' },
   { id: 'scripts',       label: 'Scripts' },
@@ -57,6 +59,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [loginArt,        setLoginArt]        = useState<LoginArtPrefs>(DEFAULT_LOGIN_ART)
   const [logging,         setLogging]         = useState(false)
   const [functionKeys,    setFunctionKeys]    = useState<Record<string, string>>({})
+  const [quickActions,    setQuickActions]    = useState<QuickAction[]>([])
   const [aliases,         setAliases]         = useState<Alias[]>([])
   const [triggers,        setTriggers]        = useState<Trigger[]>([])
   const [classes,         setClasses]         = useState<Record<string, boolean>>({})
@@ -68,8 +71,6 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [watchName,       setWatchName]       = useState('')
   const [version,         setVersion]         = useState('')
   const [tab,             setTab]             = useState<TabId>('appearance')
-
-  const FK_KEYS = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12']
 
   const setFk = (key: string, cmd: string) =>
     setFunctionKeys(prev => ({ ...prev, [key]: cmd }))
@@ -138,9 +139,10 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setPush({ ...DEFAULT_PUSH, ...(s.push ?? {}) })
       setNotifRules(s.notifRules ?? [])
     })
-    // Function keys / aliases / triggers are per-character (fall back to globals).
+    // Hotkeys / quick actions / aliases / triggers are per-character (fall back to globals).
     window.dr.settings.getChar(charName).then(c => {
       setFunctionKeys(c.functionKeys || {})
+      setQuickActions(c.quickActions || [])
       setAliases(c.aliases || [])
       setTriggers(c.triggers || [])
       setClasses(c.classes || {})
@@ -174,7 +176,10 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
     const varsRecord = Object.fromEntries(
       vars.map(v => [v.name.trim(), v.value]).filter(([n]) => n) as [string, string][]
     )
-    await window.dr.settings.patchChar(charName, { functionKeys, aliases, triggers, classes, vars: varsRecord, logging })
+    // Drop half-filled quick action rows — a button with no target does nothing,
+    // and an unsaved blank row shouldn't survive as a dead button in the panel.
+    const quick = quickActions.filter(a => a.target.trim())
+    await window.dr.settings.patchChar(charName, { functionKeys, quickActions: quick, aliases, triggers, classes, vars: varsRecord, logging })
     window.dispatchEvent(new CustomEvent('settings:saved'))
     applyAppearance({ theme, fontSize, fontFamily, density })
     setOutputBuffer(outputBufferSize)
@@ -244,24 +249,11 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
               />
             )}
 
-            {tab === 'keybinds' && (
-              <div className="settings-section settings-section-wide">
-                <div className="settings-section-label">Function Keys</div>
-                <div className="fk-grid">
-                  {FK_KEYS.map(key => (
-                    <label key={key} className="fk-row">
-                      <span className="fk-label">{key}</span>
-                      <input
-                        className="settings-input settings-input-mono"
-                        type="text"
-                        placeholder="command"
-                        value={functionKeys[key] ?? ''}
-                        onChange={e => setFk(key, e.target.value)}
-                      />
-                    </label>
-                  ))}
-                </div>
-              </div>
+            {tab === 'hotkeys' && (
+              <HotkeysTab
+                quickActions={quickActions} setQuickActions={setQuickActions}
+                functionKeys={functionKeys} setFk={setFk}
+              />
             )}
 
             {tab === 'aliases' && (

@@ -35,6 +35,7 @@ const TESTS = [
   'src/renderer/src/lib/elanthianSky.test.ts',
   'src/renderer/src/lib/weather.test.ts',
   'src/renderer/src/lib/rules.test.ts',
+  'src/renderer/src/lib/quickActions.test.ts',
   'src/renderer/src/lib/roomAmbient.test.ts',
   'src/renderer/src/lib/ambientMix.test.ts',
   'src/renderer/src/lib/loginScene.test.ts',

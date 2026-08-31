@@ -45,6 +45,53 @@
 .script-refresh { margin-left: 6px; }
 .script-refresh:hover, .script-stopall:hover { color: var(--text-main); }
 .script-running-list { margin-bottom: 6px; }
+
+/* Quick actions: a wrapped chip grid, because the panel column is narrow and its
+   width is user-dragged — a fixed column count would clip labels at some sizes. */
+.quick-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.quick-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-main);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  padding: 3px 8px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quick-btn:hover  { border-color: var(--accent); color: var(--accent); }
+.quick-btn:active { transform: translateY(1px); }
+/* A left edge in the kind's colour: which of the three a button is matters when
+   you're deciding whether it's safe to click mid-fight. */
+.quick-btn-cmd   { border-left: 2px solid var(--color-bonus); }
+.quick-btn-lich  { border-left: 2px solid var(--accent); }
+.quick-btn-fkey  { border-left: 2px solid var(--border); color: var(--text-dim); }
+.quick-fkey {
+  color: var(--accent);
+  font-size: 10px;
+  letter-spacing: .04em;
+  margin-right: 5px;
+}
+.script-badge {
+  font-family: var(--font-ui);
+  font-size: 9px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  padding: 1px 4px;
+  flex: none;
+}
+.script-badge-cmd  { color: var(--color-bonus); border: 1px solid var(--color-bonus); }
+.script-badge-lich { color: var(--accent);      border: 1px solid var(--accent); }
 .script-row {
   display: flex;
   align-items: center;
