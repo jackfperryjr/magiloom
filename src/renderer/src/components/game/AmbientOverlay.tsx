@@ -314,21 +314,22 @@ function RoomTint() {
 
 // ── Combat heat ──────────────────────────────────────────────────────────────────
 // A red edge vignette whose opacity tracks combatHeatAtom (0→1), painted ABOVE the
-// other ambient layers so a fight's red rim reads over any locale tint. Pulses while
-// hot.
+// other ambient layers so a hit's red rim reads over any locale tint. combatHeatAtom
+// only rises when you LOSE HEALTH, so this is a flash on being hit — it is dark for
+// the whole of a fight you're not taking damage in.
 //
 // It EASES in and out rather than snapping, which needs care in both directions:
 //   • In — mounting the element with its final opacity already applied gives the CSS
 //     transition no start value, so it cuts. We mount at opacity 0 and ramp to the
-//     target two frames later (same trick as WeatherParticles), staying fast so a
-//     hit still reads as a flash.
-//   • Out — combatHeatAtom floors out at 0 from ~0.02, and the opacity floor below
-//     means the vignette is still at ~0.36 when it gets there. So we keep the last
-//     level mounted, fade it to 0, and only then unmount.
+//     target two frames later (same trick as WeatherParticles), staying fast so the
+//     hit reads as a flash.
+//   • Out — combatHeatAtom floors out at 0 from ~0.02, a step the CSS transition
+//     can't ease on its own once the element is gone. So we keep the last level
+//     mounted, fade it to 0, and only then unmount.
 // Opacity is inline (it's a continuous value), so the fade states have to be inline
 // too — an .is-hidden class couldn't override it.
-const HEAT_IN_MS   = 220    // hit flash: ramps in fast
-const HEAT_OUT_MS  = 900    // decay + fade-out: slow enough that the 1 s heat tick
+const HEAT_IN_MS   = 160    // hit flash: ramps in fast
+const HEAT_OUT_MS  = 700    // decay + fade-out: slow enough that the 1 s heat tick
                             // eases continuously instead of stepping
 function CombatHeat() {
   const heat = useAtomValue(combatHeatAtom)
@@ -343,12 +344,13 @@ function CombatHeat() {
   prev.current = level
 
   if (level <= 0) return null
-  // Opacity from heat, floored high enough that the thin bright border stays clearly
-  // legible whenever there's any combat heat, ramping to full on a hit's flash.
-  const opacity = hidden ? 0 : Math.min(1, 0.35 + level * 0.65)
+  // Opacity straight off the heat — no floor. The old floor kept a rim lit at ~0.36
+  // for as long as there was any heat at all, which is what made combat read as a
+  // constant red highlight; a flash wants to actually go dark on the way out.
+  const opacity = hidden ? 0 : Math.min(1, level)
   return (
     <div
-      className={'ambient-heat' + (!hidden && level > 0.55 ? ' is-hot' : '')}
+      className="ambient-heat"
       style={{ opacity, transitionDuration: `${hidden || !rising ? HEAT_OUT_MS : HEAT_IN_MS}ms` }}
       aria-hidden
     />
