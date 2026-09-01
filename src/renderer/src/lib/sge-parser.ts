@@ -10,6 +10,8 @@
  *   <d cmd='go north'>north</d>   — clickable link
  */
 
+import { parseRestedExp } from './exp-parser'
+
 export type StreamId = 'main' | 'exp' | 'combat' | 'atmo' | 'inv' | 'familiar' | 'speech' | 'thoughts' | 'lich'
 
 export interface TextStyle {
@@ -68,7 +70,10 @@ export type GameEvent =
   | { type: 'expSkill';  name: string; rank: number; pct: number; mind: string; mindWord?: string }
   | { type: 'expClear';  name: string }   // empty <component id='exp X'/> — the skill decayed back to clear
   | { type: 'expMeta';   tdps?: number; favors?: number }
-  | { type: 'expRested'; stored: number; usable: number; refresh: number }  // seconds, from `exp rexp`
+  // Seconds. The second source for rested exp — `<component id='exp rexp'>` has
+  // only ever arrived empty here, so in practice the panel is fed by the report
+  // text instead (see parseRestedExp in lib/exp-parser.ts).
+  | { type: 'expRested'; stored: number; usable: number; refresh: number }
   | { type: 'vitals';    field: VitalField; value: number; max?: number; text?: string }
   | { type: 'indicator'; id: string; active: boolean }
   | { type: 'spell';     name: string }
@@ -128,37 +133,6 @@ const STREAM_MAP: Record<string, StreamId> = {
  */
 const EXP_COMP_RE      = /:?\s*([\d,]+)\s+(\d+)%\s+(?:([a-zA-Z][a-zA-Z ]*?)\s+)?[[(]\s*(\d+\/\d+)\s*[\])]/
 const EXP_COMP_WORD_RE = /:\s*([\d,]+)\s+(\d+)%\s+([a-zA-Z][a-zA-Z ]*?)\s*$/
-
-/**
- * Rested experience, from `<component id='exp rexp'>`:
- *
- *   "Rested EXP Stored: 4:38 hours  Usable This Cycle: 1:30 hours  Cycle Refreshes: 45 minutes"
- *
- * The other two shapes this component arrives in carry no figures and are left
- * alone: free accounts get "[Unlock Rested Experience …]", and a character with
- * nothing stored gets an empty body.
- */
-const REXP_RE = /Rested EXP Stored:\s*(.*?)\s*Usable This Cycle:\s*(.*?)\s*Cycle Refreshes:\s*(.*)$/i
-
-/**
- * One of those durations as seconds. Every figure is prose rather than a number
- * — "6 hours", "4:38 hours", "45 minutes", "less than a minute", "none" — and the
- * colon form carries its own minutes. "less than a minute" counts as zero: the
- * game can sit on that phrasing indefinitely and it is not a usable amount.
- */
-export function restedSeconds(raw: string): number {
-  const t = raw.trim().toLowerCase()
-  if (!t || t.includes('none') || t.includes('less than a minute')) return 0
-  let secs = 0
-  const hm = t.match(/(\d+)(?::(\d+))?\s*hour/)
-  if (hm) {
-    secs += +hm[1] * 3600
-    if (hm[2]) return secs + +hm[2] * 60
-  }
-  const mm = t.match(/(\d+)\s*minute/)
-  if (mm) secs += +mm[1] * 60
-  return secs
-}
 
 /** Parse a possibly comma-grouped integer ("3,348" → 3348). */
 const num = (s: string): number => parseInt(s.replace(/,/g, ''), 10) || 0
@@ -597,16 +571,11 @@ export function parseLine(raw: string): GameEvent[] {
           // `rexp` is the one summary row with figures of its own, and they look
           // nothing like a skill line — check it first so the skill regexes below
           // never see it.
-          const rx = _inExpSkill.toLowerCase() === 'rexp' ? raw2.match(REXP_RE) : null
+          const rx = _inExpSkill.toLowerCase() === 'rexp' ? parseRestedExp(raw2) : null
           const sm = rx ? null : raw2.match(EXP_COMP_RE)
           const wm = rx || sm ? null : raw2.match(EXP_COMP_WORD_RE)
           if (rx) {
-            events.push({
-              type:    'expRested',
-              stored:  restedSeconds(rx[1]),
-              usable:  restedSeconds(rx[2]),
-              refresh: restedSeconds(rx[3]),
-            })
+            events.push({ type: 'expRested', ...rx })
           } else if (sm) {
             events.push({
               type:     'expSkill',

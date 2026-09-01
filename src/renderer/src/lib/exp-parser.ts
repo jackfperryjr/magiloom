@@ -17,3 +17,46 @@ export function parseExpSkills(text: string): ParsedExpSkill[] {
   }
   return skills
 }
+
+// ── Rested experience ────────────────────────────────────────────────────────
+// The report's rested-exp line:
+//
+//   "Rested EXP Stored: 4:21 hours  Usable This Cycle: 4:07 hours  Cycle Refreshes: 17:59 hours"
+//
+// It lives here, with the rest of the report, because the report text is the only
+// place it actually arrives. DR declares a `<component id='exp rexp'>` that is
+// plainly meant to carry it — Lich parses that component and nothing else — but
+// in this client it comes through empty every time (81 of them in one logged
+// session, not one with a body). The component is still read as a second source
+// in case a future DR fills it; the text line is what feeds the panel today.
+const REXP_RE = /Rested EXP Stored:\s*(.*?)\s*Usable This Cycle:\s*(.*?)\s*Cycle Refreshes:\s*(.*)$/i
+
+export interface ParsedRestedExp { stored: number; usable: number; refresh: number }
+
+/**
+ * One rested-exp duration as seconds. Every figure is prose rather than a number
+ * — "6 hours", "4:21 hours", "1:41 hour", "43 minutes", "less than a minute",
+ * "none" — the colon form carries its own minutes, and the noun isn't reliably
+ * pluralised. "less than a minute" counts as zero, as it does in Lich: the game
+ * can sit on that phrasing for a long time and it isn't a usable amount.
+ */
+export function restedSeconds(raw: string): number {
+  const t = raw.trim().toLowerCase()
+  if (!t || t.includes('none') || t.includes('less than a minute')) return 0
+  let secs = 0
+  const hm = t.match(/(\d+)(?::(\d+))?\s*hour/)
+  if (hm) {
+    secs += +hm[1] * 3600
+    if (hm[2]) return secs + +hm[2] * 60
+  }
+  const mm = t.match(/(\d+)\s*minute/)
+  if (mm) secs += +mm[1] * 60
+  return secs
+}
+
+/** The three figures, or null if this isn't the rested-exp line. */
+export function parseRestedExp(text: string): ParsedRestedExp | null {
+  const m = text.match(REXP_RE)
+  if (!m) return null
+  return { stored: restedSeconds(m[1]), usable: restedSeconds(m[2]), refresh: restedSeconds(m[3]) }
+}
