@@ -225,10 +225,13 @@
 .inv-mgr-sent { margin: 12px 0 0; font-size: 11px; color: var(--text-muted); }
 .inv-mgr-sent code { color: var(--text-dim); }
 
-/* ── Docked panel: carry summary ───────────────────────────────────────────── */
-.inv-sum { padding: 6px 8px 8px; font-size: 12px; }
-/* Buttons here are .panel-btn (sidebar-panels.css) — the same chip the Scripts
-   panel uses — so the tools row only needs the layout, which .panel-btn-row gives. */
+/* ── Docked panel: carry summary ─────────────────────────────────────────────
+   This panel is where the sidebar's shared look came from, so it is now written
+   almost entirely out of the shared primitives in panels.css: .panel-btn for the
+   tools row, .panel-key for the hand labels, .panel-stat for the load/items/worn
+   strip, .panel-row + .panel-tag for the container list. What's left here is only
+   what's genuinely specific to inventory. */
+.inv-sum { padding: 6px 8px 8px; }
 
 /* Why the structured view isn't there. Shown on its own: a failed walk means we
    have nothing trustworthy to put under it. */
@@ -237,57 +240,10 @@
   font-size: 11px; line-height: 1.35; color: var(--color-warning);
 }
 
+/* Hands: label left, contents right. Not a .panel-row — the value is the point
+   here, so it keeps full colour rather than the row's muted name treatment. */
 .inv-sum-hands { margin-bottom: 6px; }
 .inv-sum-hands div {
-  display: flex; justify-content: space-between; gap: 8px; padding: 1px 0;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 1px 0;
   color: var(--text-main);
-}
-.inv-sum-label { color: var(--text-muted); }
-
-/* At-a-glance stat strip: load / items / worn. Three numbers across, so the parts
-   of the panel that actually change mid-session (hands above, containers below)
-   stay visible without scrolling. The worn COUNT stands in for the worn LIST that
-   used to be spelled out here — the full list lives in the pop-out manager. */
-.inv-sum-stats {
-  display: flex; gap: 6px;
-  margin-bottom: 8px; padding-top: 6px;
-  border-top: 1px solid var(--border-soft);
-}
-.inv-sum-stat {
-  flex: 1 1 0; min-width: 0;
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
-  padding: 4px 2px;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--bg-input) 55%, transparent);
-  cursor: help;
-}
-.inv-sum-stat-n {
-  color: var(--text-main);
-  font-variant-numeric: tabular-nums;
-  font-size: 14px; line-height: 1.1;
-}
-.inv-sum-stat-k {
-  color: var(--text-dim);
-  font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
-}
-
-.inv-sum-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 2px 2px; border-radius: 4px; cursor: pointer;
-}
-/* Closed containers are worth flagging — reaching into one fails, and the panel
-   is the only place you'd notice before trying. */
-.inv-sum-tag {
-  flex: none; margin-left: auto;
-  padding: 0 5px; border-radius: 999px;
-  background: color-mix(in srgb, var(--color-warning) 16%, transparent);
-  color: var(--color-warning);
-  font-size: 9px; text-transform: uppercase; letter-spacing: .05em;
-}
-.inv-sum-row:hover { background: var(--bg-hover, rgba(255, 255, 255, 0.04)); }
-/* flex+min-width:0 so a long container name truncates instead of shoving the
-   closed tag and count off the edge. */
-.inv-sum-name  { flex: 1 1 auto; min-width: 0; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.inv-sum-count {
-  color: var(--text-muted); font-variant-numeric: tabular-nums; flex: none;
 }
