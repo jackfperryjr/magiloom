@@ -5,6 +5,10 @@ export class GameConnection extends EventEmitter {
   private socket: Socket | null = null
   private buffer = ''
   private idleTimer: ReturnType<typeof setTimeout> | null = null
+  // Login-only state for announceDialogSupport: <playerID> can straddle two
+  // socket reads, so a small tail is kept until it's seen (once per connection).
+  private dialogAnnounced = false
+  private loginPeek = ''
 
   connectDirect(host: string, port: number, key: string): void {
     if (this.socket) this.disconnect()
@@ -100,6 +104,8 @@ export class GameConnection extends EventEmitter {
     this.socket?.destroy()
     this.socket = null
     this.buffer = ''
+    this.dialogAnnounced = false
+    this.loginPeek = ''
     if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null }
   }
 
@@ -114,8 +120,29 @@ export class GameConnection extends EventEmitter {
   // rewrites whitespace — for consumers that need the stream verbatim.
   private onData(chunk: string): void {
     this.emit('raw', chunk)
+    this.announceDialogSupport(chunk)
     this.buffer += chunk
     this.flush()
+  }
+
+  /**
+   * Tell the game we display its dialog windows, once <playerID> says the login
+   * finished. Full StormFront clients send this and we never have; the reason to
+   * try it is the experience window's `exp rexp` component, which DR declares and
+   * then only ever sends EMPTY to us, leaving rested exp readable solely from the
+   * report text. If the switch is what fills it, rested exp becomes a live push.
+   *
+   * Written straight to the socket rather than through send(), so it never shows
+   * up as something the player typed. Harmless if it changes nothing: it's the
+   * same line a stock client sends at this point in the login.
+   */
+  private announceDialogSupport(chunk: string): void {
+    if (this.dialogAnnounced || !this.socket) return
+    this.loginPeek = (this.loginPeek + chunk).slice(-4096)
+    if (!/<playerID\b/i.test(this.loginPeek)) return
+    this.dialogAnnounced = true
+    this.loginPeek = ''
+    this.socket.write('set dialog on\r\n', 'latin1')
   }
 
   /**

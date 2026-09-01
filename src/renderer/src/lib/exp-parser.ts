@@ -60,3 +60,54 @@ export function parseRestedExp(text: string): ParsedRestedExp | null {
   if (!m) return null
   return { stored: restedSeconds(m[1]), usable: restedSeconds(m[2]), refresh: restedSeconds(m[3]) }
 }
+
+// ── The report's other summary figures ───────────────────────────────────────
+// Circle and overall mindstate have no component either; like rested exp they
+// exist only in the report text.
+const CIRCLE_RE = /\bCircle:\s*(\d+)/i
+const OVERALL_MIND_RE = /Overall state of mind:\s*(.+?)\s*$/i
+
+/** Circle from a report line, or null. */
+export function parseCircle(text: string): number | null {
+  const m = CIRCLE_RE.exec(text)
+  return m ? parseInt(m[1], 10) : null
+}
+
+/** Overall mindstate word from a report line, or null. */
+export function parseOverallMind(text: string): string | null {
+  const m = OVERALL_MIND_RE.exec(text)
+  return m ? m[1].trim() : null
+}
+
+// ── Sleep ────────────────────────────────────────────────────────────────────
+export type SleepState = 'awake' | 'resting' | 'deep'
+
+/**
+ * DR words the `exp sleep` notice two ways — "a state of rest" (absorbing only)
+ * and "a state of deep sleep" (absorbing nothing) — and sends the component
+ * empty when awake. The distinction is the point: one of them is still learning.
+ */
+export function sleepState(text: string): SleepState {
+  if (!text.trim()) return 'awake'
+  return /deep sleep/i.test(text) ? 'deep' : 'resting'
+}
+
+// ── Session progress ─────────────────────────────────────────────────────────
+/** A skill's position as one fractional rank, which is what gains are counted in. */
+export const fractionalRank = (s: { rank: number; pct: number }): number => s.rank + s.pct / 100
+
+/**
+ * Ranks gained since each skill's session baseline. DR reports no such total —
+ * it only exists because we remember where every skill stood when we first saw
+ * it. Skills with no baseline (never seen this session) contribute nothing, and
+ * a skill that somehow reads lower than its baseline can't subtract from it.
+ */
+export function ranksGained(
+  skills: readonly { name: string; rank: number; pct: number }[],
+  baselines: Readonly<Record<string, number>>,
+): number {
+  return skills.reduce((total, s) => {
+    const base = baselines[s.name]
+    return base === undefined ? total : total + Math.max(0, fractionalRank(s) - base)
+  }, 0)
+}

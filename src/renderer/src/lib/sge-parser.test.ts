@@ -238,6 +238,40 @@ eq('whitespace-only component clears', expEvent('exp Athletics', '   ')?.type, '
   eq('locked rexp reports nothing', events.some(e => e.type === 'expRested' || e.type === 'expSkill'), false)
 }
 
+// ── Sleep ────────────────────────────────────────────────────────────────────
+// Both notices verbatim from logged sessions. The empty push matters as much as
+// the filled one: it is the only way DR says the character woke up.
+{
+  resetParser()
+  const e = parseLine(
+    "<component id='exp sleep'><b>You are fully relaxed and your mind has entered a state of deep sleep.  To wake up and start learning again, type: AWAKEN</b></component>",
+  ).find(x => x.type === 'expSleep') as Extract<GameEvent, { type: 'expSleep' }>
+  eq('deep sleep is reported', e?.type, 'expSleep')
+  eq('and keeps the notice', /deep sleep/.test(e?.text ?? ''), true)
+}
+{
+  resetParser()
+  const e = parseLine(
+    "<component id='exp sleep'><b>You are relaxed and your mind has entered a state of rest.  To wake up and start learning again, type: AWAKEN</b></component>",
+  ).find(x => x.type === 'expSleep') as Extract<GameEvent, { type: 'expSleep' }>
+  eq('resting is reported', /state of rest/.test(e?.text ?? ''), true)
+  eq('and is not deep sleep', /deep sleep/.test(e?.text ?? ''), false)
+}
+{
+  resetParser()
+  const e = parseLine("<component id='exp sleep'></component>")
+    .find(x => x.type === 'expSleep') as Extract<GameEvent, { type: 'expSleep' }>
+  eq('an empty sleep component means awake', e?.text, '')
+}
+{
+  resetParser()
+  const events = parseLine("<component id='exp sleep'/>")
+  const e = events.find(x => x.type === 'expSleep') as Extract<GameEvent, { type: 'expSleep' }>
+  eq('self-closing sleep is awake too', e?.text, '')
+  // It must not be mistaken for a skill named "sleep" decaying to clear.
+  eq('and is not an expClear', events.some(x => x.type === 'expClear'), false)
+}
+
 // ── Report ───────────────────────────────────────────────────────────────────
 if (failures.length) {
   console.error(`\n✗ sge-parser: ${failures.length} failed, ${passed} passed`)

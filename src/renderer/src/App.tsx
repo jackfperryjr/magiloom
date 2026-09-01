@@ -47,8 +47,6 @@ import './styles/global.css'
 
 document.body.dataset.platform = window.dr.app.platform
 
-const EXP_POLL_ENABLED = false
-
 // Raw Lich process chatter, untagged. Main/server now prefixes everything Lich prints
 // with '[lich]', but a client can be talking to an older server build, so keep matching
 // the lines themselves: the detachable-client listen/attach/disconnect notices, the
@@ -383,14 +381,23 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
     return () => window.clearInterval(id)
   }, [setTick])
 
-  // Silently refresh exp every 30 s to clear any skills that decayed since
-  // their last live component push. beginSilentExp marks the upcoming batch
-  // so its main-stream report text is suppressed from the game output panel.
-  // Paused: exp panel now updates correctly from live component pushes alone.
+  // Silent exp seed: one EXP a few seconds after connecting, so the panel starts
+  // the session filled in rather than blank until the player asks. beginSilentExp
+  // marks the batch so the report text is suppressed from the game output.
+  //
+  // Seeded at 8 s to stay clear of the verb sweep, the one other thing capturing
+  // main-stream lines just after login.
+  //
+  // Once only, deliberately. Skills push themselves live; the figures that don't
+  // — rested exp, circle, overall mindstate — exist solely in the report text, so
+  // they hold whatever the last EXP said until the next one. That's a knowingly
+  // stale reading rather than a wrong one, and it isn't worth a command every few
+  // minutes for the whole session on the chance someone is watching the tile. If
+  // it does turn out to matter, a slow interval on this same call is the fix.
   useEffect(() => {
-    if (!EXP_POLL_ENABLED || status !== 'connected') return
-    const id = window.setInterval(() => { beginSilentExp(); send('exp') }, 30_000)
-    return () => window.clearInterval(id)
+    if (status !== 'connected') return
+    const seed = window.setTimeout(() => { beginSilentExp(); send('exp') }, 8_000)
+    return () => window.clearTimeout(seed)
   }, [status, send, beginSilentExp])
 
   // Ambient seed: on connect, silently fetch `weather` (current precipitation) and

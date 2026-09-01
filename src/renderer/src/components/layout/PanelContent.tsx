@@ -1,5 +1,5 @@
 import { useAtomValue, useSetAtom } from 'jotai'
-import { useEffect, useMemo, useRef, useState, Fragment } from 'react'
+import { useEffect, useMemo, useRef, useState, Fragment, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import {
   roomAtom, activeSpellAtom, activeSpellsAtom, inventoryLinesAtom, handsAtom,
@@ -8,6 +8,7 @@ import {
   connectionStatusAtom, promptCountAtom,
   type OutputLine,
 } from '../../store/game'
+import { ranksGained, sleepState } from '../../lib/exp-parser'
 import {
   invSnapshotAtom, invStatusAtom, invErrorAtom, refreshInventoryAtom, ensureInventoryAtom,
 } from '../../store/inventory'
@@ -79,9 +80,57 @@ const MIND_COLORS: Record<string, string> = {
   'mind  lock': '#e06060',
 }
 
-function mindColor(word?: string): string {
-  if (!word) return 'var(--text-dim)'
-  return MIND_COLORS[word.toLowerCase()] ?? 'var(--text-main)'
+/**
+ * Colour a skill by how close it is to mind lock, as a ramp over the 0–34 pool
+ * rather than by mindstate word. The words are only seven steps and DR reports
+ * the exact figure, so the ramp shows a skill filling up between words: cool
+ * blue at clear, through green and amber, to the same red the word table used
+ * for lock. `mind` is the "17/34" fraction; skills without one fall back to the
+ * word, which is all the fraction-less report form gives us.
+ */
+const MIND_POOL_MAX = 34
+/** Where DR stops taking new field experience — worth flagging before it hits. */
+const NEAR_LOCK = 28
+
+function mindValue(mind: string): number {
+  const n = parseInt(mind.split('/')[0] ?? '', 10)
+  return Number.isFinite(n) ? n : -1
+}
+
+/**
+ * The row's colour. Only the HUE is set here — lightness comes from the theme
+ * (`--mind-l` in panels.css), because a ramp bright enough to read on the dark
+ * themes is invisible on Parchment. A skill DR gave no fraction for falls back
+ * to the word table; a cleared one stays dim.
+ */
+function mindStyle(word: string | undefined, mind: string): CSSProperties {
+  const v = mindValue(mind)
+  if (v < 0) {
+    return { color: word ? MIND_COLORS[word.toLowerCase()] ?? 'var(--text-main)' : 'var(--text-dim)' }
+  }
+  if (v === 0) return { color: 'var(--text-dim)' }
+  const t = Math.min(1, v / MIND_POOL_MAX)
+  return { '--mind-h': Math.round(195 - 195 * t) } as CSSProperties
+}
+
+/** Elapsed session time, as the panel shows it: "3h 12m", "47m", "<1m". */
+function elapsedLabel(since: number, now: number): string {
+  const mins = Math.max(0, Math.floor((now - since) / 60_000))
+  if (mins < 1) return '<1m'
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  if (!h) return `${m}m`
+  return m ? `${h}h ${m}m` : `${h}h`
+}
+
+/** Ranks gained, trimmed: "2.5" not "2.50", "0" not "0.00". */
+function ranksLabel(n: number): string {
+  return n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')
+}
+
+const SLEEP_NOTE: Record<string, string> = {
+  resting: 'Resting — absorbing only, no new field experience',
+  deep:    'Deep sleep — no new field experience or absorption',
 }
 
 /**
@@ -98,56 +147,88 @@ function restedLabel(secs: number): string {
 
 export function ExperiencePanel() {
   const exp = useAtomValue(expAtom)
+  // The session clock is the one figure that moves on its own, so it rides the
+  // shared 1 s tick rather than a timer of its own.
+  const now = useAtomValue(tickAtom)
   const activeSkills = exp.skills.filter(s => s.pct > 0)
-  // Nothing stored and nothing left this cycle is the resting state of the
-  // feature, not news — the row would sit there reading "— — —" forever.
-  const rested = exp.rested && (exp.rested.stored > 0 || exp.rested.usable > 0) ? exp.rested : null
+  // Free accounts have no rested experience at all, and a character can have a
+  // circle and TDPs while nothing is absorbing — so the tiles are shown whenever
+  // the report has landed, reading "—" for what the character doesn't have,
+  // rather than disappearing and leaving the panel looking broken.
+  const rested = exp.rested
+  const sleep = sleepState(exp.sleep)
+  const gained = ranksGained(exp.skills, exp.baselines)
 
-  if (exp.skills.length === 0) {
-    return <div className="panel-empty">Type EXP to load experience data</div>
+  // Gated on the report as a whole, NOT on skills: a character with no field
+  // experience still has every figure above the skill table, and gating on
+  // skills hid the lot.
+  const reported = exp.skills.length > 0 || exp.circle > 0 || exp.tdps > 0
+    || exp.favors > 0 || Boolean(exp.overallMind)
+  if (!reported) {
+    return <div className="panel-empty">Waiting for experience data — or type EXP</div>
   }
 
   return (
     <div className="exp-panel">
       {/* The figures that aren't a skill row get the sidebar's stat tiles, so they
-          read as totals rather than as more lines of the table. */}
-      {(exp.tdps > 0 || exp.favors > 0) && (
-        <div className="panel-stats panel-stats-lead">
-          {exp.tdps > 0 && (
-            <div className="panel-stat" data-tooltip="Unspent Time Development Points.">
-              <span className="panel-stat-n">{exp.tdps}</span>
-              <span className="panel-stat-k">TDPs</span>
-            </div>
-          )}
-          {exp.favors > 0 && (
-            <div className="panel-stat" data-tooltip="Favors held with the gods.">
-              <span className="panel-stat-n">{exp.favors}</span>
-              <span className="panel-stat-k">favors</span>
-            </div>
-          )}
-        </div>
-      )}
-      {rested && (
-        <>
-          <div className="panel-section">Rested EXP</div>
-          <div className="panel-stats panel-stats-lead">
-            <div className="panel-stat" data-tooltip="Rested experience banked while logged out.">
-              <span className="panel-stat-n">{restedLabel(rested.stored)}</span>
-              <span className="panel-stat-k">stored</span>
-            </div>
-            <div className="panel-stat" data-tooltip="Rested experience still spendable in this cycle.">
-              <span className="panel-stat-n" style={{ color: rested.usable > 0 ? 'var(--accent)' : undefined }}>
-                {restedLabel(rested.usable)}
-              </span>
-              <span className="panel-stat-k">usable</span>
-            </div>
-            <div className="panel-stat" data-tooltip="Time until the next cycle refills the usable share.">
-              <span className="panel-stat-n">{restedLabel(rested.refresh)}</span>
-              <span className="panel-stat-k">refresh</span>
-            </div>
+          read as totals rather than as more lines of the table. The row wraps:
+          six of these don't fit across a narrow sidebar in one line. */}
+      <div className="panel-stats panel-stats-lead panel-stats-wrap">
+        {exp.circle > 0 && (
+          <div className="panel-stat" data-tooltip="Circles earned.">
+            <span className="panel-stat-n">{exp.circle}</span>
+            <span className="panel-stat-k">circle</span>
           </div>
-        </>
+        )}
+        {exp.tdps > 0 && (
+          <div className="panel-stat" data-tooltip="Unspent Time Development Points.">
+            <span className="panel-stat-n">{exp.tdps}</span>
+            <span className="panel-stat-k">TDPs</span>
+          </div>
+        )}
+        {exp.favors > 0 && (
+          <div className="panel-stat" data-tooltip="Favors held with the gods.">
+            <span className="panel-stat-n">{exp.favors}</span>
+            <span className="panel-stat-k">favors</span>
+          </div>
+        )}
+        {exp.overallMind && (
+          <div className="panel-stat panel-stat-wide" data-tooltip="Overall state of mind.">
+            <span className="panel-stat-n panel-stat-word">{exp.overallMind}</span>
+            <span className="panel-stat-k">mind</span>
+          </div>
+        )}
+        {/* Counted from where each skill stood when we first saw it this session,
+            so it starts at zero on connect and only ever climbs. */}
+        <div className="panel-stat" data-tooltip="Ranks gained since this session started.">
+          <span className="panel-stat-n">{ranksLabel(gained)}</span>
+          <span className="panel-stat-k">gained</span>
+        </div>
+        <div className="panel-stat" data-tooltip="Time since this session started.">
+          <span className="panel-stat-n">{elapsedLabel(exp.sessionStart, now)}</span>
+          <span className="panel-stat-k">session</span>
+        </div>
+      </div>
+      {sleep !== 'awake' && (
+        <div className={`exp-sleep exp-sleep-${sleep}`}>☾ {SLEEP_NOTE[sleep]}</div>
       )}
+      <div className="panel-section">Rested EXP</div>
+      <div className="panel-stats panel-stats-lead">
+        <div className="panel-stat" data-tooltip="Rested experience banked while logged out.">
+          <span className="panel-stat-n">{restedLabel(rested?.stored ?? 0)}</span>
+          <span className="panel-stat-k">stored</span>
+        </div>
+        <div className="panel-stat" data-tooltip="Rested experience still spendable in this cycle.">
+          <span className="panel-stat-n" style={{ color: (rested?.usable ?? 0) > 0 ? 'var(--accent)' : undefined }}>
+            {restedLabel(rested?.usable ?? 0)}
+          </span>
+          <span className="panel-stat-k">usable</span>
+        </div>
+        <div className="panel-stat" data-tooltip="Time until the next cycle refills the usable share.">
+          <span className="panel-stat-n">{restedLabel(rested?.refresh ?? 0)}</span>
+          <span className="panel-stat-k">refresh</span>
+        </div>
+      </div>
       {/* The totals above are worth showing on their own, so the "no field exp"
           case replaces the table rather than the whole panel. */}
       {activeSkills.length === 0 && (
@@ -158,16 +239,25 @@ export function ExperiencePanel() {
           {groupExpSkills(activeSkills).map(group => (
             <Fragment key={group.name}>
               <tr className="exp-group-head"><td colSpan={4}>{group.name}</td></tr>
-              {group.skills.map(s => (
-                <tr key={s.name} className="exp-row">
-                  <td className="exp-skill">{s.name}</td>
-                  <td className="exp-rank">{s.rank}</td>
-                  <td className="exp-pct">{s.pct}%</td>
-                  <td className="exp-mind" style={{ color: mindColor(s.mindWord) }}>
-                    {s.mind}
-                  </td>
-                </tr>
-              ))}
+              {group.skills.map(s => {
+                // A skill this close to lock is about to stop taking experience —
+                // the glow is there to be caught out of the corner of the eye.
+                const nearLock = mindValue(s.mind) >= NEAR_LOCK
+                return (
+                  <tr key={s.name} className="exp-row">
+                    <td className="exp-skill">{s.name}</td>
+                    <td className="exp-rank">{s.rank}</td>
+                    <td className="exp-pct">{s.pct}%</td>
+                    <td
+                      className={nearLock ? 'exp-mind exp-mind-lock' : 'exp-mind'}
+                      style={mindStyle(s.mindWord, s.mind)}
+                      data-tooltip={s.mindWord}
+                    >
+                      {s.mind}
+                    </td>
+                  </tr>
+                )
+              })}
             </Fragment>
           ))}
         </tbody>
