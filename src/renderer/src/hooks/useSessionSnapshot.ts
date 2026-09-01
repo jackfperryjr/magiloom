@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useAtom } from 'jotai'
-import { roomAtom, expAtom, handsAtom } from '../store/game'
+import { roomAtom, expAtom, handsAtom, emptyExp } from '../store/game'
 import { saveSnapshot, loadSnapshot, type SessionSnapshot } from '../lib/sessionSnapshot'
 
 // How long to sit on a change before writing. The game pushes room content in
@@ -37,10 +37,12 @@ export function useSessionSnapshot(charName: string, resumed: boolean): void {
     // newer than the snapshot by definition, so it wins.
     let took = false
     if (!room.name && !room.description) { setRoom(snap.room); took = true }
-    // Rested exp is the one part deliberately dropped: it's a countdown, so a
-    // snapshot up to two hours old would put back figures that have since run
-    // down. DR re-pushes it with the next exp update anyway.
-    if (exp.skills.length === 0)         { setExp({ ...snap.exp, rested: undefined }); took = true }
+    // Spread over a fresh state so a snapshot written by an older build (no
+    // baselines, no session clock) can't leave those fields undefined. Rested
+    // exp is the one part deliberately dropped: it's a countdown, so a snapshot
+    // up to two hours old would put back figures that have since run down. The
+    // next exp refresh re-reads it within minutes.
+    if (exp.skills.length === 0)         { setExp({ ...emptyExp(), ...snap.exp, rested: undefined }); took = true }
     if (!hands.left && !hands.right)     { setHands(snap.hands) }
     // Re-sync the parts of a room that go stale fastest. What's on the ground and
     // who's standing in it can both have changed while we were reloading, and the

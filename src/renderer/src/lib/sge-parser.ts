@@ -74,6 +74,10 @@ export type GameEvent =
   // only ever arrived empty here, so in practice the panel is fed by the report
   // text instead (see parseRestedExp in lib/exp-parser.ts).
   | { type: 'expRested'; stored: number; usable: number; refresh: number }
+  // `<component id='exp sleep'>` — DR's "you are resting" notice, empty when
+  // awake. Reported empty and all, since that empty push is the only way to
+  // learn the character woke up.
+  | { type: 'expSleep';  text: string }
   | { type: 'vitals';    field: VitalField; value: number; max?: number; text?: string }
   | { type: 'indicator'; id: string; active: boolean }
   | { type: 'spell';     name: string }
@@ -536,7 +540,11 @@ export function parseLine(raw: string): GameEvent[] {
           // A self-closing component has no body and no </component> to close it.
           // Emit the clear here and stay closed — leaving _inExpSkill set would
           // make the NEXT component's body get read as this skill's exp.
-          if (tag.trimEnd().endsWith('/')) events.push({ type: 'expClear', name: skill })
+          if (tag.trimEnd().endsWith('/')) {
+            events.push(skill.toLowerCase() === 'sleep'
+              ? { type: 'expSleep', text: '' }
+              : { type: 'expClear', name: skill })
+          }
           else _inExpSkill = skill
         } else if (id === 'room desc') {
           _inRoomDesc  = true
@@ -571,6 +579,16 @@ export function parseLine(raw: string): GameEvent[] {
           // `rexp` is the one summary row with figures of its own, and they look
           // nothing like a skill line — check it first so the skill regexes below
           // never see it.
+          // The two summary rows that aren't shaped like a skill line at all.
+          // `sleep` reports even when empty — that's how DR says "awake", and it
+          // is the only signal that the character woke up.
+          if (_inExpSkill.toLowerCase() === 'sleep') {
+            events.push({ type: 'expSleep', text: raw2 })
+            _inExpSkill = ''
+            styles = []
+            links  = []
+            break
+          }
           const rx = _inExpSkill.toLowerCase() === 'rexp' ? parseRestedExp(raw2) : null
           const sm = rx ? null : raw2.match(EXP_COMP_RE)
           const wm = rx || sm ? null : raw2.match(EXP_COMP_WORD_RE)

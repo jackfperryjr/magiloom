@@ -97,7 +97,7 @@ const json = (s: SessionSnapshot): string => JSON.stringify(s)
   check('a populated session saves', isWorthSaving(snap()))
   const blank = snap({
     room: { name: '', uid: '', description: '', exits: [], objs: '', players: [], playerNames: [] },
-    exp: { skills: [], tdps: 0, favors: 0 },
+    exp: { ...snap().exp, skills: [] },
   })
   check('an empty session does not', !isWorthSaving(blank))
   check('no character name, no save', !isWorthSaving(snap({ char: '' })))

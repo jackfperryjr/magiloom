@@ -70,6 +70,22 @@
   background: var(--panel-tile);
 }
 .panel-stat[data-tooltip] { cursor: help; }
+/* Six tiles don't fit across a narrow sidebar in one line. A grid rather than a
+   wrapping flex row, so the columns stay aligned down the rows and a leftover
+   tile on the last row sits in its column instead of stretching across it. */
+.panel-stats-wrap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+}
+/* A word where the other tiles hold a number ("very riveted"), so it gets the
+   smaller type and a wider share of the row — mindstate words are long enough
+   that an equal share truncates every one of them. */
+.panel-stat-word {
+  font-size: 11.5px;
+  max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.panel-stats-wrap .panel-stat-wide { grid-column: span 2; }
 .panel-stat-n {
   color: var(--text-main);
   font-variant-numeric: tabular-nums;
@@ -133,7 +149,32 @@
 .exp-skill { flex: 1; font-size: 12.5px; color: var(--text-dim); padding: 2px 4px 2px 0; }
 .exp-rank  { font-size: 12.5px; color: var(--text-main); text-align: right; padding: 2px 4px; min-width: 30px; font-variant-numeric: tabular-nums; }
 .exp-pct   { font-size: 12.5px; color: var(--accent);    text-align: right; padding: 2px 4px; min-width: 32px; font-variant-numeric: tabular-nums; }
-.exp-mind  { font-size: 11px;   color: var(--text-dim);  text-align: left;  padding: 2px 0 2px 6px; min-width: 46px; }
+/* Mindstate colour: the panel sets the HUE per row (0–34 pool → cool to hot) and
+   the theme sets the lightness. One ramp can't serve both — 66% reads on the dark
+   themes and vanishes on Parchment, where it has to go dark instead. Contrast was
+   measured against each theme's --bg-panel, not eyeballed: 66% keeps the red end
+   at 4.9:1 on dark, 26% keeps the yellow middle — the worst hue — at 4.5:1 on
+   cream. A row with no fraction sets `color` inline instead and wins over this. */
+.exp-panel { --mind-l: 66%; }
+:root[data-theme="parchment"] .exp-panel { --mind-l: 26%; }
+.exp-mind  {
+  font-size: 11px; text-align: left; padding: 2px 0 2px 6px; min-width: 46px;
+  color: hsl(var(--mind-h, 200) 68% var(--mind-l));
+}
+/* Near mind lock — the skill is about to stop taking field experience. */
+.exp-mind-lock { text-shadow: 0 0 7px hsl(var(--mind-h, 0) 68% var(--mind-l)); }
+/* Sleep notice. DR only says this while the character is resting, and the two
+   states differ in what they cost you: resting still absorbs, deep sleep doesn't.
+   Deep sleep reads warmer for that reason. */
+.exp-sleep {
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: var(--panel-tile);
+  font-size: 11.5px; line-height: 1.35;
+}
+.exp-sleep-resting { color: #7b8fe8; }
+.exp-sleep-deep    { color: #d09a4a; }
+
 /* DR skill-group header rows (Guild Skills / Armor / Weapon / …), like the game's
    EXPERIENCE window — the same heading treatment as .panel-section, plus the rule
    the table gives it. */

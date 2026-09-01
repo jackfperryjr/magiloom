@@ -4,7 +4,9 @@ import { classifyRoom, localeFromCode } from '../lib/roomLocale'
 import { ambienceFromCode } from '../lib/roomAmbient'
 import { currentNodeAtom } from './map'
 import type { GameEvent, LinkSpan, TextStyle, VitalField, StreamId } from '../lib/sge-parser'
-import { parseExpSkills, parseRestedExp } from '../lib/exp-parser'
+import {
+  parseExpSkills, parseRestedExp, parseCircle, parseOverallMind, fractionalRank,
+} from '../lib/exp-parser'
 import { isAtmospheric } from '../lib/atmospherics'
 import { correctionFromTimeLine, computeSky, isTimeReportLine, resetTimeCalibration, type SkyState } from '../lib/elanthianTime'
 import { weatherFromLine, weatherFromReportLine, isWeatherHeaderLine, regionFromLine, CLEAR, type WeatherState, type WeatherRegion } from '../lib/weather'
@@ -616,8 +618,36 @@ export interface ExpSkill { name: string; rank: number; pct: number; mind: strin
  * Absent for characters DR never reports it for (free accounts, empty bank).
  */
 export interface RestedExp { stored: number; usable: number; refresh: number }
-export interface ExpState  { skills: ExpSkill[]; tdps: number; favors: number; rested?: RestedExp }
-export const expAtom = atom<ExpState>({ skills: [], tdps: 0, favors: 0 })
+export interface ExpState  {
+  skills: ExpSkill[]
+  tdps: number
+  favors: number
+  rested?: RestedExp
+  circle: number
+  /** "Overall state of mind: X" from the report — the character's aggregate mindstate. */
+  overallMind: string
+  /** Raw `exp sleep` notice; empty means awake. See sleepState() for the reading. */
+  sleep: string
+  /** When this session's rank counting started, for the elapsed-time figure. */
+  sessionStart: number
+  /**
+   * Fractional ranks (rank + pct/100) per skill, as first seen this session.
+   * Subtracting these from the current figures is what "ranks gained" means —
+   * DR reports no such total, so it only exists if we remember where we started.
+   */
+  baselines: Record<string, number>
+}
+export const emptyExp = (): ExpState => ({
+  skills: [], tdps: 0, favors: 0,
+  circle: 0, overallMind: '', sleep: '',
+  sessionStart: Date.now(), baselines: {},
+})
+export const expAtom = atom<ExpState>(emptyExp())
+
+/** Fold a skill's starting position into the baselines, first sighting only. */
+function withBaseline(baselines: Record<string, number>, s: ExpSkill): Record<string, number> {
+  return baselines[s.name] === undefined ? { ...baselines, [s.name]: fractionalRank(s) } : baselines
+}
 
 // Plain "exp" reports omit skills that have decayed back to 0 field experience
 // rather than printing them at 0% — so a skill silently dropping out of a fresh
@@ -767,7 +797,8 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _touchName = null
   _touchBuf  = []
   set(indicatorsAtom, {})
-  set(expAtom, { skills: [], tdps: 0, favors: 0 })
+  // A new session restarts the rank count and the clock with it.
+  set(expAtom, emptyExp())
   set(activeSpellAtom, '')
   set(activeSpellsAtom, [])
   set(roundtimeAtom, 0)
@@ -1037,14 +1068,19 @@ export const dispatchGameEventAtom = atom(
           set(expAtom, { ...exp, skills: exp.skills.map(clearSkillExp) })
         }
 
-        // Rested exp rides the EXP report text — the `exp rexp` component that
-        // ought to carry it arrives empty every single time. Read here rather
-        // than on the parser's component path so a silent background poll fills
-        // the panel too: this runs before the routing below suppresses the
-        // report, and the line still shows in main when the player asked for it.
+        // Three figures ride the EXP report TEXT rather than any component:
+        // rested exp (the `exp rexp` component that ought to carry it arrives
+        // empty every single time), the circle, and the overall mindstate. Read
+        // here rather than on the parser's component path so a silent background
+        // poll fills the panel too: this runs before the routing below suppresses
+        // the report, and the lines still show in main when the player asked.
         {
           const rested = parseRestedExp(event.text)
           if (rested) set(expAtom, { ...get(expAtom), rested })
+          const circle = parseCircle(event.text)
+          if (circle !== null) set(expAtom, { ...get(expAtom), circle })
+          const overallMind = parseOverallMind(event.text)
+          if (overallMind !== null) set(expAtom, { ...get(expAtom), overallMind })
         }
 
         // Route to stream-specific atoms
@@ -1139,6 +1175,7 @@ export const dispatchGameEventAtom = atom(
               if (!_expBatchNames) _expBatchNames = new Set()
               const exp = get(expAtom)
               let skills = exp.skills
+              let baselines = exp.baselines
               for (const r of reportedSkills) {
                 _expBatchNames.add(r.name)
                 const entry: ExpSkill = {
@@ -1147,8 +1184,9 @@ export const dispatchGameEventAtom = atom(
                 }
                 const idx = skills.findIndex(s => s.name === r.name)
                 skills = idx >= 0 ? skills.map((s, i) => i === idx ? entry : s) : [...skills, entry]
+                baselines = withBaseline(baselines, entry)
               }
-              set(expAtom, { ...exp, skills })
+              set(expAtom, { ...exp, skills, baselines })
             } else if (_expBatchNames) {
               const exp = get(expAtom)
               const seen = _expBatchNames
@@ -1157,7 +1195,13 @@ export const dispatchGameEventAtom = atom(
                 skills: exp.skills.map(s => seen.has(s.name) ? s : clearSkillExp(s)),
               })
               _expBatchNames  = null
-              _silentExpBatch = false
+              // Deliberately NOT clearing _silentExpBatch here. The report's tail
+              // — total ranks, TDPs, rested exp, state of mind — arrives AFTER the
+              // last skill line, so dropping suppression at the first non-skill
+              // line leaked four lines of it into the output on every poll. The
+              // prompt at the end of the response closes the window instead (see
+              // the prompt handler), which costs one command round-trip of
+              // suppression and hides the whole report rather than most of it.
             }
             break
           }
@@ -1245,7 +1289,16 @@ export const dispatchGameEventAtom = atom(
         const skills = idx >= 0
           ? exp.skills.map((s, i) => i === idx ? skill : s)
           : [...exp.skills, skill]
-        set(expAtom, { ...exp, skills })
+        // Baseline from the live push as well as the report, so a skill that
+        // ticks up before this session's first EXP report still counts from
+        // where it started rather than from the report.
+        set(expAtom, { ...exp, skills, baselines: withBaseline(exp.baselines, skill) })
+        break
+      }
+
+      case 'expSleep': {
+        const exp = get(expAtom)
+        if (exp.sleep !== event.text) set(expAtom, { ...exp, sleep: event.text })
         break
       }
 

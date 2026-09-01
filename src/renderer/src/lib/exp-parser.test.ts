@@ -9,7 +9,10 @@
  * Run: npm run test:tools
  */
 
-import { parseExpSkills, parseRestedExp, restedSeconds } from './exp-parser'
+import {
+  parseExpSkills, parseRestedExp, restedSeconds,
+  parseCircle, parseOverallMind, sleepState, ranksGained,
+} from './exp-parser'
 
 let passed = 0
 const failures: string[] = []
@@ -67,6 +70,56 @@ eq(
   parseRestedExp('     27 BOOST EXP.................Rested EXP Refill/Reset'),
   null,
 )
+
+// ── Circle and overall mind ──────────────────────────────────────────────────
+eq('circle parses', parseCircle('Circle: 200'), 200)
+eq('a circle-less line is null', parseCircle('Total Ranks Displayed: 19594'), null)
+// Spell circles are named, not numbered, so they can't be read as a character's
+// circle even though the word matches.
+eq('a named circle is not a number', parseCircle('Circle: Minor Elemental'), null)
+eq('overall mind parses', parseOverallMind('Overall state of mind: clear'), 'clear')
+eq('two-word mindstates survive', parseOverallMind('Overall state of mind: mind lock'), 'mind lock')
+eq('an unrelated line is null', parseOverallMind('Overall state of the realm'), null)
+
+// ── Sleep ────────────────────────────────────────────────────────────────────
+// Both notices verbatim from logged sessions.
+eq('awake when empty', sleepState(''), 'awake')
+eq('awake when blank', sleepState('   '), 'awake')
+eq(
+  'deep sleep',
+  sleepState('You are fully relaxed and your mind has entered a state of deep sleep.  To wake up and start learning again, type: AWAKEN'),
+  'deep',
+)
+eq(
+  'resting',
+  sleepState('You are relaxed and your mind has entered a state of rest.  To wake up and start learning again, type: AWAKEN'),
+  'resting',
+)
+
+// ── Ranks gained ─────────────────────────────────────────────────────────────
+{
+  const skills = [
+    { name: 'Athletics', rank: 305, pct: 66 },   // baseline 305.00 → +0.66
+    { name: 'Tactics',   rank: 1581, pct: 0 },   // baseline 1580.48 → +0.52
+    { name: 'Sorcery',   rank: 100, pct: 0 },    // no baseline → ignored
+  ]
+  const baselines = { Athletics: 305, Tactics: 1580.48 }
+  eq('gains sum across skills', ranksLabelish(ranksGained(skills, baselines)), '1.18')
+  eq('no baseline, no contribution', ranksGained([skills[2]], baselines), 0)
+  eq('nothing gained yet', ranksGained([{ name: 'Athletics', rank: 305, pct: 0 }], baselines), 0)
+}
+// A skill can read LOWER than its baseline — field experience decays back to
+// clear — and that must not subtract from the session's total.
+eq(
+  'decay never goes negative',
+  ranksGained([{ name: 'Athletics', rank: 305, pct: 0 }], { Athletics: 305.66 }),
+  0,
+)
+
+/** The panel rounds for display; do the same here so float noise can't fail the test. */
+function ranksLabelish(n: number): string {
+  return n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')
+}
 
 // ── Report ───────────────────────────────────────────────────────────────────
 if (failures.length) {
