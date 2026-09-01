@@ -4,7 +4,7 @@ import { classifyRoom, localeFromCode } from '../lib/roomLocale'
 import { ambienceFromCode } from '../lib/roomAmbient'
 import { currentNodeAtom } from './map'
 import type { GameEvent, LinkSpan, TextStyle, VitalField, StreamId } from '../lib/sge-parser'
-import { parseExpSkills } from '../lib/exp-parser'
+import { parseExpSkills, parseRestedExp } from '../lib/exp-parser'
 import { isAtmospheric } from '../lib/atmospherics'
 import { correctionFromTimeLine, computeSky, isTimeReportLine, resetTimeCalibration, type SkyState } from '../lib/elanthianTime'
 import { weatherFromLine, weatherFromReportLine, isWeatherHeaderLine, regionFromLine, CLEAR, type WeatherState, type WeatherRegion } from '../lib/weather'
@@ -1035,6 +1035,16 @@ export const dispatchGameEventAtom = atom(
         if (EXP_DRAIN_RE.test(event.text)) {
           const exp = get(expAtom)
           set(expAtom, { ...exp, skills: exp.skills.map(clearSkillExp) })
+        }
+
+        // Rested exp rides the EXP report text — the `exp rexp` component that
+        // ought to carry it arrives empty every single time. Read here rather
+        // than on the parser's component path so a silent background poll fills
+        // the panel too: this runs before the routing below suppresses the
+        // report, and the line still shows in main when the player asked for it.
+        {
+          const rested = parseRestedExp(event.text)
+          if (rested) set(expAtom, { ...get(expAtom), rested })
         }
 
         // Route to stream-specific atoms

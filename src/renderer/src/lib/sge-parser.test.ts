@@ -221,32 +221,17 @@ eq('whitespace-only component clears', expEvent('exp Athletics', '   ')?.type, '
 }
 
 // ── Rested exp ───────────────────────────────────────────────────────────────
-// Wire format per Lich's drparser. Every figure is prose and the hour form can
-// carry its own minutes, so all three are normalised to seconds here.
+// The figures themselves are exp-parser's job (see exp-parser.test.ts); what
+// matters here is that a filled `exp rexp` component becomes an event, and that
+// one carrying anything else — the free-account "unlock" line — does not.
 {
   resetParser()
   const e = parseLine(
     "<component id='exp rexp'>Rested EXP Stored: 4:38 hours  Usable This Cycle: 1 hour  Cycle Refreshes: 45 minutes</component>",
   ).find(x => x.type === 'expRested') as Extract<GameEvent, { type: 'expRested' }>
-  eq('rexp row is rested exp', e?.type, 'expRested')
-  eq('colon hours carry minutes', e?.stored, 4 * 3600 + 38 * 60)
-  eq('bare hours parse',          e?.usable, 3600)
-  eq('minutes parse',             e?.refresh, 45 * 60)
+  eq('filled rexp component is rested exp', e?.type, 'expRested')
+  eq('and carries the parsed figures',      e?.stored, 4 * 3600 + 38 * 60)
 }
-
-// "none" and "less than a minute" both mean nothing usable.
-{
-  resetParser()
-  const e = parseLine(
-    "<component id='exp rexp'>Rested EXP Stored: 30 minutes  Usable This Cycle: none  Cycle Refreshes: less than a minute</component>",
-  ).find(x => x.type === 'expRested') as Extract<GameEvent, { type: 'expRested' }>
-  eq('none is zero',                e?.usable, 0)
-  eq('less than a minute is zero',  e?.refresh, 0)
-  eq('the real figure still parses', e?.stored, 30 * 60)
-}
-
-// Free accounts get a prompt to buy the feature instead of the three figures —
-// there is nothing to report, and it must not be read as a skill.
 {
   resetParser()
   const events = parseLine("<component id='exp rexp'>[Unlock Rested Experience with a subscription]</component>")
