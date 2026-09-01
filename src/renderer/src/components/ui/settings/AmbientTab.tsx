@@ -76,8 +76,8 @@ export function AmbientTab({
         </SettingRow>
         <SettingRow
           label="Combat heat"
-          hint="Flares a red glow around the panel during combat, flashing brighter when you
-                take a hit, then fading as the fight settles."
+          hint="Flashes a red glow around the panel each time you take a hit, brighter the
+                harder it landed, then fades. Stays dark while you're only dealing damage."
         >
           <Toggle checked={ambientHeat} onChange={setAmbientHeat} label="Combat heat" />
         </SettingRow>

@@ -200,6 +200,11 @@ export const vitalsAtom = atom<Record<VitalField, VitalState>>({
   spirit:  { value: 100, max: 100 },
 })
 
+// Whether a real health reading has arrived for this session. The values above are a
+// placeholder, not a measurement, so the first push must not be diffed against them
+// as if it were a hit (see the 'vitals' case in dispatch).
+let _healthSeen = false
+
 // ── Body injuries ───────────────────────────────────────────────────────────
 // The logged-in character's wounds/scars per body location, fed by DR's
 // `<dialogData id='injuries'>` snapshots (see lib/injuries.ts). Always reflects
@@ -533,14 +538,17 @@ export const roundtimeSecondsAtom = atom(get => {
 })
 
 // ── Combat "heat" ───────────────────────────────────────────────────────────────
-// A 0→1 intensity that spikes on combat activity and decays over a few seconds of
-// quiet, driving the red edge-vignette in AmbientOverlay. Stored as the raw {level,
-// at} of the last spike; the derived combatHeatAtom decays it exponentially against
-// the clock. Bumped from dispatch: a combat line is a small pulse, taking a hit (a
-// drop in health) is a big flash. No explicit combat start/end detection needed —
-// it simply lights up mid-fight and fades when the blows stop.
+// A 0→1 intensity driving the red edge-vignette in AmbientOverlay. It is a HIT
+// flash, not a combat-state light: the only thing that raises it is losing health
+// (see the 'vitals' case), so the panel stays clean while you're swinging and
+// flares only when something lands on you. Trading blows lands hits often enough
+// that the flashes run together on their own — which is the point — but a fight
+// you're winning cleanly never lights up.
+//
+// Stored as the raw {level, at} of the last flash; the derived combatHeatAtom
+// decays it exponentially against the clock.
 export const combatHeatRawAtom = atom<{ level: number; at: number }>({ level: 0, at: 0 })
-const HEAT_TAU_MS = 2600   // e-folding time of the decay (~5–6s to fade from a full flash)
+const HEAT_TAU_MS = 700    // e-folding time of the decay (~2s from a full flash to dark)
 export const combatHeatAtom = atom(get => {
   get(tickAtom)            // re-evaluate every second while it decays
   const { level, at } = get(combatHeatRawAtom)
@@ -745,6 +753,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
     stamina: { value: 100, max: 100 },
     spirit:  { value: 100, max: 100 },
   })
+  _healthSeen = false   // the placeholder above isn't a reading — see _healthSeen
   set(handsAtom, { left: '', right: '' })
   set(bodyInjuriesAtom, {})
   set(patientBodyAtom, null)
@@ -1044,8 +1053,11 @@ export const dispatchGameEventAtom = atom(
             break
           case 'combat':
             // Combat lives only in the Combat panel — don't echo to main output.
+            // Deliberately does NOT touch the heat vignette: combat-tagged text is a
+            // poor proxy for danger (DR routes plenty of it here during the login
+            // burst, and every swing you land is a line too). Only losing health
+            // flashes the panel — see the 'vitals' case.
             set(combatLinesAtom, [...get(combatLinesAtom).slice(-499), line])
-            bumpHeat(get, set, 0.34)   // combat activity → warm the heat vignette
             break
           case 'atmo':
             set(atmoLinesAtom, [...get(atmoLinesAtom).slice(-199), line])
@@ -1246,11 +1258,20 @@ export const dispatchGameEventAtom = atom(
 
       case 'vitals': {
         const prev = get(vitalsAtom)
-        // A drop in health means we just took a hit — the biggest heat spike (a
-        // bright flash), scaled a little by how hard the hit was.
-        if (event.field === 'health' && event.value < prev.health.value) {
-          const dropFrac = prev.health.max > 0 ? (prev.health.value - event.value) / prev.health.max : 0
-          bumpHeat(get, set, 0.55 + Math.min(0.45, dropFrac * 2))
+        // A drop in health means we just took a hit — flash the panel, scaled a
+        // little by how hard the hit was.
+        //
+        // The FIRST health reading of a session is a baseline, never a hit: vitals
+        // start at a placeholder 100/100 (see vitalsAtom / resetSessionAtom), so
+        // logging in on anything less than full health read as a drop and flashed
+        // the panel red on every connect.
+        if (event.field === 'health') {
+          if (!_healthSeen) {
+            _healthSeen = true
+          } else if (event.value < prev.health.value) {
+            const dropFrac = prev.health.max > 0 ? (prev.health.value - event.value) / prev.health.max : 0
+            bumpHeat(get, set, 0.55 + Math.min(0.45, dropFrac * 2))
+          }
         }
         set(vitalsAtom, {
           ...prev,
