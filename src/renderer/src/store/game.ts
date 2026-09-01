@@ -610,7 +610,13 @@ const WEATHER_REPORT_WINDOW = 2
 
 // ── Experience ────────────────────────────────────────────────────────────────
 export interface ExpSkill { name: string; rank: number; pct: number; mind: string; mindWord?: string }
-export interface ExpState  { skills: ExpSkill[]; tdps: number; favors: number }
+/**
+ * Rested experience, in seconds. `stored` is the whole bank, `usable` what is
+ * left of this cycle's slice of it, `refresh` how long until the next cycle.
+ * Absent for characters DR never reports it for (free accounts, empty bank).
+ */
+export interface RestedExp { stored: number; usable: number; refresh: number }
+export interface ExpState  { skills: ExpSkill[]; tdps: number; favors: number; rested?: RestedExp }
 export const expAtom = atom<ExpState>({ skills: [], tdps: 0, favors: 0 })
 
 // Plain "exp" reports omit skills that have decayed back to 0 field experience
@@ -1252,6 +1258,15 @@ export const dispatchGameEventAtom = atom(
           ...exp,
           tdps:   event.tdps   ?? exp.tdps,
           favors: event.favors ?? exp.favors,
+        })
+        break
+      }
+
+      case 'expRested': {
+        const exp = get(expAtom)
+        set(expAtom, {
+          ...exp,
+          rested: { stored: event.stored, usable: event.usable, refresh: event.refresh },
         })
         break
       }

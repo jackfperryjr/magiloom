@@ -37,7 +37,10 @@ export function useSessionSnapshot(charName: string, resumed: boolean): void {
     // newer than the snapshot by definition, so it wins.
     let took = false
     if (!room.name && !room.description) { setRoom(snap.room); took = true }
-    if (exp.skills.length === 0)         { setExp(snap.exp);   took = true }
+    // Rested exp is the one part deliberately dropped: it's a countdown, so a
+    // snapshot up to two hours old would put back figures that have since run
+    // down. DR re-pushes it with the next exp update anyway.
+    if (exp.skills.length === 0)         { setExp({ ...snap.exp, rested: undefined }); took = true }
     if (!hands.left && !hands.right)     { setHands(snap.hands) }
     // Re-sync the parts of a room that go stale fastest. What's on the ground and
     // who's standing in it can both have changed while we were reloading, and the
