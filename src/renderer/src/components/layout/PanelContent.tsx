@@ -84,25 +84,37 @@ function mindColor(word?: string): string {
   return MIND_COLORS[word.toLowerCase()] ?? 'var(--text-main)'
 }
 
+/**
+ * A rested-exp duration, tightened for a third-of-a-panel tile: "4h 38m", "45m",
+ * and an em dash for nothing. DR only ever reports whole minutes.
+ */
+function restedLabel(secs: number): string {
+  if (secs <= 0) return '—'
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  if (!h) return `${m}m`
+  return m ? `${h}h ${m}m` : `${h}h`
+}
+
 export function ExperiencePanel() {
   const exp = useAtomValue(expAtom)
   const activeSkills = exp.skills.filter(s => s.pct > 0)
+  // Nothing stored and nothing left this cycle is the resting state of the
+  // feature, not news — the row would sit there reading "— — —" forever.
+  const rested = exp.rested && (exp.rested.stored > 0 || exp.rested.usable > 0) ? exp.rested : null
 
   if (exp.skills.length === 0) {
     return <div className="panel-empty">Type EXP to load experience data</div>
   }
-  if (activeSkills.length === 0) {
-    return <div className="panel-empty">No skills have field experience</div>
-  }
 
   return (
     <div className="exp-panel">
-      {/* The two figures that aren't a skill row get the sidebar's stat tiles, so
-          they read as totals rather than as two more lines of the table. */}
+      {/* The figures that aren't a skill row get the sidebar's stat tiles, so they
+          read as totals rather than as more lines of the table. */}
       {(exp.tdps > 0 || exp.favors > 0) && (
         <div className="panel-stats panel-stats-lead">
           {exp.tdps > 0 && (
-            <div className="panel-stat" data-tooltip="Unspent Tiered Development Points.">
+            <div className="panel-stat" data-tooltip="Unspent Time Development Points.">
               <span className="panel-stat-n">{exp.tdps}</span>
               <span className="panel-stat-k">TDPs</span>
             </div>
@@ -114,6 +126,32 @@ export function ExperiencePanel() {
             </div>
           )}
         </div>
+      )}
+      {rested && (
+        <>
+          <div className="panel-section">Rested EXP</div>
+          <div className="panel-stats panel-stats-lead">
+            <div className="panel-stat" data-tooltip="Rested experience banked while logged out.">
+              <span className="panel-stat-n">{restedLabel(rested.stored)}</span>
+              <span className="panel-stat-k">stored</span>
+            </div>
+            <div className="panel-stat" data-tooltip="Rested experience still spendable in this cycle.">
+              <span className="panel-stat-n" style={{ color: rested.usable > 0 ? 'var(--accent)' : undefined }}>
+                {restedLabel(rested.usable)}
+              </span>
+              <span className="panel-stat-k">usable</span>
+            </div>
+            <div className="panel-stat" data-tooltip="Time until the next cycle refills the usable share.">
+              <span className="panel-stat-n">{restedLabel(rested.refresh)}</span>
+              <span className="panel-stat-k">refresh</span>
+            </div>
+          </div>
+        </>
+      )}
+      {/* The totals above are worth showing on their own, so the "no field exp"
+          case replaces the table rather than the whole panel. */}
+      {activeSkills.length === 0 && (
+        <div className="panel-empty">No skills have field experience</div>
       )}
       <table className="exp-table">
         <tbody>

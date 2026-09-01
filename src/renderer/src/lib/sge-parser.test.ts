@@ -220,6 +220,39 @@ eq('whitespace-only component clears', expEvent('exp Athletics', '   ')?.type, '
   eq('favors parse', e?.favors, 50)
 }
 
+// ── Rested exp ───────────────────────────────────────────────────────────────
+// Wire format per Lich's drparser. Every figure is prose and the hour form can
+// carry its own minutes, so all three are normalised to seconds here.
+{
+  resetParser()
+  const e = parseLine(
+    "<component id='exp rexp'>Rested EXP Stored: 4:38 hours  Usable This Cycle: 1 hour  Cycle Refreshes: 45 minutes</component>",
+  ).find(x => x.type === 'expRested') as Extract<GameEvent, { type: 'expRested' }>
+  eq('rexp row is rested exp', e?.type, 'expRested')
+  eq('colon hours carry minutes', e?.stored, 4 * 3600 + 38 * 60)
+  eq('bare hours parse',          e?.usable, 3600)
+  eq('minutes parse',             e?.refresh, 45 * 60)
+}
+
+// "none" and "less than a minute" both mean nothing usable.
+{
+  resetParser()
+  const e = parseLine(
+    "<component id='exp rexp'>Rested EXP Stored: 30 minutes  Usable This Cycle: none  Cycle Refreshes: less than a minute</component>",
+  ).find(x => x.type === 'expRested') as Extract<GameEvent, { type: 'expRested' }>
+  eq('none is zero',                e?.usable, 0)
+  eq('less than a minute is zero',  e?.refresh, 0)
+  eq('the real figure still parses', e?.stored, 30 * 60)
+}
+
+// Free accounts get a prompt to buy the feature instead of the three figures —
+// there is nothing to report, and it must not be read as a skill.
+{
+  resetParser()
+  const events = parseLine("<component id='exp rexp'>[Unlock Rested Experience with a subscription]</component>")
+  eq('locked rexp reports nothing', events.some(e => e.type === 'expRested' || e.type === 'expSkill'), false)
+}
+
 // ── Report ───────────────────────────────────────────────────────────────────
 if (failures.length) {
   console.error(`\n✗ sge-parser: ${failures.length} failed, ${passed} passed`)
