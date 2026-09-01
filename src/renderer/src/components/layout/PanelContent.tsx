@@ -457,12 +457,12 @@ export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
 
   return (
     <div className="inv-sum">
-      <div className="inv-sum-tools">
+      <div className="panel-btn-row">
         {onManage && (
-          <button className="inv-mgr-btn" onClick={onManage}>Manage items…</button>
+          <button className="panel-btn" onClick={onManage}>Manage items…</button>
         )}
         <button
-          className="inv-mgr-btn"
+          className="panel-btn"
           disabled={status === 'loading'}
           onClick={() => refresh(true)}
         >{status === 'loading' ? 'Reading…' : 'Refresh'}</button>
@@ -509,17 +509,17 @@ export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
       ) : status === 'loading' ? (
         <div className="panel-empty">Reading your inventory…</div>
       ) : (
-        <>
-          {/* A failed walk used to fall straight through to the text dump, which
-              looked like the panel had simply reverted — say what happened instead.
-              The dump still follows it: stale text beats nothing while you retry. */}
-          {status === 'error' && error && <div className="inv-sum-error">{error}</div>}
-          {lines.length > 0
-            ? lines.map((line, i) => <div key={i} className="inv-line">{line}</div>)
-            : status !== 'error' && (
-                <div className="panel-empty">Refresh to read your inventory.</div>
-              )}
-        </>
+        status === 'error' && error ? (
+          /* A failed walk used to fall through to the raw INV text, which read as
+             the panel having quietly reverted — and that text is whatever was last
+             typed, so it's stale, unordered, and contradicts the message above it.
+             When the walk fails, the message is the whole answer. */
+          <div className="inv-sum-error">{error}</div>
+        ) : lines.length > 0 ? (
+          lines.map((line, i) => <div key={i} className="inv-line">{line}</div>)
+        ) : (
+          <div className="panel-empty">Refresh to read your inventory.</div>
+        )
       )}
     </div>
   )
