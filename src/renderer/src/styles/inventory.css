@@ -227,9 +227,11 @@
 
 /* ── Docked panel: carry summary ───────────────────────────────────────────── */
 .inv-sum { padding: 6px 8px 8px; font-size: 12px; }
-.inv-sum-tools { display: flex; gap: 6px; margin-bottom: 8px; }
+/* Buttons here are .panel-btn (sidebar-panels.css) — the same chip the Scripts
+   panel uses — so the tools row only needs the layout, which .panel-btn-row gives. */
 
-/* Why the structured view isn't there — sits above the raw INV text fallback. */
+/* Why the structured view isn't there. Shown on its own: a failed walk means we
+   have nothing trustworthy to put under it. */
 .inv-sum-error {
   margin-bottom: 6px; padding: 4px 0;
   font-size: 11px; line-height: 1.35; color: var(--color-warning);

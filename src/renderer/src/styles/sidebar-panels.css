@@ -48,13 +48,19 @@
 
 /* Quick actions: a wrapped chip grid, because the panel column is narrow and its
    width is user-dragged — a fixed column count would clip labels at some sizes. */
-.quick-grid {
+.quick-grid,
+.panel-btn-row {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 8px;
 }
-.quick-btn {
+/* The side-panel button. Quick actions were the first to use this look and it's
+   now the shared one — any panel's own buttons (the inventory tools row, …) take
+   `.panel-btn` rather than inventing a near-miss of it, because two panels with
+   slightly different chips read as two different apps. */
+.quick-btn,
+.panel-btn {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -68,8 +74,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.quick-btn:hover  { border-color: var(--accent); color: var(--accent); }
-.quick-btn:active { transform: translateY(1px); }
+.quick-btn:hover,
+.panel-btn:hover:not(:disabled)  { border-color: var(--accent); color: var(--accent); }
+.quick-btn:active,
+.panel-btn:active:not(:disabled) { transform: translateY(1px); }
+.panel-btn:disabled { opacity: 0.45; cursor: default; }
 /* A left edge in the kind's colour: which of the three a button is matters when
    you're deciding whether it's safe to click mid-fight. */
 .quick-btn-cmd   { border-left: 2px solid var(--color-bonus); }
