@@ -16,27 +16,130 @@
   border-bottom: 1px solid var(--border-soft);
 }
 
+/* ── Sidebar panel design language ─────────────────────────────────────────────
+   Every sidebar panel is assembled from the same handful of primitives. They were
+   lifted out of the Inventory panel, which is where this look started: UI font at
+   one size, small uppercase keys, stat tiles, hoverable rows, pill tags. Before
+   this each panel picked its own font and size and the sidebar read as several
+   different apps stacked in a column. The rule now is that a panel reaches for
+   these classes rather than inventing a near-miss of one; anything genuinely
+   panel-specific layers on top.
+
+   Note the sidebar is deliberately --font-ui and NOT the player's chosen game font
+   (--font-game, Settings → Appearance). The game font stays where the game itself
+   speaks: the output window and the command bar. The sidebar is instrumentation. */
+.panel-content,
+.panel-mobile-body {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  line-height: 1.4;
+  /* Surfaces the primitives below share, so a panel can re-use one without
+     re-deriving the mix. */
+  --panel-tile:  color-mix(in srgb, var(--bg-input) 55%, transparent);
+  --panel-hover: var(--bg-hover, rgba(255, 255, 255, 0.04));
+}
+
+/* A field name. Small, uppercase, muted — the sidebar's one label style. */
+.panel-key {
+  flex: none;
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-muted);
+}
+
+/* A heading over a group of rows inside a panel body. */
+.panel-section {
+  padding: 5px 0 3px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-muted);
+}
+
+/* Stat tiles — two or three figures across, for the numbers that should stay
+   readable without scrolling the panel. */
+.panel-stats {
+  display: flex; gap: 6px;
+  margin-bottom: 8px; padding-top: 6px;
+  border-top: 1px solid var(--border-soft);
+}
+/* Same tiles at the top of a panel, where there's nothing above to divide from. */
+.panel-stats-lead { margin-bottom: 6px; padding-top: 0; border-top: none; }
+.panel-stat {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 4px 2px;
+  border-radius: 5px;
+  background: var(--panel-tile);
+}
+.panel-stat[data-tooltip] { cursor: help; }
+.panel-stat-n {
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px; line-height: 1.1;
+}
+.panel-stat-k {
+  color: var(--text-dim);
+  font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+}
+
+/* A list row: name on the left, a number or tag pushed to the right. */
+.panel-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 2px; border-radius: 4px;
+}
+.panel-row-click { cursor: pointer; }
+.panel-row-click:hover { background: var(--panel-hover); }
+/* flex + min-width:0 so a long name truncates instead of shoving whatever sits
+   after it off the edge. */
+.panel-row-name {
+  flex: 1 1 auto; min-width: 0; color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.panel-row-num { flex: none; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* Pills. .panel-tag is state you read; .panel-chip is something you click. */
+.panel-tag {
+  flex: none;
+  padding: 0 5px; border-radius: 999px;
+  background: var(--panel-tile); color: var(--text-muted);
+  font-size: 9px; text-transform: uppercase; letter-spacing: .05em;
+}
+.panel-tag-warn {
+  background: color-mix(in srgb, var(--color-warning) 16%, transparent);
+  color: var(--color-warning);
+}
+.panel-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--bg-input); color: var(--text-dim);
+  border: 1px solid var(--border-soft); border-radius: 999px;
+  font-family: var(--font-ui); font-size: 11.5px; line-height: 1.4;
+  padding: 2px 9px; cursor: pointer;
+}
+.panel-chip:hover { color: var(--accent); border-color: var(--border); }
+
 /* ── Room panel ──────────────────────────────────────────────────────────── */
-/* The whole room panel uses the game-window font (--font-game), so the also-here /
-   objects lines match the game-font room name/desc/exits instead of inheriting the
-   Inter UI font. */
-.room-panel { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-game); }
+.room-panel { display: flex; flex-direction: column; gap: 5px; }
+/* Key + value on one line, the value wrapping under itself rather than back
+   beneath the key. Used for "also here" and the object list. */
+.room-line { display: flex; gap: 7px; align-items: baseline; }
+.room-line .panel-key { padding-top: 1px; }
+.room-line-v { flex: 1; min-width: 0; color: var(--text-main); }
 
 /* ── Experience panel ────────────────────────────────────────────────────── */
 .exp-panel { display: flex; flex-direction: column; gap: 4px; }
-.exp-meta { display: flex; gap: 12px; margin-bottom: 4px; }
-.exp-meta-item { font-size: 14px; color: var(--text-dim); font-family: var(--font-game); }
-.exp-meta-item b { color: var(--text-main); font-weight: 400; }
 .exp-table { width: 100%; border-collapse: collapse; }
-.exp-skill { font-size: 14px; color: var(--text-dim); padding: 2px 4px 2px 0; font-family: var(--font-game); }
-.exp-rank  { font-size: 14px; color: var(--text-main); text-align: right; padding: 2px 4px; min-width: 32px; font-family: var(--font-game); }
-.exp-pct   { font-size: 14px; color: var(--accent);    text-align: right; padding: 2px 4px; min-width: 34px; font-family: var(--font-game); }
-.exp-mind     { font-size: 13px; color: var(--text-dim);  text-align: left;  padding: 2px 0 2px 4px; font-family: var(--font-game); min-width: 48px; }
+/* The rows lay out as flex, not as table cells — the columns are narrow and fixed
+   and a real table column would stretch to its widest skill name. Spelled out here
+   rather than inherited from the (unrelated) settings-modal rules of the same name. */
+.exp-row   { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.exp-skill { flex: 1; font-size: 12.5px; color: var(--text-dim); padding: 2px 4px 2px 0; }
+.exp-rank  { font-size: 12.5px; color: var(--text-main); text-align: right; padding: 2px 4px; min-width: 30px; font-variant-numeric: tabular-nums; }
+.exp-pct   { font-size: 12.5px; color: var(--accent);    text-align: right; padding: 2px 4px; min-width: 32px; font-variant-numeric: tabular-nums; }
+.exp-mind  { font-size: 11px;   color: var(--text-dim);  text-align: left;  padding: 2px 0 2px 6px; min-width: 46px; }
 /* DR skill-group header rows (Guild Skills / Armor / Weapon / …), like the game's
-   EXPERIENCE window. Uppercase, dim, underlined; extra space above each group. */
+   EXPERIENCE window — the same heading treatment as .panel-section, plus the rule
+   the table gives it. */
 .exp-group-head td {
-  font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
-  color: var(--text-dim); font-family: var(--font-ui);
+  font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-muted);
   padding: 9px 0 3px; border-bottom: 1px solid var(--border-soft);
 }
 .exp-group-head:first-child td { padding-top: 2px; }
@@ -80,23 +183,24 @@
 }
 .profile-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .conv-msg-header { display: flex; align-items: baseline; gap: 6px; line-height: 1.2; }
-.conv-msg-name { font-family: var(--font-ui); font-size: 14px; font-weight: 600; }
-.conv-msg-verb { font-family: var(--font-ui); font-size: 12px; color: var(--text-muted); }
-.conv-msg-time { font-family: var(--font-ui); font-size: 11px; color: var(--text-dim); margin-left: 2px; }
+.conv-msg-name { font-size: 12.5px; font-weight: 600; }
+.conv-msg-verb { font-size: 11px; color: var(--text-muted); }
+/* Clock pushed to the far edge so the names/verbs line up across a run of
+   messages instead of the time landing at a different spot on every row. */
+.conv-msg-time { font-size: 10.5px; color: var(--text-dim); margin-left: auto; font-variant-numeric: tabular-nums; }
 .conv-msg-text {
-  font-family: var(--font-game);
-  font-size: 14px;
-  line-height: 1.35;
+  font-size: 12.5px;
+  line-height: 1.4;
   color: var(--text-main);
   word-break: break-word;
   white-space: pre-wrap;
 }
 .conv-msg-plain { padding: 2px 0; }
 .conv-msg-plain .conv-msg-text { color: var(--text-dim); }
-.inv-line  { font-size: 14px; color: var(--text-dim); padding: 1px 0; line-height: 1.3; font-family: var(--font-game); }
+.inv-line { font-size: 12.5px; color: var(--text-dim); padding: 1px 0; line-height: 1.35; }
 
 /* ── Panel empty state ───────────────────────────────────────────────────── */
-.panel-empty { font-size: 14px; color: var(--text-dim); font-style: italic; padding: 4px 0; font-family: var(--font-game); }
+.panel-empty { font-size: 12px; color: var(--text-dim); font-style: italic; padding: 4px 0; }
 
 /* Scrollable panel body */
 .panel-content-scroll { overflow-y: auto; max-height: 220px; }
@@ -118,33 +222,27 @@
 
 /* ── Vital numeric display ───────────────────────────────────────────────── */
 /* ── Combat panel ────────────────────────────────────────────────────────── */
-.combat-line {
-  font-size: 14px; padding: 1px 0; line-height: 1.35;
-  color: var(--color-warning); font-family: var(--font-game);
+/* Combat/atmo/thoughts are all the same shape — a timestamp then a wrapping
+   message — so they share one row geometry and differ only in colour. The text
+   hangs indented under itself rather than reflowing back beneath the clock. */
+.combat-line, .atmo-line, .thought-line {
+  display: flex; align-items: baseline;
+  font-size: 12.5px; padding: 2px 0; line-height: 1.4;
 }
+.combat-line { color: var(--color-warning); }
 
 /* ── Atmo panel ──────────────────────────────────────────────────────────── */
-.atmo-line {
-  font-size: 14px; padding: 1px 0; line-height: 1.35;
-  color: var(--text-dim); font-style: italic; font-family: var(--font-game);
-}
+.atmo-line { color: var(--text-dim); font-style: italic; }
+
 /* ── Thoughts panel ──────────────────────────────────────────────────────── */
-/* One row per networked thought: time, channel chip, sender, message. The row
-   wraps rather than clipping — ESP messages run long and the sidebar is narrow. */
-.thought-line {
-  display: flex; align-items: baseline;
-  font-size: 14px; padding: 2px 0; line-height: 1.35;
-  font-family: var(--font-game); color: var(--text-main);
-}
-/* Everything after the timestamp shares one wrapping block, so a long message
-   hangs indented under itself instead of reflowing back beneath the clock. */
-.thought-msg { flex: 1; min-width: 0; }
+/* One row per networked thought: time, channel chip, sender, message. */
+.thought-line { color: var(--text-main); }
 .thought-channel {
-  font-family: var(--font-ui); font-size: 10px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .04em;
+  font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .05em;
   color: var(--color-thought);
   background: color-mix(in oklab, var(--color-thought) 16%, transparent);
-  border-radius: 3px; padding: 0 4px; margin-right: 6px;
+  border-radius: 999px; padding: 0 5px; margin-right: 6px;
   white-space: nowrap;
 }
 .thought-sender {
@@ -152,12 +250,17 @@
 }
 .thought-text { color: var(--text-main); }
 
-/* Leading timestamp on combat/atmo panel lines */
+/* Leading timestamp on the log-style panels (combat / atmo / thoughts / deaths /
+   connections). Tabular so the clocks form a straight column down the panel. */
 .panel-line-time {
-  font-family: var(--font-ui); font-size: 11px; color: var(--text-dim);
-  font-style: normal; margin-right: 6px;
-  display: inline-block; min-width: 60px; white-space: nowrap; flex-shrink: 0;
+  font-size: 10.5px; color: var(--text-dim);
+  font-style: normal; font-variant-numeric: tabular-nums;
+  margin-right: 7px;
+  display: inline-block; min-width: 52px; white-space: nowrap; flex-shrink: 0;
 }
+/* Everything after the timestamp shares one wrapping block, so a long message
+   hangs indented under itself instead of reflowing back beneath the clock. */
+.panel-line-text { flex: 1; min-width: 0; }
 
 /* ── Room exits preset ───────────────────────────────────────────────────── */
 .preset-roomexits { color: var(--color-bonus); font-size: 15px; font-family: var(--font-game); }
@@ -264,8 +367,12 @@
   margin-bottom: 0.3rem;
   font-weight: bold;
 }
+/* margin-bottom used to come from a bare `.exp-meta` rule shared with the
+   Experience panel's TDP/Favor strip; that strip is stat tiles now, so the spacing
+   is spelled out on the output line that still wants it. */
 .game-line.exp-meta {
   margin-top: 0.3rem;
+  margin-bottom: 4px;
   padding: 0.2rem 0.15rem;
   background: rgba(139, 134, 248, 0.05);
   border-radius: 3px;
@@ -280,9 +387,12 @@
 }
 
 /* ── Room panel exits ────────────────────────────────────────────────────── */
-.room-exits { margin-top: 6px; font-size: 14px; line-height: 1.5; font-family: var(--font-game); }
-.room-exits-label { color: var(--text-dim); }
-.room-exits-sep { color: var(--text-dim); }
+/* One chip per exit rather than a comma-separated sentence: they're buttons (a
+   click walks you), and at sidebar width a wrapped chip grid reads as a set of
+   targets instead of prose you have to aim at. */
+.room-exits { display: flex; gap: 7px; align-items: baseline; margin-top: 2px; }
+.room-exit-chips { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.room-exit { text-transform: lowercase; }
 
 /* ── Reconnect overlay (in-game login flow) ──────────────────────────────── */
 .reconnect-overlay {
@@ -347,35 +457,22 @@
 .update-icon-btn.update-available  { color: var(--color-bonus); cursor: pointer; }
 .update-icon-btn.update-available:hover { background: color-mix(in srgb, var(--color-bonus) 18%, transparent); }
 
-/* ── Deaths panel ────────────────────────────────────────────────────────── */
-/* Connections panel (logons / logoffs) */
-/* Block layout like the deaths panel so text word-wraps; dot stays inline. */
-.conn-line {
-  padding: 2px 8px;
-  font-size: var(--font-size-game);
-  font-family: var(--font-game);
-  border-bottom: 1px solid var(--border-soft);
+/* ── Deaths / Connections panels ─────────────────────────────────────────── */
+/* Same row shape as combat/atmo above. The per-line rules underneath dropped
+   their border-bottom: a hairline under every entry turned a busy night's logons
+   into a ledger, and the timestamp column already separates the rows. */
+.conn-line, .death-line {
+  display: flex; align-items: baseline;
+  padding: 2px 0; font-size: 12.5px; line-height: 1.4;
   word-break: break-word;
 }
-.conn-dot  { display: inline-block; width: 7px; height: 7px; border-radius: 50%; vertical-align: middle; margin: 0 5px 2px 1px; }
+.conn-dot  { display: inline-block; width: 7px; height: 7px; border-radius: 50%; vertical-align: middle; margin: 0 5px 1px 0; flex: none; }
 .conn-on  .conn-dot { background: var(--color-bonus); }
 .conn-off .conn-dot { background: var(--color-warning); }
-.conn-text { color: var(--text-main); }
+.conn-text { flex: 1; min-width: 0; color: var(--text-main); }
 
-.death-line {
-  padding: 2px 8px;
-  font-size: var(--font-size-game);
-  font-family: var(--font-game);
-  color: var(--color-warning);
-  border-bottom: 1px solid var(--border-soft);
-  word-break: break-word;
-}
-.death-time {
-  color: var(--text-dim);
-  font-size: 11px;
-  font-family: var(--font-ui);
-  margin-right: 6px;
-}
+.death-line { color: var(--color-warning); }
+.death-text { flex: 1; min-width: 0; }
 
 /* ── Calendar panel (date + sun + moons) ───────────────────────────────────── */
 .sky-panel { position: relative; padding: 2px; }
@@ -384,22 +481,22 @@
 .moon-glow { filter: blur(2.5px); }
 /* Labels tucked into the dome's empty upper corners. */
 .sky-corner { position: absolute; top: 6px; pointer-events: none; line-height: 1.2; }
-.sky-corner-l { left: 9px; font-size: 15px; color: var(--text-main); font-family: var(--font-game); letter-spacing: .02em; }
-.sky-corner-r { right: 9px; text-align: right; font-size: 11px; color: var(--text-dim); font-family: var(--font-ui); }
+.sky-corner-l { left: 9px; font-size: 12.5px; color: var(--text-main); letter-spacing: .02em; }
+.sky-corner-r { right: 9px; text-align: right; font-size: 11px; color: var(--text-dim); }
 .sky-anlas { color: inherit; opacity: .72; font-size: 10px; margin-top: 1px; }
 .sky-segment { color: inherit; opacity: .72; font-size: 10px; margin-top: 1px; font-family: var(--font-ui); letter-spacing: 0; }
 .sky-panel-hint { font-size: 12px; color: var(--text-dim); padding: 10px 2px; font-style: italic; text-align: center; }
 /* The Elanthian date, under the dome. */
 .sky-date { text-align: center; padding: 6px 4px 0; line-height: 1.25; }
-.sky-date-main { display: block; font-family: var(--font-game); font-size: 13px; color: var(--text-main); }
-.sky-date-sub { display: block; font-family: var(--font-ui); font-size: 10px; color: var(--text-muted); }
+.sky-date-main { display: block; font-size: 12.5px; color: var(--text-main); }
+.sky-date-sub { display: block; font-size: 10px; color: var(--text-muted); }
 /* Current conditions, with a trend when the last transition told us one. */
-.sky-weather { text-align: center; font-family: var(--font-ui); font-size: 11px; color: var(--text-dim); padding-top: 3px; }
-.sky-trend { margin-left: 6px; font-size: 10px; padding: 1px 5px; border-radius: 8px; background: var(--surface-2, rgba(127,127,127,.14)); }
+.sky-weather { text-align: center; font-size: 11px; color: var(--text-dim); padding-top: 3px; }
+.sky-trend { margin-left: 6px; font-size: 10px; padding: 1px 6px; border-radius: 999px; background: var(--panel-tile, rgba(127,127,127,.14)); }
 .sky-trend-improving { color: var(--good, #6fbf73); }
 .sky-trend-worsening { color: var(--warn, #d08a3a); }
 /* Moon rise/set timers under the dome — one small chip per known moon. */
 .sky-moons { display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: center; padding: 5px 4px 3px; }
-.sky-moon-chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-ui); font-size: 11px; color: var(--text-main); }
+.sky-moon-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-main); font-variant-numeric: tabular-nums; }
 .sky-moon-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .sky-moon-when { color: var(--text-muted); }

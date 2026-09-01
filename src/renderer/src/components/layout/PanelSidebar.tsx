@@ -108,10 +108,35 @@ function saveHeights(name: string, heights: Record<string, number>) {
   window.dr.settings.patchChar(name, { panelHeights: heights })
 }
 
+// ── Drag-to-reorder ────────────────────────────────────────────────────────────
+// Panels are reordered by dragging a card's header. HTML5 drag-and-drop rather
+// than a mousemove handler (which is what the resize grips use): the browser owns
+// the drag ghost and the cancel/escape path, so a drag can't get wedged if the
+// pointer leaves the window mid-gesture.
+//
+// The list does NOT shuffle live under the cursor. Panels are tall and
+// user-resizable, so re-ordering on every dragover made the sidebar leap around
+// and scroll out from under the drag. Instead a line marks the edge the card will
+// land on, and the move is committed once on drop.
+//
+// A private MIME type identifies our own drags, so dragging text, a file, or a
+// link over the sidebar doesn't light up drop indicators.
+const REORDER_MIME = 'application/x-magiloom-panel'
+const isReorderDrag = (e: React.DragEvent) => e.dataTransfer.types.includes(REORDER_MIME)
+
+interface PanelDrag {
+  dragging: boolean
+  dropEdge: 'top' | 'bottom' | null
+  onStart:  () => void
+  onEnd:    () => void
+  onOver:   (below: boolean, clientY: number) => void
+  onDrop:   () => void
+}
+
 // ── Single panel ───────────────────────────────────────────────────────────────
 function Panel({
   config, children, onToggle, onClear,
-  height, onResizeBottom, onResizeTop,
+  height, onResizeBottom, onResizeTop, drag,
 }: {
   config:          PanelConfig
   children:        React.ReactNode
@@ -120,6 +145,7 @@ function Panel({
   height:          number | null
   onResizeBottom:  (h: number) => void
   onResizeTop?:    (delta: number) => void
+  drag?:           PanelDrag
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [ctxMenu,   setCtxMenu]   = useState<{ x: number; y: number } | null>(null)
@@ -169,7 +195,21 @@ function Panel({
   }, [])
 
   return (
-    <div className="panel-card" data-panel-id={config.id}>
+    <div
+      className={'panel-card' + (drag?.dragging ? ' panel-card-dragging' : '')}
+      data-panel-id={config.id}
+      data-drop={drag?.dropEdge ?? undefined}
+      onDragOver={drag && (e => {
+        if (!isReorderDrag(e)) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        // Which half of the card the cursor is in decides whether the dragged panel
+        // lands above or below this one.
+        const r = e.currentTarget.getBoundingClientRect()
+        drag.onOver(e.clientY > r.top + r.height / 2, e.clientY)
+      })}
+      onDrop={drag && (e => { if (!isReorderDrag(e)) return; e.preventDefault(); drag.onDrop() })}
+    >
       {onResizeTop && (
         <div
           className="panel-resize-handle panel-resize-handle-top"
@@ -179,10 +219,23 @@ function Panel({
       )}
       <div
         className="panel-header"
+        // The header is the grab handle. Its own drag image (a title bar) is the
+        // right ghost, so we don't override it with the whole — possibly very
+        // tall — card.
+        draggable={!!drag}
+        onDragStart={drag && (e => {
+          e.dataTransfer.effectAllowed = 'move'
+          e.dataTransfer.setData(REORDER_MIME, config.id)
+          drag.onStart()
+        })}
+        onDragEnd={drag?.onEnd}
         onDoubleClick={() => setCollapsed(c => !c)}
         onContextMenu={onClear ? (e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY }) } : undefined}
       >
-        <span className="panel-title">{config.label}</span>
+        <span
+          className="panel-title"
+          data-tooltip={drag ? 'Drag to reorder · double-click to collapse' : undefined}
+        >{config.label}</span>
         <div className="panel-header-actions">
           <Tooltip text={collapsed ? 'Expand' : 'Collapse'}>
             <button className="panel-collapse-btn" onClick={() => setCollapsed(c => !c)}>
@@ -459,6 +512,77 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
     setHeights(prev => ({ ...prev, [id]: h }))
   }, [])
 
+  // ── Reorder ──────────────────────────────────────────────────────────────────
+  // `dragId` is the panel being dragged; `dropAt` is the card it's hovering and
+  // which of that card's edges it will land on. Both clear on drop or on a
+  // cancelled drag. The new order persists through the same setPanels → savePanels
+  // effect as a show/hide, so it lands in the character's settings.json.
+  const [dragId, setDragId] = useState<PanelId | null>(null)
+  const [dropAt, setDropAt] = useState<{ id: PanelId; below: boolean } | null>(null)
+  const dragY = useRef(0)
+
+  // Move `from` to the near side of `to` within the FULL panel list — not within
+  // the visible subset — so a hidden panel keeps its place in the saved layout
+  // instead of being dragged to the end of it.
+  const movePanel = useCallback((from: PanelId, to: PanelId, below: boolean) => {
+    setPanels(prev => {
+      const i = prev.findIndex(p => p.id === from)
+      if (i < 0 || from === to) return prev
+      const next = prev.slice()
+      const [moved] = next.splice(i, 1)
+      // Re-find the target AFTER the removal: its index shifts by one whenever the
+      // dragged panel was above it.
+      const at = next.findIndex(p => p.id === to)
+      if (at < 0) return prev
+      next.splice(at + (below ? 1 : 0), 0, moved)
+      return next
+    })
+  }, [])
+
+  const endDrag = useCallback(() => { setDragId(null); setDropAt(null) }, [])
+  const commitDrop = useCallback(() => {
+    if (dragId && dropAt) movePanel(dragId, dropAt.id, dropAt.below)
+    endDrag()
+  }, [dragId, dropAt, movePanel, endDrag])
+
+  // Auto-scroll when the drag nears either end of the sidebar. Chromium doesn't
+  // scroll a nested container for an HTML5 drag, and dragover stops firing when the
+  // pointer holds still — so this runs off rAF for as long as a drag is live, using
+  // the last position the cards or the scroller reported.
+  useEffect(() => {
+    if (!dragId) return
+    const EDGE = 48, SPEED = 12
+    let raf = 0
+    const step = () => {
+      const el = scrollRef.current
+      if (el) {
+        const r = el.getBoundingClientRect()
+        if      (dragY.current - r.top    < EDGE) el.scrollTop -= SPEED
+        else if (r.bottom - dragY.current < EDGE) el.scrollTop += SPEED
+      }
+      raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [dragId])
+
+  const panelDrag = useCallback((id: PanelId): PanelDrag => ({
+    dragging: dragId === id,
+    dropEdge: dropAt?.id === id ? (dropAt.below ? 'bottom' : 'top') : null,
+    onStart:  () => setDragId(id),
+    onEnd:    endDrag,
+    onOver:   (below, clientY) => {
+      dragY.current = clientY
+      // Hovering the card being dragged isn't a target — dropping there is a no-op,
+      // so clear the indicator rather than leave one pointing at the last card.
+      if (dragId === id) { setDropAt(null); return }
+      // Same edge as last frame → return the previous object so the (very frequent)
+      // dragover events don't each cost a re-render.
+      setDropAt(prev => prev && prev.id === id && prev.below === below ? prev : { id, below })
+    },
+    onDrop: commitDrop,
+  }), [dragId, dropAt, endDrag, commitDrop])
+
   const visible = panels.filter(p => p.visible)
 
   // On mobile the panel list is hidden and a rail tap opens the panel as an
@@ -474,7 +598,14 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
   return (
     <div className="panel-sidebar-wrap" style={sidebarWidth && !isMobile ? { width: sidebarWidth, flex: 'none' } : {}}>
       <aside className="panel-sidebar">
-      <div className="panel-sidebar-scroll" ref={scrollRef}>
+      <div
+        className="panel-sidebar-scroll"
+        ref={scrollRef}
+        // Keeps the auto-scroll fed while the cursor is over the gaps between
+        // cards (or past the last one), where no card's own dragover fires.
+        onDragOver={e => { if (!isReorderDrag(e)) return; e.preventDefault(); dragY.current = e.clientY }}
+        onDrop={e => { if (!isReorderDrag(e)) return; e.preventDefault(); commitDrop() }}
+      >
         {visible.map((panel, i) => (
           <Panel
             key={panel.id}
@@ -490,6 +621,7 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
             } : undefined}
             onToggle={() => togglePanel(panel.id)}
             onClear={getClearFn?.(panel.id)}
+            drag={isMobile ? undefined : panelDrag(panel.id)}
           >
             {renderPanel(panel.id)}
           </Panel>

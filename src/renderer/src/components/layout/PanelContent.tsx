@@ -33,29 +33,35 @@ function ScrollPanel({ children, deps }: { children: React.ReactNode; deps: unkn
 
 export function RoomPanel() {
   const room = useAtomValue(roomAtom)
-  const alsoHere = room.playerNames.length > 0 ? `Also here: ${room.playerNames.join(', ')}` : ''
 
   return (
     <div className="room-panel">
-      <div className="room-name">Room: {room.name || '—'}</div>
+      <div className="room-name">{room.name || '—'}</div>
       {room.description && <div className="room-desc">{room.description}</div>}
-      {alsoHere && <div className="room-players">{alsoHere}</div>}
+      {room.playerNames.length > 0 && (
+        <div className="room-line">
+          <span className="panel-key">Also here</span>
+          <span className="room-line-v">{room.playerNames.join(', ')}</span>
+        </div>
+      )}
+      {/* The object list arrives from the game with its own lead-in ("You also see
+          …"), so it stands on its own rather than taking a key. */}
       {room.objs && <div className="room-objs">{room.objs}</div>}
       {room.exits.length > 0 && (
         <div className="room-exits">
-          <span className="room-exits-label">Exits: </span>
-          {room.exits.map((dir, i) => (
-            <span key={dir}>
-              <span
-                className="game-link"
+          <span className="panel-key">Exits</span>
+          <div className="room-exit-chips">
+            {room.exits.map(dir => (
+              <button
+                key={dir}
+                className="panel-chip room-exit"
                 onClick={() => window.dr.game.send(dir)}
                 data-tooltip={'go ' + dir}
               >
                 {dir}
-              </span>
-              {i < room.exits.length - 1 && <span className="room-exits-sep">, </span>}
-            </span>
-          ))}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -91,10 +97,22 @@ export function ExperiencePanel() {
 
   return (
     <div className="exp-panel">
+      {/* The two figures that aren't a skill row get the sidebar's stat tiles, so
+          they read as totals rather than as two more lines of the table. */}
       {(exp.tdps > 0 || exp.favors > 0) && (
-        <div className="exp-meta">
-          {exp.tdps   > 0 && <span className="exp-meta-item">TDPs: <b>{exp.tdps}</b></span>}
-          {exp.favors > 0 && <span className="exp-meta-item">Favors: <b>{exp.favors}</b></span>}
+        <div className="panel-stats panel-stats-lead">
+          {exp.tdps > 0 && (
+            <div className="panel-stat" data-tooltip="Unspent Tiered Development Points.">
+              <span className="panel-stat-n">{exp.tdps}</span>
+              <span className="panel-stat-k">TDPs</span>
+            </div>
+          )}
+          {exp.favors > 0 && (
+            <div className="panel-stat" data-tooltip="Favors held with the gods.">
+              <span className="panel-stat-n">{exp.favors}</span>
+              <span className="panel-stat-k">favors</span>
+            </div>
+          )}
         </div>
       )}
       <table className="exp-table">
@@ -188,7 +206,8 @@ export function CombatPanel() {
     <ScrollPanel deps={[lines.length]}>
       {lines.map((l: OutputLine) => (
         <div key={l.id} className="combat-line">
-          <span className="panel-line-time">{convTime(l.timestamp)}</span>{l.text}
+          <span className="panel-line-time">{convTime(l.timestamp)}</span>
+          <span className="panel-line-text">{l.text}</span>
         </div>
       ))}
     </ScrollPanel>
@@ -203,7 +222,8 @@ export function AtmoPanel() {
     <ScrollPanel deps={[lines.length]}>
       {lines.map((l: OutputLine) => (
         <div key={l.id} className="atmo-line">
-          <span className="panel-line-time">{convTime(l.timestamp)}</span>{l.text}
+          <span className="panel-line-time">{convTime(l.timestamp)}</span>
+          <span className="panel-line-text">{l.text}</span>
         </div>
       ))}
     </ScrollPanel>
@@ -389,7 +409,7 @@ export function ThoughtsPanel() {
         return (
           <div key={l.id} className="thought-line">
             <span className="panel-line-time">{convTime(l.timestamp)}</span>
-            <span className="thought-msg">
+            <span className="panel-line-text">
               {t.channel && <span className="thought-channel">{t.channel}</span>}
               {t.sender  && <span className="thought-sender">{t.sender}</span>}
               <span className="thought-text">{t.body}</span>
@@ -469,26 +489,26 @@ export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
       </div>
 
       <div className="inv-sum-hands">
-        <div><span className="inv-sum-label">Right</span><span>{hands.right || <EmptyHand />}</span></div>
-        <div><span className="inv-sum-label">Left</span><span>{hands.left || <EmptyHand />}</span></div>
+        <div><span className="panel-key">Right</span><span>{hands.right || <EmptyHand />}</span></div>
+        <div><span className="panel-key">Left</span><span>{hands.left || <EmptyHand />}</span></div>
       </div>
 
       {snapshot && carried ? (
         <>
           {/* Three numbers, one row: what you're hauling, how many things that is,
               and how much of it is worn (the list this panel used to spell out). */}
-          <div className="inv-sum-stats">
-            <div className="inv-sum-stat" data-tooltip="Total weight of everything on you, in the game's raw units.">
-              <span className="inv-sum-stat-n">{carried.weight}</span>
-              <span className="inv-sum-stat-k">load</span>
+          <div className="panel-stats">
+            <div className="panel-stat" data-tooltip="Total weight of everything on you, in the game's raw units.">
+              <span className="panel-stat-n">{carried.weight}</span>
+              <span className="panel-stat-k">load</span>
             </div>
-            <div className="inv-sum-stat" data-tooltip="Every item on you, including things inside containers.">
-              <span className="inv-sum-stat-n">{carried.items}</span>
-              <span className="inv-sum-stat-k">items</span>
+            <div className="panel-stat" data-tooltip="Every item on you, including things inside containers.">
+              <span className="panel-stat-n">{carried.items}</span>
+              <span className="panel-stat-k">items</span>
             </div>
-            <div className="inv-sum-stat" data-tooltip="Items you're wearing. Open the manager to see them.">
-              <span className="inv-sum-stat-n">{carried.worn}</span>
-              <span className="inv-sum-stat-k">worn</span>
+            <div className="panel-stat" data-tooltip="Items you're wearing. Open the manager to see them.">
+              <span className="panel-stat-n">{carried.worn}</span>
+              <span className="panel-stat-k">worn</span>
             </div>
           </div>
 
@@ -499,10 +519,10 @@ export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
           {carried.containers.length === 0
             ? <div className="panel-empty">Your containers are empty.</div>
             : carried.containers.map(({ item, count }) => (
-                <div key={item.id} className="inv-sum-row" onClick={onManage}>
-                  <span className="inv-sum-name">{item.name}</span>
-                  {isClosed(item) && <span className="inv-sum-tag">closed</span>}
-                  <span className="inv-sum-count">{count}</span>
+                <div key={item.id} className="panel-row panel-row-click" onClick={onManage}>
+                  <span className="panel-row-name">{item.name}</span>
+                  {isClosed(item) && <span className="panel-tag panel-tag-warn">closed</span>}
+                  <span className="panel-row-num">{count}</span>
                 </div>
               ))}
         </>
@@ -533,7 +553,7 @@ export function DeathsPanel() {
     <ScrollPanel deps={[lines.length]}>
       {lines.map((l: OutputLine) => (
         <div key={l.id} className="death-line">
-          <span className="death-time">{convTime(l.timestamp)}</span>
+          <span className="panel-line-time">{convTime(l.timestamp)}</span>
           <span className="death-text">{l.text}</span>
         </div>
       ))}
