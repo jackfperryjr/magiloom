@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Tooltip } from './Tooltip'
 import { LoginArt } from './LoginArt'
+import { loginProgress, showLog, STALL_MS } from '../../lib/loginProgress'
 
 interface LoginFlowProps {
   onEnterGame: (characterName: string, accountName: string, watching?: boolean) => void
@@ -548,20 +549,46 @@ function CharGenScreen({ onLeave }: { onLeave: () => void }) {
 }
 
 // ─── Screen 5: Connecting ─────────────────────────────────────────────────────
+// The log used to run under this screen on every login. It earns its place when
+// something breaks and not otherwise, so the normal path is a progress bar and
+// the log comes back on an error — or on a login that sits on one stage longer
+// than a healthy one ever does (see showLog).
 function ConnectingScreen({ characterName, logLines, error, onBack }: {
   characterName: string
   logLines:      string[]
   error:         string
   onBack:        () => void
 }) {
+  const { stage, label, value } = loginProgress(logLines)
+  const [stalled, setStalled] = useState(false)
+
+  // Restart the stall clock on every stage change, so the log surfaces only when
+  // progress has actually stopped — not merely because a login was slow overall.
+  useEffect(() => {
+    setStalled(false)
+    const timer = window.setTimeout(() => setStalled(true), STALL_MS)
+    return () => window.clearTimeout(timer)
+  }, [stage])
+
+  const withLog = showLog(error, stalled ? STALL_MS : 0)
+
   return <>
     <div className="login-screen-title">
       {error ? 'Connection failed' : `Entering as ${characterName}…`}
     </div>
-    {!error && <div className="login-connecting-dots"><span /><span /><span /></div>}
-    {!error && <p className="login-hint">Connecting to DragonRealms…</p>}
+    {!error && (
+      <div className="login-progress" role="progressbar" aria-label="Login progress"
+        aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value * 100)}>
+        <div className="login-progress-fill" style={{ width: `${value * 100}%` }} />
+      </div>
+    )}
+    {!error && (
+      <p className="login-hint">
+        {stalled ? `${label.replace(/…$/, '')} — still working` : label}
+      </p>
+    )}
     {error && <div className="login-error">{error}</div>}
-    {logLines.length > 0 && <LoginLog lines={logLines} />}
+    {withLog && logLines.length > 0 && <LoginLog lines={logLines} />}
     {error && <Back onClick={onBack} />}
   </>
 }

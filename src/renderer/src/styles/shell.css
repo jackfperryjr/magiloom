@@ -12,6 +12,24 @@
      edge and adds just enough bottom padding to lift the input above the home
      indicator — so there's no empty gap under it. No-ops on desktop (insets 0). */
   padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+  transition: filter .6s ease;
+}
+
+/* Not attached to the game: drain the colour out of the client. Not all the way
+   to grey — the room, the map and the panels stay legible, they just stop looking
+   live. Deliberately on .app-shell and not on <body>: the login and reconnect
+   screens keep their colour, because they're where you're meant to be looking.
+
+   The filter makes .app-shell the containing block for any fixed-position
+   descendant, which is safe only because it is exactly the viewport (100vh, no
+   transform, insets are 0 off mobile) — modals and tooltips land where they did.
+   Nothing streams in while disconnected either, so the full-tree compositing this
+   costs is paid in an idle state. */
+.app-shell-idle { filter: grayscale(.85) saturate(.5) brightness(.92); }
+
+/* The fade is decorative; honour a reduced-motion preference by just switching. */
+@media (prefers-reduced-motion: reduce) {
+  .app-shell { transition: none; }
 }
 
 .main-area {
