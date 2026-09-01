@@ -455,20 +455,43 @@
 }
 
 
-.login-connecting-dots {
-  display: flex; justify-content: center; gap: 6px; padding: 8px 0;
+/* Login progress. The fill is driven by the stage read off the connection log
+   (lib/loginProgress.ts), and it eases between stages so a login that takes a
+   moment still looks like it's moving rather than stuck. The shimmer runs on top
+   of whatever width the fill currently has, which is what keeps a long stage —
+   waiting on Lich, mostly — from reading as a freeze. */
+.login-progress {
+  height: 6px;
+  margin: 10px auto 2px;
+  width: min(320px, 100%);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
 }
-.login-connecting-dots span {
-  width: 6px; height: 6px;
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent-glow);
-  animation: pulse-dot 1.2s ease-in-out infinite;
+.login-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--accent) 70%, transparent), var(--accent));
+  box-shadow: 0 0 10px var(--accent-glow);
+  transition: width .5s ease;
+  position: relative;
 }
-.login-connecting-dots span:nth-child(2) { animation-delay: .2s; }
-.login-connecting-dots span:nth-child(3) { animation-delay: .4s; }
-@keyframes pulse-dot {
-  0%, 80%, 100% { opacity: .2; transform: scale(.8); }
-  40%           { opacity: 1;  transform: scale(1.1); }
+.login-progress-fill::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  animation: login-progress-sheen 1.6s ease-in-out infinite;
+}
+@keyframes login-progress-sheen {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+/* The sheen is pure decoration — the width still carries the information. */
+@media (prefers-reduced-motion: reduce) {
+  .login-progress-fill::after { animation: none; }
+  .login-progress-fill { transition: none; }
 }
 
 .login-log {

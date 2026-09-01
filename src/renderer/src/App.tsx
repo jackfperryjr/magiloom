@@ -388,16 +388,21 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
   // Seeded at 8 s to stay clear of the verb sweep, the one other thing capturing
   // main-stream lines just after login.
   //
-  // Once only, deliberately. Skills push themselves live; the figures that don't
-  // — rested exp, circle, overall mindstate — exist solely in the report text, so
-  // they hold whatever the last EXP said until the next one. That's a knowingly
-  // stale reading rather than a wrong one, and it isn't worth a command every few
-  // minutes for the whole session on the chance someone is watching the tile. If
-  // it does turn out to matter, a slow interval on this same call is the fix.
+  // Then every five minutes. Skills don't need it — they push themselves live —
+  // but rested exp, circle and overall mindstate exist solely in the report text,
+  // so without a refresh they hold whatever the last EXP said, which before this
+  // meant "whenever a Lich script happened to send one". DR declares an
+  // `exp rexp` component that would make rested exp a live push and then only
+  // ever sends it EMPTY; announcing dialog support at login (see
+  // game-connection.ts) didn't change that. Until something does, the poll is the
+  // only Lich-free way these three stay current. An EXP costs no roundtime and
+  // its report is suppressed from the output.
   useEffect(() => {
     if (status !== 'connected') return
-    const seed = window.setTimeout(() => { beginSilentExp(); send('exp') }, 8_000)
-    return () => window.clearTimeout(seed)
+    const poll = (): void => { beginSilentExp(); send('exp') }
+    const seed = window.setTimeout(poll, 8_000)
+    const id   = window.setInterval(poll, 5 * 60_000)
+    return () => { window.clearTimeout(seed); window.clearInterval(id) }
   }, [status, send, beginSilentExp])
 
   // Ambient seed: on connect, silently fetch `weather` (current precipitation) and
@@ -561,7 +566,11 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
   }, [])
 
   return (
-    <div className="app-shell">
+    // Colour drains out of the whole client while it isn't attached to the game,
+    // so a dead session reads as dead at a glance instead of looking like a live
+    // one that stopped talking. It fades back in as the connection comes up,
+    // which also covers the connecting state on the way in.
+    <div className={status === 'connected' ? 'app-shell' : 'app-shell app-shell-idle'}>
       <StatusBar updateSlot={updateSlot} charName={charName} />
       <div className="main-area" ref={mainAreaRef}>
         <div className="game-col">
