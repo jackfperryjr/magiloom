@@ -621,6 +621,14 @@ export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
         <div><span className="panel-key">Left</span><span>{hands.left || <EmptyHand />}</span></div>
       </div>
 
+      {/* Failures are reported ABOVE whatever is on screen rather than instead of
+          it. Refresh keeps the old tree visible while it reloads, so a walk that
+          failed used to leave the previous snapshot sitting there unchanged and
+          unremarked — which reads as the Refresh button doing nothing at all,
+          rather than as the game having failed to answer. The numbers below are
+          then knowingly stale, and the message says so. */}
+      {status === 'error' && error && <div className="inv-sum-error">{error}</div>}
+
       {snapshot && carried ? (
         <>
           {/* Three numbers, one row: what you're hauling, how many things that is,
@@ -656,18 +664,16 @@ export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
         </>
       ) : status === 'loading' ? (
         <div className="panel-empty">Reading your inventory…</div>
+      ) : status === 'error' ? (
+        /* Nothing under the message. A failed walk used to fall through to the raw
+           INV text, which read as the panel having quietly reverted — and that text
+           is whatever was last typed, so it's stale, unordered, and contradicts the
+           message above it. When the walk fails, the message is the whole answer. */
+        null
+      ) : lines.length > 0 ? (
+        lines.map((line, i) => <div key={i} className="inv-line">{line}</div>)
       ) : (
-        status === 'error' && error ? (
-          /* A failed walk used to fall through to the raw INV text, which read as
-             the panel having quietly reverted — and that text is whatever was last
-             typed, so it's stale, unordered, and contradicts the message above it.
-             When the walk fails, the message is the whole answer. */
-          <div className="inv-sum-error">{error}</div>
-        ) : lines.length > 0 ? (
-          lines.map((line, i) => <div key={i} className="inv-line">{line}</div>)
-        ) : (
-          <div className="panel-empty">Refresh to read your inventory.</div>
-        )
+        <div className="panel-empty">Refresh to read your inventory.</div>
       )}
     </div>
   )

@@ -233,10 +233,13 @@
    what's genuinely specific to inventory. */
 .inv-sum { padding: 6px 8px 8px; }
 
-/* Why the structured view isn't there. Shown on its own: a failed walk means we
-   have nothing trustworthy to put under it. */
+/* Why the reading didn't happen. Sits above the panel body, because a failed walk
+   leaves the PREVIOUS snapshot on screen — the message has to be read as a caption
+   over stale numbers, not as a replacement for them. The rule under it separates
+   the two so the figures below aren't taken as part of the message. */
 .inv-sum-error {
-  margin-bottom: 6px; padding: 4px 0;
+  margin-bottom: 6px; padding: 4px 0 6px;
+  border-bottom: 1px solid var(--border-soft);
   font-size: 11px; line-height: 1.35; color: var(--color-warning);
 }
 
