@@ -159,13 +159,19 @@ export function installDr(): void {
       readFile:   (rel: string) => t.invoke('lich:read-file', rel),
       writeFile:  (rel: string, content: string) => t.invoke('lich:write-file', rel, content),
       deleteFile: (rel: string) => t.invoke('lich:delete-file', rel),
+      // Lich's own session logs. On the web build these live server-side, so this is
+      // the ONLY way to reach them — the desktop app can at least open the files.
+      listLogs:   (xmlOnly?: boolean) => t.invoke('lich:list-logs', xmlOnly),
+      readLog:    (rel: string) => t.invoke('lich:read-log', rel),
+      deleteLog:  (rel: string) => t.invoke('lich:delete-log', rel),
       onLog:    (cb: (l: string) => void) => t.on('lich:log', cb),
       onStatus: (cb: (s: string) => void) => t.on('lich:status', cb),
       onError:  (cb: (m: string) => void) => t.on('lich:error', cb),
     },
     logs: {
-      list: ()             => t.invoke('logs:list'),
-      read: (name: string) => t.invoke('logs:read', name),
+      list:   ()             => t.invoke('logs:list'),
+      read:   (name: string) => t.invoke('logs:read', name),
+      delete: (name: string) => t.invoke('logs:delete', name),
     },
     script: {
       list:       () => t.invoke('script:list'),

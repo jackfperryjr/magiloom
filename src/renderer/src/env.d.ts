@@ -190,13 +190,20 @@ interface DrAPI {
     readFile:   (rel: string) => Promise<{ path: string; content: string }>
     writeFile:  (rel: string, content: string) => Promise<{ path: string }>
     deleteFile: (rel: string) => Promise<{ path: string }>
+    // Lich's OWN session logs, distinct from `logs` below (which is Magiloom's).
+    // `xmlOnly` defaults false: the flattened .log is worth showing in the picker
+    // even though only the .xml is worth analyzing.
+    listLogs:   (xmlOnly?: boolean) => Promise<LichLogEntry[]>
+    readLog:    (rel: string) => Promise<{ path: string; content: string; size: number; truncated: boolean }>
+    deleteLog:  (rel: string) => Promise<{ removed: string[] }>
     onLog:    (cb: (l: string) => void) => () => void
     onStatus: (cb: (s: string) => void) => () => void
     onError:  (cb: (m: string) => void) => () => void
   }
   logs: {
-    list: () => Promise<LogFileEntry[]>
-    read: (name: string) => Promise<{ name: string; content: string; size: number; truncated: boolean }>
+    list:   () => Promise<LogFileEntry[]>
+    read:   (name: string) => Promise<{ name: string; content: string; size: number; truncated: boolean }>
+    delete: (name: string) => Promise<{ removed: string[] }>
   }
   script: {
     list:       () => Promise<string[]>
@@ -302,7 +309,13 @@ interface DrAPI {
 declare global {
   interface Window { dr: DrAPI }
   // One game-output log file on disk, e.g. refia-2026-07-09.log (see main/log-store.ts).
-  interface LogFileEntry { name: string; char: string; day: string; size: number; mtime: number }
+  interface LogFileEntry { name: string; char: string; day: string; size: number; mtime: number; events?: boolean }
+  /** One Lich session log. `path` is the relative handle used to read or delete it;
+   *  `xml` marks the raw stream, which is the half worth analyzing. */
+  interface LichLogEntry {
+    path: string; char: string; day: string; time: string
+    size: number; mtime: number; xml: boolean
+  }
   interface MagiloomAccount { id: string; email: string; tier: 'free' | 'paid' }
   // Character-to-character messaging wire shapes (mirror magiserver message-store.ts).
   interface MagiloomMessage { id: string; from: string; to: string; body: string; ts: number; read?: boolean; delivered?: boolean }

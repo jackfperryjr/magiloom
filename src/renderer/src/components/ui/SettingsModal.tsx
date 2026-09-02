@@ -5,6 +5,7 @@ import { loadCharAppearance, saveCharAppearance, applyAppearance } from '../../l
 import { DEFAULT_NOTIF, DEFAULT_PUSH, makeNameRule, type NotifSettings, type NotifRule, type PushSettings } from './Notifications'
 import { LichFilesEditor } from './LichFilesEditor'
 import { LogFilesViewer } from './LogFilesViewer'
+import { LichLogsViewer } from './LichLogsViewer'
 import { CmdFilesEditor } from './CmdFilesEditor'
 import type { Alias, Trigger } from '../../lib/automation'
 import type { QuickAction } from '../../lib/quickActions'
@@ -23,7 +24,7 @@ interface SettingsModalProps {
   onClose: () => void
 }
 
-type TabId = 'appearance' | 'ambient' | 'notifications' | 'hotkeys' | 'aliases' | 'triggers' | 'scripts' | 'lich'
+type TabId = 'appearance' | 'ambient' | 'notifications' | 'hotkeys' | 'aliases' | 'triggers' | 'scripts' | 'lich' | 'logs'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'appearance',    label: 'Appearance' },
@@ -34,6 +35,10 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'triggers',      label: 'Triggers' },
   { id: 'scripts',       label: 'Scripts' },
   { id: 'lich',          label: 'Lich' },
+  // Lantern's own game-output logs. Separate from the Lich tab because they are a
+  // different set of files with a different owner — Lich writes its own, and mixing
+  // the two under one heading is what made it unclear which was eating the disk.
+  { id: 'logs',          label: 'Lantern Logs' },
 ]
 
 export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
@@ -383,6 +388,13 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                   </SettingRow>
                 )}
                 <LichFilesEditor charName={charName} />
+                <LichLogsViewer />
+              </div>
+            )}
+
+            {tab === 'logs' && (
+              <div className="settings-section settings-section-wide">
+                <div className="settings-section-label">Lantern Logs</div>
                 <LogFilesViewer charName={charName} logging={logging} setLogging={setLogging} />
               </div>
             )}

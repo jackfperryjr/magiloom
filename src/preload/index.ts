@@ -57,13 +57,18 @@ contextBridge.exposeInMainWorld('dr', {
     readFile:   (rel: string)                  => ipcRenderer.invoke('lich:read-file', rel),
     writeFile:  (rel: string, content: string) => ipcRenderer.invoke('lich:write-file', rel, content),
     deleteFile: (rel: string)                  => ipcRenderer.invoke('lich:delete-file', rel),
+    // Lich's own session logs — separate from Magiloom's own (see `logs` below).
+    listLogs:   (xmlOnly?: boolean)            => ipcRenderer.invoke('lich:list-logs', xmlOnly),
+    readLog:    (rel: string)                  => ipcRenderer.invoke('lich:read-log', rel),
+    deleteLog:  (rel: string)                  => ipcRenderer.invoke('lich:delete-log', rel),
     onLog:    (cb: (l: string) => void) => { const h = (_e: unknown, l: string) => cb(l); ipcRenderer.on('lich:log', h);    return () => ipcRenderer.removeListener('lich:log', h) },
     onStatus: (cb: (s: string) => void) => { const h = (_e: unknown, s: string) => cb(s); ipcRenderer.on('lich:status', h); return () => ipcRenderer.removeListener('lich:status', h) },
     onError:  (cb: (m: string) => void) => { const h = (_e: unknown, m: string) => cb(m); ipcRenderer.on('lich:error', h);  return () => ipcRenderer.removeListener('lich:error', h) }
   },
   logs: {
-    list: ()             => ipcRenderer.invoke('logs:list'),
-    read: (name: string) => ipcRenderer.invoke('logs:read', name)
+    list:   ()             => ipcRenderer.invoke('logs:list'),
+    read:   (name: string) => ipcRenderer.invoke('logs:read', name),
+    delete: (name: string) => ipcRenderer.invoke('logs:delete', name)
   },
   script: {
     list:       ()                          => ipcRenderer.invoke('script:list'),
