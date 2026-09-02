@@ -9,7 +9,7 @@
  * Run: npm run test:tools
  */
 
-import { loginProgress, showLog, STALL_MS } from './loginProgress'
+import { loginProgress } from './loginProgress'
 
 let passed = 0
 const failures: string[] = []
@@ -82,12 +82,6 @@ eq(
   ]).stage,
   'starting',
 )
-
-// ── Revealing the log ────────────────────────────────────────────────────────
-check('a healthy login hides the log', !showLog('', 2_000))
-check('an error shows it', showLog('Lich exited with code 0', 0))
-check('so does a stall', showLog('', STALL_MS))
-check('just short of a stall stays hidden', !showLog('', STALL_MS - 1))
 
 // ── Report ───────────────────────────────────────────────────────────────────
 if (failures.length) {

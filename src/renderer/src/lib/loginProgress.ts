@@ -59,12 +59,7 @@ export function loginProgress(lines: readonly string[]): LoginProgress {
 }
 
 /**
- * Whether to show the log itself. It comes back automatically when something has
- * gone wrong — an error, or a login sitting on one stage far longer than any
- * healthy login takes — so a stall is still diagnosable without the dev tools.
+ * How long one stage may sit before the screen admits it's slow. Only the wording
+ * of the label changes — the log itself is never shown on the login card.
  */
 export const STALL_MS = 15_000
-
-export function showLog(error: string, msSinceStageChange: number): boolean {
-  return Boolean(error) || msSinceStageChange >= STALL_MS
-}
