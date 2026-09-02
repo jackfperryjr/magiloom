@@ -45,10 +45,21 @@
   --color-black:     #000000;
   --color-bold:      #f0d84a;   /* monsterbold / emphasized text (yellow on dark themes) */
 
-  /* Body figure (plush ragdoll: fill, eyes, bold outline) */
-  --body-base:       #3a3470;
-  --body-eye:        #1a1540;
-  --body-outline:    #14102e;
+  /* Body figure (plush ragdoll: fill, eyes, bold outline). Each theme supplies its
+     own set (see lib/themes.ts); these are the Lantern values and the fallback for
+     any theme that doesn't. Every theme MUST carry all three — applyTheme sets custom
+     properties and never clears them, so a theme omitting one would silently inherit
+     whichever theme was showing before it.
+
+     Aim a new theme's fill at roughly 1.8–2.0:1 against its own --bg-panel, with the
+     outline a similar step darker again (lighter, on a saturated or pale panel). That
+     band is what makes the figure read the SAME across themes, which is the whole
+     point — it previously shared one palette with every theme and so landed at 1.4:1
+     on Lantern (a smudge) and 9.5:1 on Ashfall's light face (louder than body text).
+     Sharing a colour is not what made it consistent; sharing a contrast is. */
+  --body-base:       #4d4596;
+  --body-eye:        #1c1650;
+  --body-outline:    #15102f;
 
   /* Vitals */
   --health-color:    #dd1818;
