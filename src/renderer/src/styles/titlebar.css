@@ -165,9 +165,9 @@ body[data-platform="darwin"] .status-bar {
   text-shadow: 0 0 8px var(--accent-glow), 2px 2px 0 rgba(0, 0, 0, 0.55);
   user-select: none;
 }
-/* The hard dark pixel-offset shadow reads as ghosting on light themes — drop it
-   on Parchment so the brand stays crisp on the pale title bar. */
-[data-theme="parchment"] .app-title { text-shadow: 0 0 6px var(--accent-glow); }
+/* The hard dark pixel-offset shadow reads as ghosting on light themes — drop it in
+   light mode so the brand stays crisp on the pale title bar. */
+[data-mode="light"] .app-title { text-shadow: 0 0 6px var(--accent-glow); }
 
 .status-bar-spacer { flex: 1; }
 

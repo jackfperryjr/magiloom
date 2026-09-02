@@ -95,8 +95,10 @@
   overflow: hidden;
   transition: opacity 1s ease;   /* ease the field in on appearance / out on clear */
 }
-/* Particle colours ride custom properties so a light theme can darken them — a
-   pale streak/flake is invisible on Parchment's #eee1c2 game panel. */
+/* Particle colours ride custom properties so a light theme can darken them — a pale
+   streak/flake is invisible on a near-white game panel. Scoped to [data-mode="light"]
+   rather than to a theme id: it's the LIGHTNESS of the surface that breaks these, not
+   which theme is on, so any light face gets the fix. */
 .ambient-rain {
   opacity: .72;
   --ambient-rain-color: rgba(210, 224, 255, .95);
@@ -112,11 +114,11 @@
   opacity: .6;
   --ambient-dust-color: rgba(214, 180, 126, .9);
 }
-:root[data-theme="parchment"] .ambient-dust { --ambient-dust-color: rgba(122, 92, 46, .58); }
-:root[data-theme="parchment"] .ambient-rain { --ambient-rain-color: rgba(58, 78, 132, .62); }
-:root[data-theme="parchment"] .ambient-snow {
+:root[data-mode="light"] .ambient-dust { --ambient-dust-color: rgba(122, 92, 46, .58); }
+:root[data-mode="light"] .ambient-rain { --ambient-rain-color: rgba(58, 78, 132, .62); }
+:root[data-mode="light"] .ambient-snow {
   --ambient-snow-color: rgba(255, 255, 255, .95);
-  --ambient-snow-glow:  rgba(74, 96, 148, .75);   /* dark halo so white flakes read on parchment */
+  --ambient-snow-glow:  rgba(74, 96, 148, .75);   /* dark halo so white flakes read on a pale panel */
 }
 /* Fade target: the component mounts the field with .is-hidden, then removes it a
    frame later (fade in); on clear it re-adds .is-hidden, then unmounts after the
@@ -189,9 +191,9 @@
   transition: opacity 2.2s ease;
 }
 .ambient-fog.is-hidden { opacity: 0; }
-/* On parchment the pale haze is invisible against a light panel — darken it into a
-   grey overcast instead of brightening it. */
-:root[data-theme="parchment"] .ambient-fog { --ambient-fog-color: rgba(96, 104, 124, .16); }
+/* In light mode the pale haze is invisible against the panel — darken it into a grey
+   overcast instead of brightening it. */
+:root[data-mode="light"] .ambient-fog { --ambient-fog-color: rgba(96, 104, 124, .16); }
 
 /* Two oversized bands drifting across each other. They are TRANSLATED rather than
    background-position animated: a repeating gradient tiles, and the tile seam showed
@@ -371,6 +373,50 @@
   transition: opacity 0.4s ease;
 }
 
+/* Strike flash: the same three-edged vignette in the brand amber, pulsed once each
+   time YOU land a blow. The heat above only answers "am I being hurt", which leaves
+   a fight you are winning cleanly completely dark — this is the other half of the
+   cue, and being a different question it has to be a different colour.
+
+   Everything here is tuned to stay UNDER the red rather than compete with it, because
+   at a realistic hit rate this fires most rounds while the red is comparatively rare:
+   a thinner border (1.5px vs 2.5px), a tighter bleed, and a peak opacity that tops
+   out at 0.55 — exactly where the damage flash starts, so your best hit is as bright
+   as their weakest. It also renders before .ambient-heat in the DOM, so on the rounds
+   you are trading blows the red takes the edge.
+
+   The pulse is a keyframe, not a transition, because it has a fixed SHAPE (snap in,
+   ease out) that must survive being retriggered mid-flight; AmbientOverlay remounts
+   the element per hit to replay it. --strike-peak carries the severity in. */
+.ambient-strike {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  border: 1.5px solid rgba(242, 166, 58, 0.95);
+  border-left: none;
+  box-shadow:
+    /* wide soft bleed, per visible edge */
+    inset 0  6px 20px -9px rgba(208, 116, 0, 0.6),
+    inset -6px 0 20px -9px rgba(208, 116, 0, 0.6),
+    inset 0 -6px 20px -9px rgba(208, 116, 0, 0.6),
+    /* tight bright accent hugging each visible edge */
+    inset 0  3px 6px -3px rgba(255, 198, 106, 0.75),
+    inset -3px 0 6px -3px rgba(255, 198, 106, 0.75),
+    inset 0 -3px 6px -3px rgba(255, 198, 106, 0.75);
+  animation: ambient-strike-pulse 460ms ease-out both;
+}
+
+/* Front-loaded on purpose: the rise wants to feel like the impact (~75ms) and the
+   rest is the ring-out. A symmetric fade reads as a slow glow, which is the room
+   lighting up rather than something connecting. */
+@keyframes ambient-strike-pulse {
+  0%   { opacity: 0; }
+  16%  { opacity: var(--strike-peak, 0.3); }
+  100% { opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ambient-particle { animation: none; }
   /* Keep the heat glow (a real combat cue) but soften it: taking hits in quick
@@ -378,6 +424,20 @@
      repeating is exactly what this preference asks us not to do. `!important` is
      needed because CombatHeat sets transition-duration inline. */
   .ambient-heat { transition-duration: 600ms !important; }
+  /* Same bargain for the strike flash, and it needs it more: it fires most rounds,
+     so a 75ms snap repeating every few seconds is the exact thing this preference is
+     asking us to stop. It swaps to a symmetric swell over a full second — still says
+     a blow landed, with nothing in it that reads as a flicker. */
+  .ambient-strike {
+    animation-name: ambient-strike-swell;
+    animation-duration: 1100ms;
+    animation-timing-function: ease-in-out;
+  }
+  @keyframes ambient-strike-swell {
+    0%   { opacity: 0; }
+    45%  { opacity: var(--strike-peak, 0.3); }
+    100% { opacity: 0; }
+  }
   /* The room and fog layers stay — they are colour, and colour is the point. Only
      their motion goes, leaving a still haze and a still scatter of embers/bubbles.
      The motes are positioned by their rise animation, so stopping it outright would

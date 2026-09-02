@@ -151,12 +151,12 @@
 .exp-pct   { font-size: 12.5px; color: var(--accent);    text-align: right; padding: 2px 4px; min-width: 32px; font-variant-numeric: tabular-nums; }
 /* Mindstate colour: the panel sets the HUE per row (0–34 pool → cool to hot) and
    the theme sets the lightness. One ramp can't serve both — 66% reads on the dark
-   themes and vanishes on Parchment, where it has to go dark instead. Contrast was
+   themes and vanishes in light mode, where it has to go dark instead. Contrast was
    measured against each theme's --bg-panel, not eyeballed: 66% keeps the red end
-   at 4.9:1 on dark, 26% keeps the yellow middle — the worst hue — at 4.5:1 on
-   cream. A row with no fraction sets `color` inline instead and wins over this. */
+   at 4.9:1 on dark, 26% keeps the yellow middle — the worst hue — at 4.5:1 on a
+   pale panel. A row with no fraction sets `color` inline instead and wins over this. */
 .exp-panel { --mind-l: 66%; }
-:root[data-theme="parchment"] .exp-panel { --mind-l: 26%; }
+:root[data-mode="light"] .exp-panel { --mind-l: 26%; }
 .exp-mind  {
   font-size: 11px; text-align: left; padding: 2px 0 2px 6px; min-width: 46px;
   color: hsl(var(--mind-h, 200) 68% var(--mind-l));
@@ -322,6 +322,12 @@
   color: #ffffff;
   background: rgba(86, 163, 255, 0.22);
 }
+/* The pale blue above is a dark-theme colour — on a light panel it lands at about
+   1.5:1 and the exits in the Room panel are effectively invisible. (It read that way
+   on Parchment too; nothing was scoped to fix it.) A deep blue on the same faint
+   tint gets back to 5.4:1 against the light panel while still reading as a link. */
+[data-mode="light"] .game-link { color: #1c5fb8; }
+[data-mode="light"] .game-link:hover { color: #0b3d80; background: rgba(28, 95, 184, 0.16); }
 
 .game-line.shop-line {
   padding: 0 0.15rem;

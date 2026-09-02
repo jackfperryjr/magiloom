@@ -234,11 +234,11 @@
    hover so the circle stays visible. */
 [data-theme="ff4"] .panel-rail-add { background: color-mix(in srgb, var(--accent) 22%, var(--accent-dim)); }
 [data-theme="ff4"] .panel-rail-btn:hover { background: var(--border); }
-/* Parchment: --text-main is a very dark brown, so the resting circle read too dark.
-   Use the sienna accent at rest; keep the (fine) dark icon on the sienna hover. */
-[data-theme="parchment"] .panel-rail-btn { background: var(--text-dim); }
-[data-theme="parchment"] .panel-rail-btn:hover { background: var(--accent); }
-[data-theme="parchment"] .panel-rail-add { color: var(--accent-dim); }
+/* Light mode: --text-main is a near-black, so the resting circle read too dark. Use
+   the mid-tone --text-dim at rest; keep the (fine) dark icon on the accent hover. */
+[data-mode="light"] .panel-rail-btn { background: var(--text-dim); }
+[data-mode="light"] .panel-rail-btn:hover { background: var(--accent); }
+[data-mode="light"] .panel-rail-add { color: var(--accent-dim); }
 
 /* "Update available" button — pinned to the very bottom of the rail; a green
    download icon that pulses for attention. Tap reloads into the new build. */
@@ -277,7 +277,7 @@
 /* ── Per-panel hue ────────────────────────────────────────────────────────────
    Each panel button carries a signature colour in --rail-hue, and the glyph is
    that hue MIXED with a theme colour rather than used raw — so one palette works
-   on a near-black FF4 tile and a mid-tan Parchment tile without a per-theme
+   on a near-black FF4 tile and a mid-tone light-mode tile without a per-theme
    palette. Only panel buttons get a hue: the add and update buttons have no
    [data-panel], so their own colours further up are untouched.
 
@@ -285,7 +285,7 @@
    while every one of the 14 glyphs still clears 3:1 against the tile behind it
    (the WCAG bar for non-text graphics). On all four dark themes even a raw hue
    clears it, so hover is the pure colour and rest is pulled toward --text-main to
-   keep the rail calm next to the game text. Parchment and FF4 both swap the tile
+   keep the rail calm next to the game text. Light mode and FF4 both swap the tile
    background on hover, and those two tiles are the tight cases — see below. */
 .panel-rail-btn[data-panel="room"]         { --rail-hue: #c8974a; }  /* doorway amber */
 .panel-rail-btn[data-panel="map"]          { --rail-hue: #5f9e63; }  /* moss */
@@ -308,15 +308,15 @@
 .panel-rail-btn[data-panel]:hover {
   color: var(--rail-hue);
 }
-/* Parchment is the one light theme: the resting tile is a mid-tan (--text-dim),
-   which sits at almost exactly the luminance a half-mixed hue lands on — every
-   glyph washes out. Pull the rest state most of the way to the near-black
-   --text-bright so only a whisper of hue remains. Hover flips the tile to dark
-   sienna, so there the glyph has to go light instead. */
-[data-theme="parchment"] .panel-rail-btn[data-panel] {
+/* Light mode: the resting tile is a mid-tone (--text-dim), which sits at almost
+   exactly the luminance a half-mixed hue lands on — every glyph washes out. Pull the
+   rest state most of the way to the near-black --text-bright so only a whisper of
+   hue remains. Hover flips the tile to the dark accent, so there the glyph has to go
+   light instead. */
+[data-mode="light"] .panel-rail-btn[data-panel] {
   color: color-mix(in srgb, var(--rail-hue) 25%, var(--text-bright));
 }
-[data-theme="parchment"] .panel-rail-btn[data-panel]:hover {
+[data-mode="light"] .panel-rail-btn[data-panel]:hover {
   color: color-mix(in srgb, var(--rail-hue) 55%, #fff);
 }
 /* FF IV hovers to a medium blue (--border), the brightest hover tile of any
@@ -638,15 +638,17 @@
 .vital-mana    { background: linear-gradient(90deg, #081038, var(--mana-color)); }
 .vital-stamina { background: linear-gradient(90deg, #302000, var(--stamina-color)); }
 .vital-spirit  { background: linear-gradient(90deg, #200640, var(--spirit-color)); }
-/* Parchment: the near-black left stops read as heavy dark blobs on a light theme.
-   Swap in lighter, warmer tints of each colour so the bars look like coloured ink
-   washed across the page — still distinct (HP red / MP blue / ST green / SP plum),
-   and dark enough to contrast the cream track. Applies to both the panel bars and
-   the HUD mini-bars (they share these classes). */
-:root[data-theme="parchment"] .vital-health  { background: linear-gradient(90deg, #e0977f, #b2352a); }
-:root[data-theme="parchment"] .vital-mana    { background: linear-gradient(90deg, #90a4d6, #2f4fa0); }
-:root[data-theme="parchment"] .vital-stamina { background: linear-gradient(90deg, #8cc084, #2b7d3b); }
-:root[data-theme="parchment"] .vital-spirit  { background: linear-gradient(90deg, #c29acb, #7e2f8f); }
+/* Light mode: the near-black left stops read as heavy dark blobs on a pale track.
+   Run each bar from a tint of its own colour into the full colour instead, so it
+   looks like coloured ink washed across the page — still distinct, still dark enough
+   at the leading edge to contrast the track. Derived from the theme's vitals vars
+   with color-mix rather than hand-picked, so a theme that recolours its vitals (this
+   one's stamina is teal, not green) doesn't need a matching pair of literals here.
+   Applies to both the panel bars and the HUD mini-bars — they share these classes. */
+:root[data-mode="light"] .vital-health  { background: linear-gradient(90deg, color-mix(in srgb, var(--health-color)  45%, #fff), var(--health-color)); }
+:root[data-mode="light"] .vital-mana    { background: linear-gradient(90deg, color-mix(in srgb, var(--mana-color)    45%, #fff), var(--mana-color)); }
+:root[data-mode="light"] .vital-stamina { background: linear-gradient(90deg, color-mix(in srgb, var(--stamina-color) 45%, #fff), var(--stamina-color)); }
+:root[data-mode="light"] .vital-spirit  { background: linear-gradient(90deg, color-mix(in srgb, var(--spirit-color)  45%, #fff), var(--spirit-color)); }
 
 /* Status indicators */
 .active-spell {

@@ -45,6 +45,7 @@ const SOUND_LAYERS: { id: keyof SoundPrefs['layers']; label: string; hint: strin
 
 export function AmbientTab({
   ambientRoomTint, setAmbientRoomTint, ambientHeat, setAmbientHeat,
+  ambientStrike, setAmbientStrike,
   ambientRoomEffects, setAmbientRoomEffects, ambientDeath, setAmbientDeath,
   sound, setSound, loginArt, setLoginArt,
 }: {
@@ -52,6 +53,8 @@ export function AmbientTab({
   setAmbientRoomTint:     Dispatch<SetStateAction<boolean>>
   ambientHeat:            boolean
   setAmbientHeat:         Dispatch<SetStateAction<boolean>>
+  ambientStrike:          boolean
+  setAmbientStrike:       Dispatch<SetStateAction<boolean>>
   ambientRoomEffects:     boolean
   setAmbientRoomEffects:  Dispatch<SetStateAction<boolean>>
   ambientDeath:           boolean
@@ -77,9 +80,17 @@ export function AmbientTab({
         <SettingRow
           label="Combat heat"
           hint="Flashes a red glow around the panel each time you take a hit, brighter the
-                harder it landed, then fades. Stays dark while you're only dealing damage."
+                harder it landed, then fades."
         >
           <Toggle checked={ambientHeat} onChange={setAmbientHeat} label="Combat heat" />
+        </SettingRow>
+        <SettingRow
+          label="Strike flash"
+          hint="Pulses amber when you land a blow, brighter the harder it hit — so a fight
+                you're winning cleanly still reads as a fight. Fires far more often than
+                combat heat does, and stays dimmer to suit."
+        >
+          <Toggle checked={ambientStrike} onChange={setAmbientStrike} label="Strike flash" />
         </SettingRow>
         <SettingRow
           label="Room effects"

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="260" height="260" viewBox="0 0 260 260">
+  <defs>
+    <!-- Fine airborne grit: high-frequency noise, the ash itself. -->
+    <filter id="grit" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="4" seed="7" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+    <!-- Low-frequency drift: the uneven banding of ash settling, so the grain above
+         doesn't read as a flat, even TV-static field. -->
+    <filter id="drift" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="3" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+  </defs>
+  <!-- Neutral grey noise at low opacity, so the one file serves BOTH faces of the
+       theme: over a dark panel it lifts as catching dust, over a pale one it settles
+       as soot. Stitched turbulence tiles seamlessly when this SVG is repeated. -->
+  <rect width="260" height="260" filter="url(#drift)" opacity="0.045"/>
+  <rect width="260" height="260" filter="url(#grit)" opacity="0.05"/>
+</svg>

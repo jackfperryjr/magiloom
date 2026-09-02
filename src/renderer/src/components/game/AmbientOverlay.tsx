@@ -1,6 +1,6 @@
 import { memo, useMemo, useState, useEffect, useRef } from 'react'
 import { useAtomValue } from 'jotai'
-import { skyAtom, weatherAtom, roomLocaleAtom, roomAmbienceAtom, combatHeatAtom, indicatorsAtom, connectionStatusAtom } from '../../store/game'
+import { skyAtom, weatherAtom, roomLocaleAtom, roomAmbienceAtom, combatHeatAtom, strikeFlashAtom, indicatorsAtom, connectionStatusAtom } from '../../store/game'
 import type { SkyState } from '../../lib/elanthianTime'
 import { weatherLabel, type WeatherState } from '../../lib/weather'
 import { LOCALE_TINT } from '../../lib/roomLocale'
@@ -259,7 +259,7 @@ function skyColor(sky: SkyState, w: WeatherState): string {
   // These alphas are the TOP of the gradient (it fades to transparent by ~60% down —
   // see .ambient-sky), so they read as a sky band up top while the reading area stays
   // clean. Pitched high enough to be visible even on low-contrast themes (near-black
-  // bloodstone, light parchment, blue ff4), where a flat low-alpha wash disappeared.
+  // bloodstone, pale ashfall-light, blue ff4), where a flat low-alpha wash disappeared.
   if (twilight) { r = 255; g = 150; b = 78;  a = 0.20 }
   else if (d <= 0) { r = 26; g = 28; b = 74; a = 0.30 }                 // night
   else { r = 255; g = 244; b = 214; a = 0.03 + (1 - d) * 0.08 }         // day → dusk edge
@@ -357,14 +357,41 @@ function CombatHeat() {
   )
 }
 
+// ── Strike flash ─────────────────────────────────────────────────────────────────
+// The amber other half of the heat: a pulse each time YOU land a blow, so a fight
+// you're winning cleanly still reads as a fight. See store/game strikeFlashAtom for
+// why this is a discrete pulse rather than a decaying level like the red vignette.
+//
+// The shape is a CSS keyframe, and the element is KEYED on the flash's seq so React
+// remounts it per hit — restarting an animation is otherwise surprisingly awkward,
+// and a remount is the one way that's guaranteed to replay from frame zero even when
+// the second hit lands before the first has finished. Peak opacity rides in as a
+// custom property because it varies with how hard the blow was.
+//
+// It renders BELOW CombatHeat so that when you trade blows the red still wins the
+// edge — being hurt is the more urgent of the two facts.
+function StrikeFlash() {
+  const { level, seq } = useAtomValue(strikeFlashAtom)
+  if (seq === 0) return null
+  return (
+    <div
+      key={seq}
+      className="ambient-strike"
+      style={{ ['--strike-peak' as string]: level }}
+      aria-hidden
+    />
+  )
+}
+
 // Read the ambient visual toggles from global settings (default ON), re-reading on
 // save. Mirrors the settings:saved live-reload pattern used elsewhere.
 function useAmbientToggles() {
-  const [t, setT] = useState({ room: true, heat: true, effects: true, death: true })
+  const [t, setT] = useState({ room: true, heat: true, strike: true, effects: true, death: true })
   useEffect(() => {
     const load = () => window.dr.settings.getAll().then(s => setT({
       room:    s.ambientRoomTint !== false,
       heat:    s.ambientHeat !== false,
+      strike:  s.ambientStrike !== false,
       effects: s.ambientRoomEffects !== false,
       death:   s.ambientDeath !== false,
     }))
@@ -394,6 +421,11 @@ export function AmbientOverlay() {
       <FogLayer />
       <WeatherParticles />
       {toggles.effects && <RoomEffect />}
+      {/* Unmounted rather than paused while frozen: .is-frozen holds every other
+          layer mid-cycle, which is right for rain and wrong for a flash — a strike
+          caught mid-pulse by a dropped socket would leave an amber rim lit until we
+          reconnect. Nothing can land on a session we've stopped hearing from anyway. */}
+      {toggles.strike && !frozen && <StrikeFlash />}
       {toggles.heat && <CombatHeat />}
       {/* Above every other layer: death drains what they painted, rather than
           competing with them. */}

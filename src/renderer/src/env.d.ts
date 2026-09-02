@@ -100,12 +100,17 @@ interface AppSettings {
   keepScreenOn?:    boolean
   // Ambient visual layers over the game panel (see AmbientOverlay). Undefined = on.
   // Room tint colours the panel edges by locale; combat heat flares a red rim when
-  // fighting / taking hits; room effects are the per-place particle layers (forge
-  // embers, underwater bubbles); death drains the panel's colour while you're dead.
-  // The day/night sky tint and the weather field are not toggleable — they are the
-  // baseline the rest layers onto.
+  // you take a hit and the strike flash an amber one when you land one; room effects
+  // are the per-place particle layers (forge embers, underwater bubbles); death
+  // drains the panel's colour while you're dead. The day/night sky tint and the
+  // weather field are not toggleable — they are the baseline the rest layers onto.
+  //
+  // The two combat cues are separate toggles rather than one: they fire at very
+  // different rates (you land far more blows than you take), so which of them is too
+  // much is a matter of how you fight.
   ambientRoomTint?:    boolean
   ambientHeat?:        boolean
+  ambientStrike?:      boolean
   ambientRoomEffects?: boolean
   ambientDeath?:       boolean
   // Procedural ambient sound (see lib/ambientAudio.ts) — rain while it rains, a

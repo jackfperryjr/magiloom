@@ -8,6 +8,7 @@ import {
   parseExpSkills, parseRestedExp, parseCircle, parseOverallMind, fractionalRank,
 } from '../lib/exp-parser'
 import { isAtmospheric } from '../lib/atmospherics'
+import { strikeIntensity } from '../lib/combatStrike'
 import { correctionFromTimeLine, computeSky, isTimeReportLine, resetTimeCalibration, type SkyState } from '../lib/elanthianTime'
 import { weatherFromLine, weatherFromReportLine, isWeatherHeaderLine, regionFromLine, CLEAR, type WeatherState, type WeatherRegion } from '../lib/weather'
 import { computeMoonPositions, correctionFromMoonLine, type MoonCorrections, type MoonPosition } from '../lib/moons'
@@ -19,6 +20,7 @@ import {
   DEFAULT_INJURY_MODE, type Injuries,
 } from '../lib/injuries'
 import { receiveInvEnvelopeAtom, clearInventoryAtom } from './inventory'
+import { DEFAULT_APPEARANCE, type CharAppearance } from '../lib/charSettings'
 
 export type { StreamId }
 
@@ -340,6 +342,13 @@ export const handContent = (text: string): string => {
 // ── Indicators ────────────────────────────────────────────────────────────────
 export const indicatorsAtom = atom<Record<string, boolean>>({})
 
+// ── Appearance (theme / font / density) ───────────────────────────────────────
+// The character's applied appearance, mirrored here so the character bar's
+// light/dark toggle and the Settings modal are looking at the same value. The
+// FILE (settings.json, per character) stays the source of truth — this is the
+// live copy, written wherever an appearance is applied.
+export const appearanceAtom = atom<CharAppearance>(DEFAULT_APPEARANCE)
+
 // ── Presence (avatar status; shared so notifications can honor Do Not Disturb) ──
 export type PresenceMode = 'online' | 'idle' | 'dnd'
 export const presenceModeAtom = atom<PresenceMode>('online')
@@ -567,6 +576,22 @@ function bumpHeat(get: Getter, set: Setter, amount: number): void {
   const current = level <= 0 ? 0 : level * Math.exp(-(Date.now() - at) / HEAT_TAU_MS)
   set(combatHeatRawAtom, { level: Math.min(1, Math.max(current, 0) + amount), at: Date.now() })
 }
+
+// ── The other half: a flash when YOU land one ───────────────────────────────────
+// The heat above answers "am I being hurt", which is not the same question as "am I
+// in a fight" — a fight you're winning cleanly leaves the panel dark. This is the
+// amber counterpart, raised by lib/combatStrike off DR's own-attack marker on the
+// combat stream, and it deliberately peaks lower than the red (0.55 against 1.0) so
+// the two never read as the same event.
+//
+// Unlike the heat this is NOT a decaying level. At a realistic hit rate it fires most
+// rounds, so it has to be a discrete pulse of a fixed shape rather than something
+// that accumulates — and a level sampled by the 1 s tickAtom would hold at full
+// brightness for up to a second before stepping down, which is a plateau, not a
+// flash. So the store publishes only "a hit of this size just landed", `seq` making
+// each one distinct even when two identical blows land back to back, and the
+// animation in AmbientOverlay owns the timing.
+export const strikeFlashAtom = atom<{ level: number; seq: number }>({ level: 0, seq: 0 })
 
 // ── Ambient: weather + Elanthian sky (day/night) ────────────────────────────────
 // weatherAtom is driven by ambient weather messages + the `weather` command
@@ -804,6 +829,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(roundtimeAtom, 0)
   set(castTimeAtom, 0)
   set(combatHeatRawAtom, { level: 0, at: 0 })
+  set(strikeFlashAtom, { level: 0, seq: 0 })
   set(weatherAtom, CLEAR)
   set(weatherRegionAtom, 'standard')
   // The clock and moon corrections are learned per world, not per character, and the
@@ -1103,14 +1129,21 @@ export const dispatchGameEventAtom = atom(
             // script echo) now that the separate Lich log side panel is gone.
             set(outputLinesAtom, appendMain(get(outputLinesAtom), mkLine(event.text, [{ preset: 'echo-script' }], 'main')))
             break
-          case 'combat':
+          case 'combat': {
             // Combat lives only in the Combat panel — don't echo to main output.
-            // Deliberately does NOT touch the heat vignette: combat-tagged text is a
-            // poor proxy for danger (DR routes plenty of it here during the login
+            //
+            // This still does NOT touch the red heat vignette: combat-tagged text is a
+            // poor proxy for DANGER (DR routes plenty of it here during the login
             // burst, and every swing you land is a line too). Only losing health
-            // flashes the panel — see the 'vitals' case.
+            // flashes red — see the 'vitals' case. What it does drive is the amber
+            // strike flash, which asks the opposite question, and which is safe to key
+            // off text precisely because strikeIntensity requires the shape of a blow
+            // you landed rather than merely a line on this stream.
+            const strike = strikeIntensity(event.text)
+            if (strike > 0) set(strikeFlashAtom, { level: strike, seq: get(strikeFlashAtom).seq + 1 })
             set(combatLinesAtom, [...get(combatLinesAtom).slice(-499), line])
             break
+          }
           case 'atmo':
             set(atmoLinesAtom, [...get(atmoLinesAtom).slice(-199), line])
             // Don't echo atmo to main output — it clutters it

@@ -39,6 +39,7 @@ const TESTS = [
   'src/renderer/src/lib/rules.test.ts',
   'src/renderer/src/lib/quickActions.test.ts',
   'src/renderer/src/lib/roomAmbient.test.ts',
+  'src/renderer/src/lib/combatStrike.test.ts',
   'src/renderer/src/lib/ambientMix.test.ts',
   'src/renderer/src/lib/loginScene.test.ts',
   'src/renderer/src/lib/loginArtFx.test.ts',
