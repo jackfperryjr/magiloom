@@ -581,8 +581,8 @@ function bumpHeat(get: Getter, set: Setter, amount: number): void {
 // The heat above answers "am I being hurt", which is not the same question as "am I
 // in a fight" — a fight you're winning cleanly leaves the panel dark. This is the
 // amber counterpart, raised by lib/combatStrike off DR's own-attack marker on the
-// combat stream, and it deliberately peaks lower than the red (0.55 against 1.0) so
-// the two never read as the same event.
+// combat stream, and it deliberately peaks lower than the red (0.75 against 1.0), on
+// a shallower vignette, so the two never read as the same event.
 //
 // Unlike the heat this is NOT a decaying level. At a realistic hit rate it fires most
 // rounds, so it has to be a discrete pulse of a fixed shape rather than something
