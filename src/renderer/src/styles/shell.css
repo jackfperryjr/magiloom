@@ -66,7 +66,7 @@
 }
 
 /* ── Themed backdrops: game window + every modal / overlay ─────────────────────
-   The Default (Magiloom) starfield and the Parchment papyrus surface extend to the
+   The Default (Magiloom) starfield and the Ashfall grain extend to the
    modals (settings, highlights, broadcast, avatar/user, panel manager, map) so a
    theme reads as one continuous world. Each surface paints its art on a ::before
    layer behind its content: the surface owns a stacking context (isolation) and the
@@ -97,14 +97,22 @@
   opacity: 0.85;
 }
 
-/* Parchment: warm the game window; modals keep their cream panel and gain the
-   papyrus texture (aged-edge vignette + two age blotches + tiled fibre weave). */
-:root[data-theme="parchment"] .game-output-wrap { background: #eee1c2; }
-:root[data-theme="parchment"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay) {
+/* Ashfall: the one DUAL theme, so its surface art is written once and re-aimed by
+   [data-mode]. Both faces are the same recipe — a vignette that closes the edges in,
+   one drift settling off-centre, and a tiled ash grain — but on the dark face the
+   ash catches the light (pale, additive-looking) and on the light face it reads as
+   soot (dark). The grain SVG is neutral grey and shared by both.
+
+   The game window's own background is set per mode: the panel colour alone was too
+   flat for a theme this desaturated, so it gets a slightly deeper (dark) or slightly
+   cooler (light) surface than the chrome around it. */
+:root[data-theme="ashfall"][data-mode="dark"]  .game-output-wrap { background: #131211; }
+:root[data-theme="ashfall"][data-mode="light"] .game-output-wrap { background: #eae7e2; }
+:root[data-theme="ashfall"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay) {
   position: relative;
   isolation: isolate;
 }
-:root[data-theme="parchment"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before {
+:root[data-theme="ashfall"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -112,12 +120,24 @@
   pointer-events: none;
   border-radius: inherit;
   background:
-    radial-gradient(ellipse at 50% 50%, transparent 56%, rgba(120,84,36,0.13) 100%),
-    radial-gradient(ellipse at 22% 18%, rgba(150,110,50,0.08), transparent 42%),
-    radial-gradient(ellipse at 82% 80%, rgba(130,95,45,0.07), transparent 46%),
-    url('./themes/parchment-bg.svg');
-  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
-  background-size: cover, cover, cover, 260px 260px;
+    radial-gradient(ellipse at 50% 50%, transparent 55%, var(--ash-vignette) 100%),
+    radial-gradient(ellipse at 28% 14%, var(--ash-drift), transparent 46%),
+    url('./themes/ashfall-bg.svg');
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-size: cover, cover, 260px 260px;
+  opacity: var(--ash-grain-opacity);
+}
+:root[data-theme="ashfall"][data-mode="dark"] {
+  --ash-vignette: rgba(0, 0, 0, 0.34);
+  --ash-drift:    rgba(214, 200, 184, 0.05);
+  --ash-grain-opacity: 1;
+}
+:root[data-theme="ashfall"][data-mode="light"] {
+  --ash-vignette: rgba(92, 80, 66, 0.16);
+  --ash-drift:    rgba(80, 70, 58, 0.045);
+  /* The same grain is far more conspicuous as soot on a pale ground than as dust on
+     a dark one — hold it back so the light face doesn't read as dirty. */
+  --ash-grain-opacity: 0.55;
 }
 
 /* Bloodstone & Thornwood use a real silhouette image (sword.png / trees.png — the
@@ -184,7 +204,7 @@
    the data-theme-id on each swatch — independent of the active theme. */
 .theme-swatch { position: relative; isolation: isolate; overflow: hidden; }
 .theme-swatch[data-theme-id="magiloom"]::before,
-.theme-swatch[data-theme-id="parchment"]::before,
+.theme-swatch[data-theme-id="ashfall"]::before,
 .theme-swatch[data-theme-id="bloodstone"]::before,
 .theme-swatch[data-theme-id="forest"]::before {
   content: '';
@@ -197,8 +217,22 @@
   background: url('./themes/magiloom-bg.svg') center / cover no-repeat;
   opacity: 0.7;
 }
-.theme-swatch[data-theme-id="parchment"]::before {
-  background: url('./themes/parchment-bg.svg') 0 0 / 130px 130px repeat;
+/* Ashfall is the only theme with two faces, and the picker is the one place you see
+   every theme side by side — so its tile is split on the diagonal to show both. The
+   tile's own background paints the dark half; the gradient lays the light half into
+   the upper-right triangle, with a couple of percent of softening so the seam isn't
+   a jagged step. The ash grain runs over the whole tile, as on the real surface.
+
+   Which triangle is light is not a free choice. Every tile has its swatch name and
+   its "say ! ✓" preview pinned bottom-LEFT, both coloured from the theme's DARK
+   palette — put the light half there and the near-white name disappears into it. The
+   top inset keeps the wedge clear of the five colour bars for the same reason: the
+   accent and room-name bars are pale, and they vanish on a pale ground. */
+.theme-swatch[data-theme-id="ashfall"]::before {
+  inset: 15px 0 0 0;
+  background:
+    url('./themes/ashfall-bg.svg') 0 0 / 130px 130px repeat,
+    linear-gradient(45deg, transparent 0 50%, #f1eeea 53% 100%);
 }
 /* Bloodstone / Thornwood tiles preview their coloured silhouette. */
 .theme-swatch[data-theme-id="bloodstone"]::before {

@@ -332,6 +332,9 @@
 .char-action-btn svg { transform-box: fill-box; transform-origin: center; }
 .char-action-gear:hover svg  { animation: gear-spin 0.7s ease-in-out; }
 .char-action-brush:hover svg { animation: brush-wiggle 0.55s ease-in-out; }
+/* Light/dark toggle (dual themes only). The sun turns, the moon doesn't — a moon
+   that spins reads as an error; one that rocks slightly reads as it being lifted. */
+.char-action-mode:hover svg { animation: mode-turn 0.6s ease-in-out; }
 
 @keyframes gear-spin {
   from { transform: rotate(0deg); }
@@ -342,6 +345,12 @@
   20%      { transform: rotate(-16deg) translateY(1px); }
   50%      { transform: rotate(10deg) translateY(-1px); }
   80%      { transform: rotate(-6deg); }
+}
+/* A quarter turn out and back — the same gesture for either icon, so the button
+   feels like one control rather than two that happen to share a slot. */
+@keyframes mode-turn {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  45%      { transform: rotate(-22deg) scale(1.12); }
 }
 
 /* Broadcast (multi-boxing) action button — signal pulse on hover, and a steady

@@ -63,9 +63,9 @@
 
 /* Login buttons follow the active theme (accent). A couple of themes need a
    text/background correction so the accent button stays legible. */
-/* Parchment is a light theme with a dark sienna accent — keep the softer
-   parchment-toned label instead of stark white. */
-[data-theme="parchment"] .login-btn { color: var(--bg-shell); }
+/* A light theme's accent is a DARK colour, so the usual white label on it is
+   backwards — take the theme's pale shell colour instead of stark white. */
+[data-mode="light"] .login-btn { color: var(--bg-shell); }
 /* Final Fantasy IV's accent is near-white, so an accent button would be a
    white blob — give it the theme's blue with white text instead. */
 [data-theme="ff4"] .login-btn,

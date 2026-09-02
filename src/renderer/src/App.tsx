@@ -31,7 +31,7 @@ import {
   beginSilentSkySeedAtom, endSilentSkySeedAtom,
   combatLinesAtom, atmoLinesAtom, convLinesAtom, thoughtLinesAtom, deathsAtom, inventoryLinesAtom,
   verbRawAtom, beginVerbCapture, endVerbCapture,
-  avatarsAtom, avatarCropsAtom, selfNameAtom, resetSessionAtom,
+  avatarsAtom, avatarCropsAtom, appearanceAtom, selfNameAtom, resetSessionAtom,
   injuryModeAtom, bodyTextModeAtom,
   classStatesAtom, disabledClassesAtom, setGagSubRules,
   logonLinesAtom, appendLogonAtom,
@@ -345,6 +345,7 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
   const setInventory = useSetAtom(inventoryLinesAtom)
   const setAvatars   = useSetAtom(avatarsAtom)
   const setAvatarCrops = useSetAtom(avatarCropsAtom)
+  const setAppearance  = useSetAtom(appearanceAtom)
   const setInjuryMode  = useSetAtom(injuryModeAtom)
   const setBodyTextMode = useSetAtom(bodyTextModeAtom)
   const setClassStates = useSetAtom(classStatesAtom)
@@ -451,7 +452,7 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
       // Theme the login screen with the last-used character's appearance so it
       // matches what the player last saw (before any character is active).
       const lastChar = s.accounts?.find(a => a.name === s.lastAccount)?.lastCharacter
-      if (lastChar) loadCharAppearance(lastChar).then(a => applyAppearance(a))
+      if (lastChar) loadCharAppearance(lastChar).then(a => { applyAppearance(a); setAppearance(a) })
       if (s.outputBufferSize) setOutputBuffer(s.outputBufferSize)
       if (s.avatars)          setAvatars(s.avatars)
       if (s.avatarCrops)      setAvatarCrops(s.avatarCrops)
@@ -488,9 +489,9 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
   useEffect(() => {
     if (!charName) return
     let cancelled = false
-    loadCharAppearance(charName).then(a => { if (!cancelled) applyAppearance(a) })
+    loadCharAppearance(charName).then(a => { if (!cancelled) { applyAppearance(a); setAppearance(a) } })
     return () => { cancelled = true }
-  }, [charName])
+  }, [charName, setAppearance])
 
   // Route the main-process Lich/client diagnostic log (SGE auth, Lich manager,
   // connection, script errors) into the main game panel as dim system notices —

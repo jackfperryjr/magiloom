@@ -7,8 +7,8 @@
    as a chart you're looking at rather than another list. Built from gradients only
    (no image asset — works offline and needs no CSP allowance): three big offset
    pools of --map-haze give the surface a slow cloud mottle, and a final radial
-   browns the edges the way a folded map ages. Every colour is a theme token, so
-   Parchment gets aged paper where the dark themes get slate. The texture is fixed to
+   browns the edges the way a folded map ages. Every colour is a theme token, so a
+   light theme gets pale chart stock where the dark ones get slate. The texture is fixed to
    the viewport, not the map, so it doesn't crawl while you pan. */
 .map-view {
   position: relative;

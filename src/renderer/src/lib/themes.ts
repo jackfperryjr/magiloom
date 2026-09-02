@@ -43,10 +43,25 @@ export const DEFAULT_HIGHLIGHTS: Highlight[] = [
   hl('also-here',    'Also here:',            '#d4a843', '', true),
   hl('obvious-paths','Obvious paths:',        '#60c878', '', false),
 ]
+/**
+ * Which face of a DUAL theme is showing. Single-face themes are always 'dark' —
+ * every other theme in the list is dark, and the CSS that keys off a light UI
+ * (see :root[data-mode="light"]) must not fire for them.
+ */
+export type ThemeMode = 'dark' | 'light'
+
 export interface Theme {
   id:   string
   name: string
+  /** The theme's own palette, and — for single-face themes — its only one. */
   vars: Record<string, string>
+  /**
+   * Present only on DUAL themes: the palette for light mode. It is a COMPLETE set
+   * rather than a patch over `vars`, because applyTheme writes custom properties
+   * onto the root and never clears them — a partial set would leave whichever keys
+   * it omitted still holding the dark value.
+   */
+  light?: Record<string, string>
 }
 
 export const THEMES: Theme[] = [
@@ -183,45 +198,103 @@ export const THEMES: Theme[] = [
     }
   },
   {
-    id: 'parchment',
-    name: 'Parchment',
+    // The one DUAL theme: a near-neutral warm grey with a light face and a dark one,
+    // toggled from the character bar (see CharacterBar / applyTheme's `mode`). It
+    // replaced Parchment, which was the app's only light theme — every light-UI
+    // workaround that used to be scoped to [data-theme="parchment"] is now scoped to
+    // [data-mode="light"] instead, so it covers this theme's light face and any
+    // future one.
+    //
+    // The palette is drawn from the DISCONNECTED look (.app-shell-idle drains the
+    // client with grayscale/saturate/brightness), but it deliberately is not that
+    // filter frozen into a palette. If the chrome went fully neutral the idle filter
+    // would have almost nothing left to take, and "not attached to the game" — the
+    // one state that filter exists to signal — would stop reading. So the greys keep
+    // a warm ash cast, and the FUNCTIONAL colours (vitals, speech, warnings) stay as
+    // saturated here as in any other theme. Draining those is what disconnecting
+    // still visibly does.
+    id: 'ashfall',
+    name: 'Ashfall',
     vars: {
-      '--bg-shell':      '#e5dac0',
-      '--bg-panel':      '#f3ecdb',
-      '--bg-input':      '#faf5e9',
-      '--bg-sidebar':    '#ebe1c9',
-      '--border':        '#cbb68c',
-      '--border-soft':   '#ddd0af',
-      '--border-accent': '#9a4718',
-      '--text-main':     '#3b2c18',
-      '--text-dim':      '#9c8a64',
-      '--text-bright':   '#241708',
-      '--text-muted':    '#786244',
-      '--accent':        '#9a4718',
-      '--accent-glow':   'rgba(154,71,24,0.20)',
-      '--accent-dim':    '#ecdcc0',
-      '--bg-overlay':    'rgba(46, 32, 15, 0.66)',
-      '--color-roomname':'#7a3410',
-      '--color-roomdesc':'#5c4a34',
+      '--bg-shell':      '#191715',
+      '--bg-panel':      '#221f1c',
+      '--bg-input':      '#141210',
+      '--bg-sidebar':    '#1d1a18',
+      '--border':        '#4a443e',
+      '--border-soft':   '#2c2825',
+      '--border-accent': '#8a8078',
+      '--text-main':     '#cdc7c0',
+      '--text-dim':      '#6d665f',
+      '--text-bright':   '#f2eee9',
+      '--text-muted':    '#9a938b',
+      '--accent':        '#b0a69c',
+      '--accent-glow':   'rgba(176,166,156,0.22)',
+      '--accent-dim':    '#332e2a',
+      '--bg-overlay':    'rgba(12, 10, 9, 0.92)',
+      '--color-roomname':'#f0ece6',
+      '--color-roomdesc':'#a09890',
+      '--color-speech':  '#58e058',
+      '--color-whisper': '#6f9dff',
+      '--color-thought': '#e058d8',
+      '--color-warning': '#ff6a34',
+      '--color-bonus':   '#38d838',
+      '--color-penalty': '#e83838',
+      '--color-bold':    '#f0d84a',
+      '--health-color':  '#d02828',
+      '--mana-color':    '#3a6ad0',
+      '--stamina-color': '#3ab0c0',
+      '--spirit-color':  '#9a58c8',
+      '--map-bg':       '#1c1a18',
+      '--map-haze':     'rgba(200,190,180,0.045)',
+      '--map-vignette': 'rgba(6,5,4,0.5)',
+      '--map-chip':     'rgba(18,16,14,0.75)',
+      '--map-room':      '#2b2724',
+      '--map-room-hover':'#3b3631',
+      '--map-line':      '#5a534b',
+      // Ash settling: a pale drift off the top, a heavier bank pooling at the floor.
+      '--bg-theme-image': 'radial-gradient(ellipse at 50% 0%, rgba(198,184,168,0.055) 0%, transparent 55%), radial-gradient(ellipse 80% 40% at 50% 100%, rgba(120,104,88,0.10) 0%, transparent 62%)',
+    },
+    // Light: the same warm grey turned over. Tones invert; hue and the functional
+    // colours do not — the semantic palette only DARKENS to stay legible on a pale
+    // panel (a #58e058 speech green on near-white is unreadable).
+    light: {
+      '--bg-shell':      '#dedbd6',
+      '--bg-panel':      '#f1eeea',
+      '--bg-input':      '#faf8f5',
+      '--bg-sidebar':    '#e6e2dd',
+      '--border':        '#bab2a8',
+      '--border-soft':   '#d6d0c8',
+      '--border-accent': '#6b6259',
+      '--text-main':     '#2c2823',
+      '--text-dim':      '#8a8178',
+      '--text-bright':   '#15120f',
+      '--text-muted':    '#6a625a',
+      '--accent':        '#6b6259',
+      '--accent-glow':   'rgba(107,98,89,0.20)',
+      '--accent-dim':    '#e4dfd8',
+      '--bg-overlay':    'rgba(38, 33, 28, 0.66)',
+      '--color-roomname':'#2a251f',
+      '--color-roomdesc':'#5a5249',
       '--color-speech':  '#1a7a34',
       '--color-whisper': '#2f52c0',
       '--color-thought': '#9c2894',
       '--color-warning': '#c23000',
       '--color-bonus':   '#137a30',
       '--color-penalty': '#c01818',
-      '--color-bold':    '#8a5a0c',   // deep goldenrod — legible on the light parchment bg
+      '--color-bold':    '#8a5a0c',   // deep goldenrod — legible on the pale ash panel
       '--health-color':  '#c02020',
       '--mana-color':    '#2848b8',
-      '--stamina-color': '#1e8038',
+      '--stamina-color': '#1a7f8c',
       '--spirit-color':  '#7a2a90',
-      '--map-bg':       '#ece0c4',
-      '--map-haze':     'rgba(154,71,24,0.045)',
-      '--map-vignette': 'rgba(120,84,36,0.22)',
-      '--map-chip':     'rgba(240,232,210,0.82)',
-      '--map-room':      '#d9c8a0',
-      '--map-room-hover':'#c9b489',
-      '--map-line':      '#b09769',
-      '--bg-theme-image': 'url("data:image/svg+xml,%3Csvg%20width%3D%22200%22%20height%3D%22200%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cfilter%20id%3D%22n%22%3E%3CfeTurbulence%20type%3D%22fractalNoise%22%20baseFrequency%3D%220.9%22%20numOctaves%3D%224%22%20stitchTiles%3D%22stitch%22%2F%3E%3CfeColorMatrix%20type%3D%22saturate%22%20values%3D%220%22%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D%22200%22%20height%3D%22200%22%20filter%3D%22url%28%23n%29%22%20opacity%3D%220.04%22%2F%3E%3C%2Fsvg%3E")',
+      '--map-bg':       '#e8e4de',
+      '--map-haze':     'rgba(90,80,70,0.045)',
+      '--map-vignette': 'rgba(90,78,64,0.20)',
+      '--map-chip':     'rgba(244,241,236,0.82)',
+      '--map-room':      '#d6d0c7',
+      '--map-room-hover':'#c5bdb2',
+      '--map-line':      '#a89e92',
+      // Same two drifts, re-aimed: ash reads as shadow on a pale ground, not light.
+      '--bg-theme-image': 'radial-gradient(ellipse at 50% 0%, rgba(90,78,64,0.05) 0%, transparent 55%), radial-gradient(ellipse 80% 40% at 50% 100%, rgba(70,60,50,0.07) 0%, transparent 62%)',
     }
   },
   {
@@ -313,12 +386,24 @@ export const THEMES: Theme[] = [
   },
 ]
 
-export function applyTheme(id: string): void {
+/** Whether `id` is a theme with two faces, and so has a mode worth toggling. */
+export function isDualTheme(id: string): boolean {
+  return !!THEMES.find(t => t.id === id)?.light
+}
+
+export function applyTheme(id: string, mode: ThemeMode = 'dark'): void {
   const theme = THEMES.find(t => t.id === id) ?? THEMES[0]
+  // A saved mode of 'light' on a theme that has no light face is not an error — it's
+  // what you get after switching from the dual theme to a single-face one — so it
+  // falls back rather than blanking the palette.
+  const light = mode === 'light' && !!theme.light
+  const vars  = light ? theme.light! : theme.vars
   const root  = document.documentElement
-  for (const [key, val] of Object.entries(theme.vars)) {
+  for (const [key, val] of Object.entries(vars)) {
     root.style.setProperty(key, val)
   }
   root.dataset.theme = theme.id
-  document.body.style.backgroundImage = theme.vars['--bg-theme-image'] ?? 'none'
+  // Read by every rule that needs a light UI rather than a specific theme.
+  root.dataset.mode = light ? 'light' : 'dark'
+  document.body.style.backgroundImage = vars['--bg-theme-image'] ?? 'none'
 }

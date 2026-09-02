@@ -2,7 +2,10 @@ import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 're
 import { useAtomValue, useAtom } from 'jotai'
 import {
   presenceModeAtom, autoIdleAtom, avatarsAtom, avatarCropsAtom, serverAvatarsAtom, linkModeAtom, broadcastReceiveAtom,
+  appearanceAtom,
 } from '../../store/game'
+import { isDualTheme, type ThemeMode } from '../../lib/themes'
+import { saveCharAppearance, applyAppearance } from '../../lib/charSettings'
 import type { PresenceMode, ProfileInfo, ConnectionStatus } from '../../store/game'
 import type { AvatarCrop } from '../../lib/avatar'
 import { CircleAvatar } from '../ui/CircleAvatar'
@@ -12,6 +15,7 @@ import { useEnsureAvatars } from '../../hooks/useAvatars'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import {
   IconCog, IconPaintBrush, IconPhoto, IconPower, IconBolt, IconBroadcast, IconSwitch,
+  IconSun, IconMoon,
 } from '../ui/Icons'
 import { Tooltip } from '../ui/Tooltip'
 import { BroadcastModal } from '../ui/BroadcastModal'
@@ -136,9 +140,39 @@ function presenceFor(status: ConnectionStatus, mode: PresenceMode, autoIdle: boo
 }
 
 
+// ── Light / dark, for the one DUAL theme ──────────────────────────────────────
+// Ashfall is the only theme with two faces, so this lives in the character bar
+// rather than buried in Settings: it's a thing you flip when the room's light
+// changes, not a thing you configure once. Themes with a single face render no
+// control at all — a button that visibly does nothing is worse than its absence.
+//
+// The write goes to all three places that have an opinion: the atom (so this bar
+// and the Settings modal agree), the document (so it takes effect now), and the
+// character's settings.json (so it survives a restart).
+interface ThemeToggle { dual: boolean; mode: ThemeMode; toggle: () => void }
+
+function useThemeMode(charName: string): ThemeToggle {
+  const [appearance, setAppearance] = useAtom(appearanceAtom)
+  const dual = isDualTheme(appearance.theme)
+  const mode: ThemeMode = dual ? appearance.themeMode : 'dark'
+  const toggle = () => {
+    const next = { ...appearance, themeMode: (mode === 'light' ? 'dark' : 'light') as ThemeMode }
+    setAppearance(next)
+    applyAppearance(next)
+    if (charName) saveCharAppearance(charName, next)
+  }
+  return { dual, mode, toggle }
+}
+
+/** Label and icon describe the mode the button switches TO, not the one you're in. */
+const modeLabel = (mode: ThemeMode): string => (mode === 'light' ? 'Switch to dark' : 'Switch to light')
+const ModeIcon  = ({ mode, size }: { mode: ThemeMode; size: number }) =>
+  mode === 'light' ? <IconMoon size={size} /> : <IconSun size={size} />
+
 function CharacterMenu({
   status, presenceMode, onSetPresence, onEditAvatar, avatar, crop, initial, charName, profile,
   onDisconnect, onConnect, onSwitchCharacter, magiAccount, onSignIn, onSignOut, watching, onLeaveWatch, onClose, showActions, onBroadcast, onHighlights, onSettings,
+  themeMode,
 }: {
   status:        ConnectionStatus
   presenceMode:  PresenceMode
@@ -162,6 +196,7 @@ function CharacterMenu({
   onBroadcast:   () => void
   onHighlights:  () => void
   onSettings:    () => void
+  themeMode:     ThemeToggle
 }) {
   const run = (fn: () => void) => () => { onClose(); fn() }
   return (
@@ -188,6 +223,13 @@ function CharacterMenu({
         {showActions && (
           <>
             <button className="char-menu-item" onClick={run(onBroadcast)}><IconBroadcast size={15} /> Broadcast</button>
+            {/* Mobile hides .char-actions entirely, so the dual theme's light/dark
+                switch has to appear here or it would be unreachable on a phone. */}
+            {themeMode.dual && (
+              <button className="char-menu-item" onClick={run(themeMode.toggle)}>
+                <ModeIcon mode={themeMode.mode} size={15} /> {modeLabel(themeMode.mode)}
+              </button>
+            )}
             <button className="char-menu-item" onClick={run(onHighlights)}><IconPaintBrush size={15} /> Highlights</button>
             <button className="char-menu-item" onClick={run(onSettings)}><IconCog size={15} /> Settings</button>
             <div className="char-menu-sep" />
@@ -289,6 +331,7 @@ export function CharacterBar({
   const [cropSrc, setCropSrc] = useState<string | null>(null)   // raw picked image, being cropped
   const cropperRef = useRef<AvatarCropHandle>(null)
   const [presenceMode, setPresenceMode] = useAtom(presenceModeAtom)
+  const themeMode = useThemeMode(charName)
   const autoIdle = useAutoIdle()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -414,6 +457,13 @@ export function CharacterBar({
         </span>
       </button>
       <div className="char-actions">
+        {themeMode.dual && (
+          <Tooltip text={modeLabel(themeMode.mode)}>
+            <button className="char-action-btn char-action-mode" onClick={themeMode.toggle}>
+              <ModeIcon mode={themeMode.mode} size={18} />
+            </button>
+          </Tooltip>
+        )}
         <Tooltip text={
           linkMode ? 'Broadcast · Link on'
           : receive ? 'Broadcast · Receiving'
@@ -459,6 +509,7 @@ export function CharacterBar({
           onBroadcast={() => setShowBroadcast(true)}
           onHighlights={onHighlights}
           onSettings={onSettings}
+          themeMode={themeMode}
         />
       )}
       {showAvatar && (

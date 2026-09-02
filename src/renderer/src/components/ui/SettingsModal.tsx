@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { applyTheme } from '../../lib/themes'
+import { useSetAtom } from 'jotai'
+import { applyTheme, type ThemeMode } from '../../lib/themes'
+import { appearanceAtom } from '../../store/game'
 import { setOutputBuffer } from '../game/GameOutput'
 import { loadCharAppearance, saveCharAppearance, applyAppearance } from '../../lib/charSettings'
 import { DEFAULT_NOTIF, DEFAULT_PUSH, makeNameRule, type NotifSettings, type NotifRule, type PushSettings } from './Notifications'
@@ -52,13 +54,19 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [fontSize,        setFontSize]        = useState(13)
   const [fontFamily,      setFontFamily]      = useState('Cascadia Code')
   const [theme,           setTheme]           = useState('magiloom')
-  // Theme active when the modal opened — restored if the user cancels
-  const [originalTheme,   setOriginalTheme]   = useState('magiloom')
+  // Which face of a dual theme (Ashfall) to show. Carried through the modal so
+  // previewing another theme and coming back doesn't lose the chosen face; the
+  // control that flips it lives in the character bar, not here.
+  const [themeMode,       setThemeMode]       = useState<ThemeMode>('dark')
+  const setAppearance = useSetAtom(appearanceAtom)
+  // Theme + mode active when the modal opened — restored if the user cancels
+  const [original,        setOriginal]        = useState<{ theme: string; mode: ThemeMode }>({ theme: 'magiloom', mode: 'dark' })
   const [density,         setDensity]         = useState<'cozy' | 'compact'>('cozy')
   const [outputBufferSize, setOutputBufferSize] = useState(5000)
   const [keepScreenOn,    setKeepScreenOn]    = useState(true)
   const [ambientRoomTint, setAmbientRoomTint] = useState(true)
   const [ambientHeat,     setAmbientHeat]     = useState(true)
+  const [ambientStrike,   setAmbientStrike]   = useState(true)
   const [ambientRoomEffects, setAmbientRoomEffects] = useState(true)
   const [ambientDeath,       setAmbientDeath]       = useState(true)
   const [sound,           setSound]           = useState<SoundPrefs>(DEFAULT_SOUND)
@@ -121,7 +129,8 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setFontSize(a.fontSize)
       setFontFamily(a.fontFamily)
       setTheme(a.theme)
-      setOriginalTheme(a.theme)
+      setThemeMode(a.themeMode)
+      setOriginal({ theme: a.theme, mode: a.themeMode })
       setDensity(a.density)
     })
     window.dr.settings.getAll().then(s => {
@@ -131,6 +140,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setKeepScreenOn(s.keepScreenOn !== false)
       setAmbientRoomTint(s.ambientRoomTint !== false)
       setAmbientHeat(s.ambientHeat !== false)
+      setAmbientStrike(s.ambientStrike !== false)
       setAmbientRoomEffects(s.ambientRoomEffects !== false)
       setAmbientDeath(s.ambientDeath !== false)
       setSound({
@@ -179,10 +189,10 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
 
   const handleSave = async () => {
     // Per-character appearance + gameplay → settings.json; the rest is global.
-    saveCharAppearance(charName, { theme, fontSize, fontFamily, density })
+    saveCharAppearance(charName, { theme, themeMode, fontSize, fontFamily, density })
     await window.dr.settings.patch({
       lichPath, scriptDir, outputBufferSize, keepScreenOn, ambientRoomTint, ambientHeat,
-      ambientRoomEffects, ambientDeath,
+      ambientStrike, ambientRoomEffects, ambientDeath,
       ambientSound: sound.on, ambientSoundVolume: sound.volume,
       ambientSoundLayers: sound.layers, ambientSoundPauseHidden: sound.pauseHidden,
       loginArt: loginArt.on, loginArtScene: loginArt.scene, loginArtHolidays: loginArt.holidays,
@@ -197,16 +207,19 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
     const quick = quickActions.filter(a => a.target.trim())
     await window.dr.settings.patchChar(charName, { functionKeys, quickActions: quick, aliases, triggers, classes, vars: varsRecord, logging })
     window.dispatchEvent(new CustomEvent('settings:saved'))
-    applyAppearance({ theme, fontSize, fontFamily, density })
+    const appearance = { theme, themeMode, fontSize, fontFamily, density }
+    applyAppearance(appearance)
+    setAppearance(appearance)
     setOutputBuffer(outputBufferSize)
     onClose()
   }
 
-  // Live-preview a theme the moment its tile is clicked
-  const previewTheme = (id: string) => { setTheme(id); applyTheme(id) }
+  // Live-preview a theme the moment its tile is clicked. The mode rides along, so
+  // clicking Ashfall shows the face you last had rather than always the dark one.
+  const previewTheme = (id: string) => { setTheme(id); applyTheme(id, themeMode) }
 
   // Dismiss without saving — undo any live theme preview first
-  const handleCancel = () => { applyTheme(originalTheme); onClose() }
+  const handleCancel = () => { applyTheme(original.theme, original.mode); onClose() }
 
   const versionLabel = !version || version === '0.0.0' ? 'dev' : `v${version}`
 
@@ -248,6 +261,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
               <AmbientTab
                 ambientRoomTint={ambientRoomTint} setAmbientRoomTint={setAmbientRoomTint}
                 ambientHeat={ambientHeat} setAmbientHeat={setAmbientHeat}
+                ambientStrike={ambientStrike} setAmbientStrike={setAmbientStrike}
                 ambientRoomEffects={ambientRoomEffects} setAmbientRoomEffects={setAmbientRoomEffects}
                 ambientDeath={ambientDeath} setAmbientDeath={setAmbientDeath}
                 sound={sound} setSound={setSound}
