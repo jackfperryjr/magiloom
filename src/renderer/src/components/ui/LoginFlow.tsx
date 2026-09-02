@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Tooltip } from './Tooltip'
 import { LoginArt } from './LoginArt'
-import { loginProgress, showLog, STALL_MS } from '../../lib/loginProgress'
+import { loginProgress, STALL_MS } from '../../lib/loginProgress'
 
 interface LoginFlowProps {
   onEnterGame: (characterName: string, accountName: string, watching?: boolean) => void
@@ -549,10 +549,10 @@ function CharGenScreen({ onLeave }: { onLeave: () => void }) {
 }
 
 // ─── Screen 5: Connecting ─────────────────────────────────────────────────────
-// The log used to run under this screen on every login. It earns its place when
-// something breaks and not otherwise, so the normal path is a progress bar and
-// the log comes back on an error — or on a login that sits on one stage longer
-// than a healthy one ever does (see showLog).
+// The log never appears on this card — not on a stall, not on a failure. The
+// lines still come in (they're what the progress bar is read from) but the
+// player gets a bar, a stage label, and the error text if it comes to that; the
+// raw log is for the dev tools.
 function ConnectingScreen({ characterName, logLines, error, onBack }: {
   characterName: string
   logLines:      string[]
@@ -570,8 +570,6 @@ function ConnectingScreen({ characterName, logLines, error, onBack }: {
     return () => window.clearTimeout(timer)
   }, [stage])
 
-  const withLog = showLog(error, stalled ? STALL_MS : 0)
-
   return <>
     <div className="login-screen-title">
       {error ? 'Connection failed' : `Entering as ${characterName}…`}
@@ -588,21 +586,8 @@ function ConnectingScreen({ characterName, logLines, error, onBack }: {
       </p>
     )}
     {error && <div className="login-error">{error}</div>}
-    {withLog && logLines.length > 0 && <LoginLog lines={logLines} />}
     {error && <Back onClick={onBack} />}
   </>
-}
-
-// Live connection log (SGE / Lich / game output). Surfaced so failures like
-// "Lich exited with code 0" are diagnosable without the desktop dev tools.
-function LoginLog({ lines }: { lines: string[] }) {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => { const el = ref.current; if (el) el.scrollTop = el.scrollHeight }, [lines])
-  return (
-    <div className="login-log" ref={ref}>
-      {lines.map((l, i) => <div key={i} className="login-log-line">{l}</div>)}
-    </div>
-  )
 }
 
 // ─── Magiloom account (web only) ──────────────────────────────────────────────
