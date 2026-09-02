@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Tooltip } from './Tooltip'
 import { Toggle } from './settings/Field'
+import { RetentionNotice, useTierLimits } from './RetentionNotice'
 
 // Lich's OWN session logs, embedded in Settings → Lich. A different set from the
 // Lantern Logs tab: Lich writes these itself, one pair per reconnect — a raw `.xml`
@@ -23,6 +24,7 @@ export function LichLogsViewer() {
   const [error, setError]         = useState('')
   const [loading, setLoading]     = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const limits = useTierLimits()
 
   const refresh = useCallback(async () => {
     try { setFiles(await window.dr.lich.listLogs(false)); setError('') }
@@ -136,6 +138,7 @@ export function LichLogsViewer() {
         </div>
       </div>
       {error && <div className="lf-error">{error}</div>}
+      <RetentionNotice limits={limits} />
     </div>
   )
 }

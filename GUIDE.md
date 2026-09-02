@@ -1,60 +1,121 @@
 <p align="center">
-  <img src="resources/icon.png" width="96" height="96" alt="Magiloom" />
+  <img src="resources/icon.png" width="96" height="96" alt="Lantern" />
 </p>
 
-# Magiloom — Player Guide
+# Lantern — Player Guide
 
-Magiloom is a DragonRealms game client for Windows, Mac, and Linux. It connects directly to the DragonRealms servers and gives you a clean, modern window for playing — with live vitals, room info, experience tracking, highlights, and optional Lich scripting support.
+Lantern is a DragonRealms game client with live vitals, room info, experience tracking, highlights, an automapper, and optional Lich scripting.
+
+There are two ways to play, and they differ in one respect worth knowing up front:
+
+- **In your browser**, at [magiloom.com/app](https://magiloom.com/app). Nothing to install, works on a phone or tablet, and your setup follows you between devices. Your game session runs on the Magiloom server, so this needs a free Magiloom account.
+- **As an installed app**, on Windows, Mac, or Linux. Connects straight to the DragonRealms servers and keeps everything on your own machine. No Magiloom account needed.
+
+The client itself is the same either way — same panels, same highlights, same scripting.
 
 ---
 
 ## Table of Contents
 
-1. [Installation](#installation)
-2. [Logging in for the first time](#logging-in-for-the-first-time)
-3. [Logging in on future visits](#logging-in-on-future-visits)
-4. [The game window](#the-game-window)
-5. [Panels](#panels)
-6. [Avatars](#avatars)
-7. [Command input](#command-input)
-8. [Highlights](#highlights)
-9. [Settings](#settings)
-10. [Lich scripting](#lich-scripting)
-11. [Troubleshooting](#troubleshooting)
+1. [Getting started](#getting-started)
+2. [Your Magiloom account](#your-magiloom-account)
+3. [Logging in for the first time](#logging-in-for-the-first-time)
+4. [Logging in on future visits](#logging-in-on-future-visits)
+5. [The game window](#the-game-window)
+6. [Panels](#panels)
+7. [Avatars](#avatars)
+8. [Command input](#command-input)
+9. [Highlights](#highlights)
+10. [Settings](#settings)
+11. [Lich scripting](#lich-scripting)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
-## Installation
+## Getting started
+
+### In your browser
+
+Go to [magiloom.com/app](https://magiloom.com/app) and create a free Magiloom account. That is the whole setup — see [Your Magiloom account](#your-magiloom-account).
+
+On a phone or tablet you can add it to your home screen and it will behave like an installed app.
+
+### Installing the app
 
 1. Go to the [Releases page](../../releases) on GitHub.
-2. Download the file for your operating system:
-   - **Windows:** `Magiloom-Setup-x.x.x.exe`
-   - **Mac:** `Magiloom-x.x.x.dmg`
-   - **Linux:** `Magiloom-x.x.x.AppImage`
+2. Download the file for your system:
+   - **Windows:** `Lantern-Setup.exe`
+   - **Mac (Apple Silicon):** `Lantern-arm64.dmg`
+   - **Mac (Intel):** `Lantern-x64.dmg`
+   - **Linux:** `Lantern.AppImage`
 3. Run the installer. On Windows, you may see a SmartScreen warning that says "Windows protected your PC." Click **More info**, then **Run anyway**. This happens because the app is not yet signed with a paid code-signing certificate — it is safe.
-4. Magiloom will open automatically after installation.
+4. Lantern will open automatically after installation.
+
+---
+
+## Your Magiloom account
+
+If you play in the browser at **magiloom.com/app**, you will need a free Magiloom account.
+
+**This is not the same as your DragonRealms account.** You have two:
+
+- Your **Simutronics account** — the one you use to log in to DragonRealms itself. Unchanged.
+- Your **Magiloom account** — an email and password, used only by Lantern.
+
+### Why it is needed
+
+When you play in the browser, the game connection runs on the Magiloom server rather than on your computer. Your settings, character profiles, Lich scripts and logs live there too — so the server needs to know which of them are yours. The account is what makes that possible, and it is what lets you sign in on your phone and find your layout exactly as you left it on your desktop.
+
+**The installed app does not use a Magiloom account.** It connects directly to Simutronics and stores everything on your own machine.
+
+### Creating one
+
+1. Open [magiloom.com/app](https://magiloom.com/app).
+2. Choose **Create account**.
+3. Enter an email address and a password of at least 8 characters.
+
+That is it — no confirmation email, no card.
+
+### How long your logs are kept
+
+Lantern keeps two kinds of log: its own game-output logs, and the logs Lich writes when you play through it. In the browser both live on the Magiloom server, and both are removed after a while so one player's history cannot fill the disk for everyone.
+
+- **Free** — 3 days, up to 100 MB
+- **Premium** — up to 14 days, up to 1 GB
+
+Whichever limit you reach first applies. A heavy week of play can hit the size limit before the day limit — Lich writes a new log every time it reconnects, and a busy session runs to several megabytes.
+
+**You can read and download every log you still have, on any plan.** Settings → **Lich** shows Lich's session logs; Settings → **Lantern Logs** shows Lantern's own. Both let you view a log, download it, or delete it. If you want to keep something, download it before it ages out.
+
+Settings → **Lich** also has **Export your Lich data**, which downloads a zip of everything that is yours — character profiles, your own scripts, Lich's per-character data, and its logs.
+
+None of this applies to the installed app: those logs sit on your own machine and nothing removes them.
+
+### If your plan changes
+
+If a Premium subscription ends, your previous limits stay in force for **7 days**, so nothing disappears the moment billing lapses. The log panels will tell you how long you have left. Download anything you want to keep during that window.
 
 ---
 
 ## Logging in for the first time
 
-When you open Magiloom for the first time, you will see the **Sign in** screen.
+When you open Lantern for the first time, you will see the **Sign in** screen.
 
 1. Enter your **Simutronics account name** (the username you use on the Simutronics website or in other clients like StormFront or Wizard).
 2. Enter your **password**.
 3. Click **Sign in**.
 
-Magiloom will connect to the Simutronics login servers. If you have access to multiple DragonRealms game instances (e.g. Prime, Platinum, The Fallen), you will be asked to **Choose server**. Select the one you want.
+Lantern will connect to the Simutronics login servers. If you have access to multiple DragonRealms game instances (e.g. Prime, Platinum, The Fallen), you will be asked to **Choose server**. Select the one you want.
 
 Next, you will see the **Choose character** screen. Click your character's name to enter the game.
 
-Magiloom saves your account name automatically so you don't have to type it every time.
+Lantern saves your account name automatically so you don't have to type it every time.
 
 ---
 
 ## Logging in on future visits
 
-After your first login, Magiloom shows a **Welcome back** screen listing your saved accounts. Click your account name to jump straight to the password screen. Your last-played character will be noted beside your name for reference.
+After your first login, Lantern shows a **Welcome back** screen listing your saved accounts. Click your account name to jump straight to the password screen. Your last-played character will be noted beside your name for reference.
 
 - **+ Add account** — adds a new account to the list
 - **⚙ Settings** — opens the settings screen (see [Settings](#settings))
@@ -67,7 +128,7 @@ Once you are in the game, the window has three regions: a **title bar** across t
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  Magiloom                               update  — ▢ ✕ │  title bar
+│  Lantern                                update  — ▢ ✕ │  title bar
 ├─────────────────────────────────────┬──────────────────┤
 │  flags · RT · hands (R:/L:)         │  ⊞ Panels       │  top bar
 │  Health · Mana · Stamina · Spirit   │                  │  vitals
@@ -81,12 +142,12 @@ Once you are in the game, the window has three regions: a **title bar** across t
 └─────────────────────────────────────┴──────────────────┘
 ```
 
-**Title bar** — The Magiloom name, an **update** button that appears when a new version is ready to install, and the window minimize / maximize / close controls.
+**Title bar** — The Lantern name, an **update** button that appears when a new version is ready to install, and the window minimize / maximize / close controls.
 
 **Game column** (left), top to bottom:
 
 - **Top bar** — When connected, shows game status flags (bleeding, stunned, prone, etc.), a roundtime (**RT**) countdown, and what you are holding in each hand (**R:** / **L:**).
-- **Vitals bar** — Health, Mana/Concentration, Stamina, and Spirit as compact bars (see [Vitals](#vitals)).
+- **Vitals bar** — Health, Mana/Concentration, Stamina, and Spirit as compact bars.
 - **Main output** — The scrolling game text: room descriptions, combat, conversation, and system messages.
 - **Character bar** — Your avatar, character name, and presence (Online / Idle / Do Not Disturb). Click the avatar to set a picture (see [Avatars](#avatars)); click your name for a menu to change presence or disconnect. To the right are quick buttons for **✦ Highlights** and **⚙ Settings**.
 - **Command bar** — Type commands here and press **Enter** to send them.
@@ -169,7 +230,7 @@ A scrolling log of recent death announcements — when a character or creature i
 
 ## Avatars
 
-Magiloom gives every character a small avatar that appears beside their speech in the [Conversation](#conversation) panel, so you can tell at a glance who is talking.
+Lantern gives every character a small avatar that appears beside their speech in the [Conversation](#conversation) panel, so you can tell at a glance who is talking.
 
 ### Your avatar
 
@@ -179,7 +240,7 @@ Your own avatar is shown at the **bottom-left of the game window**, next to your
 - **Replace** it with a different picture later.
 - **Remove** it.
 
-If you don't set a picture, Magiloom generates a **letter avatar** — your character's initial on a colored background derived from the name. Everyone sees the same avatar for the same name, so characters stay visually distinct even without custom pictures.
+If you don't set a picture, Lantern generates a **letter avatar** — your character's initial on a colored background derived from the name. Everyone sees the same avatar for the same name, so characters stay visually distinct even without custom pictures.
 
 ### Seeing other players' avatars
 
@@ -187,14 +248,14 @@ Avatars appear automatically in the Conversation panel next to each person's spe
 
 ### Sharing your avatar with others
 
-By default your uploaded picture stays only on your own computer. To let other Magiloom users see it beside your speech, open the avatar editor and tick **Share so other Magiloom users see this avatar**.
+By default your uploaded picture stays only on your own computer. To let other players see it beside your speech, open the avatar editor and tick **Share so other Lantern users see this avatar**.
 
 A few things to know:
 
 - Sharing is **per character and opt-in** — nothing is uploaded until you tick the box.
 - You can only publish an avatar for the character you are **currently signed in as**. The first character to claim a name keeps it.
 - Unticking the box (or removing your picture) takes it back down for everyone.
-- Shared images are **public** — anyone using Magiloom can see the avatar tied to a character name. Don't upload anything you wouldn't want shared.
+- Shared images are **public** — anyone using Lantern can see the avatar tied to a character name. Don't upload anything you wouldn't want shared.
 
 ---
 
@@ -257,7 +318,7 @@ Choose from several color themes for the game window. Themes change the backgrou
 
 ### Lich
 
-If you use Lich for scripting, set the path to your `lich.rbw` file here (see [Lich scripting](#lich-scripting)). Leave this blank if Magiloom detects Lich automatically.
+If you use Lich for scripting, set the path to your `lich.rbw` file here (see [Lich scripting](#lich-scripting)). Leave this blank if Lantern detects Lich automatically.
 
 Click **Save** to apply changes.
 
@@ -265,16 +326,16 @@ Click **Save** to apply changes.
 
 ## Lich scripting
 
-[Lich](https://github.com/elanthia-online/) is a third-party Ruby scripting engine for GemStone and DragonRealms. Magiloom can launch Lich for you after you connect, so your scripts run alongside the game.
+[Lich](https://github.com/elanthia-online/) is a third-party Ruby scripting engine for GemStone and DragonRealms. Lantern can launch Lich for you after you connect, so your scripts run alongside the game.
 
 ### Setup
 
 1. Install Ruby and Lich5 on your computer by following the instructions at the Lich Project website.
-2. Open Magiloom's **⚙ Settings** and set the **Lich path** to the full path of your `lich.rbw` file (e.g. `C:\Ruby4Lich5\Lich5\lich.rbw`). If you installed Lich in the default location, Magiloom may detect it automatically.
+2. Open Lantern's **⚙ Settings** and set the **Lich path** to the full path of your `lich.rbw` file (e.g. `C:\Ruby4Lich5\Lich5\lich.rbw`). If you installed Lich in the default location, Lantern may detect it automatically.
 
 ### Using Lich
 
-If you have set a **Lich path**, Magiloom launches Lich automatically when you enter the game and routes the game connection through it, so your scripts run alongside the game. With no Lich path set, Magiloom connects directly and runs as a standalone client.
+If you have set a **Lich path**, Lantern launches Lich automatically when you enter the game and routes the game connection through it, so your scripts run alongside the game. With no Lich path set, Lantern connects directly and runs as a standalone client.
 
 Add the **Lich** panel to your sidebar (via **⊞ Panels**) to watch it. A colored status dot shows its state:
 
@@ -285,7 +346,7 @@ Add the **Lich** panel to your sidebar (via **⊞ Panels**) to watch it. A color
 
 The panel also shows Lich's startup and script output, useful for diagnosing problems.
 
-If you do not use Lich, you can ignore this entirely — Magiloom works fine without it.
+If you do not use Lich, you can ignore this entirely — Lantern works fine without it.
 
 ---
 
@@ -319,4 +380,4 @@ From the Welcome back screen, click **+ Add account**. To remove a saved account
 
 ---
 
-*Magiloom is an unofficial, community-made client. DragonRealms is a product of Simutronics Corp.*
+*Lantern is an unofficial, community-made client. DragonRealms is a product of Simutronics Corp.*

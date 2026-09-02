@@ -497,6 +497,10 @@ function setupIpcHandlers(): void {
   ipcMain.handle('lich:read-log',   (_e, rel: string) => lichLogStore.readLichLog(requireLichHome(), rel))
   ipcMain.handle('lich:delete-log', (_e, rel: string) => lichLogStore.deleteLichLog(requireLichHome(), rel))
   ipcMain.handle('logs:delete',     (_e, name: string) => logStore.deleteFile(name))
+  // Desktop has no account tier and nothing prunes local logs — they sit on the
+  // user's own disk. Null tells the UI to show no retention warning, rather than
+  // inventing a plan that doesn't apply here.
+  ipcMain.handle('account:limits', () => null)
 
   lichManager.on('log',    (l: string) => lichLog(l))
   lichManager.on('status', (s: string) => send('lich:status', s))
