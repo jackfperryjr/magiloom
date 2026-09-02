@@ -58,6 +58,12 @@ interface AppSettings {
   injuryMode?:      number   // which injury view the Body panel asks the game for, 0-5 (see lib/injuries.ts)
   bodyTextMode?:    boolean  // render the Body panel as a text list instead of the figure
   verbs?:           string[]
+  // Web only: how many days the server keeps this user's Lich session logs. Lich
+  // never removes its own, so unbounded they fill the volume. Global — Lich writes
+  // into one per-user home, so there's no per-character disk to bound. The server
+  // clamps this to its own ceiling and also enforces a per-user byte cap, so a
+  // heavy account can be trimmed sooner than the day count implies.
+  lichLogRetentionDays?: number
   notifications?:   {
     sound:      boolean
     desktop:    boolean

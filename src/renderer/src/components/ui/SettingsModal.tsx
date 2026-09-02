@@ -58,6 +58,10 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [sound,           setSound]           = useState<SoundPrefs>(DEFAULT_SOUND)
   const [loginArt,        setLoginArt]        = useState<LoginArtPrefs>(DEFAULT_LOGIN_ART)
   const [logging,         setLogging]         = useState(false)
+  // Server-side Lich log retention. Global (Lich writes into one per-user home, so
+  // there's no per-character disk to bound) and web-only — on desktop the logs sit
+  // on the user's own machine, where the server's pruner has no say.
+  const [lichLogDays,     setLichLogDays]     = useState(7)
   const [functionKeys,    setFunctionKeys]    = useState<Record<string, string>>({})
   const [quickActions,    setQuickActions]    = useState<QuickAction[]>([])
   const [aliases,         setAliases]         = useState<Alias[]>([])
@@ -138,6 +142,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setNotif({ ...DEFAULT_NOTIF, ...(s.notifications ?? {}) })
       setPush({ ...DEFAULT_PUSH, ...(s.push ?? {}) })
       setNotifRules(s.notifRules ?? [])
+      setLichLogDays(s.lichLogRetentionDays ?? 7)
     })
     // Hotkeys / quick actions / aliases / triggers are per-character (fall back to globals).
     window.dr.settings.getChar(charName).then(c => {
@@ -172,6 +177,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       ambientSoundLayers: sound.layers, ambientSoundPauseHidden: sound.pauseHidden,
       loginArt: loginArt.on, loginArtScene: loginArt.scene, loginArtHolidays: loginArt.holidays,
       notifications: notif, push, notifRules,
+      ...(isWeb ? { lichLogRetentionDays: lichLogDays } : {}),
     })
     const varsRecord = Object.fromEntries(
       vars.map(v => [v.name.trim(), v.value]).filter(([n]) => n) as [string, string][]
@@ -351,6 +357,29 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                     >
                       Browse…
                     </button>
+                  </SettingRow>
+                )}
+                {/* Lich keeps its OWN session logs, separate from the game-output
+                    logs below, and never deletes one — so on the hosted server they
+                    accumulate until the disk fills. Desktop keeps them on the user's
+                    own machine, where this doesn't apply and nothing prunes them. */}
+                {isWeb && (
+                  <SettingRow
+                    label="Keep Lich session logs for"
+                    hint="Lich writes a log every time it reconnects. Older ones are removed
+                          from the server automatically. Download anything you want to keep —
+                          large accounts may be trimmed sooner to stay within their storage
+                          allowance."
+                  >
+                    <select
+                      className="settings-input"
+                      value={lichLogDays}
+                      onChange={e => setLichLogDays(Number(e.target.value))}
+                    >
+                      <option value={3}>3 days</option>
+                      <option value={7}>7 days</option>
+                      <option value={14}>14 days</option>
+                    </select>
                   </SettingRow>
                 )}
                 <LichFilesEditor charName={charName} />
