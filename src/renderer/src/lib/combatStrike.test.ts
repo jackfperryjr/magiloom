@@ -23,41 +23,44 @@ function check(name: string, cond: boolean, detail = ''): void {
 }
 const eq = (name: string, got: unknown, want: unknown): void =>
   check(name, got === want, `got ${JSON.stringify(got)}, wanted ${JSON.stringify(want)}`)
+const gt = (name: string, got: number, than: number): void =>
+  check(name, got > than, `got ${got}, wanted > ${than}`)
 
 // ── Your landed hits, scaled by severity ──────────────────────────────────────
-eq('solid hit',
-  strikeIntensity("< You lob a glittery lilac sprite-bone handled throwing hammer with a heavy vardite head at a void-black umbral moth.  A void-black umbral moth fails to block with its uncanny wings.  The hammer lands a solid hit that rips open the entire left thigh as fractured bones tear through the skin's surface."),
-  0.27)
+// The severity ladder is a visual tuning knob and gets retuned by eye; these assert
+// the ORDER, which is the part that must hold, rather than pinning the exact opacity
+// and turning every retune into a test edit. The one exact assertion left is that a
+// landed hit is non-zero — that is the actual contract with the store.
+const SOLID = strikeIntensity("< You lob a glittery lilac sprite-bone handled throwing hammer with a heavy vardite head at a void-black umbral moth.  A void-black umbral moth fails to block with its uncanny wings.  The hammer lands a solid hit that rips open the entire left thigh as fractured bones tear through the skin's surface.")
+gt('solid hit flashes', SOLID, 0)
 
-eq('light hit is dimmer than solid',
-  strikeIntensity("< You fire a smooth rock at a void-black umbral moth.  A void-black umbral moth attempts to evade.  The rock lands a light hit that thumps it in the gut (it's the thought that counts)."),
-  0.19)
-
-eq('very heavy outranks heavy',
-  strikeIntensity('< You slice a lifesculpted glaive clutching moonsilver-inlaid stones at a void-black umbral moth.  A void-black umbral moth fails to dodge.  The glaive lands a very heavy hit that rips skin and exposes bloody cartilage under the left kneecap, lightly stunning it.'),
-  0.39)
-
-// "an extremely heavy" — the article changes with the adjective, which is what the
-// first pass at this regex missed on 7,319 of this character's landed hits.
-eq('extremely heavy takes the "an" article',
-  strikeIntensity('< You slice a lifesculpted glaive clutching moonsilver-inlaid stones at a void-black umbral moth.  A void-black umbral moth fails to block with its uncanny wings.  The glaive lands an extremely heavy hit that rips the left leg from the hip socket, making a wet sound.'),
-  0.42)
-
-eq('powerful strike',
-  strikeIntensity('< You slice a lifesculpted glaive clutching moonsilver-inlaid stones at a void-black umbral moth.  A void-black umbral moth badly fails to block with its uncanny wings.  The glaive lands a powerful strike that rips through muscle and organs, cutting the foe cleanly in half.'),
-  0.45)
+const LIGHT = strikeIntensity("< You fire a smooth rock at a void-black umbral moth.  A void-black umbral moth attempts to evade.  The rock lands a light hit that thumps it in the gut (it's the thought that counts).")
+gt('light hit is dimmer than solid', SOLID, LIGHT)
+gt('a light hit is still visible', LIGHT, 0)
 
 // Flaring weapon prose runs "…and lands a heavy strike…" mid-sentence, so the phrase
 // can't be anchored to the start of the damage clause.
-eq('a flaring weapon still reads',
-  strikeIntensity('< You lob a glittery lilac sprite-bone handled throwing hammer with a heavy vardite head at a void-black umbral moth.  A void-black umbral moth badly fails to block with its uncanny wings.  The hammer shines arctic-blue, gushing out multiple scalding geysers and lands a heavy strike that shatters bone and rends flesh of the right arm, leaving it pretty much useless.'),
-  0.36)
+const HEAVY = strikeIntensity('< You lob a glittery lilac sprite-bone handled throwing hammer with a heavy vardite head at a void-black umbral moth.  A void-black umbral moth badly fails to block with its uncanny wings.  The hammer shines arctic-blue, gushing out multiple scalding geysers and lands a heavy strike that shatters bone and rends flesh of the right arm, leaving it pretty much useless.')
+gt('a flaring weapon still reads', HEAVY, SOLID)
+
+const VERY_HEAVY = strikeIntensity('< You slice a lifesculpted glaive clutching moonsilver-inlaid stones at a void-black umbral moth.  A void-black umbral moth fails to dodge.  The glaive lands a very heavy hit that rips skin and exposes bloody cartilage under the left kneecap, lightly stunning it.')
+gt('very heavy outranks heavy', VERY_HEAVY, HEAVY)
+
+// "an extremely heavy" — the article changes with the adjective, which is what the
+// first pass at this regex missed on 7,319 of this character's landed hits.
+gt('extremely heavy takes the "an" article',
+  strikeIntensity('< You slice a lifesculpted glaive clutching moonsilver-inlaid stones at a void-black umbral moth.  A void-black umbral moth fails to block with its uncanny wings.  The glaive lands an extremely heavy hit that rips the left leg from the hip socket, making a wet sound.'),
+  VERY_HEAVY)
+
+gt('powerful strike outranks very heavy',
+  strikeIntensity('< You slice a lifesculpted glaive clutching moonsilver-inlaid stones at a void-black umbral moth.  A void-black umbral moth badly fails to block with its uncanny wings.  The glaive lands a powerful strike that rips through muscle and organs, cutting the foe cleanly in half.'),
+  VERY_HEAVY)
 
 // The hardest crits in the game are hyphenated, and a severity pattern built out of
-// letters and spaces reads them as misses — which is how this was first written.
-eq('earth-shaking survives the hyphen',
-  strikeIntensity('< You slice a lifesculpted glaive clutching moonsilver-inlaid stones at a void-black umbral moth.  A void-black umbral moth fails to evade.  The glaive lands an earth-shaking strike that cleaves the right leg from the body.'),
-  0.48)
+// letters and spaces reads them as misses — which is how this was first written. The
+// tell is a ZERO here, not a low number, so this one is worth asserting sharply.
+const EARTH_SHAKING = strikeIntensity('< You slice a lifesculpted glaive clutching moonsilver-inlaid stones at a void-black umbral moth.  A void-black umbral moth fails to evade.  The glaive lands an earth-shaking strike that cleaves the right leg from the body.')
+gt('earth-shaking survives the hyphen', EARTH_SHAKING, VERY_HEAVY)
 
 // ── Misses stay dark ──────────────────────────────────────────────────────────
 for (const [name, line] of [
@@ -85,19 +88,19 @@ eq("a bystander's hit does not flash",
 // signal, so an unknown word must not read as a miss.
 eq('an unknown severity falls back to mid-tier',
   strikeIntensity("< You swing a paintbrush at a void-black umbral moth.  A void-black umbral moth fails to evade.  The paintbrush lands a sizzling hit to the moth's chest."),
-  0.27)
+  SOLID)
 
 // A multi-strike line is worth its hardest blow, not the sum — otherwise a flurry of
 // light taps would outshine a massive strike.
 eq('multi-strike takes the hardest blow',
   strikeIntensity('< You slice a glaive at a moth.  The glaive lands a light hit to the chest.  The glaive lands a massive strike to the neck.'),
-  0.48)
+  EARTH_SHAKING)   // massive and earth-shaking share the top of the ladder
 
 // Prefixes are DR's, not Lich's, but the store also feeds this lines that have been
 // through a trim; the unprefixed form has to survive.
 eq('an unprefixed own attack still reads',
   strikeIntensity('You slice a lifesculpted glaive at a void-black umbral moth.  A void-black umbral moth fails to dodge.  The glaive lands a solid hit to the moth.'),
-  0.27)
+  SOLID)
 
 // Nothing to do with combat.
 eq('ordinary prose does not flash', strikeIntensity('You bow to a bearded halfling.'), 0)

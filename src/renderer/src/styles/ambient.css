@@ -353,23 +353,37 @@
    inline per direction (fast in, slow out) by CombatHeat, which also fades the vignette
    in from 0 on mount and out to 0 before unmounting, so a hit never snaps on or off.
    There is no idle/hot pulse: heat now only rises when you take damage, so the ramp
-   in and the decay out ARE the animation. */
+   in and the decay out ARE the animation.
+
+   The glow is built in THREE bands rather than two, because the thing that made an
+   earlier, thinner version of this fail to register wasn't its opacity — it was its
+   reach. A 26px bleed on a panel most of a screen wide is a hairline: the eye reads
+   it as part of the window chrome and stops seeing it. The deep band below carries
+   the colour ~50px into the panel where peripheral vision can actually catch it,
+   the mid band does the work the old bleed did, and the accent keeps the edge itself
+   crisp so the whole thing still reads as a rim and not as fog. Alphas are held
+   under 1 on the deep band on purpose — it passes over output text, and a hit
+   should tint what you're reading, not blot it out. */
 .ambient-heat {
   position: absolute;
   inset: 0;
   z-index: 3;
   pointer-events: none;
-  border: 2.5px solid rgba(255, 48, 40, 0.95);
+  border: 3px solid rgba(255, 48, 40, 1);
   border-left: none;
   box-shadow:
+    /* deep wash, reaching well into the panel */
+    inset 0  16px 60px -20px rgba(224, 40, 30, 0.8),
+    inset -16px 0 60px -20px rgba(224, 40, 30, 0.8),
+    inset 0 -16px 60px -20px rgba(224, 40, 30, 0.8),
     /* wide soft bleed, per visible edge */
-    inset 0  7px 26px -8px rgba(224, 40, 30, 0.55),
-    inset -7px 0 26px -8px rgba(224, 40, 30, 0.55),
-    inset 0 -7px 26px -8px rgba(224, 40, 30, 0.55),
+    inset 0  8px 30px -8px rgba(224, 40, 30, 0.75),
+    inset -8px 0 30px -8px rgba(224, 40, 30, 0.75),
+    inset 0 -8px 30px -8px rgba(224, 40, 30, 0.75),
     /* tight bright accent hugging each visible edge */
-    inset 0  4px 7px -3px rgba(255, 96, 74, 0.8),
-    inset -4px 0 7px -3px rgba(255, 96, 74, 0.8),
-    inset 0 -4px 7px -3px rgba(255, 96, 74, 0.8);
+    inset 0  5px 9px -3px rgba(255, 110, 88, 0.95),
+    inset -5px 0 9px -3px rgba(255, 110, 88, 0.95),
+    inset 0 -5px 9px -3px rgba(255, 110, 88, 0.95);
   transition: opacity 0.4s ease;
 }
 
@@ -380,40 +394,53 @@
 
    Everything here is tuned to stay UNDER the red rather than compete with it, because
    at a realistic hit rate this fires most rounds while the red is comparatively rare:
-   a thinner border (1.5px vs 2.5px), a tighter bleed, and a peak opacity that tops
-   out at 0.55 — exactly where the damage flash starts, so your best hit is as bright
-   as their weakest. It also renders before .ambient-heat in the DOM, so on the rounds
-   you are trading blows the red takes the edge.
+   a thinner border (2px vs 3px), a shallower bleed, and a peak opacity that tops out
+   where the damage flash starts, so your best hit is as bright as their weakest. It
+   also renders before .ambient-heat in the DOM, so on the rounds you are trading blows
+   the red takes the edge.
 
    The pulse is a keyframe, not a transition, because it has a fixed SHAPE (snap in,
-   ease out) that must survive being retriggered mid-flight; AmbientOverlay remounts
-   the element per hit to replay it. --strike-peak carries the severity in. */
+   dwell, ease out) that must survive being retriggered mid-flight; AmbientOverlay
+   remounts the element per hit to replay it. --strike-peak carries the severity in. */
 .ambient-strike {
   position: absolute;
   inset: 0;
   z-index: 3;
   pointer-events: none;
   opacity: 0;
-  border: 1.5px solid rgba(242, 166, 58, 0.95);
+  border: 2px solid rgba(242, 166, 58, 1);
   border-left: none;
   box-shadow:
+    /* deep wash — shallower than the heat's so the two stay distinguishable when
+       they overlap, but deep enough to be seen without looking for it */
+    inset 0  12px 44px -18px rgba(208, 116, 0, 0.7),
+    inset -12px 0 44px -18px rgba(208, 116, 0, 0.7),
+    inset 0 -12px 44px -18px rgba(208, 116, 0, 0.7),
     /* wide soft bleed, per visible edge */
-    inset 0  6px 20px -9px rgba(208, 116, 0, 0.6),
-    inset -6px 0 20px -9px rgba(208, 116, 0, 0.6),
-    inset 0 -6px 20px -9px rgba(208, 116, 0, 0.6),
+    inset 0  7px 24px -9px rgba(208, 116, 0, 0.8),
+    inset -7px 0 24px -9px rgba(208, 116, 0, 0.8),
+    inset 0 -7px 24px -9px rgba(208, 116, 0, 0.8),
     /* tight bright accent hugging each visible edge */
-    inset 0  3px 6px -3px rgba(255, 198, 106, 0.75),
-    inset -3px 0 6px -3px rgba(255, 198, 106, 0.75),
-    inset 0 -3px 6px -3px rgba(255, 198, 106, 0.75);
-  animation: ambient-strike-pulse 460ms ease-out both;
+    inset 0  4px 8px -3px rgba(255, 198, 106, 0.9),
+    inset -4px 0 8px -3px rgba(255, 198, 106, 0.9),
+    inset 0 -4px 8px -3px rgba(255, 198, 106, 0.9);
+  animation: ambient-strike-pulse 620ms ease-out both;
 }
 
 /* Front-loaded on purpose: the rise wants to feel like the impact (~75ms) and the
    rest is the ring-out. A symmetric fade reads as a slow glow, which is the room
-   lighting up rather than something connecting. */
+   lighting up rather than something connecting.
+
+   The DWELL between 12% and 34% is what makes this readable. The shape before it went
+   straight from the 75ms rise into the decay, so peak opacity existed for about one
+   frame — and a brief low-contrast flash at the edge of vision is close to invisible
+   no matter how bright its peak number looks in the source. Holding near peak for
+   ~140ms costs nothing in "did that feel like an impact" and is the difference
+   between a cue you notice and one you only find by going looking for it. */
 @keyframes ambient-strike-pulse {
   0%   { opacity: 0; }
-  16%  { opacity: var(--strike-peak, 0.3); }
+  12%  { opacity: var(--strike-peak, 0.3); }
+  34%  { opacity: calc(var(--strike-peak, 0.3) * 0.82); }
   100% { opacity: 0; }
 }
 

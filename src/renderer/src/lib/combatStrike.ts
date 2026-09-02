@@ -22,17 +22,26 @@
  * character's own logs: 54,180 of 63,316 swings landed, and every landed line matched
  * the phrase above.
  *
- * That 86% land rate is why the intensities here top out below 0.5 rather than at 1.
- * At roughly one swing per roundtime the flash fires almost every round, so it has to
- * read as a pulse rather than a wash — the same mistake the always-lit red rim made
- * before it was cut back to a flash.
+ * That 86% land rate is why the intensities here top out below 1. At roughly one swing
+ * per roundtime the flash fires almost every round, so it has to read as a pulse rather
+ * than a wash — the same mistake the always-lit red rim made before it was cut back to
+ * a flash.
  *
  * The ceiling is not a like-for-like fraction of the red's, because opacity is not
  * brightness: the amber (#f2a63a) carries a relative luminance of 0.46 against the
  * red's (#ff3028) 0.24, so at equal opacity it lands roughly twice as loud. Matching
- * the two by luminance would cap this around 0.28 and make a light hit invisible,
+ * the two by luminance would cap this around 0.4 and make a light hit invisible,
  * which defeats the point. The two cues are separated by HUE, and the numbers here
  * are set by what a pulse every few seconds can sustain without becoming wallpaper.
+ *
+ * An earlier pass set that sustainable ceiling at 0.48 and it was wrong — the whole
+ * ladder sat far enough down that the flash didn't register unless you were watching
+ * for it, and a cue you have to look for isn't doing its job. The floor moved up more
+ * than the ceiling did: the top of the ladder was always going to be seen, and it was
+ * the ordinary hits that were vanishing. Note that these numbers only ever made sense
+ * alongside the geometry in ambient.css — a low peak on a shape that reaches deep into
+ * the panel is a very different cue from the same peak on a hairline rim — so retune
+ * them together, not one at a time.
  */
 
 /**
@@ -46,27 +55,27 @@
  * apart would put the flash near its ceiling on almost every swing.
  */
 const TIERS: Record<string, number> = {
-  brushing:           0.15,
-  grazing:            0.15,
-  light:              0.19,
-  good:               0.23,
-  solid:              0.27,
-  hard:               0.30,
-  strong:             0.33,
-  heavy:              0.36,
-  'very heavy':       0.39,
-  'extremely heavy':  0.42,
-  awesome:            0.44,
-  vicious:            0.44,
-  powerful:           0.45,
-  massive:            0.48,
-  demolishing:        0.48,
-  devastating:        0.48,
+  brushing:           0.30,
+  grazing:            0.30,
+  light:              0.36,
+  good:               0.42,
+  solid:              0.47,
+  hard:               0.52,
+  strong:             0.56,
+  heavy:              0.60,
+  'very heavy':       0.64,
+  'extremely heavy':  0.68,
+  awesome:            0.70,
+  vicious:            0.70,
+  powerful:           0.71,
+  massive:            0.75,
+  demolishing:        0.75,
+  devastating:        0.75,
   // The top of the ladder is hyphenated, which is why the pattern below can't just
   // scan for letters and spaces — these read as misses if the hyphen breaks the
   // match, and they are the last hits that should go unremarked.
-  'spine-rattling':   0.48,
-  'earth-shaking':    0.48,
+  'spine-rattling':   0.75,
+  'earth-shaking':    0.75,
 }
 
 /**
@@ -76,7 +85,7 @@ const TIERS: Record<string, number> = {
  * is the signal; treating an unknown word as a mid-tier hit is a better failure than
  * going dark.
  */
-const UNKNOWN_TIER = 0.27
+const UNKNOWN_TIER = 0.47
 
 /** A blow connecting, in either direction. The article varies ("an extremely heavy"). */
 const LANDS_RE = /\blands an?\s+([a-z][a-z -]{0,20}?)\s+(?:hit|strike|blow)\b/g
