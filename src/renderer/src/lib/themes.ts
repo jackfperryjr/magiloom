@@ -108,6 +108,13 @@ export const THEMES: Theme[] = [
       '--map-room':      '#2a2456',
       '--map-room-hover':'#39337a',
       '--map-line':      '#5f58a8',
+      // The plush ragdoll in the Body panel. It sits ON the panel, so its fill has to
+      // clear --bg-panel by enough to read as an object rather than a smudge — the
+      // old shared #3a3470 was only a shade off this theme's #221c50 and vanished
+      // into it. Lifted well clear here, keeping the periwinkle cast.
+      '--body-base':     '#4d4596',
+      '--body-eye':      '#1c1650',
+      '--body-outline':  '#15102f',
       // Periwinkle wash from the top + a faint warm amber pool at the bottom edge,
       // like a lantern's light settling into the room. Both are subtle by design.
       '--bg-theme-image': 'radial-gradient(ellipse at 50% 0%, rgba(100,103,220,0.18) 0%, transparent 55%), radial-gradient(ellipse 75% 42% at 50% 100%, rgba(240,162,74,0.06) 0%, transparent 60%)',
@@ -152,6 +159,11 @@ export const THEMES: Theme[] = [
       '--map-room':      '#2a1a1b',
       '--map-room-hover':'#3d2526',
       '--map-line':      '#5c2e2e',
+      // An indigo doll on a blood-red theme was the most literal case of the figure
+      // "sticking out": it was the one element on screen still wearing Lantern's hue.
+      '--body-base':     '#663232',
+      '--body-eye':      '#200f0f',
+      '--body-outline':  '#1a0a0a',
       '--bg-theme-image': 'radial-gradient(ellipse at 80% 20%, rgba(120,20,20,0.15) 0%, transparent 60%)',
     }
   },
@@ -194,6 +206,9 @@ export const THEMES: Theme[] = [
       '--map-room':      '#1b2a1d',
       '--map-room-hover':'#273d2a',
       '--map-line':      '#33553a',
+      '--body-base':     '#2f4d31',
+      '--body-eye':      '#0e1c10',
+      '--body-outline':  '#08110a',
       '--bg-theme-image': 'radial-gradient(ellipse at 20% 80%, rgba(20,60,20,0.2) 0%, transparent 60%)',
     }
   },
@@ -251,6 +266,9 @@ export const THEMES: Theme[] = [
       '--map-room':      '#2b2724',
       '--map-room-hover':'#3b3631',
       '--map-line':      '#5a534b',
+      '--body-base':     '#4f4941',
+      '--body-eye':      '#191614',
+      '--body-outline':  '#141210',
       // Ash settling: a pale drift off the top, a heavier bank pooling at the floor.
       '--bg-theme-image': 'radial-gradient(ellipse at 50% 0%, rgba(198,184,168,0.055) 0%, transparent 55%), radial-gradient(ellipse 80% 40% at 50% 100%, rgba(120,104,88,0.10) 0%, transparent 62%)',
     },
@@ -293,6 +311,18 @@ export const THEMES: Theme[] = [
       '--map-room':      '#d6d0c7',
       '--map-room-hover':'#c5bdb2',
       '--map-line':      '#a89e92',
+      // The doll is the reason a shared palette couldn't survive. On a #f1eeea panel
+      // the old dark-indigo fill under a near-black outline was the highest-contrast
+      // object in the whole client — a plush toy drawn like a warning sign. Inverted
+      // here the way the rest of this face is: the fill goes to a warm mid-tone that
+      // reads as an object without shouting, and the OUTLINE is the real fix. A bold
+      // dark keyline is what makes a figure pop off a dark panel and what makes it
+      // harsh on a pale one, so it drops to a soft warm grey barely darker than the
+      // fill. The wound colours deliberately do not move (see body.css) — they are
+      // the one thing on this figure that is allowed to shout.
+      '--body-base':     '#bdb2a4',
+      '--body-eye':      '#574e45',
+      '--body-outline':  '#8b8072',
       // Same two drifts, re-aimed: ash reads as shadow on a pale ground, not light.
       '--bg-theme-image': 'radial-gradient(ellipse at 50% 0%, rgba(90,78,64,0.05) 0%, transparent 55%), radial-gradient(ellipse 80% 40% at 50% 100%, rgba(70,60,50,0.07) 0%, transparent 62%)',
     }
@@ -336,6 +366,9 @@ export const THEMES: Theme[] = [
       '--map-room':      '#31353c',
       '--map-room-hover':'#3f444d',
       '--map-line':      '#4a505a',
+      '--body-base':     '#4b4f5e',
+      '--body-eye':      '#15161a',
+      '--body-outline':  '#111214',
       '--bg-theme-image': 'none',
     }
   },
@@ -381,6 +414,14 @@ export const THEMES: Theme[] = [
       '--map-room':      '#0a1470',
       '--map-room-hover':'#1a28a0',
       '--map-line':      '#5068d0',
+      // The one theme where the doll gets a LIGHT keyline instead of a dark one. This
+      // panel is saturated blue, so a dark outline reads as a hole punched in it; a
+      // crisp white one is this palette's own language (it's what every border here
+      // already is) and turns the figure into something that looks like it came out
+      // of the menu it's sitting in.
+      '--body-base':     '#7a84d0',
+      '--body-eye':      '#0c1040',
+      '--body-outline':  '#fcfcfc',
       '--bg-theme-image': 'none',
     }
   },

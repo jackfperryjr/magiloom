@@ -90,11 +90,24 @@
   fill: #fff; stroke: rgba(0,0,0,0.75); stroke-width: 2.4; paint-order: stroke;
 }
 
-/* Plush detailing: a dashed center stitch seam + a soft head highlight. */
+/* Plush detailing: a dashed center stitch seam + a soft head highlight. The seam and
+   the region strokes ride --body-outline, so they follow the theme with the fill; the
+   gloss stays white because it is a top-light highlight and reads as one on any fill,
+   pale ones included.
+
+   What deliberately does NOT follow the theme is the wound palette (lib/injuries.ts
+   WOUND_COLOR / SCAR_COLOR). Amber → orange → red is the severity scale the legend
+   spells out, and blue means scar; re-tinting those per theme would make the one part
+   of this figure that carries information mean something different in each theme. The
+   figure changes colour so the wounds can stay the same colour. */
 .body-seam { stroke: var(--body-outline); stroke-width: 1.3; stroke-dasharray: 3 3; stroke-linecap: round; opacity: 0.55; }
 .body-gloss { fill: #ffffff; opacity: 0.14; }
 
+/* Hairline separating the blue scar diamond from the fill underneath it. It's white
+   because every other face of this theme set is dark; on a light one it would be a
+   white line on a pale doll, so the light face gets the same hairline inverted. */
 .body-scar { stroke: rgba(255,255,255,0.35); stroke-width: 0.5; }
+:root[data-mode="light"] .body-scar { stroke: rgba(0,0,0,0.30); }
 
 /* Back + nervous-system chips (no place on a front silhouette) */
 .body-chips { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
