@@ -6,6 +6,7 @@ import { DEFAULT_NOTIF, DEFAULT_PUSH, makeNameRule, type NotifSettings, type Not
 import { LichFilesEditor } from './LichFilesEditor'
 import { LogFilesViewer } from './LogFilesViewer'
 import { LichLogsViewer } from './LichLogsViewer'
+import { useTierLimits } from './RetentionNotice'
 import { CmdFilesEditor } from './CmdFilesEditor'
 import type { Alias, Trigger } from '../../lib/automation'
 import type { QuickAction } from '../../lib/quickActions'
@@ -67,6 +68,10 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   // there's no per-character disk to bound) and web-only — on desktop the logs sit
   // on the user's own machine, where the server's pruner has no say.
   const [lichLogDays,     setLichLogDays]     = useState(7)
+  // Plan limits, so the retention control can't offer what the account can't have.
+  const tierLimits = useTierLimits()
+  const [exporting,       setExporting]       = useState(false)
+  const [exportErr,       setExportErr]       = useState('')
   const [functionKeys,    setFunctionKeys]    = useState<Record<string, string>>({})
   const [quickActions,    setQuickActions]    = useState<QuickAction[]>([])
   const [aliases,         setAliases]         = useState<Alias[]>([])
@@ -376,17 +381,51 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                           large accounts may be trimmed sooner to stay within their storage
                           allowance."
                   >
+                    {/* Options above the plan stay VISIBLE but disabled. Hiding them
+                        would hide the upgrade too — and it would look like the app
+                        simply offers less than it does. */}
                     <select
                       className="settings-input"
                       value={lichLogDays}
                       onChange={e => setLichLogDays(Number(e.target.value))}
                     >
-                      <option value={3}>3 days</option>
-                      <option value={7}>7 days</option>
-                      <option value={14}>14 days</option>
+                      {[1, 3, 7, 14].map(d => {
+                        const allowed = !tierLimits || d <= tierLimits.maxDays
+                        return (
+                          <option key={d} value={d} disabled={!allowed}>
+                            {d} day{d === 1 ? '' : 's'}{allowed ? '' : ' — Premium'}
+                          </option>
+                        )
+                      })}
                     </select>
                   </SettingRow>
                 )}
+                {/* Web only: on desktop these files are already on the user's own
+                    machine, so a "download" would just copy a folder they can open. */}
+                {isWeb && (
+                  <SettingRow
+                    label="Export your Lich data"
+                    hint="A zip of everything that's yours — character profiles, your own
+                          scripts, Lich's per-character data and its session logs. The shared
+                          script library and engine aren't included; they're the same for
+                          everyone and come from upstream."
+                  >
+                    <button
+                      className="login-btn-secondary"
+                      disabled={exporting}
+                      onClick={async () => {
+                        setExporting(true)
+                        setExportErr('')
+                        try { await window.dr.account?.exportData?.(true) }
+                        catch (e) { setExportErr(String(e)) }
+                        finally { setExporting(false) }
+                      }}
+                    >
+                      {exporting ? 'Preparing…' : 'Download .zip'}
+                    </button>
+                  </SettingRow>
+                )}
+                {exportErr && <div className="lf-error">{exportErr}</div>}
                 <LichFilesEditor charName={charName} />
                 <LichLogsViewer />
               </div>

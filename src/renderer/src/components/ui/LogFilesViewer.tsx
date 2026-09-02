@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Tooltip } from './Tooltip'
 import { SettingRow, Toggle } from './settings/Field'
+import { RetentionNotice, useTierLimits } from './RetentionNotice'
 
 // Game-output logs, embedded in Settings → Lich beside the setups/scripts editor.
 // Logging is per character (the toggle here writes CharSettings.logging), and the
@@ -26,6 +27,7 @@ export function LogFilesViewer({ charName = '', logging, setLogging }: LogFilesV
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const limits = useTierLimits()
 
   const refresh = useCallback(async () => {
     try { setFiles(await window.dr.logs.list()); setError('') }
@@ -145,6 +147,7 @@ export function LogFilesViewer({ charName = '', logging, setLogging }: LogFilesV
         </div>
       </div>
       {error && <div className="lf-error">{error}</div>}
+      <RetentionNotice limits={limits} />
     </div>
   )
 }

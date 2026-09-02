@@ -643,6 +643,7 @@
       <a href="/app" class="nav-text">Web App</a>
       <a href="/tools" class="nav-text">Tools</a>
       <a href="#download" class="nav-text">Download</a>
+      <a href="#accounts" class="nav-text">Accounts</a>
       <a href="https://github.com/jackfperryjr/magiloom" class="nav-gh" target="_blank" rel="noopener">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
           <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
@@ -662,7 +663,8 @@
   <h1 class="hero-title"><span class="hero-title-sm">MAGILOOM</span>LANTERN<span class="hero-mascot" aria-hidden="true"></span></h1>
   <p class="hero-sub">
     A <strong>modern client</strong> for DragonRealms — on your desktop, or right in your
-    browser. Real-time XML parsing, resizable panels, custom themes, and full Lich scripting support.
+    browser. A map that draws itself, experience and inventory at a glance, native script
+    support, and weather that moves across the window as you play.
   </p>
   <div class="hero-actions">
     <!-- <a href="/app" class="btn btn-primary">
@@ -698,7 +700,7 @@
 <!-- ── Screenshot ────────────────────────────────────────────────────────── -->
 <div class="screenshot-section">
   <div class="screenshot-wrap">
-    <img src="./screenshot-game.png" alt="MAGILOOM game view — real-time output, vitals, room panel, and a conversation panel with player avatars" loading="lazy" />
+    <img src="./screenshot-game.png" alt="Lantern game view — real-time output, vitals, room panel, and a conversation panel with player avatars" loading="lazy" />
   </div>
 </div>
 
@@ -719,27 +721,63 @@
       </div>
 
       <div class="feature-card">
-        <div class="feature-icon ic-green">▦</div>
-        <h3>Resizable Panel Layout</h3>
-        <p>Drag panels to any height from the top or bottom edge. Slide the divider between game output and sidebar left or right. Your layout is saved automatically.</p>
+        <div class="feature-icon ic-green">⬡</div>
+        <h3>Automapper</h3>
+        <p>A live map that draws itself as you explore, using the room IDs the game sends. Click any room to walk there. Imports and exports Genie map files, and every explorer's mapping accumulates into one shared world map.</p>
       </div>
 
       <div class="feature-card">
-        <div class="feature-icon ic-purple">✦</div>
-        <h3>Custom Highlights</h3>
-        <p>Regex or plain-text patterns with custom foreground, background, and bold styling. Spot your character name, loot, danger, and more at a glance.</p>
+        <div class="feature-icon ic-gold">↗</div>
+        <h3>Experience Tracking</h3>
+        <p>Every skill's rank and learning state at a glance, with ranks gained this session, plus circle, TDPs, favors and overall mind state. Pairs with a log analyzer and TDP planner in <a href="/tools" style="color:inherit; text-decoration:underline;">Tools</a>.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon ic-purple">▤</div>
+        <h3>Inventory Manager</h3>
+        <p>Your whole inventory as a sortable table or cards — worn, held and stowed, with nested containers, item counts and carried weight rolled up per container.</p>
       </div>
 
       <div class="feature-card">
         <div class="feature-icon ic-cyan">⚙</div>
-        <h3>Lich Scripting</h3>
-        <p>Launch Lich straight from the login screen. Script output is captured in a separate log drawer so it doesn't clutter your game output.</p>
+        <h3>Scripts, Watched Live</h3>
+        <p>A built-in script engine that runs Genie and Wizard <code>.cmd</code> scripts natively — no Lich required. The Scripts panel shows what's running and lets you stop it. Lich still launches straight from the login screen when you want it.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon ic-red">✦</div>
+        <h3>Highlights, Aliases &amp; Triggers</h3>
+        <p>Regex or plain-text highlights with custom colors, plus Genie-style aliases and triggers with class toggles. Import your existing Genie config and keep the setup you already have.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon ic-blue">✚</div>
+        <h3>Wounds at a Glance</h3>
+        <p>A body figure showing every wound and scar by location and severity, so you can see what needs tending without reading a wall of text. Empaths can switch it to their patient.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon ic-green">❋</div>
+        <h3>Living Atmosphere</h3>
+        <p>Elanthian day and night, weather and locale wash gently over the game window — rain, snow, forge embers, moonlight. Optional procedural ambient sound to match. Turn any of it off.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon ic-purple">▦</div>
+        <h3>Resizable Panel Layout</h3>
+        <p>Drag panels to any height from the top or bottom edge. Slide the divider between game output and sidebar left or right. Your layout is saved per character, automatically.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon ic-cyan">◱</div>
+        <h3>Play Anywhere</h3>
+        <p>Install it on Windows, Mac or Linux, or play in the browser on any device. Add it to your phone's home screen for a full-screen app with push notifications when someone speaks to you.</p>
       </div>
 
       <div class="feature-card">
         <div class="feature-icon ic-gold">◈</div>
         <h3>Six Themes</h3>
-        <p>Default, Bloodstone, Thornwood, Parchment, and Discord — or Final Fantasy. Each with a full color palette for health, mana, speech, warnings, and more.</p>
+        <p>Lantern, Bloodstone, Thornwood, Parchment, and Discord — or Final Fantasy. Each with a full color palette for health, mana, speech, warnings, and more.</p>
       </div>
 
       <div class="feature-card">
@@ -816,7 +854,7 @@
       <div style="font-size:40px; line-height:1;">🌐</div>
       <div style="flex:1; min-width:0;">
         <div style="font-size:18px; font-weight:600; color:var(--text); margin-bottom:4px;">Play instantly in your browser</div>
-        <div style="font-size:13px; color:var(--text-muted); line-height:1.6;">No download, no setup — works on desktop and mobile. On your phone, tap <strong style="color:var(--text)">Add to Home Screen</strong> to install it as a full-screen app with push notifications.</div>
+        <div style="font-size:13px; color:var(--text-muted); line-height:1.6;">No download — just a free Magiloom account. Works on desktop and mobile. On your phone, tap <strong style="color:var(--text)">Add to Home Screen</strong> to install it as a full-screen app with push notifications.</div>
       </div>
       <span class="dl-btn dl-btn-primary" style="white-space:nowrap;">Launch Web App →</span>
     </a>
@@ -889,6 +927,54 @@
   </div>
 </section>
 
+<!-- ── Accounts ───────────────────────────────────────────────────────────── -->
+<section id="accounts">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-label">// accounts</div>
+      <h2 class="section-title">Play in the browser, keep your setup</h2>
+      <p class="section-desc">
+        The browser version runs your game session on the Magiloom server, which means your
+        settings, scripts and logs need a home that belongs to you. A free Magiloom account
+        gives them one — and keeps them in sync across every device you sign in on.
+      </p>
+    </div>
+
+    <div style="padding:18px 22px; background:var(--bg-card); border:1px solid var(--accent); border-radius:8px; font-size:14px; color:var(--text-muted); line-height:1.7; margin-bottom:28px;">
+      <strong style="color:var(--text);">This is not your DragonRealms login.</strong>
+      It is a separate email and password, just for Magiloom. You will still sign in to
+      DragonRealms with your Simutronics account exactly as you do now — and the installed
+      app does not need one at all, since it connects straight to Simutronics and keeps
+      everything on your own machine.
+    </div>
+
+    <div class="two-col">
+      <div class="download-card" style="display:block;">
+        <div class="dl-os-name" style="margin-bottom:12px;">Free</div>
+        <ul style="list-style:none; display:flex; flex-direction:column; gap:9px; font-size:13px; color:var(--text-muted); line-height:1.6;">
+          <li>Everything in the client — panels, highlights, scripting, automapper</li>
+          <li>Your settings and scripts, synced across devices</li>
+          <li>Game logs kept for 3 days</li>
+          <li>Read and download your logs any time</li>
+        </ul>
+      </div>
+      <div class="download-card" style="display:block; border-color:var(--accent);">
+        <div class="dl-os-name" style="margin-bottom:12px;">Premium</div>
+        <ul style="list-style:none; display:flex; flex-direction:column; gap:9px; font-size:13px; color:var(--text-muted); line-height:1.6;">
+          <li>Longer log retention — up to 14 days</li>
+          <li>Watch mode: follow a running session from another device</li>
+          <li>Sessions stay connected while the app is closed</li>
+        </ul>
+      </div>
+    </div>
+
+    <p style="margin-top:22px; font-size:13px; color:var(--text-dim); line-height:1.7;">
+      Logs are always yours to read and download, on any plan. Premium changes how long we
+      keep them, never whether you can reach them.
+    </p>
+  </div>
+</section>
+
 <!-- ── Login screenshot ───────────────────────────────────────────────────── -->
 <section>
   <div class="container">
@@ -897,16 +983,16 @@
         <div class="section-label">// getting started</div>
         <h2 class="section-title">Up and running in minutes</h2>
         <p class="section-desc" style="margin-bottom: 24px;">
-          No config files to edit. Download, install, log in with your DragonRealms account, pick your character, and you're in.
+          No config files to edit. Open it in your browser or install it, log in with your DragonRealms account, pick your character, and you're in.
         </p>
         <ol style="list-style:none; display:flex; flex-direction:column; gap:16px;">
           <li style="display:flex; gap:14px; align-items:flex-start;">
             <span style="font-family:'VT323',monospace; font-size:20px; color:var(--accent); line-height:1.4; flex-shrink:0;">01</span>
-            <span style="font-size:14px; color:var(--text-muted);">Download and install Lantern for your platform.</span>
+            <span style="font-size:14px; color:var(--text-muted);">Open Lantern in your browser, or download and install it for your platform.</span>
           </li>
           <li style="display:flex; gap:14px; align-items:flex-start;">
             <span style="font-family:'VT323',monospace; font-size:20px; color:var(--accent); line-height:1.4; flex-shrink:0;">02</span>
-            <span style="font-size:14px; color:var(--text-muted);">Enter your DragonRealms account credentials on the login screen.</span>
+            <span style="font-size:14px; color:var(--text-muted);">In the browser, create a free Magiloom account. Then enter your DragonRealms credentials on the login screen.</span>
           </li>
           <li style="display:flex; gap:14px; align-items:flex-start;">
             <span style="font-family:'VT323',monospace; font-size:20px; color:var(--accent); line-height:1.4; flex-shrink:0;">03</span>
@@ -925,7 +1011,7 @@
             <span class="chrome-dot" style="background:#febc2e"></span>
             <span class="chrome-dot" style="background:#28c840"></span>
           </div>
-          <img src="./screenshot-login.png" alt="MAGILOOM login screen" loading="lazy" />
+          <img src="./screenshot-login.png" alt="Lantern login screen" loading="lazy" />
         </div>
       </div>
     </div>
@@ -943,7 +1029,7 @@
       <a href="https://github.com/jackfperryjr/magiloom/issues" target="_blank" rel="noopener">Issues</a>
     </div>
     <p class="footer-disclaimer">
-      MAGILOOM is an independent, unofficial client. DragonRealms is a registered trademark of Simutronics Corp.
+      Lantern is an independent, unofficial client. DragonRealms is a registered trademark of Simutronics Corp.
       This project is not affiliated with or endorsed by Simutronics.
     </p>
   </div>

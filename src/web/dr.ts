@@ -1,4 +1,4 @@
-import { wsUrl, setWatch, requireAccount } from './config'
+import { wsUrl, setWatch, requireAccount, httpBase, authToken } from './config'
 import * as account from './auth'
 import { enablePush } from './push'
 import { webUpdater } from './updater'
@@ -279,6 +279,26 @@ export function installDr(): void {
       sessions: () => t.invoke('session:list'),
       watch:   (conn: string) => { setWatch(conn); t.reconnect() },
       unwatch: () => { setWatch(null); t.reconnect() },
+      // Storage plan — drives the retention control and the "download before this
+      // expires" notice. Enforced server-side; this is only what to display.
+      limits:  () => t.invoke('account:limits'),
+      // "Everything of mine" as a zip. Goes over HTTP, not the gateway: the payload
+      // is binary and can run to hundreds of MB, which the WebSocket's JSON envelope
+      // would have to base64 and hold in memory whole.
+      exportData: async (includeLogs = true) => {
+        const res = await fetch(
+          `${httpBase()}/logs/export?logs=${includeLogs ? '1' : '0'}`,
+          { headers: { Authorization: 'Bearer ' + authToken() } },
+        )
+        if (!res.ok) throw new Error(res.status === 401 ? 'Sign in to export.' : 'Export failed.')
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `lantern-lich-${new Date().toISOString().slice(0, 10)}.zip`
+        a.click()
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+      },
     },
   }
   ;(window as unknown as { dr: typeof dr }).dr = dr

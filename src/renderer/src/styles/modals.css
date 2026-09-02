@@ -570,3 +570,19 @@
 .exp-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
 .exp-skill { font-size: 14px; color: var(--text-dim); flex: 1; font-family: var(--font-game); }
 .exp-rank  { font-size: 14px; color: var(--text-main); min-width: 34px; text-align: right; font-family: var(--font-game); }
+
+/* Retention notice at the foot of the log panels (RetentionNotice.tsx). Deliberately
+   informational rather than alarming — it prompts a download, it isn't an error. */
+.retention-notice {
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-raised, rgba(255, 255, 255, .03));
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.retention-notice b { color: var(--text); font-weight: 600; }
+/* Free plan gets a warm accent edge so the limit reads as a plan boundary, not a fault. */
+.retention-notice.is-free { border-left: 3px solid var(--accent-warm, #d07400); }

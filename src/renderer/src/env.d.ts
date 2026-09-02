@@ -303,12 +303,31 @@ interface DrAPI {
     sessions: () => Promise<WatchSession[]>
     watch:    (conn: string) => void
     unwatch:  () => void
+    // Storage plan for the signed-in account, used by the log panels to say how long
+    // logs survive. Null on desktop — those files are on the user's own disk and
+    // nothing prunes them, so any retention warning there would be false.
+    limits?:  () => Promise<TierLimitsInfo | null>
+    /** Download the user-specific half of their Lich directory as a zip. Web only —
+     *  on desktop those files are already on the user's own machine. */
+    exportData?: (includeLogs?: boolean) => Promise<void>
   }
 }
 
 declare global {
   interface Window { dr: DrAPI }
   // One game-output log file on disk, e.g. refia-2026-07-09.log (see main/log-store.ts).
+  /** The signed-in account's storage plan. Null on desktop (nothing prunes local
+   *  logs). `maxBytes` is the real bound — `maxDays` can be cut short by it. */
+  interface TierLimitsInfo {
+    tier: 'free' | 'paid'
+    maxDays: number
+    maxBytes: number
+    choices: number[]
+    effectiveDays: number
+    /** >0 while a downgrade's previous, more generous limits are still honoured. */
+    graceMs: number
+    prevTier?: 'free' | 'paid'
+  }
   interface LogFileEntry { name: string; char: string; day: string; size: number; mtime: number; events?: boolean }
   /** One Lich session log. `path` is the relative handle used to read or delete it;
    *  `xml` marks the raw stream, which is the half worth analyzing. */
