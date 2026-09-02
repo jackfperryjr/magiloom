@@ -1,6 +1,6 @@
 import { memo, useMemo, useState, useEffect, useRef } from 'react'
 import { useAtomValue } from 'jotai'
-import { skyAtom, weatherAtom, roomLocaleAtom, roomAmbienceAtom, combatHeatAtom, indicatorsAtom } from '../../store/game'
+import { skyAtom, weatherAtom, roomLocaleAtom, roomAmbienceAtom, combatHeatAtom, indicatorsAtom, connectionStatusAtom } from '../../store/game'
 import type { SkyState } from '../../lib/elanthianTime'
 import { weatherLabel, type WeatherState } from '../../lib/weather'
 import { LOCALE_TINT } from '../../lib/roomLocale'
@@ -381,8 +381,14 @@ export function AmbientOverlay() {
   // overflow (which would let GameOutput's auto-scroll drag the output up — see
   // ambient.css). This is the single element the overlay adds to the wrap.
   const toggles = useAmbientToggles()
+  // Freeze while disconnected. The weather, motes and heat are all reporting a world
+  // we're no longer receiving anything from — leaving rain falling over a dead session
+  // reads as "still connected", which is exactly backwards. Pausing the animations
+  // (rather than unmounting the layer) keeps the scene painted as it last stood, so
+  // reconnecting resumes instead of flashing an empty overlay back into place.
+  const frozen = useAtomValue(connectionStatusAtom) !== 'connected'
   return (
-    <div className="ambient-layer" aria-hidden>
+    <div className={'ambient-layer' + (frozen ? ' is-frozen' : '')} aria-hidden>
       {toggles.room && <RoomTint />}
       <SkyTint />
       <FogLayer />

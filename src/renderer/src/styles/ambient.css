@@ -23,6 +23,19 @@
   pointer-events: none;
 }
 
+/* Frozen while the game connection is down. Every ambient layer is depicting a world
+   we've stopped hearing from, so live rain over a dead session misreports the state.
+   `animation-play-state: paused` holds each element mid-cycle rather than resetting
+   it, so the scene stays as it last stood and reconnecting simply resumes.
+   Transitions are killed too — otherwise a fade that was mid-flight when the socket
+   dropped would keep running and quietly finish. */
+.ambient-layer.is-frozen *,
+.ambient-layer.is-frozen *::before,
+.ambient-layer.is-frozen *::after {
+  animation-play-state: paused !important;
+  transition: none !important;
+}
+
 /* Room-locale tint → sky tint → weather veil → combat heat → corner label, in
    paint order (z-index 0 → 3). */
 

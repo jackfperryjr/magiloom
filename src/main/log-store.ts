@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { mkdirSync, appendFileSync, existsSync, readdirSync, statSync, openSync, readSync, closeSync } from 'fs'
+import { mkdirSync, appendFileSync, existsSync, readdirSync, statSync, openSync, readSync, closeSync, unlinkSync } from 'fs'
 import { StreamEventExtractor, toJsonl, EVENT_FORMAT_VERSION, stripToLines } from './stream-events'
 
 // ── Optional game-output file logging ───────────────────────────────────────────
@@ -157,6 +157,29 @@ export class LogStore {
   readFile(name: string, maxBytes = 2 * 1024 * 1024): LogFileRead {
     if (!LOG_NAME.test(name)) throw new Error('Not a log file: ' + name)
     return this.readByName(name, maxBytes)
+  }
+
+  /**
+   * Delete a log and its event sidecar. Same validated-name jail as readFile — the
+   * name must match `<charslug>-<YYYY-MM-DD>.log`, so no path can be expressed — and
+   * the sidecar name is DERIVED from it rather than accepted, so a caller can never
+   * name an arbitrary second file to remove.
+   *
+   * If the file being deleted is the one currently open, the next write reopens it:
+   * rollDay() only re-derives on a date change, so curFile is cleared here too.
+   */
+  deleteFile(name: string): { removed: string[] } {
+    if (!LOG_NAME.test(name)) throw new Error('Not a log file: ' + name)
+    const removed: string[] = []
+    for (const n of [name, eventName(name)]) {
+      const p = join(this.dir, n)
+      try {
+        if (existsSync(p) && statSync(p).isFile()) { unlinkSync(p); removed.push(n) }
+      } catch { /* leave what we can't remove */ }
+    }
+    if (!removed.length) throw new Error('Not found: ' + name)
+    if (this.curFile && removed.includes(name)) { this.curFile = null; this.curEventFile = null }
+    return { removed }
   }
 
   private readByName(name: string, maxBytes: number): LogFileRead {

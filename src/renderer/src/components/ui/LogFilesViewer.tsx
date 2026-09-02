@@ -25,6 +25,7 @@ export function LogFilesViewer({ charName = '', logging, setLogging }: LogFilesV
   const [mine, setMine]         = useState(true)
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     try { setFiles(await window.dr.logs.list()); setError('') }
@@ -44,6 +45,17 @@ export function LogFilesViewer({ charName = '', logging, setLogging }: LogFilesV
       setSelected(name); setContent(res.content); setTruncated(res.truncated); setError('')
     } catch (e) { setError(String(e)) }
     finally { setLoading(false) }
+  }
+
+  // Removes the .jsonl event sidecar alongside the text log — they're the same
+  // session in two shapes, and an orphaned sidecar is unreadable on its own.
+  const remove = async (name: string) => {
+    try {
+      await window.dr.logs.delete(name)
+      if (selected === name) { setSelected(null); setContent('') }
+      setConfirmDelete(null)
+      await refresh()
+    } catch (e) { setError(String(e)) }
   }
 
   // Always download the FULL log, not whatever the viewer truncated to.
@@ -98,7 +110,15 @@ export function LogFilesViewer({ charName = '', logging, setLogging }: LogFilesV
                 <span className="lf-item-name" onClick={() => void open(f.name)}>
                   {mine && slug ? f.day : f.name} <span className="lf-log-size">{fmtSize(f.size)}</span>
                 </span>
-                <Tooltip text="Download"><button className="lf-mini" onClick={() => void download(f.name)}>↓</button></Tooltip>
+                {confirmDelete === f.name ? (
+                  <span className="lf-confirm">
+                    <button className="lf-mini lf-danger" onClick={() => void remove(f.name)}>Delete</button>
+                    <button className="lf-mini" onClick={() => setConfirmDelete(null)}>×</button>
+                  </span>
+                ) : <>
+                  <Tooltip text="Download"><button className="lf-mini" onClick={() => void download(f.name)}>↓</button></Tooltip>
+                  <Tooltip text="Delete"><button className="lf-mini" onClick={() => setConfirmDelete(f.name)}>🗑</button></Tooltip>
+                </>}
               </div>
             ))}
           </div>

@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, screen, shell }
 import { join, dirname } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import * as lichFiles from './lich-files'
+import * as lichLogStore from './lich-log-store'
 import { autoUpdater } from 'electron-updater'
 import { LichManager, LichConnection } from './lich-manager'
 import { GameConnection } from './game-connection'
@@ -476,6 +477,26 @@ function setupIpcHandlers(): void {
   ipcMain.handle('lich:read-file',   (_e, rel: string) => lichFiles.readFile(requireLichDir(), rel))
   ipcMain.handle('lich:write-file',  (_e, rel: string, content: string) => lichFiles.writeFile(requireLichDir(), rel, content))
   ipcMain.handle('lich:delete-file', (_e, rel: string) => lichFiles.deleteFile(requireLichDir(), rel))
+
+  // Lich's OWN session logs, a different set from Magiloom's own game-output logs.
+  // The home is the directory holding lich.rbw — one level up from scripts/ — and
+  // everything below is path-jailed in lich-log-store.ts.
+  const lichHomeDir = (): string | null => {
+    const rbw = lichManager.getLichPath(settings.get('lichPath') || undefined)
+    return rbw ? dirname(rbw) : null
+  }
+  const requireLichHome = (): string => {
+    const d = lichHomeDir()
+    if (!d) throw new Error('Lich not found. Set the Lich path in Settings.')
+    return d
+  }
+  ipcMain.handle('lich:list-logs', (_e, xmlOnly?: boolean) => {
+    const d = lichHomeDir()
+    return d ? lichLogStore.listLichLogs(d, { xmlOnly: xmlOnly ?? false, limit: 400 }) : []
+  })
+  ipcMain.handle('lich:read-log',   (_e, rel: string) => lichLogStore.readLichLog(requireLichHome(), rel))
+  ipcMain.handle('lich:delete-log', (_e, rel: string) => lichLogStore.deleteLichLog(requireLichHome(), rel))
+  ipcMain.handle('logs:delete',     (_e, name: string) => logStore.deleteFile(name))
 
   lichManager.on('log',    (l: string) => lichLog(l))
   lichManager.on('status', (s: string) => send('lich:status', s))
