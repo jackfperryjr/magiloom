@@ -52,11 +52,18 @@
      whichever theme was showing before it.
 
      Aim a new theme's fill at roughly 1.8–2.0:1 against its own --bg-panel, with the
-     outline a similar step darker again (lighter, on a saturated or pale panel). That
-     band is what makes the figure read the SAME across themes, which is the whole
+     outline a similar step darker again — or LIGHTER, if the panel is pale enough that
+     a dark keyline turns the figure into a warning sign (Ashfall's light face is the
+     only one so far). Where --bg-panel is a gradient, measure against its midpoint:
+     the figure sits in the middle of the panel, so neither stop is the real ground.
+
+     That band is what makes the figure read the SAME across themes, which is the whole
      point — it previously shared one palette with every theme and so landed at 1.4:1
      on Lantern (a smudge) and 9.5:1 on Ashfall's light face (louder than body text).
-     Sharing a colour is not what made it consistent; sharing a contrast is. */
+     Sharing a colour is not what made it consistent; sharing a contrast is, and a
+     theme whose palette seems to argue for an exception is worth measuring twice:
+     Final Fantasy talked its way into a pale fill and a white keyline at 3.9–5.4:1
+     on exactly that reasoning, and was the one theme that came back looking wrong. */
   --body-base:       #4d4596;
   --body-eye:        #1c1650;
   --body-outline:    #15102f;

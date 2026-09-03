@@ -414,14 +414,21 @@ export const THEMES: Theme[] = [
       '--map-room':      '#0a1470',
       '--map-room-hover':'#1a28a0',
       '--map-line':      '#5068d0',
-      // The one theme where the doll gets a LIGHT keyline instead of a dark one. This
-      // panel is saturated blue, so a dark outline reads as a hole punched in it; a
-      // crisp white one is this palette's own language (it's what every border here
-      // already is) and turns the figure into something that looks like it came out
-      // of the menu it's sitting in.
-      '--body-base':     '#7a84d0',
-      '--body-eye':      '#0c1040',
-      '--body-outline':  '#fcfcfc',
+      // This theme was first given a pale fill under a white keyline, on the theory
+      // that white borders are this palette's own language so the figure would read
+      // as something out of the menu it sits in. It didn't: that argument is about
+      // UI CHROME, and the doll is not chrome, it's a sprite sitting on the chrome.
+      // The result measured 3.9-5.4:1 against the panel where every other theme sits
+      // near 2:1, and a figure two to three times louder than the same figure
+      // everywhere else is exactly the inconsistency all of this exists to remove.
+      //
+      // So it gets the ordinary treatment: a blue a step off the panel's own, with a
+      // dark keyline like everywhere else. Contrast is measured against the GRADIENT
+      // MIDPOINT (#00007c) rather than either end — --bg-panel here is a gradient and
+      // the figure sits in the middle of it, so neither stop is the real background.
+      '--body-base':     '#3a48a0',
+      '--body-eye':      '#0a0e38',
+      '--body-outline':  '#10164a',
       '--bg-theme-image': 'none',
     }
   },
