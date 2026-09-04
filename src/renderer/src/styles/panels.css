@@ -361,10 +361,16 @@
   font-size: var(--font-size-game);
   line-height: var(--line-height-game);
 }
+/* The MIND cell is sized to its content and the NAME cell absorbs the squeeze.
+   It used to be the other way round — name at max-content, mind at minmax(0, 1fr)
+   — so as the panel narrowed the mindstate was the thing that got clipped, and
+   "Mind lock (340/900)" came out as "Mind lock (340/9…". A trimmed skill name is
+   still readable; a trimmed number is not. Below the container query at the foot
+   of this block the two halves stop sharing a row entirely. */
 .exp-data-half {
   flex: 1;
   display: grid;
-  grid-template-columns: max-content 38px 36px minmax(0, 1fr);
+  grid-template-columns: minmax(0, auto) 38px 36px max-content;
   gap: 0 8px;
   min-width: 0;
 }
@@ -374,10 +380,10 @@
   margin: 0 12px;
   align-self: stretch;
 }
-.exp-data-name { color: var(--text-dim); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+.exp-data-name { color: var(--text-dim); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .exp-data-rank { text-align: right; color: var(--text-main); white-space: nowrap; }
 .exp-data-pct  { text-align: right; color: var(--accent);    white-space: nowrap; }
-.exp-data-mind { color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.exp-data-mind { color: var(--text-dim); white-space: nowrap; }
 
 /* ── Info attribute lines in main output ─────────────────────────────────── */
 .info-data-line {
@@ -398,6 +404,30 @@
 .info-data-sep   { width: 1px; background: var(--border-soft); margin: 0 16px; align-self: stretch; }
 .info-data-label { color: var(--text-dim); white-space: nowrap; }
 .info-data-value { color: var(--text-main); white-space: nowrap; }
+
+/* Two skills (or two attributes) per row only fit while the game panel is wide.
+   Measured against the OUTPUT PANEL, not the viewport (see container-type on
+   .game-output): the same phone-width squeeze happens on a desktop that has
+   dragged the sidebar out to two thirds of the window, and the viewport knows
+   nothing about that. Under it each half takes its own row and nothing is
+   trimmed at all. */
+@container game-output (max-width: 620px) {
+  .exp-data-line, .info-data-line { display: block; }
+  .exp-data-sep,  .info-data-sep  { display: none; }
+  /* One skill per row, and nothing here is clipped: the rank/percent columns drop
+     their fixed widths (there are no neighbouring rows left to line up with), and a
+     name with nowhere left to go WRAPS rather than ellipsing — which is the whole
+     point of the stack. Baseline alignment keeps the numbers on the name's first
+     line when it does. */
+  .exp-data-half {
+    grid-template-columns: minmax(0, 1fr) max-content max-content max-content;
+    gap: 0 6px;
+    align-items: baseline;
+  }
+  .exp-data-name  { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+  .info-data-half { grid-template-columns: max-content minmax(0, 1fr); }
+  .info-data-value { white-space: normal; overflow-wrap: anywhere; }
+}
 /* A buffed attribute's "+13" — coloured so the boosted value reads as boosted
    rather than as a stray number that ran into the next column. */
 .info-data-bonus { color: var(--color-bonus); }

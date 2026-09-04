@@ -619,11 +619,45 @@ export const moonsAtom = atom<MoonPosition[]>(get => {
   return computeMoonPositions(Date.now(), get(moonCorrectionsAtom))
 })
 
-// True while the connect-time seed is fetching TIME/weather silently, so their
-// report lines are suppressed from the main output (set/cleared from App).
-let _skySeedSilent = false
-export const beginSilentSkySeedAtom = atom(null, () => { _skySeedSilent = true })
-export const endSilentSkySeedAtom   = atom(null, () => { _skySeedSilent = false })
+// How many silently-requested sky replies (a background `weather`, the connect
+// seed's `weather` + `time`) are still outstanding. Their report lines are
+// suppressed from the main output until each has been claimed.
+//
+// This is a COUNT with a deadline, not a boolean closed by a setTimeout, because
+// the timer version leaked on web and mobile. Two ways it failed there:
+//   • the reply is one round trip further away (browser → server → Lich → DR), so
+//     a slow link could outrun a fixed window; and
+//   • a backgrounded tab / PWA freezes timers AND the socket together, so on
+//     resume the "stop being silent" timeout fires first and the reply it was
+//     covering arrives immediately after it — straight into the game panel.
+// Counting claims and testing the deadline only when a LINE ARRIVES fixes both:
+// nothing expires while the page is frozen, and two overlapping polls (a duplicate
+// panel, a second attached client) each get their own reply swallowed instead of
+// the first one closing the window on the second.
+let _skyPending  = 0
+let _skyDeadline = 0
+// Long enough to cover any real round trip; short enough that a reply which never
+// comes can't silence a weather report the player asked for themselves.
+const SKY_SILENT_MS = 30_000
+
+/** True while a silent sky poll is outstanding (expiring a stale one in passing). */
+function skySilent(): boolean {
+  if (_skyPending > 0 && Date.now() > _skyDeadline) _skyPending = 0
+  return _skyPending > 0
+}
+/** One outstanding silent reply has now been seen and suppressed. */
+function skyReplyClaimed(): void { if (_skyPending > 0) _skyPending-- }
+
+/** Arm the silent window before sending sky commands — one count per expected reply. */
+export const beginSilentSkySeedAtom = atom(null, (_get, _set, replies: number = 1) => {
+  // Capped: replies that never arrive in a form we recognize would otherwise pile
+  // up, and each new poll pushes the deadline out, so an unbounded count could
+  // silence weather for the rest of the session. Three covers every real overlap.
+  _skyPending  = Math.min(_skyPending + replies, 3)
+  _skyDeadline = Date.now() + SKY_SILENT_MS
+})
+/** Drop the window immediately (session reset / disconnect). */
+export const endSilentSkySeedAtom = atom(null, () => { _skyPending = 0 })
 // Non-blank lines still eligible to carry `weather`'s state sentence after its
 // "You glance up at the sky." header. A small window (not strictly the next line)
 // so a blank/interleaved line can't eat the reply — that used to leave the overlay
@@ -727,7 +761,7 @@ export const echoCommandAtom = atom(
     // leave it on screen: the player asked to see it.
     if (/^;\s*(?:l|la|list)(?:\s+all)?$/i.test(command.trim())) {
       _lichListWait   = LICH_LIST_WINDOW
-      _lichListSilent = false
+      _lichListSilent = 0
     }
   }
 )
@@ -777,7 +811,9 @@ export const beginSilentExpAtom = atom(null, () => {
 // round-trip can't close it early; the prompt handler shuts it either way.
 export const lichScriptsAtom = atom<LichScript[]>([])
 let _lichListWait   = 0
-let _lichListSilent = false
+// How many of the in-flight `;list` polls want their reply hidden. A count, not a
+// flag: overlapping polls are normal (see the reply handler below).
+let _lichListSilent = 0
 // Counted in 'lich'-stream lines, which is where the reply lands — so game text
 // can't consume the window. Generous because every running script's own chatter
 // ([name: ...]) shares that stream, and someone with six scripts up can easily
@@ -787,7 +823,10 @@ const LICH_LIST_WINDOW = 12
 /** Open the read window before sending `;list`. Silent polls hide the reply. */
 export const beginLichListAtom = atom(null, (_get, _set, silent: boolean) => {
   _lichListWait   = LICH_LIST_WINDOW
-  _lichListSilent = silent
+  // A hand-typed `;list` means "show me" and outranks any background poll queued
+  // behind it; a background poll just adds itself to the replies to swallow.
+  if (silent) _lichListSilent++
+  else        _lichListSilent = 0
 })
 
 // ── Session reset ───────────────────────────────────────────────────────────
@@ -869,10 +908,10 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _expBatchNames     = null
   _silentExpBatch    = false
   _spellBatch        = null
-  _skySeedSilent     = false
+  _skyPending        = 0
   _weatherReportWait = 0
   _lichListWait      = 0
-  _lichListSilent    = false
+  _lichListSilent    = 0
   _gameMove          = null
 })
 
@@ -1011,6 +1050,11 @@ export const dispatchGameEventAtom = atom(
               if (!w && !inside) set(weatherAtom, r)
             } else {
               _weatherReportWait--          // not the reply (blank lines don't count) — keep waiting
+              // Window used up without a wording we could grade: the reply is over
+              // either way, so release the silent poll it belonged to rather than
+              // leave it pending until the deadline (which would keep swallowing a
+              // report the player asked for in the meantime).
+              if (_weatherReportWait === 0 && skySilent()) skyReplyClaimed()
             }
           }
           if (isWeatherHeaderLine(text)) {
@@ -1029,8 +1073,14 @@ export const dispatchGameEventAtom = atom(
           // Suppress the silent connect-seed / background weather-poll output from the
           // main window: the "glance up" header, its (any-wording) state line, plus the
           // recognized weather / time / indoors replies.
-          if (_skySeedSilent && (w || inside || reportLine || isTimeReportLine(text) || isWeatherHeaderLine(text))) {
-            return
+          if (skySilent()) {
+            // The lines that END a reply claim one outstanding poll; the header only
+            // opens it. A weather TRANSITION line (`w` on its own) is the game
+            // volunteering a change, not an answer, so it's hidden during the window
+            // but never counted against it.
+            const timeReport = isTimeReportLine(text)
+            if (reportLine || inside || timeReport) skyReplyClaimed()
+            if (w || inside || reportLine || timeReport || isWeatherHeaderLine(text)) return
           }
         }
         // Lich's `;list` reply. Only read while a poll is in flight, so ordinary
@@ -1044,11 +1094,20 @@ export const dispatchGameEventAtom = atom(
           const list = parseLichList(event.text)
           if (list) {
             set(lichScriptsAtom, list)
+            // More than one silent poll can be in flight at once — a second Scripts
+            // panel mounted elsewhere, a duplicate client attached to the same server
+            // session, or a slow reply overtaken by the next tick. Each reply claims
+            // ONE of them; closing the window on the first is what let every reply
+            // after it fall through into the game panel.
+            if (_lichListSilent > 0) {
+              _lichListSilent--
+              _lichListWait = _lichListSilent > 0 ? LICH_LIST_WINDOW : 0
+              return
+            }
             _lichListWait = 0
-            if (_lichListSilent) { _lichListSilent = false; return }
-            _lichListSilent = false
           } else if (event.text.trim()) {
             _lichListWait--
+            if (_lichListWait === 0) _lichListSilent = 0   // window closed; nothing left to hide
           }
         }
         // Active-spell list ("Name (N roisaen)"): accumulate into the current

@@ -411,14 +411,15 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
   // their report lines are suppressed from the main output during the seed window.
   const skySeeded = useRef(false)
   useEffect(() => {
-    if (status !== 'connected') { skySeeded.current = false; return }
+    if (status !== 'connected') { skySeeded.current = false; endSilentSkySeed(); return }
     if (skySeeded.current) return
     skySeeded.current = true
-    const timers = [
-      window.setTimeout(() => { beginSilentSkySeed(); send('weather'); send('time') }, 1500),
-      window.setTimeout(() => endSilentSkySeed(), 4500),
-    ]
-    return () => timers.forEach(window.clearTimeout)
+    // Two commands, so two replies to swallow. The store closes the silent window
+    // as each reply is recognized — there is deliberately no timer to close it (see
+    // beginSilentSkySeedAtom): a timeout raced the round trip on web and lost
+    // outright on a backgrounded phone, which is how the seed started leaking.
+    const seed = window.setTimeout(() => { beginSilentSkySeed(2); send('weather'); send('time') }, 1500)
+    return () => window.clearTimeout(seed)
   }, [status, send, beginSilentSkySeed, endSilentSkySeed])
 
   // Poll `weather` every minute so the overlay self-heals if an ambient transition
@@ -426,13 +427,9 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
   // free; the report is fetched silently and suppressed from the main output.
   useEffect(() => {
     if (status !== 'connected') return
-    const id = window.setInterval(() => {
-      beginSilentSkySeed()
-      send('weather')
-      window.setTimeout(() => endSilentSkySeed(), 2000)
-    }, 60_000)
+    const id = window.setInterval(() => { beginSilentSkySeed(1); send('weather') }, 60_000)
     return () => window.clearInterval(id)
-  }, [status, send, beginSilentSkySeed, endSilentSkySeed])
+  }, [status, send, beginSilentSkySeed])
 
 
   const [showHighlights, setShowHighlights] = useState(false)

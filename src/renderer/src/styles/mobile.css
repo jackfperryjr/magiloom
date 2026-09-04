@@ -70,21 +70,28 @@
     max-height: 100dvh; height: 100dvh;
     border-radius: 0;
   }
-  /* One column, and the nav becomes a scrolling strip across the top — a 188px
-     rail would eat half a phone's width. */
+  /* One column. The desktop rail isn't rendered at all here (SettingsModal): the
+     tabs are the FIRST screen, and picking one drills into it with a back arrow —
+     the phone pattern, rather than a 188px rail eating half the width or a
+     horizontally-scrolling strip that keeps most tabs off-screen. */
   .settings-layout { flex-direction: column; }
-  .settings-nav {
-    width: 100%;
-    flex-direction: row;
-    gap: 4px;
-    padding: 8px 10px;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-  .settings-nav-item { flex: 0 0 auto; white-space: nowrap; }
   .settings-content { padding: 14px 16px 22px; gap: 18px; }
+
+  /* Back arrow, left of the title. Sized for a thumb without pushing the header
+     taller than the row it shares with the close button. */
+  .settings-back {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 26px;
+    line-height: 1;
+    padding: 0 12px 2px 0;
+    margin-left: -4px;
+    cursor: pointer;
+  }
+  .settings-back:hover, .settings-back:active { color: var(--accent); }
+  /* The title takes the middle so the arrow and × sit at the two ends. */
+  .settings-modal .modal-header > .modal-title { flex: 1; min-width: 0; }
 
   /* The character menu rises from the avatar with the same motion. */
   .char-menu { animation: magiloom-slide-up .24s cubic-bezier(0.16, 1, 0.3, 1); }
