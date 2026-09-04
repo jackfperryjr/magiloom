@@ -21,6 +21,7 @@ import { HotkeysTab } from './settings/HotkeysTab'
 import { AliasesTab } from './settings/AliasesTab'
 import { TriggersTab } from './settings/TriggersTab'
 import { SettingRow } from './settings/Field'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 interface SettingsModalProps {
   charName?: string
@@ -93,6 +94,16 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [watchName,       setWatchName]       = useState('')
   const [version,         setVersion]         = useState('')
   const [tab,             setTab]             = useState<TabId>('appearance')
+  // A phone can't carry a nav rail and a settings panel at once. Rather than squeeze
+  // nine tabs into a horizontally-scrolling strip — where most of them are off-screen
+  // and the one you're in is easy to lose — the modal becomes two screens: the tab
+  // LIST, then the tab itself, with a back arrow. `atMenu` is which of the two is
+  // showing, and is ignored on desktop (nav + panel are side by side there).
+  const isMobile = useIsMobile()
+  const [atMenu, setAtMenu] = useState(true)
+  const openTab = (id: TabId) => { setTab(id); setAtMenu(false) }
+  // Only the menu screen has no tab open; on desktop there is always one.
+  const showMenu = isMobile && atMenu
 
   const setFk = (key: string, cmd: string) =>
     setFunctionKeys(prev => ({ ...prev, [key]: cmd }))
@@ -222,28 +233,54 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const handleCancel = () => { applyTheme(original.theme, original.mode); onClose() }
 
   const versionLabel = !version || version === '0.0.0' ? 'dev' : `v${version}`
+  const tabLabel = tabs.find(t => t.id === tab)?.label ?? 'Settings'
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && handleCancel()}>
       <div className="modal-card settings-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <span className="modal-title">Settings</span>
+          {isMobile && !atMenu && (
+            <button
+              className="settings-back"
+              onClick={() => setAtMenu(true)}
+              aria-label="Back to settings"
+            >
+              ‹
+            </button>
+          )}
+          <span className="modal-title">{showMenu ? 'Settings' : tabLabel}</span>
           <button className="modal-close" onClick={handleCancel}>×</button>
         </div>
 
         <div className="settings-layout">
-          <nav className="settings-nav">
-            {tabs.map(t => (
-              <button
-                key={t.id}
-                className={'settings-nav-item' + (tab === t.id ? ' active' : '')}
-                onClick={() => setTab(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </nav>
+          {/* The rail is the desktop navigation; on a phone the same list is the
+              first screen instead (rendered below), so there is nothing to pin. */}
+          {!isMobile && (
+            <nav className="settings-nav">
+              {tabs.map(t => (
+                <button
+                  key={t.id}
+                  className={'settings-nav-item' + (tab === t.id ? ' active' : '')}
+                  onClick={() => setTab(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </nav>
+          )}
 
+          {showMenu && (
+            <nav className="settings-menu">
+              {tabs.map(t => (
+                <button key={t.id} className="settings-menu-item" onClick={() => openTab(t.id)}>
+                  <span className="settings-menu-label">{t.label}</span>
+                  <span className="settings-menu-chevron" aria-hidden="true">›</span>
+                </button>
+              ))}
+            </nav>
+          )}
+
+          {!showMenu && (
           <div className="modal-body settings-content">
             {tab === 'appearance' && (
               <AppearanceTab
@@ -453,6 +490,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
             )}
 
           </div>
+          )}
         </div>
 
         <div className="modal-footer">

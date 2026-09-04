@@ -111,6 +111,40 @@
 .settings-nav-item:hover { background: var(--bg-input); color: var(--text-main); }
 .settings-nav-item.active { background: var(--accent-dim); color: var(--accent); }
 
+/* Mobile settings: the tab list as a first screen. Only ever rendered on a phone
+   (SettingsModal gates it), so it needs no media query of its own — the drill-down
+   is a structural choice, not a width tweak. Rows are full-bleed and thumb-sized,
+   each with a chevron saying it leads somewhere. */
+.settings-menu {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0 20px;
+}
+.settings-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  /* Comfortably over the 44px touch target, and tall enough that the list reads as
+     navigation rather than as a set of options to pick between. */
+  padding: 16px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: 17px;
+  text-align: left;
+  cursor: pointer;
+}
+.settings-menu-item:active { background: var(--bg-input); }
+.settings-menu-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-menu-chevron { flex: none; color: var(--text-dim); font-size: 22px; line-height: 1; }
+
 /* Two columns of sections, each sized to its own content. Sections that hold a
    grid or an editor (themes, rule lists, file browsers) opt out with
    .settings-section-wide and span the full width instead — mixing the two is what

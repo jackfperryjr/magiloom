@@ -127,7 +127,8 @@ const isReorderDrag = (e: React.DragEvent) => e.dataTransfer.types.includes(REOR
 interface PanelDrag {
   dragging: boolean
   dropEdge: 'top' | 'bottom' | null
-  onStart:  () => void
+  /** clientY of the grab, so edge auto-scroll starts from a real position. */
+  onStart:  (clientY: number) => void
   onEnd:    () => void
   onOver:   (below: boolean, clientY: number) => void
   onDrop:   () => void
@@ -226,7 +227,7 @@ function Panel({
         onDragStart={drag && (e => {
           e.dataTransfer.effectAllowed = 'move'
           e.dataTransfer.setData(REORDER_MIME, config.id)
-          drag.onStart()
+          drag.onStart(e.clientY)
         })}
         onDragEnd={drag?.onEnd}
         onDoubleClick={() => setCollapsed(c => !c)}
@@ -549,16 +550,27 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
   // scroll a nested container for an HTML5 drag, and dragover stops firing when the
   // pointer holds still — so this runs off rAF for as long as a drag is live, using
   // the last position the cards or the scroller reported.
+  //
+  // Two things keep it from running away with the list, which is what made reorder
+  // look broken: dragY is SEEDED from the grab (it used to start at 0, i.e. above
+  // the viewport, so every drag opened by flinging the sidebar to the top at full
+  // speed — and the card you were holding slid under the cursor, which reads as its
+  // own no-op drop target), and the speed ramps with how far into the edge zone the
+  // pointer actually is instead of being a flat jump per frame.
   useEffect(() => {
     if (!dragId) return
-    const EDGE = 48, SPEED = 12
+    const EDGE = 48, SPEED = 10
     let raf = 0
     const step = () => {
       const el = scrollRef.current
       if (el) {
-        const r = el.getBoundingClientRect()
-        if      (dragY.current - r.top    < EDGE) el.scrollTop -= SPEED
-        else if (r.bottom - dragY.current < EDGE) el.scrollTop += SPEED
+        const r  = el.getBoundingClientRect()
+        const up = EDGE - (dragY.current - r.top)      // >0 once inside the top zone
+        const dn = EDGE - (r.bottom - dragY.current)   // >0 once inside the bottom zone
+        // Only while the pointer is actually over the scroller vertically — off
+        // either end it's on its way out of the sidebar, not asking to scroll.
+        if      (up > 0 && up <= EDGE) el.scrollTop -= SPEED * (up / EDGE)
+        else if (dn > 0 && dn <= EDGE) el.scrollTop += SPEED * (dn / EDGE)
       }
       raf = requestAnimationFrame(step)
     }
@@ -569,7 +581,7 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
   const panelDrag = useCallback((id: PanelId): PanelDrag => ({
     dragging: dragId === id,
     dropEdge: dropAt?.id === id ? (dropAt.below ? 'bottom' : 'top') : null,
-    onStart:  () => setDragId(id),
+    onStart:  (clientY: number) => { dragY.current = clientY; setDragId(id) },
     onEnd:    endDrag,
     onOver:   (below, clientY) => {
       dragY.current = clientY
@@ -606,7 +618,13 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
         onDragOver={e => { if (!isReorderDrag(e)) return; e.preventDefault(); dragY.current = e.clientY }}
         onDrop={e => { if (!isReorderDrag(e)) return; e.preventDefault(); commitDrop() }}
       >
-        {visible.map((panel, i) => (
+        {/* Mobile hides this whole column (see mobile.css) and opens panels as sheets
+            instead — but `display: none` only stops PAINT, so every panel stayed
+            mounted and live behind it. That meant a phone ran two copies of whatever
+            panel was open (the hidden card and the sheet), and each copy ran its own
+            background work: two Scripts panels asking Lich `;list` on the same tick is
+            exactly why the second reply ended up in the game output. Don't build them. */}
+        {!isMobile && visible.map((panel, i) => (
           <Panel
             key={panel.id}
             config={panel}
