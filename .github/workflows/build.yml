@@ -1,19 +1,31 @@
 name: PR Build
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
   pull_request:
     branches: [ main ]
-    # Only trigger if relevant files change to save Action minutes
-    paths:
-      - '**.js'
-      - '**.ts'
-      - 'package.json'
-      - 'build/**'
-      - '.github/workflows/**'
+    # A DENYLIST, deliberately — and deliberately identical to the one in
+    # release.yml. An allowlist was tried first and rotted: it listed `**.ts`,
+    # which does NOT match `.tsx`, so most of the renderer never triggered a
+    # packaging run; CSS-only and asset-only PRs skipped it too. The effect was
+    # that a PR could merge un-packaged and then fail in release.yml, on main,
+    # AFTER the tag job had already pushed a version tag — leaving a tag with no
+    # artifacts. Matching release.yml's filter means the rule is now simply: if
+    # merging it would cut a release, packaging it is proven on the PR first.
+    # Anything new (a .vue, a .wasm, some future config) is covered by default.
+    paths-ignore:
+      - '**.md'
+      - 'docs/loomy/**'
 
 permissions:
   contents: write
+
+# Three OSes per run, so don't let a stack of pushes to one PR pile up — only the
+# newest commit's packaging result is meaningful. Runs on main are untouched by
+# this; it is keyed to the PR ref.
+concurrency:
+  group: pr-build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
