@@ -227,6 +227,24 @@
 .status-offline    { background: var(--color-penalty); }
 .status-idle       { background: #e0a020; }
 .status-dnd        { background: #f04747; }
+/* Idle is a crescent moon rather than a plain dot, so the state reads by SHAPE
+   and not by amber-vs-green alone. Cut with a mask instead of an overlaid circle
+   in the panel colour: the bite then has no colour of its own, so it survives the
+   menu row's hover background, FF IV's gradient panel, and the avatar behind the
+   bar dot without a per-theme fix-up. Geometry is all in %, so it scales to
+   whichever dot wears the class — 14px in the bar, 9px in the menu. The bite
+   circle is 1.2x the coloured disc, offset up and to the LEFT, leaving a
+   crescent a bit over half the disc thick — enough to still read at 9px. */
+.status-idle {
+  --moon-r: 60%; --moon-x: 4%; --moon-y: 4%;
+  -webkit-mask-image: radial-gradient(ellipse var(--moon-r) var(--moon-r) at var(--moon-x) var(--moon-y), transparent 98%, #000 100%);
+          mask-image: radial-gradient(ellipse var(--moon-r) var(--moon-r) at var(--moon-x) var(--moon-y), transparent 98%, #000 100%);
+}
+/* The defaults above are for a bare dot (the menu's 9px one). The bar's dot wears
+   a 3px ring, so only its inner 8px is coloured and the same % bite would land
+   almost entirely on the ring — barely nicking the moon. Re-aimed here to cut the
+   same crescent out of that inner disc instead. */
+.char-status-dot.status-idle { --moon-r: 34%; --moon-x: 24%; --moon-y: 24%; }
 /* Do Not Disturb gets the "no entry" bar every other client draws, because red
    alone doesn't separate it from the offline dot — same hue family, and no help
    at all to a colourblind eye. Sized in % so it scales with whichever dot wears
