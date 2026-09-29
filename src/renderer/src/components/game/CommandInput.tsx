@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useAtomValue } from 'jotai'
 import {
-  verbsAtom, verbsWithInfoAtom, verbInfoAtom, beginVerbInfoCapture, roundtimeSecondsAtom,
+  verbsAtom, verbsWithInfoAtom, verbInfoAtom, beginVerbInfoCapture, roundtimeSecondsAtom, activeSpellAtom,
 } from '../../store/game'
 import type { ConnectionStatus } from '../../store/game'
 import { startDictation, sttAvailable, type DictationHandle } from '../../lib/stt'
 import { IconMic } from '../ui/Icons'
 import { StatusPanel } from './StatusPanel'
-import { SpellPrepBadge } from './SpellPrepBadge'
+import { SpellPrepBadge, isPreparing } from './SpellPrepBadge'
 
 // ── Command autocomplete ──────────────────────────────────────────────────────
 // Curated common DragonRealms verbs/commands. Can be augmented at runtime via the
@@ -81,6 +81,7 @@ export function CommandInput({ onSend, onEcho, functionKeys = {}, status, leadin
   const verbsWithInfo = useAtomValue(verbsWithInfoAtom)
   const verbInfo     = useAtomValue(verbInfoAtom)
   const rt           = useAtomValue(roundtimeSecondsAtom)  // roundtime badge in the input
+  const prepping     = isPreparing(useAtomValue(activeSpellAtom))
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
@@ -223,8 +224,13 @@ export function CommandInput({ onSend, onEcho, functionKeys = {}, status, leadin
         onBlur={() => setOpen(false)}
         placeholder="Send Commands"
       />
-      {rt > 0 && <span className="command-rt" data-tooltip="Roundtime">RT {rt}s</span>}
+      {/* Prep sits left of RT and neither moves: while a spell is prepared, an
+          empty RT-width slot holds RT's place so the prep badge doesn't slide
+          right when roundtime ends. */}
       <SpellPrepBadge />
+      {rt > 0
+        ? <span className="command-rt" data-tooltip="Roundtime">RT {rt}s</span>
+        : prepping && <span className="command-rt command-rt-slot" aria-hidden="true" />}
       {MIC_ENABLED && (
         <button
           type="button"
