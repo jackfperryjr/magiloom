@@ -660,6 +660,7 @@
   border-radius: 999px;
   margin-top: 4px;
   display: inline-block;
+  align-self: flex-start;   /* don't stretch as the first row of .spells-panel */
 }
 
 /* Active-spells panel — one row per buff with a remaining-duration bar */

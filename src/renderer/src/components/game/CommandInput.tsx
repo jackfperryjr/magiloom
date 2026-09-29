@@ -7,6 +7,7 @@ import type { ConnectionStatus } from '../../store/game'
 import { startDictation, sttAvailable, type DictationHandle } from '../../lib/stt'
 import { IconMic } from '../ui/Icons'
 import { StatusPanel } from './StatusPanel'
+import { SpellPrepBadge } from './SpellPrepBadge'
 
 // ── Command autocomplete ──────────────────────────────────────────────────────
 // Curated common DragonRealms verbs/commands. Can be augmented at runtime via the
@@ -223,6 +224,7 @@ export function CommandInput({ onSend, onEcho, functionKeys = {}, status, leadin
         placeholder="Send Commands"
       />
       {rt > 0 && <span className="command-rt" data-tooltip="Roundtime">RT {rt}s</span>}
+      <SpellPrepBadge />
       {MIC_ENABLED && (
         <button
           type="button"
