@@ -545,7 +545,6 @@ let _spellBatch: ActiveSpell[] | null = null
 // on arrival so every consumer can compare against Date.now() directly.
 export const roundtimeAtom        = atom<number>(0)  // epoch-ms end time of current RT
 export const castTimeAtom         = atom<number>(0)  // epoch-ms when the prepared spell is ready (0 = unknown/none)
-export const prepStartedAtom      = atom<number>(0)  // epoch-ms the current prep began (for the progress bar)
 const _serverClock = new ServerClock()
 export const tickAtom             = atom<number>(0)  // Updated every second for countdowns
 export const roundtimeSecondsAtom = atom(get => {
@@ -872,7 +871,6 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(activeSpellsAtom, [])
   set(roundtimeAtom, 0)
   set(castTimeAtom, 0)
-  set(prepStartedAtom, 0)
   set(combatHeatRawAtom, { level: 0, at: 0 })
   set(strikeFlashAtom, { level: 0, seq: 0 })
   set(weatherAtom, CLEAR)
@@ -1487,7 +1485,6 @@ export const dispatchGameEventAtom = atom(
         // fill in — a stale ready-time from the last prep must never show.
         set(activeSpellAtom, event.name)
         set(castTimeAtom, 0)
-        set(prepStartedAtom, event.name === 'None' ? 0 : Date.now())
         break
 
       case 'roundtime':
