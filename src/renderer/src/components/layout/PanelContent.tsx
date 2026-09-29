@@ -295,17 +295,17 @@ export function SpellsPanel() {
   const prepared = useAtomValue(activeSpellAtom)
   useAtomValue(tickAtom)   // re-render every second so the countdowns tick down
 
-  if (spells.length === 0) {
-    return prepared && prepared !== 'None'
-      ? <div className="active-spell">Preparing: {prepared}</div>
-      : <div className="panel-empty">No active spells</div>
-  }
+  const preparing = prepared && prepared !== 'None'
+    ? <div className="active-spell">Preparing: {prepared}</div>
+    : null
+  if (spells.length === 0) return preparing ?? <div className="panel-empty">No active spells</div>
 
   const now = Date.now()
   const secLeft = (s: { expires: number }) => Math.max(0, Math.ceil((s.expires - now) / 1000))
   const max = Math.max(...spells.map(secLeft), 1)
   return (
     <div className="spells-panel">
+      {preparing}
       {spells.map(s => {
         const sec   = secLeft(s)
         const color = spellDurColor(sec)

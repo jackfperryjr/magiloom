@@ -150,6 +150,44 @@
   animation: rt-pop 0.15s ease-out;
 }
 @keyframes rt-pop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+/* Spell-prep badge beside RT — blue while preparing, green once ready (held until
+   cast/release). Text colours are the theme's whisper/bonus game colours nudged
+   toward --text-main: --accent is a button colour in some themes (Discord, Bloodstone)
+   and fails text contrast there; these clear ~4.1:1+ in every theme and mode.
+   The fill is a per-prep CSS animation; SpellPrepBadge sets its duration and a
+   negative delay for time already elapsed. */
+.command-prep {
+  position: relative; overflow: hidden;
+  flex-shrink: 1; min-width: 0; max-width: 220px;
+  font-family: var(--font-ui);
+  font-size: 14px; font-weight: 600; letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--color-whisper) 80%, var(--text-main));
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  padding: 8px 6px; border-radius: 6px;
+  animation: rt-pop 0.15s ease-out;
+}
+.command-prep-label { position: relative; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.command-prep-fill {
+  position: absolute; left: 0; bottom: 0; height: 3px; width: 0;
+  background: currentColor; opacity: 0.55;
+  animation-name: prep-fill; animation-timing-function: linear; animation-fill-mode: forwards;
+}
+.command-prep.prep-ready {
+  color: color-mix(in srgb, var(--color-bonus) 80%, var(--text-main));
+  animation: rt-pop 0.15s ease-out, prep-ready-pulse 1.6s ease-in-out 0.15s 2;
+}
+@keyframes prep-fill { from { width: 0; } to { width: 100%; } }
+@keyframes prep-ready-pulse { 50% { box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 30%, transparent); } }
+/* Mobile: compact "✦ 7s" (tap peeks the name); progress moves to a hairline across
+   the top of the command pill, inset past its rounded ends. */
+.command-prep.prep-compact { flex-shrink: 0; cursor: pointer; }
+.command-prep.prep-compact .command-prep-fill { display: none; }
+.command-prep-line {
+  position: absolute; top: 0; left: 22px; height: 2px; width: 0; max-width: calc(100% - 44px);
+  border-radius: 2px; background: var(--color-whisper); pointer-events: none;
+  animation-name: prep-line; animation-timing-function: linear; animation-fill-mode: forwards;
+}
+@keyframes prep-line { from { width: 0; } to { width: calc(100% - 44px); } }
 /* Mic dictation toggle — green when on, red with a diagonal slash when off
    (mirrors the broadcast icon). */
 .command-mic {

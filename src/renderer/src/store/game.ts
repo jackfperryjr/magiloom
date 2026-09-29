@@ -14,6 +14,7 @@ import { weatherFromLine, weatherFromReportLine, isWeatherHeaderLine, regionFrom
 import { computeMoonPositions, correctionFromMoonLine, type MoonCorrections, type MoonPosition } from '../lib/moons'
 import { applyGagSub as applyGagSubRules, type TextRule } from '../lib/rules'
 import { parseLichList, type LichScript } from '../lib/quickActions'
+import { ServerClock } from '../lib/serverClock'
 import type { AvatarCrop } from '../lib/avatar'
 import {
   injuriesFromImages, injuriesFromTouch, injuryModeCommand, isHealthy,
@@ -540,8 +541,12 @@ function parseActiveSpell(text: string): ActiveSpell | null {
 let _spellBatch: ActiveSpell[] | null = null
 
 // ── Timers ────────────────────────────────────────────────────────────────────
+// Both are LOCAL epoch-ms: DR sends server epochs, converted through _serverClock
+// on arrival so every consumer can compare against Date.now() directly.
 export const roundtimeAtom        = atom<number>(0)  // epoch-ms end time of current RT
-export const castTimeAtom         = atom<number>(0)
+export const castTimeAtom         = atom<number>(0)  // epoch-ms when the prepared spell is ready (0 = unknown/none)
+export const prepStartedAtom      = atom<number>(0)  // epoch-ms the current prep began (for the progress bar)
+const _serverClock = new ServerClock()
 export const tickAtom             = atom<number>(0)  // Updated every second for countdowns
 export const roundtimeSecondsAtom = atom(get => {
   get(tickAtom)  // Depend on tick to re-evaluate every second
@@ -867,6 +872,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(activeSpellsAtom, [])
   set(roundtimeAtom, 0)
   set(castTimeAtom, 0)
+  set(prepStartedAtom, 0)
   set(combatHeatRawAtom, { level: 0, at: 0 })
   set(strikeFlashAtom, { level: 0, seq: 0 })
   set(weatherAtom, CLEAR)
@@ -1475,15 +1481,21 @@ export const dispatchGameEventAtom = atom(
         break
 
       case 'spell':
+        // DR sends the tag only on change: a name on PREPARE, "None" on cast or
+        // release. Its <castTime> usually rides the same line but trails by a line
+        // or two for targeted/tattoo/strained preps, so zero it here and let it
+        // fill in — a stale ready-time from the last prep must never show.
         set(activeSpellAtom, event.name)
+        set(castTimeAtom, 0)
+        set(prepStartedAtom, event.name === 'None' ? 0 : Date.now())
         break
 
       case 'roundtime':
-        set(roundtimeAtom, event.expires)
+        set(roundtimeAtom, _serverClock.toLocal(event.expires))
         break
 
       case 'cast_time':
-        set(castTimeAtom, event.expires)
+        set(castTimeAtom, _serverClock.toLocal(event.expires))
         break
 
       case 'percClear':
@@ -1494,6 +1506,7 @@ export const dispatchGameEventAtom = atom(
         break
 
       case 'prompt':
+        _serverClock.observe(event.time, Date.now())
         // A TOUCH response lands as one server message ending in this prompt.
         // Parse the buffered lines into the patient's wounds — but only once at
         // least one line has arrived, so an unrelated prompt (vitals fire often)
