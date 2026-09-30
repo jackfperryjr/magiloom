@@ -16,7 +16,7 @@ import type { PanelId }       from './components/layout/PanelSidebar'
 import {
   RoomPanel, SpellsPanel,
   ExperiencePanel, ConversationPanel, ThoughtsPanel, InventoryPanel,
-  CombatPanel, AtmoPanel, DeathsPanel, ConnectionsPanel,
+  CombatPanel, AtmoPanel, DeathsPanel, ConnectionsPanel, WealthPanel,
 } from './components/layout/PanelContent'
 import { MessagesPanel } from './components/layout/MessagesPanel'
 import { useMessaging } from './hooks/useMessaging'
@@ -66,6 +66,7 @@ function renderPanel(id: PanelId) {
     case 'thoughts':     return <ThoughtsPanel />
     case 'messages':     return <MessagesPanel />
     case 'inventory':    return <InventoryPanel />
+    case 'wealth':       return <WealthPanel />
     case 'deaths':       return <DeathsPanel />
     case 'connections':  return <ConnectionsPanel />
     default:             return null

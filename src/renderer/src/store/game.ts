@@ -16,6 +16,7 @@ import { applyGagSub as applyGagSubRules, type TextRule } from '../lib/rules'
 import { parseLichList, type LichScript } from '../lib/quickActions'
 import { ServerClock } from '../lib/serverClock'
 import { parseActiveSpellLine, type ActiveSpell } from '../lib/activeSpells'
+import { WealthReader, mergeWealth, type WealthReport } from '../lib/wealth'
 import type { AvatarCrop } from '../lib/avatar'
 import {
   injuriesFromImages, injuriesFromTouch, injuryModeCommand, isHealthy,
@@ -536,6 +537,39 @@ export const activeSpellsAtom = atom<ActiveSpell[]>([])
 // next prompt. A percClear opens an empty batch so a fully-expired list clears.
 let _spellBatch: ActiveSpell[] | null = null
 
+// ── Wealth (coins, debt, active purchases) ──────────────────────────────────────
+// Read from the game's own report text — WEALTH prints the coins, INFO prints the
+// coins plus Debt and active purchases (see lib/wealth.ts). Whoever sends either
+// (the player, a Lich script, or the Wealth panel's silent refresh), the panel
+// updates. `at` is when the last report landed.
+export const wealthAtom = atom<(WealthReport & { at: number }) | null>(null)
+let _wealthReader: WealthReader | null = null
+
+// Silent INFO: the Wealth panel refreshes by sending INFO (the one command that
+// carries all three sections) and hiding the reply. INFO's reply is one
+// <output class="mono"> block opening with "Name: … Race: …", so the window
+// swallows that block and closes at the prompt that ends it — recognised by the
+// reply, never by a timer (a timer raced the round trip on web; see the sky seed).
+// _silentInfoPrompts is only the give-up budget if the reply never comes.
+let _silentInfoPending = false
+let _silentInfoActive  = false
+let _silentInfoPrompts = 0
+const INFO_START_RE = /^Name:\s.*\bRace:/
+const SILENT_INFO_PROMPTS = 4
+
+export const beginSilentInfoAtom = atom(null, () => {
+  _silentInfoPending = true
+  _silentInfoActive  = false
+  _silentInfoPrompts = SILENT_INFO_PROMPTS
+})
+
+function commitWealth(get: Getter, set: Setter): void {
+  if (!_wealthReader) return
+  const report = _wealthReader.report
+  _wealthReader = null
+  set(wealthAtom, { ...mergeWealth(get(wealthAtom), report), at: Date.now() })
+}
+
 // ── Timers ────────────────────────────────────────────────────────────────────
 // Both are LOCAL epoch-ms: DR sends server epochs, converted through _serverClock
 // on arrival so every consumer can compare against Date.now() directly.
@@ -757,6 +791,11 @@ export const echoCommandAtom = atom(
       _expBatchNames  = new Set()
       _silentExpBatch = false  // manual send wins over any pending background poll
     }
+    // Same for INFO / WEALTH: the player asked to see it. ("wea" alone is WEATHER.)
+    if (/^(?:inf|info|weal|wealt|wealth)$/i.test(command.trim())) {
+      _silentInfoPending = false
+      _silentInfoActive  = false
+    }
     // A hand-typed `;list` refreshes the Scripts panel too — read the reply, but
     // leave it on screen: the player asked to see it.
     if (/^;\s*(?:l|la|list)(?:\s+all)?$/i.test(command.trim())) {
@@ -867,6 +906,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(activeSpellsAtom, [])
   set(roundtimeAtom, 0)
   set(castTimeAtom, 0)
+  set(wealthAtom, null)
   set(combatHeatRawAtom, { level: 0, at: 0 })
   set(strikeFlashAtom, { level: 0, seq: 0 })
   set(weatherAtom, CLEAR)
@@ -896,6 +936,9 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _verbCapture       = false
   _verbBuf           = []
   _profileCaptureName = null
+  _wealthReader       = null
+  _silentInfoPending  = false
+  _silentInfoActive   = false
   _profileBuf        = []
   _verbInfoName      = null
   _verbInfoHeader    = null
@@ -964,6 +1007,19 @@ export const dispatchGameEventAtom = atom(
           // Buffer a pending TOUCH assessment (parsed on the next prompt). The
           // lines still flow to the main output; we just also collect them.
           if (_touchName) _touchBuf.push(event.text)
+
+          // Wealth report (WEALTH, or the Wealth/Debt/purchases tail of INFO). Read
+          // before gags so a gagged line can't blind the panel; the lines stay
+          // visible unless this is the panel's own silent INFO.
+          const isMono = event.styles.some(s => s.preset === 'mono')
+          if (_silentInfoPending && !_silentInfoActive && isMono && INFO_START_RE.test(event.text.trim())) {
+            _silentInfoActive = true
+          }
+          if (_wealthReader && !_wealthReader.feed(event.text)) commitWealth(get, set)
+          if (!_wealthReader && WealthReader.isHeader(event.text)) _wealthReader = new WealthReader()
+          // Swallow the silent INFO block, plus the blank line DR sends ahead of it.
+          if (_silentInfoActive && (isMono || !event.text.trim())) return
+          if (_silentInfoPending && !_silentInfoActive && !event.text.trim()) return
         }
         // Silent VERB LIST sweep — capture single-token verb lines, suppress from output
         if (_verbCapture) {
@@ -1500,6 +1556,9 @@ export const dispatchGameEventAtom = atom(
 
       case 'prompt':
         _serverClock.observe(event.time, Date.now())
+        commitWealth(get, set)
+        if (_silentInfoActive) { _silentInfoActive = false; _silentInfoPending = false }
+        else if (_silentInfoPending && --_silentInfoPrompts <= 0) _silentInfoPending = false
         // A TOUCH response lands as one server message ending in this prompt.
         // Parse the buffered lines into the patient's wounds — but only once at
         // least one line has arrived, so an unrelated prompt (vitals fire often)
