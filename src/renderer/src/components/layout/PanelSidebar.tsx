@@ -7,13 +7,13 @@ import {
   IconPanelSpells, IconPanelCombat, IconPanelAtmo, IconPanelConversation,
   IconPanelThoughts,
   IconPanelMessages, IconPanelInventory, IconPanelDeaths, IconPanelConnections,
-  IconPanelScripts,
+  IconPanelScripts, IconPanelWealth,
 } from '../ui/Icons'
 import { convLinesAtom } from '../../store/game'
 import { totalUnreadAtom, contactRequestsAtom, messagingAvailable } from '../../store/messaging'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
-export type PanelId = 'room' | 'map' | 'sky' | 'body' | 'experience' | 'spells' | 'conversation' | 'thoughts' | 'messages' | 'inventory' | 'combat' | 'atmo' | 'deaths' | 'connections' | 'scripts'
+export type PanelId = 'room' | 'map' | 'sky' | 'body' | 'experience' | 'spells' | 'conversation' | 'thoughts' | 'messages' | 'inventory' | 'wealth' | 'combat' | 'atmo' | 'deaths' | 'connections' | 'scripts'
 
 export interface PanelConfig {
   id:      PanelId
@@ -37,6 +37,7 @@ const DEFAULT_PANELS: PanelConfig[] = [
   // from any saved layout there too. See store/messaging.ts.
   ...(messagingAvailable ? [{ id: 'messages' as const, label: 'Chat', visible: true }] : []),
   { id: 'inventory',    label: 'Inventory',     visible: false },
+  { id: 'wealth',       label: 'Wealth',        visible: false },
   { id: 'deaths',       label: 'Deaths',        visible: false },
   { id: 'connections',  label: 'Connections',   visible: false },
   { id: 'scripts',      label: 'Scripts',       visible: false },
@@ -301,6 +302,7 @@ const RAIL_ICONS: Partial<Record<PanelId, (p: { size?: number }) => React.ReactE
   thoughts:     IconPanelThoughts,
   messages:     IconPanelMessages,
   inventory:    IconPanelInventory,
+  wealth:       IconPanelWealth,
   deaths:       IconPanelDeaths,
   connections:  IconPanelConnections,
   scripts:      IconPanelScripts,

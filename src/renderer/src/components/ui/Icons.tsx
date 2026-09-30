@@ -273,6 +273,22 @@ export function IconPanelInventory({ size = 16, className, style }: IconProps) {
   )
 }
 
+// A stack of coins: a face-up coin with an engraved rim on top of four edge-on
+// ones. Each edge is the band between two copies of the face's lower arc; they're
+// thin and staggered sideways like a real stack, because thick aligned bands read
+// as the generic "database" cylinder.
+export function IconPanelWealth({ size = 16, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
+      <path fillRule="evenodd" clipRule="evenodd" d="M5 5a7 2.8 0 1 0 14 0a7 2.8 0 1 0-14 0Z M6.4 5a5.6 2 0 1 0 11.2 0a5.6 2 0 1 0-11.2 0Z M7.3 5a4.7 1.55 0 1 0 9.4 0a4.7 1.55 0 1 0-9.4 0Z" />
+      <path d="M5 6.6a7 2.8 0 0 0 14 0v1.9a7 2.8 0 0 1-14 0Z" />
+      <path d="M4 10a7 2.8 0 0 0 14 0v1.9a7 2.8 0 0 1-14 0Z" />
+      <path d="M5.6 13.4a7 2.8 0 0 0 14 0v1.9a7 2.8 0 0 1-14 0Z" />
+      <path d="M4.6 16.8a7 2.8 0 0 0 14 0v1.9a7 2.8 0 0 1-14 0Z" />
+    </svg>
+  )
+}
+
 export function IconPanelDeaths({ size = 16, className, style }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>

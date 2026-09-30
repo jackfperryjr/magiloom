@@ -5,7 +5,7 @@ import {
   roomAtom, activeSpellAtom, activeSpellsAtom, inventoryLinesAtom, handsAtom,
   expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, thoughtLinesAtom, deathsAtom,
   avatarsAtom, selfNameAtom, serverAvatarsAtom, tickAtom, logonLinesAtom,
-  connectionStatusAtom, promptCountAtom,
+  connectionStatusAtom, promptCountAtom, wealthAtom, beginSilentInfoAtom,
   type OutputLine,
 } from '../../store/game'
 import { ranksGained, sleepState } from '../../lib/exp-parser'
@@ -15,6 +15,7 @@ import {
 import { isClosed, summarizeCarried } from '../../lib/inventory'
 import { resolveAvatarSrc } from '../../lib/avatar'
 import { groupExpSkills } from '../../lib/expGroups'
+import { CURRENCIES, formatCoins, platLabel } from '../../lib/wealth'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
 import { useProfile } from '../../hooks/useProfile'
 import { Tooltip } from '../ui/Tooltip'
@@ -683,6 +684,117 @@ export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
       ) : (
         <div className="panel-empty">Refresh to read your inventory.</div>
       )}
+    </div>
+  )
+}
+
+// ── Wealth Panel ───────────────────────────────────────────────────────────────
+// Coins, debt and active purchases — everything WEALTH and INFO report. The data
+// comes from whichever of those last ran (typed, a Lich script, or this panel's
+// own silent INFO), so the panel is only ever as fresh as that; it refreshes when
+// it first opens and every five minutes while it's open, and costs nothing when
+// it isn't. INFO is RT-free and its reply is hidden from the game window.
+const WEALTH_POLL_MS = 5 * 60_000
+
+function agoLabel(at: number, now: number): string {
+  const min = Math.floor((now - at) / 60_000)
+  if (min < 1) return 'just now'
+  if (min < 60) return `${min} min ago`
+  return `${Math.floor(min / 60)} hr ago`
+}
+
+export function WealthPanel() {
+  const wealth  = useAtomValue(wealthAtom)
+  const conn    = useAtomValue(connectionStatusAtom)
+  const prompts = useAtomValue(promptCountAtom)
+  const now     = useAtomValue(tickAtom)
+  const beginSilentInfo = useSetAtom(beginSilentInfoAtom)
+  const ready = conn === 'connected' && prompts > 0   // a command sent mid-login is lost
+
+  const refresh = (): void => { beginSilentInfo(); window.dr?.game?.send('info') }
+
+  useEffect(() => {
+    if (!ready) return
+    if (!wealth) refresh()
+    const id = window.setInterval(refresh, WEALTH_POLL_MS)
+    return () => window.clearInterval(id)
+    // `wealth` deliberately left out: the seed is for an empty panel, and re-running
+    // on every report would restart the interval each time one lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready])
+
+  if (!wealth) {
+    return <div className="panel-empty">{ready ? 'Reading your wealth…' : 'Waiting for wealth — or type WEALTH'}</div>
+  }
+
+  const held = CURRENCIES.filter(c => (wealth.currencies[c]?.copper ?? 0) > 0)
+  return (
+    <div className="wealth-panel">
+      <div className="panel-btn-row">
+        <button className="panel-btn" onClick={refresh} disabled={!ready}>Refresh</button>
+      </div>
+
+      {/* One tile per currency, valued in platinum — the unit players think in. The
+          exact coins are in the rows below and in the tooltip. Currencies don't sum:
+          they trade at changing exchange rates, so there's no grand total. */}
+      <div className="panel-stats panel-stats-lead">
+        {CURRENCIES.map(c => {
+          const h = wealth.currencies[c]
+          return (
+            <div key={c} className="panel-stat"
+                 data-tooltip={h ? `${h.copper.toLocaleString()} copper ${c} — value in platinum.` : `No ${c} reported.`}>
+              <span className="panel-stat-n">{platLabel(h?.copper ?? 0)}</span>
+              <span className="panel-stat-k">{c.toLowerCase()}</span>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="panel-section">Coins</div>
+      {held.length === 0
+        ? <div className="panel-empty">No coins on you.</div>
+        : held.map(c => (
+            <div key={c} className="panel-row">
+              <span className="panel-row-name">{c}</span>
+              <span className="panel-row-num">{formatCoins(wealth.currencies[c]!.coins)}</span>
+            </div>
+          ))}
+
+      {wealth.debt !== null && (
+        <>
+          <div className="panel-section">Debt</div>
+          {wealth.debt.length === 0
+            ? <div className="panel-empty">No debt.</div>
+            : wealth.debt.map((d, i) => (
+                <div key={i} className="panel-row"
+                     data-tooltip="Pay at the provincial debt office, or BANK DEBT for an urchin runner.">
+                  <span className="panel-row-name">{d.to}</span>
+                  <span className="panel-tag panel-tag-warn">{d.currency}</span>
+                  <span className="panel-row-num">{formatCoins(d.coins)}</span>
+                </div>
+              ))}
+        </>
+      )}
+
+      {wealth.purchases !== null && (
+        <>
+          <div className="panel-section">Active purchases</div>
+          {wealth.purchases.length === 0
+            ? <div className="panel-empty">No active purchases.</div>
+            : wealth.purchases.map((p, i) => (
+                <div key={i} className="panel-row">
+                  <span className="panel-row-name">{p.name}</span>
+                  {p.charges !== null && (
+                    <span className="panel-row-num" data-tooltip="Charges remaining.">
+                      {p.charges}{' '}{p.charges === 1 ? 'charge' : 'charges'}
+                    </span>
+                  )}
+                </div>
+              ))}
+        </>
+      )}
+
+      <div className="wealth-updated">Updated {agoLabel(wealth.at, now)}</div>
     </div>
   )
 }

@@ -577,3 +577,16 @@
 .sky-moon-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-main); font-variant-numeric: tabular-nums; }
 .sky-moon-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .sky-moon-when { color: var(--text-muted); }
+
+/* ── Docked panel: wealth ─────────────────────────────────────────────────────
+   Built from the shared primitives (.panel-stat tiles, .panel-section, .panel-row,
+   .panel-tag), laid out like .exp-panel. A coin breakdown can be long (a big
+   Kronar balance is five figures a denomination), so in this panel the number
+   side of a row may wrap onto a second line, right-aligned, instead of shoving
+   the name out. */
+.wealth-panel { display: flex; flex-direction: column; gap: 4px; }
+/* Names keep a floor wide enough for "Kronars" (longer ones, like a purchase,
+   still truncate); the coin string breaks only between denominations. */
+.wealth-panel .panel-row-name { min-width: 4.5em; }
+.wealth-panel .panel-row-num { flex: 0 1 auto; text-align: right; }
+.wealth-updated { margin-top: 4px; font-size: 10px; color: var(--text-dim); text-align: right; }
