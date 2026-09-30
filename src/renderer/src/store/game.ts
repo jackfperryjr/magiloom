@@ -15,6 +15,7 @@ import { computeMoonPositions, correctionFromMoonLine, type MoonCorrections, typ
 import { applyGagSub as applyGagSubRules, type TextRule } from '../lib/rules'
 import { parseLichList, type LichScript } from '../lib/quickActions'
 import { ServerClock } from '../lib/serverClock'
+import { parseActiveSpellLine, type ActiveSpell } from '../lib/activeSpells'
 import type { AvatarCrop } from '../lib/avatar'
 import {
   injuriesFromImages, injuriesFromTouch, injuryModeCommand, isHealthy,
@@ -520,7 +521,8 @@ export const activeSpellAtom = atom<string>('')
 
 // ── Active spells (buffs currently in effect, with remaining duration) ──────────
 // DR pushes these on its `percWindow` as bare lines "Spell Name  (N roisaen)"
-// (roisaen = DR time unit), refreshed after a <clearStream id='percWindow'/> or
+// (roisaen = DR time unit; thief khri included) — plus singular, Fading, and
+// untimed shapes, see lib/activeSpells.ts — refreshed after a <clearStream id='percWindow'/> or
 // inline after a cast. Each emission is the COMPLETE list, so a contiguous run
 // replaces the panel wholesale (mirrors the exp-batch pattern). The lines are
 // suppressed from the main output — they're panel-only, like atmo/combat.
@@ -528,14 +530,8 @@ export const activeSpellAtom = atom<string>('')
 // commits) lets the panel run a live mm:ss countdown between game resends instead
 // of showing a frozen whole-minute value.
 export const ROISAEN_MS = 60_000
-export interface ActiveSpell { name: string; roisaen: number; expires: number }
+export type { ActiveSpell }
 export const activeSpellsAtom = atom<ActiveSpell[]>([])
-
-const ACTIVE_SPELL_RE = /^(.+?)\s+\((\d+)\s+roisaen\)\s*$/
-function parseActiveSpell(text: string): ActiveSpell | null {
-  const m = ACTIVE_SPELL_RE.exec(text.trim())
-  return m ? { name: m[1].trim(), roisaen: parseInt(m[2], 10), expires: 0 } : null
-}
 // Accumulates the current snapshot; null = not mid-snapshot. Committed on the
 // next prompt. A percClear opens an empty batch so a fully-expired list clears.
 let _spellBatch: ActiveSpell[] | null = null
@@ -1114,18 +1110,18 @@ export const dispatchGameEventAtom = atom(
             if (_lichListWait === 0) _lichListSilent = 0   // window closed; nothing left to hide
           }
         }
-        // Active-spell list ("Name (N roisaen)"): accumulate into the current
+        // Active-spell list ("Name (N roisaen)" and kin): accumulate into the current
         // snapshot and suppress from main — it shows only in the Spells panel.
         // Committed on the next prompt (see the prompt handler).
         if (event.stream === 'main') {
-          const spell = parseActiveSpell(event.text)
+          const spell = parseActiveSpellLine(event.text, _spellBatch !== null)
           if (spell) {
             if (_spellBatch === null) _spellBatch = []
             // Dedupe by name: with Lich running the same buff list can arrive twice
             // in one snapshot (DR's native percWindow + Lich's re-emission), which
             // otherwise doubled every row. Keep one entry per spell, latest value.
             const existing = _spellBatch.find(s => s.name === spell.name)
-            if (existing) existing.roisaen = spell.roisaen
+            if (existing) Object.assign(existing, spell)
             else _spellBatch.push(spell)
             return
           }

@@ -302,22 +302,30 @@ export function SpellsPanel() {
 
   const now = Date.now()
   const secLeft = (s: { expires: number }) => Math.max(0, Math.ceil((s.expires - now) / 1000))
-  const max = Math.max(...spells.map(secLeft), 1)
+  // Bars are relative to the longest TIMED buff; untimed ones don't set the scale.
+  const max = Math.max(...spells.filter(s => s.kind === 'timed').map(secLeft), 1)
   return (
     <div className="spells-panel">
       {preparing}
       {spells.map(s => {
-        const sec   = secLeft(s)
-        const color = spellDurColor(sec)
+        // Fading = under a minute, time unknown: a sliver in the expiring colour.
+        // Indefinite/OM: full bar, no countdown. Percent buffs show their own %.
+        let label: string, pct: number, color: string
+        if (s.kind === 'fading')          { label = 'Fading'; pct = 3;         color = spellDurColor(0) }
+        else if (s.kind === 'indefinite') { label = '∞';      pct = 100;       color = 'var(--accent)' }
+        else if (s.kind === 'percent')    { label = `${s.percent}%`; pct = s.percent; color = 'var(--accent)' }
+        else {
+          const sec = secLeft(s)
+          label = fmtDur(sec); pct = Math.min(100, (sec / max) * 100); color = spellDurColor(sec)
+        }
         return (
           <div key={s.name} className="spell-row">
             <div className="spell-row-head">
               <span className="spell-name">{s.name}</span>
-              <span className="spell-dur" style={{ color }}>{fmtDur(sec)}</span>
+              <span className="spell-dur" style={{ color }}>{label}</span>
             </div>
             <div className="spell-bar-track">
-              <div className="spell-bar-fill"
-                   style={{ width: `${Math.min(100, (sec / max) * 100)}%`, background: spellBarFill(color) }} />
+              <div className="spell-bar-fill" style={{ width: `${pct}%`, background: spellBarFill(color) }} />
             </div>
           </div>
         )
