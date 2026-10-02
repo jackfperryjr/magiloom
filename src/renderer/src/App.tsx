@@ -43,6 +43,7 @@ import { loadCharAppearance, applyAppearance } from './lib/charSettings'
 import { IconExclamationTriangle, IconArrowDownTray } from './components/ui/Icons'
 import { Tooltip } from './components/ui/Tooltip'
 import { GlobalTooltip } from './components/ui/GlobalTooltip'
+import { startMemoryWatch } from './lib/memoryWatch'
 import './styles/global.css'
 
 document.body.dataset.platform = window.dr.app.platform
@@ -669,6 +670,16 @@ function AppInner() {
   const [accountName,   setAccountName]   = useState('')
   const [showSettings,  setShowSettings]  = useState(false)
   const [offline,       setOffline]       = useState(!navigator.onLine)
+
+  // Memory flight recorder + watchdog (lib/memoryWatch.ts) — web build on a
+  // computer only; startMemoryWatch is a no-op anywhere else.
+  const appendSystemLineForMem = useSetAtom(appendSystemLineAtom)
+  useEffect(() => {
+    startMemoryWatch({
+      onWarn: heap => appendSystemLineForMem(
+        `Lantern is using a lot of memory (${Math.round(heap)} MB). Refresh the page soon to avoid a crash — your game session stays connected. (Settings → Memory has the history.)`),
+    })
+  }, [appendSystemLineForMem])
   // A launch-check update (desktop) surfaces in the title bar; a while-running update
   // (poll / web) is filtered to the panel rail (see PanelSidebar).
   const [launchUpdate,  setLaunchUpdate]  = useState(false)

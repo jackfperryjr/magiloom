@@ -38,6 +38,10 @@ class Transport {
       // client's game session on close, so a reconnect starts fresh (re-login).
       for (const [, p] of this.pending) p.reject(new Error('connection closed'))
       this.pending.clear()
+      // Queued invokes belong to those just-rejected promises. Left in place, they
+      // were sent anyway on the next open — answers nobody was waiting for, and
+      // e.g. a stale game:send landing in a fresh session.
+      this.queue = []
       setTimeout(() => this.connect(), 1500)
     }
     ws.onerror = () => { /* onclose fires next */ }
@@ -84,6 +88,7 @@ class Transport {
     if (ws) { ws.onclose = null; try { ws.close() } catch { /* already closing */ } }
     for (const [, p] of this.pending) p.reject(new Error('reconnecting'))
     this.pending.clear()
+    this.queue = []   // see onclose: these invokes' callers were just rejected
     this.connect()
   }
 }

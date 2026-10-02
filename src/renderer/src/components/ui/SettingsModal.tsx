@@ -21,6 +21,8 @@ import { HotkeysTab } from './settings/HotkeysTab'
 import { AliasesTab } from './settings/AliasesTab'
 import { TriggersTab } from './settings/TriggersTab'
 import { SettingRow } from './settings/Field'
+import { MemoryTab } from './settings/MemoryTab'
+import { memoryWatchSupported } from '../../lib/memoryWatch'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
 interface SettingsModalProps {
@@ -28,7 +30,7 @@ interface SettingsModalProps {
   onClose: () => void
 }
 
-type TabId = 'appearance' | 'ambient' | 'notifications' | 'hotkeys' | 'aliases' | 'triggers' | 'scripts' | 'lich' | 'logs'
+type TabId = 'appearance' | 'ambient' | 'notifications' | 'hotkeys' | 'aliases' | 'triggers' | 'scripts' | 'lich' | 'logs' | 'memory'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'appearance',    label: 'Appearance' },
@@ -43,12 +45,16 @@ const TABS: { id: TabId; label: string }[] = [
   // different set of files with a different owner — Lich writes its own, and mixing
   // the two under one heading is what made it unclear which was eating the disk.
   { id: 'logs',          label: 'Lantern Logs' },
+  // Memory flight recorder (lib/memoryWatch.ts) — the history behind the web
+  // client's occasional out-of-memory crash, and the watchdog that pre-empts it.
+  { id: 'memory',        label: 'Memory' },
 ]
 
 export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const isWeb = window.dr.app.platform === 'web'
   // Magiloom account sign-in/out now lives in the user menu (CharacterBar), not here.
-  const tabs = TABS
+  // Memory only exists where the recorder runs: the web build on a computer.
+  const tabs = memoryWatchSupported() ? TABS : TABS.filter(t => t.id !== 'memory')
   const [lichPath,        setLichPath]        = useState('')
   const [scriptDir,       setScriptDir]       = useState('')
   const [defaultScriptDir, setDefaultScriptDir] = useState('')
@@ -486,6 +492,13 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
               <div className="settings-section settings-section-wide">
                 <div className="settings-section-label">Lantern Logs</div>
                 <LogFilesViewer charName={charName} logging={logging} setLogging={setLogging} />
+              </div>
+            )}
+
+            {tab === 'memory' && (
+              <div className="settings-section settings-section-wide">
+                <div className="settings-section-label">Memory</div>
+                <MemoryTab />
               </div>
             )}
 
