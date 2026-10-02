@@ -620,3 +620,54 @@
 .retention-notice b { color: var(--text); font-weight: 600; }
 /* Free plan gets a warm accent edge so the limit reads as a plan boundary, not a fault. */
 .retention-notice.is-free { border-left: 3px solid var(--accent-warm, #d07400); }
+
+/* ── Settings → Memory (components/ui/settings/MemoryTab.tsx) ─────────────────
+   One series: the line wears the whisper colour (it clears 3:1 as a graphic in
+   every theme, which --accent doesn't); gridlines are solid hairlines a step off
+   the surface; text stays in text tokens. Status colours are reserved for the two
+   labelled events — a crash (penalty red) and a watchdog auto-refresh (warning). */
+.mem-tab { display: flex; flex-direction: column; gap: 14px; }
+.mem-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.mem-stat {
+  display: flex; flex-direction: column; gap: 2px; padding: 8px 10px;
+  border-radius: 8px; background: var(--panel-tile, var(--bg-input));
+}
+.mem-stat-n { font-size: 20px; font-weight: 600; color: var(--text-main); font-variant-numeric: tabular-nums; font-family: var(--font-ui); }
+.mem-stat-n.mem-stat-word { font-size: 15px; line-height: 1.6; }
+.mem-stat-k { font-size: 11px; color: var(--text-muted); font-family: var(--font-ui); }
+.mem-empty { font-size: 13px; color: var(--text-dim); padding: 12px 0; }
+
+.mem-chart { position: relative; width: 100%; }
+.mem-chart svg { display: block; overflow: visible; }
+.mem-chart text { font-family: var(--font-ui); font-size: 10px; fill: var(--text-muted); }
+.mem-grid line { stroke: var(--border-soft); stroke-width: 1; }
+.mem-line { fill: none; stroke: var(--color-whisper); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.mem-area { fill: var(--color-whisper); opacity: 0.1; stroke: none; }
+.mem-threshold line { stroke: var(--color-warning); stroke-width: 1; opacity: 0.7; }
+.mem-threshold text { fill: var(--color-warning); }
+.mem-ev line { stroke-width: 1; }
+.mem-ev-load line { stroke: var(--text-dim); opacity: 0.35; }
+.mem-ev-crash line { stroke: var(--color-penalty); }
+.mem-ev-crash text { fill: var(--color-penalty); font-weight: 600; }
+.mem-ev-auto line { stroke: var(--color-warning); }
+.mem-ev-auto text { fill: var(--color-warning); font-weight: 600; }
+.mem-cross line { stroke: var(--text-muted); stroke-width: 1; }
+.mem-cross circle { fill: var(--color-whisper); stroke: var(--bg-surface, var(--bg-input)); stroke-width: 2; }
+.mem-tip {
+  position: absolute; top: 4px; width: 150px; pointer-events: none;
+  padding: 6px 8px; border-radius: 6px; font-size: 11px; line-height: 1.5;
+  background: var(--bg-input); border: 1px solid var(--border-soft); color: var(--text-muted);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); font-family: var(--font-ui);
+}
+.mem-tip-v { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--text-main); }
+.mem-tip-key { width: 12px; height: 2px; border-radius: 1px; background: var(--color-whisper); }
+
+.mem-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mem-count { font-size: 11px; color: var(--text-dim); margin-left: auto; }
+.mem-table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
+.mem-table th { text-align: left; font-weight: 500; color: var(--text-dim); padding: 4px 6px; border-bottom: 1px solid var(--border-soft); }
+.mem-table td { padding: 3px 6px; color: var(--text-muted); border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 50%, transparent); }
+.mem-table .mem-bg { color: var(--text-dim); }
+.mem-row-load td { color: var(--text-dim); font-style: italic; }
+.mem-row-crash td { color: var(--color-penalty); font-weight: 600; }
+.mem-row-auto td { color: var(--color-warning); font-weight: 600; }
