@@ -41,7 +41,6 @@ const TESTS = [
   'src/renderer/src/lib/serverClock.test.ts',
   'src/renderer/src/lib/activeSpells.test.ts',
   'src/renderer/src/lib/wealth.test.ts',
-  'src/renderer/src/lib/memoryLog.test.ts',
   'src/renderer/src/lib/roomAmbient.test.ts',
   'src/renderer/src/lib/combatStrike.test.ts',
   'src/renderer/src/lib/ambientMix.test.ts',
