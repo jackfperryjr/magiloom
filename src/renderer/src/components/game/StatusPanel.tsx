@@ -13,29 +13,40 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 // Posture + condition icons, embedded on the right of the command input (like the
 // roundtime badge). Inline icon group — no card of its own.
+//
+// After a disconnect the icons STAY, frozen at the moment the connection dropped:
+// when a script logs you off, whether you were dead, bleeding or stunned at the time
+// is exactly what you want to know. DR sends no "all clear" on the way out (sessions
+// just end), so indicatorsAtom still holds the last real state; it's only replaced by
+// the full set DR sends at the next login, and cleared on a character switch. The
+// snapshot is marked as one (`status-icons-stale`, "…when you disconnected"
+// tooltips) so it can't be mistaken for live state. With nothing known (a page that
+// never connected) there's nothing to show.
 export function StatusPanel({ status }: { status: ConnectionStatus }) {
   const indicators = useAtomValue(indicatorsAtom)
   const isMobile = useIsMobile()
   const [showConds, setShowConds] = useState(false)
-  if (status !== 'connected') return null
+  const stale = status !== 'connected'
+  if (stale && Object.keys(indicators).length === 0) return null
+  const when = stale ? ' when you disconnected' : ''
   const posture = currentPosture(indicators)
   const hasDanger = CONDITIONS.some(c => c.danger && indicators[c.id])
   return (
-    <div className="status-icons">
+    <div className={'status-icons' + (stale ? ' status-icons-stale' : '')}>
       {/* Posture sprite. On mobile the conditions collapse into a popup, so the sprite
           is a button that opens it; on desktop/web the conditions show inline (below),
           so it's just a static indicator — no click-for-status affordance. */}
       {isMobile ? (
         <button
           className="status-icon status-posture"
-          data-tooltip={cap(posture) + ' · tap for status'}
+          data-tooltip={cap(posture) + when + ' · tap for status'}
           onClick={() => setShowConds(v => !v)}
         >
           <PostureSprite />
           {hasDanger && <span className="status-posture-alert" />}
         </button>
       ) : (
-        <span className="status-icon status-posture" data-tooltip={cap(posture)}>
+        <span className="status-icon status-posture" data-tooltip={cap(posture) + when}>
           <PostureSprite />
           {hasDanger && <span className="status-posture-alert" />}
         </span>
@@ -48,7 +59,7 @@ export function StatusPanel({ status }: { status: ConnectionStatus }) {
             <span
               key={c.id}
               className={`status-icon status-cond-${c.id}` + (on ? (c.danger ? ' active-danger' : ' active-good') : '')}
-              data-tooltip={on ? c.label : `Not ${c.label}`}
+              data-tooltip={(on ? c.label : `Not ${c.label}`) + when}
             >
               {c.icon}
             </span>
@@ -59,6 +70,7 @@ export function StatusPanel({ status }: { status: ConnectionStatus }) {
         <div className="status-pop-backdrop" onClick={() => setShowConds(false)} />
         <div className="status-pop">
           <span className="status-pop-posture"><PostureFrame posture={posture} /> {cap(posture)}</span>
+          {stale && <span className="status-pop-stale">As of when you disconnected</span>}
           <div className="status-pop-grid">
             {CONDITIONS.map(c => {
               const on = !!indicators[c.id]
