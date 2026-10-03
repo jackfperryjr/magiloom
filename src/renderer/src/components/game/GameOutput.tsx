@@ -380,6 +380,7 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
               <ExpSkillHalf s={skills[1]} />
             </>
           )}
+          <ExpCopyButton />
         </div>
       )
     }
@@ -401,6 +402,45 @@ function ExpSkillHalf({ s }: { s: ParsedExpSkill }) {
       <span className="exp-data-mind" style={{ color: mindColorOutput(s.mind) }}>
         {s.mind ? `${s.mind} (${s.frac})` : s.frac}
       </span>
+    </div>
+  )
+}
+
+// Copies a whole EXP readout's skill rows in one click. Every skill row renders one,
+// and CSS shows only the button under the LAST row of a run (panels.css) — a line can't
+// know whether it opens a readout without looking at its neighbours, which would cost
+// GameLine its memo. So the run is read back off the DOM at click time instead: this
+// row and every skill row directly before it, each by its canonical data-copy-text.
+function ExpCopyButton() {
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const t = window.setTimeout(() => setCopied(false), 1400)
+    return () => window.clearTimeout(t)
+  }, [copied])
+
+  const copy = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    const rows: string[] = []
+    let el: Element | null = e.currentTarget.closest('.exp-data-line')
+    for (; el instanceof HTMLElement && el.classList.contains('exp-data-line'); el = el.previousElementSibling) {
+      rows.unshift(el.dataset.copyText ?? '')
+    }
+    try {
+      await navigator.clipboard.writeText(rows.join('\n'))
+      setCopied(true)
+    } catch { /* clipboard blocked — leave the icon as-is rather than lying */ }
+  }
+
+  return (
+    <div className="exp-copy-wrap">
+      <button className={'exp-copy-btn' + (copied ? ' exp-copy-btn-done' : '')} onClick={copy}>
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          {copied
+            ? <path d="M3 8.5l3.2 3.2L13 4.8" />
+            : <><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" /><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2" /></>}
+        </svg>
+        {copied ? 'Copied' : 'Copy skills'}
+      </button>
     </div>
   )
 }
