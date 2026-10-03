@@ -356,21 +356,58 @@
 .exp-data-line {
   display: flex;
   align-items: baseline;
+  /* Wrapping exists only for .exp-copy-wrap, which takes a full-width line of its own
+     under the two halves. The halves are flex: 1 off a zero basis and never wrap. */
+  flex-wrap: wrap;
   padding: 1px 8px;
   font-family: var(--font-game);
   font-size: var(--font-size-game);
   line-height: var(--line-height-game);
 }
+/* Copy-all-skills button: rendered by every skill row, shown only under the LAST of a
+   run — so it sits beneath the skills, above the Total Ranks line that follows. */
+.exp-copy-wrap {
+  display: none;
+  flex: 0 0 100%;
+  padding: 4px 0 2px;
+  text-align: right;
+}
+.exp-data-line:not(:has(+ .exp-data-line)) .exp-copy-wrap { display: block; }
+.exp-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 3px;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+  user-select: none;
+}
+.exp-copy-btn:hover { color: var(--text-main); background: var(--bg-input); }
+.exp-copy-btn-done,
+.exp-copy-btn-done:hover { color: var(--color-bonus); }
 /* The MIND cell is sized to its content and the NAME cell absorbs the squeeze.
    It used to be the other way round — name at max-content, mind at minmax(0, 1fr)
    — so as the panel narrowed the mindstate was the thing that got clipped, and
    "Mind lock (340/900)" came out as "Mind lock (340/9…". A trimmed skill name is
    still readable; a trimmed number is not. Below the container query at the foot
-   of this block the two halves stop sharing a row entirely. */
+   of this block the two halves stop sharing a row entirely.
+
+   Every column but the last has a FIXED width, so rank, percent and mindstate start
+   at the same x on every row. The name used to be `auto`, which stretches to whatever
+   the mindstate leaves over — the numbers drifted row to row with the length of the
+   mindstate word, and a lone skill on the final row (one half spanning the whole
+   line) threw its rank clear across the panel. 16ch fits the longest skill name
+   ("Outdoorsmanship"); the slack now goes to the mind column, on the far side of
+   everything that needs to line up. */
 .exp-data-half {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, auto) 38px 36px max-content;
+  grid-template-columns: minmax(0, 16ch) 4ch 4ch minmax(max-content, 1fr);
   gap: 0 8px;
   min-width: 0;
 }
@@ -414,13 +451,11 @@
 @container game-output (max-width: 620px) {
   .exp-data-line, .info-data-line { display: block; }
   .exp-data-sep,  .info-data-sep  { display: none; }
-  /* One skill per row, and nothing here is clipped: the rank/percent columns drop
-     their fixed widths (there are no neighbouring rows left to line up with), and a
-     name with nowhere left to go WRAPS rather than ellipsing — which is the whole
-     point of the stack. Baseline alignment keeps the numbers on the name's first
-     line when it does. */
+  /* One skill per row, on the same fixed columns as the wide layout so the stack
+     lines up too. Nothing here is clipped: a name with nowhere left to go WRAPS
+     rather than ellipsing — which is the whole point of the stack. Baseline
+     alignment keeps the numbers on the name's first line when it does. */
   .exp-data-half {
-    grid-template-columns: minmax(0, 1fr) max-content max-content max-content;
     gap: 0 6px;
     align-items: baseline;
   }
