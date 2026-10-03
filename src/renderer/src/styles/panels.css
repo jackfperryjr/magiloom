@@ -357,7 +357,7 @@
   display: flex;
   align-items: baseline;
   /* Wrapping exists only for .exp-copy-wrap, which takes a full-width line of its own
-     under the two halves. The halves are flex: 1 off a zero basis and never wrap. */
+     under the two halves (see the basis note on .exp-data-half). */
   flex-wrap: wrap;
   padding: 1px 8px;
   font-family: var(--font-game);
@@ -405,7 +405,11 @@
    ("Outdoorsmanship"); the slack now goes to the mind column, on the far side of
    everything that needs to line up. */
 .exp-data-half {
-  flex: 1;
+  /* The 40% basis is what pushes .exp-copy-wrap onto its own line. Off a ZERO basis a
+     lone half plus the 100%-wide wrap "fit" on one line, the wrap took all of it, and
+     the half was left zero wide — its name column collapsed and the skill name went
+     missing from the last row. Two halves still share a row and grow to equal widths. */
+  flex: 1 1 40%;
   display: grid;
   grid-template-columns: minmax(0, 16ch) 4ch 4ch minmax(max-content, 1fr);
   gap: 0 8px;
