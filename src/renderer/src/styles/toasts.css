@@ -258,6 +258,14 @@
 .status-pop-row.active-danger .status-cond-sprite,
 .status-pop-row.active-good   .status-cond-sprite { filter: none; }
 
+/* Disconnected: the icons are a snapshot of the moment the connection dropped (see
+   StatusPanel). Clear conditions and the posture fade further so the group reads as
+   "not live", but an ACTIVE condition keeps full colour: dead/bleeding at disconnect
+   is the whole point of keeping them up. */
+.status-icons-stale .status-icon:not(.status-posture):not(.active-danger):not(.active-good) { opacity: 0.28; }
+.status-icons-stale .status-icon.status-posture { opacity: 0.5; }
+.status-pop-stale { display: block; font-size: 11px; color: var(--text-dim); margin: 2px 0 6px; }
+
 /* On mobile the posture is a button (opens the status popup) — strip button chrome. */
 button.status-icon.status-posture { background: none; border: none; padding: 0; cursor: pointer; }
 .status-posture-alert {
