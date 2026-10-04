@@ -17,7 +17,12 @@ import { CIRCLE_REQS, GUILDS, checkCircle, guildFromSkills, highestCircleMet, is
 export function Circles(): JSX.Element {
   const [expText, setExpText]  = useState('')
   const [target, setTarget]    = useState<number | null>(null)
-  const [sortBy, setSortBy]    = useState<'table' | 'circle'>('circle')
+  // What's literally in the target box while it's being edited; null when it isn't, and
+  // the box shows the goal. Kept apart from `target` so the box can be EMPTY mid-edit:
+  // bound straight to the clamped goal, clearing it snapped a number back in under the
+  // cursor, and typing "120" clamped the leading "1" up to the first circle on the way.
+  const [draft, setDraft]      = useState<string | null>(null)
+  const [sortBy, setSortBy]   = useState<'table' | 'circle'>('circle')
 
   const ranks = useMemo(() => {
     const m = new Map<string, number>()
@@ -136,15 +141,23 @@ export function Circles(): JSX.Element {
               <h2 style={{ margin: 0, flex: 1 }}>Requirements for circle {goal}</h2>
               <div className="shrink" style={{ minWidth: 130 }}>
                 <label htmlFor="target">Target circle</label>
-                <input id="target" type="number" min={first} max={last} value={goal}
-                       onChange={e => setTarget(Math.max(first, Math.min(last, +e.target.value || first)))} />
+                {/* An empty box means "my next circle": the target drops back to null, the
+                    table follows at once, and the number reappears in the box on blur. */}
+                <input id="target" type="number" min={first} max={last}
+                       value={draft ?? goal} placeholder={String(goal)}
+                       onChange={e => {
+                         const v = e.target.value
+                         setDraft(v)
+                         setTarget(v.trim() === '' || !Number.isFinite(+v) ? null : +v)
+                       }}
+                       onBlur={() => { setDraft(null); if (target !== null) setTarget(goal) }} />
               </div>
               <button className="ghost small shrink"
                       onClick={() => setSortBy(s => (s === 'circle' ? 'table' : 'circle'))}>
                 {sortBy === 'circle' ? 'Guild order' : 'Furthest behind first'}
               </button>
               {target !== null && (
-                <button className="ghost small shrink" onClick={() => setTarget(null)}>
+                <button className="ghost small shrink" onClick={() => { setTarget(null); setDraft(null) }}>
                   My next circle
                 </button>
               )}
