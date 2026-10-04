@@ -128,7 +128,10 @@ export function Circles(): JSX.Element {
               <div className={`val ${check.ready ? 'accent' : 'amber'}`}>
                 {check.ready ? 'Met' : check.unmet.length}
               </div>
-              <div className="lbl">{check.ready ? `circle ${goal} requirements` : `short for circle ${goal}`}</div>
+              <div className="lbl">
+                {check.ready ? `circle ${goal} requirements`
+                  : `requirement${check.unmet.length === 1 ? '' : 's'} not met for circle ${goal}`}
+              </div>
             </div>
             <div className="tile">
               <div className="val">{check.totalShort ? check.totalShort.toLocaleString() : '—'}</div>
