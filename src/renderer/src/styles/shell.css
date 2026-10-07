@@ -197,7 +197,7 @@
   z-index: -1;
   pointer-events: none;
   background: url('./themes/trees.png') center bottom / cover no-repeat;
-  opacity: 0.22;
+  opacity: 0.05;
 }
 
 /* Theme-preview tiles (Settings → Appearance) preview their OWN theme's art via
