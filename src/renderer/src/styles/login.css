@@ -616,8 +616,8 @@
 .login-account-new[aria-disabled="true"]:hover { border-color: var(--border-soft); background: var(--bg-input); }
 
 /* ── Character generator console ──────────────────────────────────────────── */
-/* The generator's own text, its options lifted into buttons, and a command line
-   for everything else it asks for. */
+/* The generator's own text, the current question's choices as tiles, and a
+   command line for everything that has to be typed. */
 .login-chargen-log {
   flex: 1;
   min-height: 140px;
@@ -625,13 +625,35 @@
   white-space: pre-wrap;
 }
 .login-chargen-echo { color: var(--accent); }
-.login-chargen-options { display: flex; flex-wrap: wrap; gap: 6px; }
+/* The current question's choices as a grid of tiles. Capped and scrollable: a
+   feature list can run to dozens, and it must not push the log off the card. */
+.login-chargen-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  max-height: 45%;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
 .login-chargen-option {
-  width: auto;
-  flex: 1 1 auto;
-  min-width: 96px;
-  padding: 7px 12px;
-  font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 52px;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  color: var(--text-main);
+  font-size: 14px;
+  font-family: var(--font-ui);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .1s, background .1s, color .1s;
+}
+.login-chargen-option:hover,
+.login-chargen-option:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  color: var(--text-bright);
 }
 .login-chargen-entry { display: flex; gap: 8px; }
 .login-chargen-entry .login-input { flex: 1; min-width: 0; }

@@ -437,13 +437,14 @@ function CharacterSelectScreen({ characters, lastCharId, onSelect, onCreate, onB
 // ─── Character creation ───────────────────────────────────────────────────────
 // DragonRealms' character generator is a game session in its own right (see
 // main/chargen.ts; on the web the server holds that socket). It talks line-oriented text over the Wizard front end, so
-// this screen is a console: the generator's own prompts, its numbered options
-// lifted into buttons, and a command line for anything else it asks for.
+// this screen is a console: the generator's own prompts, the choices for the
+// current question lifted into clickable tiles, and a command line for anything
+// that has to be typed (a name, an age).
 
 /** Visible text of one generator line: Wizard control codes and tags removed. */
 function cleanGenLine(line: string): string {
   return line
-    .split('\x1b')[0]                              // ESC-prefixed Wizard control codes
+    .split('\x1c')[0].split('\x1b')[0]             // Wizard control codes (\x1c GSx…) end the visible text
     .replace(/<d\s+cmd=['"][^'"]*['"][^>]*>/gi, '')
     .replace(/<\/d>/gi, '')
     .replace(/<[^>]*>/g, '')
@@ -452,24 +453,48 @@ function cleanGenLine(line: string): string {
 
 interface GenOption { cmd: string; label: string }
 
-/** Clickable choices in the generator's last screenful: <d cmd> links, then "N) label". */
+const GEN_RACES = ['Human', 'Dwarven', 'Elven', 'Halfling', 'Gor\'Tog', 'Elothean', 'S\'Kra Mur', 'Gnome', 'Kaldar', 'Prydaen', 'Rakash']
+const GEN_YES_NO: GenOption[] = [{ cmd: 'CHOOSE 1', label: 'Yes' }, { cmd: 'CHOOSE 2', label: 'No' }]
+
+/** Questions the generator asks without printing the answers as a list. Checked
+ *  only when the screen offered no explicit choices of its own. */
+const GEN_PROMPTS: { test: RegExp; options: GenOption[] }[] = [
+  { test: /What gender would you like your character to be\?/i,
+    options: [{ cmd: 'CHOOSE MALE', label: 'Male' }, { cmd: 'CHOOSE FEMALE', label: 'Female' }] },
+  { test: /There are 11 races in Elanthia\./i,
+    options: GEN_RACES.map((label, i) => ({ cmd: `CHOOSE ${i + 1}`, label })) },
+  { test: /Would you like to choose your features\?/i,
+    options: [{ cmd: 'CHOOSE 1', label: 'Customize features' }, { cmd: 'CHOOSE 2', label: 'Random features' }] },
+  { test: /Are you sure you want to use the name /i,  options: GEN_YES_NO },
+  { test: /Would you like to choose your age\?/i,     options: GEN_YES_NO },
+  { test: /\(Y\/N\)\?/i, options: [{ cmd: 'Y', label: 'Yes' }, { cmd: 'N', label: 'No' }] },
+]
+
+/**
+ * Clickable choices for the generator's current question — everything it has
+ * written since the player's last answer, so a finished question's choices never
+ * linger. Explicit choices win: <d cmd> links, else "N) label" entries on the same
+ * line. Failing those, a known question supplies its own (GEN_PROMPTS).
+ */
 function genOptions(lines: string[]): GenOption[] {
-  const out  = new Map<string, GenOption>()
-  const tail = lines.slice(-14)
-  for (const raw of tail) {
-    for (const m of raw.matchAll(/<d\s+cmd=['"]([^'"]+)['"][^>]*>([^<]+)<\/d>/gi)) {
-      out.set(m[1].trim().toUpperCase(), { cmd: m[1].trim(), label: m[2].trim() })
+  let from = lines.length
+  while (from > 0 && !lines[from - 1].startsWith('> ')) from--
+  const screen = lines.slice(from).slice(-60)
+  const out = new Map<string, GenOption>()
+  for (const raw of screen) {
+    const links = [...raw.matchAll(/<d\s+cmd=['"]([^'"]+)['"][^>]*>([^<]+)<\/d>/gi)]
+    for (const m of links) out.set(m[1].trim().toUpperCase(), { cmd: m[1].trim(), label: m[2].trim() })
+    if (links.length) continue
+    for (const m of cleanGenLine(raw).matchAll(/(\d+)\)\s+(.+?)(?=\s{2,}\d+\)|\s*$)/g)) {
+      const cmd = `CHOOSE ${m[1]}`
+      out.set(cmd, { cmd, label: m[2].trim() })
     }
   }
   if (out.size === 0) {
-    for (const raw of tail) {
-      for (const m of cleanGenLine(raw).matchAll(/(\d+)\)\s+(.+?)(?=\s{2,}\d+\)|\s*$)/g)) {
-        const cmd = `CHOOSE ${m[1]}`
-        out.set(cmd, { cmd, label: m[2].trim() })
-      }
-    }
+    const text = screen.map(cleanGenLine).join(' ')
+    return GEN_PROMPTS.find(p => p.test.test(text))?.options ?? []
   }
-  return [...out.values()].slice(0, 12)
+  return [...out.values()].slice(0, 48)
 }
 
 function CharGenScreen({ onLeave }: { onLeave: () => void }) {
@@ -479,12 +504,23 @@ function CharGenScreen({ onLeave }: { onLeave: () => void }) {
   const [input,  setInput]  = useState('')
   const tailRef = useRef('')
   const logRef  = useRef<HTMLDivElement>(null)
+  // The generator announces the session with a Wizard \x1cGSB code and then sits
+  // silent until the client sends a line. `seen` counts chunks, so the nudge can
+  // tell whether anything arrived on its own in the meantime.
+  const nudgedRef = useRef(false)
+  const seenRef   = useRef(0)
 
   useEffect(() => {
     const api = window.dr.chargen
     if (!api) { setError('Character creation isn\'t available here.'); return }
+    let nudge: ReturnType<typeof setTimeout> | undefined
     const unsubs = [
       api.onData(chunk => {
+        const seen = ++seenRef.current
+        if (!nudgedRef.current && chunk.includes('\x1cGSB')) {
+          nudgedRef.current = true
+          nudge = setTimeout(() => { if (seenRef.current === seen) api.send('') }, 600)
+        }
         // Reassemble across chunk boundaries — the generator does not align its
         // writes to line ends.
         tailRef.current += chunk.replace(/\r/g, '')
@@ -496,7 +532,7 @@ function CharGenScreen({ onLeave }: { onLeave: () => void }) {
       api.onClosed(() => setEnded(true)),
     ]
     api.start().then(r => { if (!r.ok) { setError(r.error); setEnded(true) } })
-    return () => { unsubs.forEach(fn => fn()); api.stop() }
+    return () => { clearTimeout(nudge); unsubs.forEach(fn => fn()); api.stop() }
   }, [])
 
   // Follow the tail as the generator writes.
@@ -529,7 +565,7 @@ function CharGenScreen({ onLeave }: { onLeave: () => void }) {
     {options.length > 0 && (
       <div className="login-chargen-options">
         {options.map(o => (
-          <button key={o.cmd} className="login-btn-secondary login-chargen-option"
+          <button key={o.cmd} className="login-chargen-option"
             onClick={() => send(o.cmd)}>{o.label}</button>
         ))}
       </div>
