@@ -36,9 +36,9 @@ contextBridge.exposeInMainWorld('dr', {
     forgetPassword: (account: string)                   => ipcRenderer.invoke('auth:forget-password', account),
     forgetAccount:  (account: string)                   => ipcRenderer.invoke('auth:forget-account', account)
   },
-  // DragonRealms' character generator, run from the login card. Desktop only —
-  // the web client has no equivalent (see src/web/dr.ts), so the renderer treats
-  // a missing `chargen` as "creation unavailable here".
+  // DragonRealms' character generator, run from the login card. The web client
+  // exposes the same API relayed through the server (see src/web/dr.ts); the
+  // renderer treats a missing `chargen` as "creation unavailable here".
   chargen: {
     start: ()             => ipcRenderer.invoke('chargen:start'),
     send:  (line: string) => ipcRenderer.invoke('chargen:send', line),
