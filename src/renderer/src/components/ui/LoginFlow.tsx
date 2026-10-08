@@ -416,10 +416,10 @@ function CharacterSelectScreen({ characters, lastCharId, onSelect, onCreate, onB
             </div>
             <span className="login-account-arrow">›</span>
           </button>
-        // Web has no character generator (the IPC is desktop-only), so the slot
-        // stays visible but inert — aria-disabled, since a disabled <button>
-        // would swallow the hover events the tooltip needs.
-        : <Tooltip text="Character creation is only available in the desktop app">
+        // No character generator on this host (`window.dr.chargen` is missing), so
+        // the slot stays visible but inert — aria-disabled, since a disabled
+        // <button> would swallow the hover events the tooltip needs.
+        : <Tooltip text="Character creation isn't available here">
             <button className="login-account-btn login-account-new" aria-disabled="true">
               <div className="login-account-info">
                 <span className="login-account-name">+ New character</span>
@@ -436,7 +436,7 @@ function CharacterSelectScreen({ characters, lastCharId, onSelect, onCreate, onB
 
 // ─── Character creation ───────────────────────────────────────────────────────
 // DragonRealms' character generator is a game session in its own right (see
-// main/chargen.ts). It talks line-oriented text over the Wizard front end, so
+// main/chargen.ts; on the web the server holds that socket). It talks line-oriented text over the Wizard front end, so
 // this screen is a console: the generator's own prompts, its numbered options
 // lifted into buttons, and a command line for anything else it asks for.
 
@@ -482,7 +482,7 @@ function CharGenScreen({ onLeave }: { onLeave: () => void }) {
 
   useEffect(() => {
     const api = window.dr.chargen
-    if (!api) { setError('Character creation is only available in the desktop app.'); return }
+    if (!api) { setError('Character creation isn\'t available here.'); return }
     const unsubs = [
       api.onData(chunk => {
         // Reassemble across chunk boundaries — the generator does not align its

@@ -155,6 +155,24 @@ export function installDr(): void {
       forgetPassword: (account: string) => t.invoke('auth:forget-password', account),
       forgetAccount:  (account: string) => t.invoke('auth:forget-account', account),
     },
+    // DragonRealms' character generator. The server opens the generator socket and
+    // relays it (magiserver session.ts); these never reject, because the creation
+    // screen fires them without awaiting — a dropped connection or a server that
+    // predates the feature must come back as an error it can show, not a hang.
+    chargen: {
+      start: () => t.invoke('chargen:start').catch((e: unknown) => ({
+        ok: false,
+        error: /unknown channel/i.test(String(e))
+          ? 'The server does not support character creation yet. Try again shortly.'
+          : 'Lost the connection to the server. Go back and sign in again.',
+      })),
+      send:  (line: string) => t.invoke('chargen:send', line).catch(() => {}),
+      stop:  () => t.invoke('chargen:stop').catch(() => {}),
+      onConnected: (cb: () => void)          => t.on('chargen:connected', cb),
+      onData:      (cb: (s: string) => void) => t.on('chargen:data', cb),
+      onError:     (cb: (m: string) => void) => t.on('chargen:error', cb),
+      onClosed:    (cb: () => void)          => t.on('chargen:closed', cb),
+    },
     lich: {
       detectPath:    () => t.invoke('lich:detect-path'),
       getLog:        () => t.invoke('lich:get-log'),

@@ -177,7 +177,7 @@ interface DrAPI {
     forgetPassword: (account: string)                   => Promise<void>
     forgetAccount:  (account: string)                   => Promise<void>
   }
-  /** DragonRealms' character generator. Desktop only — undefined on web. */
+  /** DragonRealms' character generator. Optional: a host without it shows creation as unavailable. */
   chargen?: {
     start: () => Promise<{ ok: true } | { ok: false; error: string }>
     send:  (line: string) => Promise<void>
