@@ -448,7 +448,6 @@ function setupIpcHandlers(): void {
     }
     // Consumed: the eaccess socket closes with the launch response either way.
     pendingSelectCharacter = null
-    lichLog('[chargen] Connecting to the character generator at ' + key.host + ':' + key.port)
     charGen.connect(key.host, key.port, key.key)
     return { ok: true }
   })
@@ -627,8 +626,8 @@ function setupIpcHandlers(): void {
   // Character generator: raw text straight through to the login card's creator
   // console. Nothing here touches the game store — a generator session is not a
   // playable session, and no character exists yet to attribute it to.
-  charGen.on('connected', ()          => { lichLog('[chargen] Connected'); send('chargen:connected') })
+  charGen.on('connected', ()          => send('chargen:connected'))
   charGen.on('data',      (t: string) => send('chargen:data', t))
   charGen.on('error',     (e: string) => { lichLog('[chargen] Error: ' + e); send('chargen:error', e) })
-  charGen.on('closed',    ()          => { lichLog('[chargen] Session closed'); send('chargen:closed') })
+  charGen.on('closed',    ()          => send('chargen:closed'))
 }
