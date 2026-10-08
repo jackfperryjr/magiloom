@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Tooltip } from './Tooltip'
 import { LoginArt } from './LoginArt'
+import { IconArrowDownTray } from './Icons'
 import { loginProgress, STALL_MS } from '../../lib/loginProgress'
 
 interface LoginFlowProps {
@@ -51,11 +52,15 @@ const sortBeacons = (b: LoginPath[]): LoginPath[] =>
   [...b].sort((x, y) => (y.usedAt ?? 0) - (x.usedAt ?? 0))
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
-function Shell({ children, tabs }: { children: React.ReactNode; tabs?: React.ReactNode }) {
+// `wide` is the character generator's layout: the card doubles in width, the
+// mascot slides from top-centre to the top-left corner, and the wordmark gives
+// its place to the screen's own heading. All of it is CSS on .login-card-wide,
+// so the same elements animate between the two states.
+function Shell({ children, tabs, wide }: { children: React.ReactNode; tabs?: React.ReactNode; wide?: boolean }) {
   return (
     <div className="login-screen">
       <LoginArt />
-      <div className="login-card">
+      <div className={'login-card' + (wide ? ' login-card-wide' : '')}>
         <img src="./icon.png" className="login-hero" alt="Lantern" />
         <div className="login-logo">LANTERN</div>
         {tabs}
@@ -63,6 +68,27 @@ function Shell({ children, tabs }: { children: React.ReactNode; tabs?: React.Rea
             tabs or step through the flow — the body scrolls instead. */}
         <div className="login-body">{children}</div>
       </div>
+      <LoginUpdate />
+    </div>
+  )
+}
+
+// "Update available" on the login screen, bottom-right over the scene. Updates
+// found while running (every web update; a desktop background poll) otherwise
+// only show in the panel rail, which doesn't exist until a character is in game.
+// A desktop launch-check update keeps its title-bar icon (App's UpdateIcon).
+function LoginUpdate() {
+  const [ready, setReady] = useState(false)
+  useEffect(() => window.dr.updater.onReady(info => { if (!info?.fromLaunch) setReady(true) }), [])
+  if (!ready) return null
+  return (
+    <div className="login-update">
+      <Tooltip text="Update available — click to apply" placement="left">
+        <button className="login-update-btn" onClick={() => window.dr.updater.install()}
+          aria-label="Update available — click to apply">
+          <IconArrowDownTray size={20} />
+        </button>
+      </Tooltip>
     </div>
   )
 }
@@ -454,6 +480,8 @@ function cleanGenLine(line: string): string {
 interface GenOption { cmd: string; label: string }
 
 const GEN_RACES = ['Human', 'Dwarven', 'Elven', 'Halfling', 'Gor\'Tog', 'Elothean', 'S\'Kra Mur', 'Gnome', 'Kaldar', 'Prydaen', 'Rakash']
+const GEN_FINISH     = 'FINISH'
+const GEN_START_OVER = 'START OVER'
 const GEN_YES_NO: GenOption[] = [{ cmd: 'CHOOSE 1', label: 'Yes' }, { cmd: 'CHOOSE 2', label: 'No' }]
 
 /** Questions the generator asks without printing the answers as a list. Checked
@@ -470,6 +498,31 @@ const GEN_PROMPTS: { test: RegExp; options: GenOption[] }[] = [
   { test: /\(Y\/N\)\?/i, options: [{ cmd: 'Y', label: 'Yes' }, { cmd: 'N', label: 'No' }] },
 ]
 
+/** The generator's current screen: what it has written since the player's last answer. */
+function genScreen(lines: string[]): string[] {
+  let from = lines.length
+  while (from > 0 && !lines[from - 1].startsWith('> ')) from--
+  return lines.slice(from).slice(-60)
+}
+
+// The last screen before the game: a summary (Name:, Gender:, …) under this line.
+// FINISH from here creates the character and drops it into the world.
+const GEN_FINAL_REVIEW = /ready to enter the world of Elanthia/i
+// The appearance summary, once every feature has been picked.
+const GEN_FEATURE_REVIEW = /You are now finished choosing your features\./i
+
+/** The new character's name, if `lines` currently show the final review. */
+function genFinalName(lines: string[]): string | null {
+  const screen = genScreen(lines).map(cleanGenLine)
+  if (!screen.some(l => GEN_FINAL_REVIEW.test(l))) return null
+  const fromReview = screen.map(l => /^\s*Name:\s*([A-Za-z][A-Za-z'-]*)/i.exec(l)?.[1]).find(Boolean)
+  if (fromReview) return fromReview
+  // No summary line to read — fall back to the name the player last confirmed.
+  const all = lines.map(cleanGenLine).join('\n')
+  const confirmed = [...all.matchAll(/Are you sure you want to use the name ([A-Za-z][A-Za-z'-]*)\?/gi)]
+  return confirmed.at(-1)?.[1] ?? null
+}
+
 /**
  * Clickable choices for the generator's current question — everything it has
  * written since the player's last answer, so a finished question's choices never
@@ -477,9 +530,7 @@ const GEN_PROMPTS: { test: RegExp; options: GenOption[] }[] = [
  * line. Failing those, a known question supplies its own (GEN_PROMPTS).
  */
 function genOptions(lines: string[]): GenOption[] {
-  let from = lines.length
-  while (from > 0 && !lines[from - 1].startsWith('> ')) from--
-  const screen = lines.slice(from).slice(-60)
+  const screen = genScreen(lines)
   const out = new Map<string, GenOption>()
   for (const raw of screen) {
     const links = [...raw.matchAll(/<d\s+cmd=['"]([^'"]+)['"][^>]*>([^<]+)<\/d>/gi)]
@@ -490,14 +541,28 @@ function genOptions(lines: string[]): GenOption[] {
       out.set(cmd, { cmd, label: m[2].trim() })
     }
   }
+  const text = screen.map(cleanGenLine).join(' ')
   if (out.size === 0) {
-    const text = screen.map(cleanGenLine).join(' ')
-    return GEN_PROMPTS.find(p => p.test.test(text))?.options ?? []
+    for (const o of GEN_PROMPTS.find(p => p.test.test(text))?.options ?? []) out.set(o.cmd, o)
+  }
+  // Finish and Start Over are typed commands the review screens offer in prose,
+  // so no list carries them. Give each a tile wherever the screen names it, and
+  // both on the two reviews that are known to accept them.
+  const review = GEN_FEATURE_REVIEW.test(text) || GEN_FINAL_REVIEW.test(text)
+  if ((review || /\bfinish\b/i.test(text)) && !out.has(GEN_FINISH)) {
+    out.set(GEN_FINISH, { cmd: GEN_FINISH, label: 'Finish' })
+  }
+  if ((review || /\bstart over\b/i.test(text)) && !out.has(GEN_START_OVER)) {
+    out.set(GEN_START_OVER, { cmd: GEN_START_OVER, label: 'Start Over' })
   }
   return [...out.values()].slice(0, 48)
 }
 
-function CharGenScreen({ onLeave }: { onLeave: () => void }) {
+function CharGenScreen({ onLeave, onCreated }: {
+  onLeave:   () => void
+  /** The final Finish went through: enter the game as this character. */
+  onCreated: (name: string) => void
+}) {
   const [lines,  setLines]  = useState<string[]>([])
   const [ended,  setEnded]  = useState(false)
   const [error,  setError]  = useState('')
@@ -509,13 +574,33 @@ function CharGenScreen({ onLeave }: { onLeave: () => void }) {
   // tell whether anything arrived on its own in the meantime.
   const nudgedRef = useRef(false)
   const seenRef   = useRef(0)
+  // Set when Finish is sent from the final review: the name to enter the game as
+  // once the generator has answered and gone quiet. `linesRef`/`onCreatedRef` give
+  // the socket listeners (registered once) the current values.
+  const pendingRef   = useRef<string | null>(null)
+  const linesRef     = useRef<string[]>([])
+  const onCreatedRef = useRef(onCreated)
+  linesRef.current     = lines
+  onCreatedRef.current = onCreated
 
   useEffect(() => {
     const api = window.dr.chargen
     if (!api) { setError('Character creation isn\'t available here.'); return }
     let nudge: ReturnType<typeof setTimeout> | undefined
+    let quiet: ReturnType<typeof setTimeout> | undefined
+    // Hand over to the game once the generator has answered the final Finish and
+    // stopped writing. If it answered by showing the review again, the Finish
+    // didn't take (the generator said why) and the player is still creating.
+    const settle = () => {
+      const name = pendingRef.current
+      if (!name) return
+      pendingRef.current = null
+      if (genFinalName(linesRef.current)) return
+      onCreatedRef.current(name)
+    }
     const unsubs = [
       api.onData(chunk => {
+        if (pendingRef.current) { clearTimeout(quiet); quiet = setTimeout(settle, 1500) }
         const seen = ++seenRef.current
         if (!nudgedRef.current && chunk.includes('\x1cGSB')) {
           nudgedRef.current = true
@@ -529,10 +614,10 @@ function CharGenScreen({ onLeave }: { onLeave: () => void }) {
         if (parts.length) setLines(prev => [...prev, ...parts].slice(-400))
       }),
       api.onError(m  => setError(m)),
-      api.onClosed(() => setEnded(true)),
+      api.onClosed(() => { setEnded(true); clearTimeout(quiet); settle() }),
     ]
     api.start().then(r => { if (!r.ok) { setError(r.error); setEnded(true) } })
-    return () => { clearTimeout(nudge); unsubs.forEach(fn => fn()); api.stop() }
+    return () => { clearTimeout(nudge); clearTimeout(quiet); unsubs.forEach(fn => fn()); api.stop() }
   }, [])
 
   // Follow the tail as the generator writes.
@@ -540,6 +625,7 @@ function CharGenScreen({ onLeave }: { onLeave: () => void }) {
 
   const send = (cmd: string) => {
     if (ended || !cmd.trim()) return
+    pendingRef.current = cmd.trim().toUpperCase() === GEN_FINISH ? genFinalName(lines) : null
     setLines(prev => [...prev, `> ${cmd}`].slice(-400))
     window.dr.chargen?.send(cmd)
   }
@@ -547,12 +633,15 @@ function CharGenScreen({ onLeave }: { onLeave: () => void }) {
   const options = ended ? [] : genOptions(lines)
 
   return <>
-    <div className="login-screen-title">Create a character</div>
-    <p className="login-hint" style={{ marginTop: 0 }}>
-      {ended
-        ? 'The generator session has ended. Sign in again — a character you finished creating will be in the list.'
-        : 'Answer the generator\'s prompts. When your character is finished, come back and sign in as them.'}
-    </p>
+    {/* Top-centre of the wide card, beside the mascot in its corner. */}
+    <div className="login-chargen-head">
+      <div className="login-screen-title">Create a character</div>
+      <p className="login-hint">
+        {ended
+          ? 'The generator session has ended. Sign in again — a character you finished creating will be in the list.'
+          : 'Answer the generator\'s prompts. When you finish, you\'ll enter the game as your new character.'}
+      </p>
+    </div>
     <div className="login-log login-chargen-log" ref={logRef}>
       {lines.length === 0 && !error && <div className="login-log-line">Entering the character generator…</div>}
       {lines.map((l, i) => {
@@ -896,21 +985,30 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
   // Replay a saved path end to end. Every step can fail on its own (password
   // forgotten, server down, character deleted), so each one reports where it broke
   // rather than dumping the user back at the start with a generic error.
-  const runBeacon = async (b: LoginPath) => {
+  //
+  // `created` is the same walk for a character that has just left the generator
+  // (enterCreated): failures land on the sign-in screen and are worded for that.
+  const runBeacon = async (b: LoginPath, created = false) => {
     setError(''); setLogLines([])
     const pw = await window.dr.auth.getPassword(b.account)
     if (!pw) {
       setActiveAccount(b.account)
       setScreen('credentials')
-      setError(`No saved password for ${b.account} — sign in once to relight this beacon.`)
+      setError(created
+        ? `${b.charName} is ready — sign in to play.`
+        : `No saved password for ${b.account} — sign in once to relight this beacon.`)
       return
     }
     setActiveAccount(b.account); activeAccountRef.current = b.account
     setGame(b.game)
     setSelectedChar({ id: b.charId, name: b.charName })
     selectedCharRef.current = { id: b.charId, name: b.charName }
-    setConnectBack('beacons')
+    setConnectBack(created ? 'credentials' : 'beacons')
     setLoading(true); setScreen('connecting')
+    // Leaving the generator screen has just dropped its socket, with the new
+    // character still standing in the world on it. Give the game a moment to
+    // notice before signing the same character in again.
+    if (created) await new Promise(r => setTimeout(r, 1500))
 
     const login = await window.dr.auth.login(b.account, pw)
     if (!login.ok) { setLoading(false); setError(login.error); return }
@@ -925,7 +1023,9 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
       ?? inst.characters.find(c => c.name.toLowerCase() === b.charName.toLowerCase())
     if (!char) {
       setLoading(false)
-      setError(`${b.charName} is no longer on ${b.account}.`)
+      setError(created
+        ? `${b.charName} isn't on ${b.account}'s character list yet — go back and sign in again.`
+        : `${b.charName} is no longer on ${b.account}.`)
       return
     }
 
@@ -935,6 +1035,26 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
     setLoading(false)
     if (!result.ok) setError(result.error ?? 'Failed to connect.')
     else await lightBeacon({ code: b.instance, name: b.instanceName }, char, b.account, b.lich)
+  }
+
+  // The generator's final Finish went through. The character exists but the
+  // generator session can't be played on, so sign in as them the ordinary way —
+  // the same replay a beacon does — and light a beacon for next time.
+  const enterCreated = (name: string) => {
+    const inst    = selectedInstRef.current
+    const account = activeAccountRef.current
+    if (!inst || !account) { setError(''); setScreen('credentials'); return }
+    void runBeacon({
+      id:           '',
+      account,
+      game:         inst.code.startsWith('GS') ? 'GS4' : 'DR',
+      instance:     inst.code,
+      instanceName: INSTANCE_LABELS[inst.code] ?? inst.name,
+      charId:       '',
+      charName:     name,
+      lich:         useLichRef.current,
+      usedAt:       Date.now(),
+    }, true)
   }
 
   // Step 1: credentials → instance list
@@ -1003,7 +1123,7 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
   }, [switchAccount])
 
   return (
-    <Shell tabs={TABBED.includes(screen)
+    <Shell wide={screen === 'chargen'} tabs={TABBED.includes(screen)
       ? <TabBar tab={screen} onTab={s => { setError(''); setScreen(s) }} onSettings={onOpenSettings} />
       : undefined}>
       {screen === 'account-list' && (
@@ -1072,7 +1192,7 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
       {screen === 'chargen' && (
         // Leaving drops the generator socket; the SGE session was consumed to
         // launch it, so the way back to a character list is a fresh sign-in.
-        <CharGenScreen onLeave={() => { setError(''); setScreen('credentials') }} />
+        <CharGenScreen onLeave={() => { setError(''); setScreen('credentials') }} onCreated={enterCreated} />
       )}
       {screen === 'connecting' && (
         <ConnectingScreen

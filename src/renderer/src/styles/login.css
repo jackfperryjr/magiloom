@@ -174,7 +174,7 @@
    specificity but further down the file — would otherwise win and drop it back
    into the flex row beside the card. */
 .login-card,
-.login-screen > *:not(.login-art):not(.login-art-dev) { position: relative; z-index: 1; }
+.login-screen > *:not(.login-art):not(.login-art-dev):not(.login-update) { position: relative; z-index: 1; }
 .login-card {
   width: 440px;
   max-width: 100%;
@@ -192,10 +192,13 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.07),
     0 24px 64px rgba(8, 6, 26, 0.55);
-  padding: 30px 32px 32px;
+  /* The top padding holds the mascot, which is positioned (see .login-hero) so it
+     can slide to the corner in the wide layout: 30 + its 88 − 6 overlap + the gap. */
+  padding: 128px 32px 32px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  transition: width .45s ease, padding-top .45s ease;
   /* Fixed size: the card must not resize as you move between tabs and steps.
      Long screens (character lists, the connection log) scroll in .login-body;
      short viewports clamp the height and the body absorbs that too. */
@@ -228,10 +231,13 @@
 }
 
 .login-hero {
-  align-self: center;
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 88px;
   height: 88px;
-  margin-bottom: -6px;
+  transition: top .45s ease, left .45s ease, transform .45s ease, width .45s ease, height .45s ease;
   filter:
     drop-shadow(0 0 13px rgba(255, 162, 92, 0.45))
     drop-shadow(0 0 28px rgba(139, 134, 248, 0.45));
@@ -250,6 +256,50 @@
   color: var(--text-bright);
   text-shadow: 0 0 22px var(--accent-glow), 0 2px 0 rgba(255, 255, 255, 0.14), 3px 3px 0 rgba(0, 0, 0, 0.55);
 }
+
+/* ── Wide layout (character generator) ────────────────────────────────────── */
+/* Double width; the mascot slides to the top-left corner and the wordmark steps
+   aside for the screen's own heading, which sits top-centre beside it. On a
+   narrow window max-width still wins, so only the header rearranges. */
+.login-card-wide { width: 880px; padding-top: 24px; }
+.login-card-wide .login-hero {
+  top: 20px;
+  left: 28px;
+  transform: none;
+  width: 56px;
+  height: 56px;
+}
+.login-card-wide .login-logo { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .login-card, .login-hero { transition: none; }
+}
+
+/* "Update available" — bottom-right over the scene, the panel rail's pulsing
+   green button. Hidden on the in-game reconnect overlay: the rail behind it
+   already shows one. */
+.login-screen > .login-update {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  z-index: 2;
+}
+.reconnect-overlay .login-update { display: none; }
+.login-update-btn {
+  width: 42px; height: 42px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-bonus) 22%, rgba(0, 0, 0, 0.55));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: var(--color-bonus);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  animation: rail-update-pulse 1.9s ease-in-out infinite;
+}
+.login-update-btn:hover { background: var(--color-bonus); color: #fff; animation: none; }
+.login-update-btn > svg { display: block; pointer-events: none; }
+
 /* ── Landing tabs (Sign in / Beacons) ─────────────────────────────────────── */
 .login-tabs {
   display: flex;
@@ -618,6 +668,14 @@
 /* ── Character generator console ──────────────────────────────────────────── */
 /* The generator's own text, the current question's choices as tiles, and a
    command line for everything that has to be typed. */
+/* Heading block: centred, and inset so it clears the mascot in the corner. */
+.login-chargen-head {
+  display: flex; flex-direction: column; justify-content: center; gap: 4px;
+  min-height: 56px;
+  padding: 0 68px;
+  flex-shrink: 0;
+}
+.login-chargen-head .login-hint { margin: 0; }
 .login-chargen-log {
   flex: 1;
   min-height: 140px;
