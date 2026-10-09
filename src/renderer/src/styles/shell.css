@@ -228,7 +228,7 @@
     radial-gradient(ellipse at 50% 50%, transparent 58%, rgba(0,0,0,0.42) 100%),
     radial-gradient(ellipse at 40% 30%, rgba(255,176,0,0.07) 0%, transparent 60%);
 }
-:root[data-theme="rosequartz"] .game-output-wrap { background: #1c0d16; }
+:root[data-theme="rosequartz"] .game-output-wrap { background: #27141f; }
 :root[data-theme="prism"]      .game-output-wrap { background: #0e0e12; }
 :root[data-theme="phosphor"]   .game-output-wrap { background: #0b0703; }
 :root:is([data-theme="rosequartz"], [data-theme="prism"], [data-theme="phosphor"]) :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay) {
@@ -246,6 +246,20 @@
 :root[data-theme="rosequartz"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before { background: var(--art-rosequartz); }
 :root[data-theme="prism"]      :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before { background: var(--art-prism); }
 :root[data-theme="phosphor"]   :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before { background: var(--art-phosphor); }
+/* Rose Quartz also gets a flight of butterflies rising from the lower-right of the
+   game window. Like Bloodstone's blade and Thornwood's tree-line it rides ::after on
+   the game window only — the blooms above are enough for a small modal — and sits
+   behind the text at z-index:-1. Sized by height so the flight keeps its shape, and
+   anchored to the corner so a narrow window crops it rather than squeezing it. */
+:root[data-theme="rosequartz"] .game-output-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url('./themes/butterflies.svg') right bottom / auto 100% no-repeat;
+  opacity: 0.16;
+}
 
 /* Theme-preview tiles (Settings → Appearance) preview their OWN theme's art via
    the data-theme-id on each swatch — independent of the active theme. */
@@ -294,6 +308,9 @@
   opacity: 0.55;
 }
 /* The gradient themes reuse their surface recipe as-is (see --art-* above). */
-.theme-swatch[data-theme-id="rosequartz"]::before { background: var(--art-rosequartz); }
+.theme-swatch[data-theme-id="rosequartz"]::before {
+  background: url('./themes/butterflies.svg') right 35% / auto 260% no-repeat, var(--art-rosequartz);
+  opacity: 0.6;
+}
 .theme-swatch[data-theme-id="prism"]::before      { background: var(--art-prism); }
 .theme-swatch[data-theme-id="phosphor"]::before   { background: var(--art-phosphor); }
