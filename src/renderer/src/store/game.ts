@@ -14,6 +14,7 @@ import { weatherFromLine, weatherFromReportLine, isWeatherHeaderLine, regionFrom
 import { computeMoonPositions, correctionFromMoonLine, type MoonCorrections, type MoonPosition } from '../lib/moons'
 import { applyGagSub as applyGagSubRules, type TextRule } from '../lib/rules'
 import { parseLichList, type LichScript } from '../lib/quickActions'
+import { SilentReport } from '../lib/silentReport'
 import { ServerClock } from '../lib/serverClock'
 import { parseActiveSpellLine, type ActiveSpell } from '../lib/activeSpells'
 import { WealthReader, mergeWealth, type WealthReport } from '../lib/wealth'
@@ -747,10 +748,10 @@ function withBaseline(baselines: Record<string, number>, s: ExpSkill): Record<st
 // report (vs. never having been mentioned at all) means it's now cleared.
 // Tracks the names seen in the run of exp-report lines currently being read.
 let _expBatchNames: Set<string> | null = null
-// When true the current exp batch was triggered by the background poller, so
-// its main-stream report text should be suppressed from the game output panel.
-// Cleared when the batch closes or when the user manually sends exp.
-let _silentExpBatch = false
+// The background poller's EXP report, kept out of the game output. The window is
+// opened by the report's own first line ("Circle: N") and closed by the prompt that
+// ends it — see lib/silentReport for why it can't simply be a flag set on send.
+const _silentExp = new SilentReport(/^Circle:\s*\d+$/)
 
 // Resets one skill's field experience to cleared, preserving its known capacity
 // (e.g. "340/900" -> "0/900"). Used both when an EXP report omits a decayed
@@ -793,7 +794,7 @@ export const echoCommandAtom = atom(
     // for a match to start the batch meant it could never close (never clearing).
     if (command.trim().toLowerCase() === 'exp') {
       _expBatchNames  = new Set()
-      _silentExpBatch = false  // manual send wins over any pending background poll
+      _silentExp.cancel()   // manual send wins over any pending background poll
     }
     // Same for INFO / WEALTH: the player asked to see it. ("wea" alone is WEATHER.)
     if (/^(?:inf|info|weal|wealt|wealth)$/i.test(command.trim())) {
@@ -831,17 +832,11 @@ export const appendSystemLineAtom = atom(
 )
 
 // ── Silent exp poll ───────────────────────────────────────────────────────────
-// Called by the background poller before sending "exp". Marks the upcoming
-// batch as silent so the report text is suppressed from the main game panel.
-// We deliberately do NOT pre-open _expBatchNames here — doing so would cause
-// the batch to close immediately on the first non-skill text that arrives
-// during the network round-trip (the batch-close fires whenever _expBatchNames
-// is truthy and no skill lines matched), resetting _silentExpBatch = false
-// before the actual exp report is ever received.  The batch opens naturally on
-// the first skill line, and the prompt handler below is the fallback cleanup
-// for the zero-active-skills case where the batch never opens at all.
+// Called by the background poller before sending "exp", so the report it gets
+// back is kept out of the main game panel. Nothing is hidden until that report
+// actually starts (see lib/silentReport).
 export const beginSilentExpAtom = atom(null, () => {
-  _silentExpBatch = true
+  _silentExp.begin()
 })
 
 // ── Lich `;list` poll ─────────────────────────────────────────────────────────
@@ -953,7 +948,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _lookBuf           = []
   _pendingLookTarget = ''
   _expBatchNames     = null
-  _silentExpBatch    = false
+  _silentExp.cancel()
   _spellBatch        = null
   _skyPending        = 0
   _weatherReportWait = 0
@@ -1286,7 +1281,10 @@ export const dispatchGameEventAtom = atom(
             break
           default: {
             const isHandUpdate = event.styles.some(s => s.preset === 'left' || s.preset === 'right')
-            if (!isHandUpdate && !_silentExpBatch) {
+            // The poller's own EXP report. Only the report's lines are held back —
+            // the panel still reads them just below.
+            const silentExp = _silentExp.line(event.text, event.styles.some(s => s.preset === 'mono'))
+            if (!isHandUpdate && !silentExp) {
               // DR's server-wide death broadcast reads "* NAME was just struck
               // down at LOCATION!" — the "just" (and other death verbs) must not
               // break the match, or the death never reaches the Deaths panel. The
@@ -1347,13 +1345,9 @@ export const dispatchGameEventAtom = atom(
                 skills: exp.skills.map(s => seen.has(s.name) ? s : clearSkillExp(s)),
               })
               _expBatchNames  = null
-              // Deliberately NOT clearing _silentExpBatch here. The report's tail
-              // — total ranks, TDPs, rested exp, state of mind — arrives AFTER the
-              // last skill line, so dropping suppression at the first non-skill
-              // line leaked four lines of it into the output on every poll. The
-              // prompt at the end of the response closes the window instead (see
-              // the prompt handler), which costs one command round-trip of
-              // suppression and hides the whole report rather than most of it.
+              // The silent window is NOT closed here. The report's tail — total
+              // ranks, TDPs, rested exp, state of mind — arrives AFTER the last
+              // skill line; the prompt that ends the report closes it instead.
             }
             break
           }
@@ -1589,14 +1583,10 @@ export const dispatchGameEventAtom = atom(
           set(activeSpellsAtom, _spellBatch.map(s => ({ ...s, expires: committedAt + s.roisaen * ROISAEN_MS })))
           _spellBatch = null
         }
-        // The server sends <prompt> at the end of every command response.
-        // If _silentExpBatch is still true here it means either no skills are
-        // active (the batch never opened) or the batch-close line never arrived
-        // — either way the poll is done, so clear the flag now.
-        if (_silentExpBatch) {
-          _expBatchNames  = null
-          _silentExpBatch = false
-        }
+        // The prompt that ends the poller's EXP report closes its window. A
+        // report with no active skills never opens a batch-close line of its own,
+        // so the batch is dropped here too.
+        if (_silentExp.prompt()) _expBatchNames = null
         // Flush any verbs captured since the last prompt into the reactive atom.
         if (_verbCapture && _verbBuf.length > 0) {
           set(verbRawAtom, Array.from(new Set([...get(verbRawAtom), ..._verbBuf])).sort())
