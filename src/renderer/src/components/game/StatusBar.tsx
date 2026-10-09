@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { useAtomValue } from 'jotai'
 import { Tooltip } from '../ui/Tooltip'
 import { roomAtom } from '../../store/game'
-import { roomDisplayName } from '../../lib/mapModel'
+import { mapSeededAtom } from '../../store/map'
+import { roomDisplayName, parseLichRoomId } from '../../lib/mapModel'
+import { lichRoomIdForUid } from '../../lib/mapSeed'
 import {
   IconWinMinimize, IconWinMaximize, IconWinRestore, IconWinClose,
 } from '../ui/Icons'
@@ -58,8 +60,10 @@ export function WindowControls() {
  * character with no beacon (watch mode, a hand-rolled connect) simply shows no
  * chip rather than guessing.
  */
+interface SessionInstance { game: string; name: string; code: string; lich: boolean }
+
 function useSessionInstance(charName: string) {
-  const [inst, setInst] = useState<{ game: string; name: string; code: string } | null>(null)
+  const [inst, setInst] = useState<SessionInstance | null>(null)
   useEffect(() => {
     const name = charName.trim().toLowerCase()
     if (!name) { setInst(null); return }
@@ -69,7 +73,7 @@ function useSessionInstance(charName: string) {
       const match = (s.loginPaths ?? [])
         .filter(b => b.charName.trim().toLowerCase() === name)
         .sort((a, b) => (b.usedAt ?? 0) - (a.usedAt ?? 0))[0]
-      setInst(match ? { game: match.game, name: match.instanceName, code: match.instance } : null)
+      setInst(match ? { game: match.game, name: match.instanceName, code: match.instance, lich: !!match.lich } : null)
     }).catch(() => { /* no settings, no chip */ })
     return () => { cancelled = true }
   }, [charName])
@@ -107,8 +111,9 @@ function RoomNameChip() {
   )
 }
 
-function RoomIdChip() {
-  const uid = useAtomValue(roomAtom).uid
+/** One numeric id as a `key value` pill. Click copies it; with no id it holds its
+ *  place as an inert `--` (see the note above RoomNameChip for why it stays mounted). */
+function IdChip({ k, id, what, emptyHint }: { k: string; id: string; what: string; emptyHint: string }) {
   const [copied, setCopied] = useState(false)
   useEffect(() => {
     if (!copied) return
@@ -116,11 +121,11 @@ function RoomIdChip() {
     return () => window.clearTimeout(t)
   }, [copied])
 
-  if (!uid) {
+  if (!id) {
     return (
-      <Tooltip text="Room id — this room doesn't report one">
+      <Tooltip text={`${what} — ${emptyHint}`}>
         <span className="titlebar-chip titlebar-chip-room">
-          <span className="titlebar-chip-k">room</span>
+          <span className="titlebar-chip-k">{k}</span>
           <span className="titlebar-chip-v titlebar-chip-v-empty">--</span>
         </span>
       </Tooltip>
@@ -129,23 +134,48 @@ function RoomIdChip() {
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(uid)
+      await navigator.clipboard.writeText(id)
       setCopied(true)
     } catch { /* clipboard blocked — leave the chip as-is rather than lying */ }
   }
 
   return (
-    <Tooltip text={copied ? 'Copied' : 'Room id — click to copy'}>
+    <Tooltip text={copied ? 'Copied' : `${what} — click to copy`}>
       <button className="titlebar-chip titlebar-chip-room titlebar-chip-btn" onClick={copy}>
-        <span className="titlebar-chip-k">room</span>
-        <span className="titlebar-chip-v">{uid}</span>
+        <span className="titlebar-chip-k">{k}</span>
+        <span className="titlebar-chip-v">{id}</span>
       </button>
     </Tooltip>
   )
 }
 
-function InstanceChip({ charName }: { charName: string }) {
-  const inst = useSessionInstance(charName)
+function RoomIdChip() {
+  const uid = useAtomValue(roomAtom).uid
+  return <IdChip k="room" id={uid} what="Room id" emptyHint="this room doesn't report one" />
+}
+
+/**
+ * Lich's own number for the room — the one `;go2 1234` takes — beside the game's.
+ * They are different numbering schemes for the same room, and it is Lich's that
+ * its scripts and its players trade in.
+ *
+ * Lich has no channel that reports it, so it is read from wherever it can be had:
+ *   • the room title, when the player has `;display lichid` on and Lich is writing
+ *     the number into it — Lich's own word, so it wins;
+ *   • otherwise the shipped map dataset, which is built from Lich's map database
+ *     and so carries Lich's id for every room it knows, keyed by the game's id.
+ * A room with neither (no game id, or one Lich hasn't mapped) shows `--`.
+ */
+function LichRoomChip() {
+  const room = useAtomValue(roomAtom)
+  // Read only so the chip re-renders once the dataset lands; the first room of a
+  // session usually arrives before ~19k rooms have finished parsing.
+  useAtomValue(mapSeededAtom)
+  const id = parseLichRoomId(room.name) ?? lichRoomIdForUid(room.uid) ?? ''
+  return <IdChip k="lich" id={id} what="Lich room id" emptyHint="Lich has no number for this room" />
+}
+
+function InstanceChip({ inst }: { inst: SessionInstance | null }) {
   if (!inst) return null
   return (
     <Tooltip text={`${inst.game} · ${inst.name} (${inst.code})`}>
@@ -159,11 +189,14 @@ function InstanceChip({ charName }: { charName: string }) {
 
 // ── StatusBar (slim draggable title bar) ──────────────────────────────────────
 export function StatusBar({ updateSlot, charName = '' }: { updateSlot?: React.ReactNode; charName?: string }) {
+  const inst = useSessionInstance(charName)
   return (
     <div className="status-bar">
       <img src="./icon.png" className="app-icon" alt="" aria-hidden />
-      <InstanceChip charName={charName} />
+      <InstanceChip inst={inst} />
       <RoomIdChip />
+      {/* Only on a session that went through Lich — the number means nothing without it. */}
+      {inst?.lich && <LichRoomChip />}
       <RoomNameChip />
       <div className="status-bar-spacer" />
       <Tooltip text="Guide">

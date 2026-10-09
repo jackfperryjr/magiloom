@@ -18,7 +18,7 @@
 
 import { areaLayout, listAreas, stripArea, firstUnwalkableLink, findRoute, locateRoom, observeRoom } from './mapper'
 import { parseGenieMap, exportGenieMap } from './mapImport'
-import { roomDisplayName } from './mapModel'
+import { roomDisplayName, parseLichRoomId } from './mapModel'
 import type { MapDB, MapArc, MapNode, Zone } from './mapModel'
 
 let passed = 0
@@ -396,6 +396,24 @@ function cells(zone: Zone, origin: string): Record<string, [number, number]> {
   eq('display: an interior paren survives',
     roomDisplayName('[Crossing, Bank (Teller)]'), 'Crossing, Bank (Teller)')
   eq('display: nothing in, nothing out', roomDisplayName(''), '')
+}
+
+// Lich writes its own room number inside the title's closing bracket when the
+// player has `;display lichid` on. It is read for the Lich chip and dropped from
+// the name chip, in each of the shapes Lich can produce.
+{
+  eq('lich id: beside the game tag',
+    parseLichRoomId('[The Crossing, Town Square - 1234] (230008)'), '1234')
+  eq('lich id: with the uid Lich renders itself',
+    parseLichRoomId('[The Crossing, Town Square - 1234 - (u230008)]'), '1234')
+  eq('lich id: with a no-uid room', parseLichRoomId('[Wilds, Pine Needle Path - 88 - (**)]'), '88')
+  eq('lich id: uid alone carries none', parseLichRoomId('[The Crossing, Town Square - (u230008)]'), null)
+  eq('lich id: a plain title carries none', parseLichRoomId('[The Crossing, Town Square] (230008)'), null)
+  eq('lich id: an interior paren is not one', parseLichRoomId('[Crossing, Bank (Teller)]'), null)
+  eq('display: the lich id is dropped from the name',
+    roomDisplayName('[The Crossing, Town Square - 1234] (230008)'), 'The Crossing, Town Square')
+  eq('display: so is the uid Lich renders itself',
+    roomDisplayName('[The Crossing, Town Square - 1234 - (u230008)]'), 'The Crossing, Town Square')
 }
 
 // ── Report ─────────────────────────────────────────────────────────────────────

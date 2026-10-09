@@ -73,6 +73,13 @@
   background: #4050d8;
   color: #ffffff;
 }
+/* Rose Quartz, Prism and Phosphor have BRIGHT accents (pink, sky, amber) — white on
+   them measures 1.9–2.2:1. The label takes the theme's darkest surface instead,
+   which clears 9:1 on all three. */
+:is([data-theme="rosequartz"], [data-theme="prism"], [data-theme="phosphor"]) .login-btn,
+:is([data-theme="rosequartz"], [data-theme="prism"], [data-theme="phosphor"]) .login-btn:hover {
+  color: var(--bg-input);
+}
 
 /* ── Settings: full-screen, left nav + two-column content ──────────────────── */
 /* Settings is the one modal that fills the window. It holds eight tabs of dense
@@ -110,6 +117,76 @@
 }
 .settings-nav-item:hover { background: var(--bg-input); color: var(--text-main); }
 .settings-nav-item.active { background: var(--accent-dim); color: var(--accent); }
+/* While a search is running: a tab with no matches in it. */
+.settings-nav-item.no-hit { opacity: .4; }
+
+/* ── Settings search ───────────────────────────────────────────────────────── */
+/* The box heads the nav rail (and the tab list on a phone). Results take over the
+   content area as one narrow column — they are a list to scan, not a page to read,
+   so they don't inherit the two-column grid the tabs use. */
+.settings-search { position: relative; flex-shrink: 0; margin-bottom: 8px; }
+.settings-search-input {
+  width: 100%;
+  background: var(--bg-input); border: 1px solid var(--border-soft);
+  color: var(--text-bright);
+  font-family: var(--font-ui); font-size: 15px;
+  padding: 8px 30px 8px 11px; outline: none;
+  border-radius: 6px;
+}
+.settings-search-input::placeholder { color: var(--text-dim); }
+.settings-search-input:focus { border-color: var(--border-accent); }
+.settings-search-clear,
+.settings-search-key {
+  position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+  font-family: var(--font-ui); line-height: 1; color: var(--text-dim);
+}
+.settings-search-clear {
+  background: none; border: none; cursor: pointer;
+  font-size: 18px; padding: 2px 4px;
+}
+.settings-search-clear:hover { color: var(--text-bright); }
+/* The shortcut, shown only while the box is empty and not already focused. */
+.settings-search-key {
+  font-size: 12px; padding: 2px 6px;
+  border: 1px solid var(--border-soft); border-radius: 4px;
+  pointer-events: none;
+}
+.settings-search-input:focus ~ .settings-search-key { display: none; }
+
+.settings-results {
+  flex: 1; min-width: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 16px 20px 28px;
+}
+.settings-result {
+  display: flex; flex-direction: column; gap: 2px;
+  width: 100%; max-width: 720px; flex-shrink: 0;
+  padding: 10px 14px;
+  background: transparent; border: none; border-radius: 6px;
+  text-align: left; cursor: pointer;
+  font-family: var(--font-ui);
+}
+.settings-result.active { background: var(--bg-input); box-shadow: inset 2px 0 0 var(--accent); }
+.settings-result-title { font-size: 16px; color: var(--text-main); }
+.settings-result.active .settings-result-title { color: var(--text-bright); }
+.settings-result-path { font-size: 13px; color: var(--text-dim); }
+.settings-results-empty {
+  padding: 10px 14px;
+  font-family: var(--font-ui); font-size: 15px; color: var(--text-dim);
+}
+/* On a phone the box and its results share the tab-list screen. */
+.settings-menu .settings-search { margin: 4px 16px 10px; }
+.settings-menu .settings-result { padding: 12px 20px; border-radius: 0; }
+.settings-menu .settings-results-empty { padding: 12px 20px; }
+
+/* Where a search result landed. A fade, not a blink: it has to be findable on a
+   page of near-identical rows, and then get out of the way. The spread shadow gives
+   the wash some margin without moving anything. */
+@keyframes setting-flash {
+  0%, 35% { background-color: var(--accent-glow); box-shadow: 0 0 0 6px var(--accent-glow); }
+  100%    { background-color: transparent;        box-shadow: 0 0 0 6px transparent; }
+}
+.setting-flash { animation: setting-flash 1.8s ease-out; border-radius: 4px; }
 
 /* Mobile settings: the tab list as a first screen. Only ever rendered on a phone
    (SettingsModal gates it), so it needs no media query of its own — the drill-down
@@ -486,6 +563,39 @@
   font: inherit; line-height: inherit;
   white-space: pre; overflow: auto;
 }
+/* The Monaco variant (MonacoEditor.tsx): the editor above a status bar. Monaco
+   sizes itself to its host, so the host needs a definite box and nothing else. */
+.code-editor-rich { flex-direction: column; }
+.code-monaco { flex: 1; min-height: 0; min-width: 0; }
+.code-status {
+  flex-shrink: 0; display: flex; align-items: center; gap: 16px;
+  padding: 3px 12px;
+  background: var(--bg-shell); border-top: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  font-family: var(--font-ui); font-size: 12px; line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden;
+}
+.code-status-gap { flex: 1; }
+
+/* The two script editors, as opposed to the log readers that share this shell.
+   340px is a fine height for reading a list and a miserable one for writing code,
+   so these take most of the window; and the pane is laid out as an editor group —
+   a tab strip flush against the editor — rather than as a form field in a card. */
+.lf-body-code { height: clamp(380px, 66vh, 900px); }
+.lf-body-code .lf-editor { padding: 0; }
+.lf-body-code .lf-editor-bar {
+  margin: 0; padding: 0 10px 0 0;
+  background: var(--bg-shell); border-bottom: 1px solid var(--border-soft);
+}
+.lf-body-code .lf-editor-name {
+  padding: 8px 14px;
+  background: var(--bg-input); color: var(--text-bright);
+  border-right: 1px solid var(--border-soft);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.lf-body-code .code-editor { border: none; border-radius: 0; }
+
 .lf-empty {
   flex: 1; display: flex; align-items: center; justify-content: center;
   color: var(--text-dim); font-size: 14px; text-align: center; padding: 20px;

@@ -432,6 +432,158 @@ export const THEMES: Theme[] = [
       '--bg-theme-image': 'none',
     }
   },
+  {
+    // Pink, but a dark one: the chrome is a deep plum-rose and the pink itself is
+    // kept for what the accent is for (active states, borders, the room name). A
+    // client that is pink all the way down has nowhere left to put emphasis.
+    id: 'rosequartz',
+    name: 'Rose Quartz',
+    vars: {
+      '--bg-shell':      '#1f1019',
+      '--bg-panel':      '#2a1622',
+      '--bg-input':      '#180b13',
+      '--bg-sidebar':    '#24121d',
+      '--border':        '#6e3a56',
+      '--border-soft':   '#3d2031',
+      '--border-accent': '#e0629c',
+      '--text-main':     '#ecc9d9',
+      '--text-dim':      '#9a6682',
+      '--text-bright':   '#fff0f6',
+      '--text-muted':    '#c08aa6',
+      '--accent':        '#ff8fc0',
+      '--accent-glow':   'rgba(255,120,180,0.26)',
+      '--accent-dim':    '#45203a',
+      '--bg-overlay':    'rgba(20, 8, 15, 0.92)',
+      '--color-roomname':'#ffd9e8',
+      '--color-roomdesc':'#c79ab0',
+      '--color-speech':  '#58e058',
+      '--color-whisper': '#7aa6ff',
+      // Thought is magenta in every theme, which here sits right on the chrome's own
+      // hue — pushed toward violet so a thought still reads as a different voice.
+      '--color-thought': '#c88cff',
+      '--color-warning': '#ff7a3c',
+      '--color-bonus':   '#4fd66a',
+      '--color-penalty': '#ff4a5c',
+      '--color-bold':    '#f0d84a',
+      '--health-color':  '#e8305a',
+      '--mana-color':    '#5a78e8',
+      '--stamina-color': '#40c8d8',
+      '--spirit-color':  '#b058e0',
+      '--map-bg':       '#24131d',
+      '--map-haze':     'rgba(255,143,192,0.05)',
+      '--map-vignette': 'rgba(12,3,8,0.5)',
+      '--map-chip':     'rgba(24,11,19,0.75)',
+      '--map-room':      '#3a1f30',
+      '--map-room-hover':'#502a42',
+      '--map-line':      '#8a4a6c',
+      '--body-base':     '#7a3e60',
+      '--body-eye':      '#2a1020',
+      '--body-outline':  '#1c0a14',
+      '--bg-theme-image': 'radial-gradient(ellipse at 80% 0%, rgba(255,120,180,0.14) 0%, transparent 58%)',
+    }
+  },
+  {
+    // Rainbow. The chrome is a near-neutral charcoal on purpose: the spectrum is
+    // carried by the things that already come in sets — the four vitals run red →
+    // amber → blue → violet, and the semantic colours fill in the rest — plus the
+    // refracted band and spectrum hairline drawn in shell.css. Colouring the panels
+    // themselves would leave no neutral ground for any of that to read against.
+    id: 'prism',
+    name: 'Prism',
+    vars: {
+      '--bg-shell':      '#101014',
+      '--bg-panel':      '#17171d',
+      '--bg-input':      '#0c0c10',
+      '--bg-sidebar':    '#131318',
+      '--border':        '#3a3a48',
+      '--border-soft':   '#24242d',
+      '--border-accent': '#62d4ff',
+      '--text-main':     '#d8d8e2',
+      '--text-dim':      '#737386',
+      '--text-bright':   '#ffffff',
+      '--text-muted':    '#9c9cb0',
+      '--accent':        '#62d4ff',
+      '--accent-glow':   'rgba(98,212,255,0.22)',
+      '--accent-dim':    '#1c2a36',
+      '--bg-overlay':    'rgba(6, 6, 9, 0.92)',
+      '--color-roomname':'#ffffff',
+      '--color-roomdesc':'#a4a4b8',
+      '--color-speech':  '#5fe36a',
+      '--color-whisper': '#6f9dff',
+      '--color-thought': '#c78bff',
+      '--color-warning': '#ff9a3c',
+      '--color-bonus':   '#38d8a0',
+      '--color-penalty': '#ff4d5e',
+      '--color-bold':    '#ffe04a',
+      '--health-color':  '#ff4d5e',
+      '--mana-color':    '#4d8cff',
+      '--stamina-color': '#ffb83c',
+      '--spirit-color':  '#a86bff',
+      '--map-bg':       '#15151b',
+      '--map-haze':     'rgba(140,120,255,0.05)',
+      '--map-vignette': 'rgba(0,0,0,0.5)',
+      '--map-chip':     'rgba(16,16,20,0.78)',
+      '--map-room':      '#26262f',
+      '--map-room-hover':'#33333f',
+      '--map-line':      '#55556a',
+      '--body-base':     '#4a4a5e',
+      '--body-eye':      '#141419',
+      '--body-outline':  '#0e0e12',
+      '--bg-theme-image': 'none',
+    }
+  },
+  {
+    // An amber-phosphor terminal: the one theme whose body text is itself coloured.
+    // Every other palette here is pale text on a tinted ground; this is a single
+    // warm phosphor on black, with scanlines behind it (shell.css). The functional
+    // colours are NOT folded into the monochrome — a terminal that can't tell a
+    // whisper from a warning is a worse client, however authentic — so they stay
+    // distinct hues, and bold goes to near-white because yellow-on-amber is no
+    // emphasis at all.
+    id: 'phosphor',
+    name: 'Phosphor',
+    vars: {
+      '--bg-shell':      '#0a0703',
+      '--bg-panel':      '#120c05',
+      '--bg-input':      '#070502',
+      '--bg-sidebar':    '#0e0904',
+      '--border':        '#5a3c12',
+      '--border-soft':   '#2e1f0a',
+      '--border-accent': '#ffb000',
+      '--text-main':     '#f0b354',
+      '--text-dim':      '#8f6424',
+      '--text-bright':   '#ffd98a',
+      '--text-muted':    '#c08a38',
+      '--accent':        '#ffb000',
+      '--accent-glow':   'rgba(255,176,0,0.25)',
+      '--accent-dim':    '#3a2606',
+      '--bg-overlay':    'rgba(5, 3, 1, 0.92)',
+      '--color-roomname':'#ffe2a0',
+      '--color-roomdesc':'#c9963f',
+      '--color-speech':  '#6fe06f',
+      '--color-whisper': '#7fb0ff',
+      '--color-thought': '#f080e0',
+      '--color-warning': '#ff5a2a',
+      '--color-bonus':   '#58d858',
+      '--color-penalty': '#ff4030',
+      '--color-bold':    '#fff3c4',
+      '--health-color':  '#e83a1e',
+      '--mana-color':    '#3a8ae0',
+      '--stamina-color': '#58c8a0',
+      '--spirit-color':  '#b060e0',
+      '--map-bg':       '#0f0a04',
+      '--map-haze':     'rgba(255,176,0,0.045)',
+      '--map-vignette': 'rgba(0,0,0,0.55)',
+      '--map-chip':     'rgba(10,7,3,0.8)',
+      '--map-room':      '#2a1c08',
+      '--map-room-hover':'#3d290c',
+      '--map-line':      '#7a5218',
+      '--body-base':     '#6b4a16',
+      '--body-eye':      '#1a1004',
+      '--body-outline':  '#0c0702',
+      '--bg-theme-image': 'none',
+    }
+  },
 ]
 
 /** Whether `id` is a theme with two faces, and so has a mode worth toggling. */

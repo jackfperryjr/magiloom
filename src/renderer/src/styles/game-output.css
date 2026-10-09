@@ -163,6 +163,12 @@
   color: var(--text-bright);
 }
 
+/* Bright accents: white text on them is unreadable, so the label goes dark (the
+   same correction these themes get on .login-btn in modals.css). */
+:is([data-theme="rosequartz"], [data-theme="prism"], [data-theme="phosphor"]) .jump-present {
+  color: var(--bg-input);
+}
+
 /* SGE presets */
 .preset-roomname {
   color: var(--color-roomname);

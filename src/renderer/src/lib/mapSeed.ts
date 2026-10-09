@@ -228,6 +228,17 @@ export function reseedZone(zone: Zone): Zone {
   return mergeSeed(one(zone), one(sz)).db.zones[zone.id] ?? zone
 }
 
+// Game room id → Lich room id, for the title bar's Lich chip. The dataset is built
+// from Lich's own map database and `id` there IS Lich's room number, so this is the
+// one place the two numbering schemes can be joined without asking Lich anything.
+let lichIdByUid: Map<string, string> | null = null
+
+/** Lich's number for the room with this game id, or null when the dataset doesn't
+ *  know the room (or hasn't loaded). Only as current as the shipped dataset. */
+export function lichRoomIdForUid(uid: string): string | null {
+  return (uid && lichIdByUid?.get(uid)) || null
+}
+
 /** Whether a dataset was loaded — lets the UI word destructive actions honestly. */
 export function hasSeed(): boolean {
   return cachedSeed !== null
@@ -311,6 +322,8 @@ export async function seedFromDataset(recorded: MapDB): Promise<SeedResult> {
   // Hold the built graph (positions already applied) so a later clear can restore
   // the shipped rooms without re-parsing the dataset.
   cachedSeed = seed
+  lichIdByUid = new Map()
+  for (const r of doc.rooms) for (const u of r.uid ?? []) lichIdByUid.set(String(u), String(r.id))
 
   const merged = mergeSeed(recorded, seed)
   return { ...merged, baked, staleReason }

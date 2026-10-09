@@ -26,6 +26,11 @@ export const currentNodeAtom = atom<MapNode | null>(get => {
   return null
 })
 
+// Flips once the shipped dataset has been parsed. The dataset's lookups live in
+// lib/mapSeed as plain module state, so anything rendering from them (the title
+// bar's Lich room chip) subscribes to this to learn they have become answerable.
+export const mapSeededAtom = atom(false)
+
 // Auto-record toggle. Persisted per-window in localStorage (a quick, no-IPC store
 // mirroring linkMode); the Settings "Maps" tab surfaces it. When off, the mapper
 // still tracks position against the existing map but never adds nodes/arcs.
