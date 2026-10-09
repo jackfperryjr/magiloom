@@ -137,7 +137,7 @@ export function LichFilesEditor({ charName }: { charName?: string }) {
         <span className="settings-label" style={{ margin: 0 }}>Profiles &amp; custom scripts</span>
         {status && <span className="lf-status">{status}</span>}
       </div>
-      <div className="lf-body lf-body-embed">
+      <div className="lf-body lf-body-embed lf-body-code">
         <div className="lf-list">{GROUPS.map(renderGroup)}</div>
         <div className="lf-editor">
           {selected ? <>
@@ -145,7 +145,7 @@ export function LichFilesEditor({ charName }: { charName?: string }) {
               <span className="lf-editor-name">{selected}{dirty ? ' •' : ''}</span>
               <button className="login-btn" style={{ width: 'auto', padding: '5px 14px' }} disabled={!dirty} onClick={() => void save()}>Save</button>
             </div>
-            <CodeEditor value={content} onChange={v => { setContent(v); setDirty(true) }} />
+            <CodeEditor path={selected} value={content} onChange={v => { setContent(v); setDirty(true) }} onSave={() => void save()} />
           </> : <div className="lf-empty">Select a file to edit, or use + / ↑ to create or upload one.</div>}
         </div>
       </div>

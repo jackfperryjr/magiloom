@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { roomAtom, promptCountAtom, connectionStatusAtom, roundtimeAtom, appendScriptOutputAtom, currentGameMove, clearGameMove } from '../store/game'
-import { mapDbAtom, currentNodeIdAtom, autoRecordAtom, walkStateAtom } from '../store/map'
+import { mapDbAtom, currentNodeIdAtom, autoRecordAtom, walkStateAtom, mapSeededAtom } from '../store/map'
 import { classifyMove, roomSignature, parseRoomUid, stripRoomTag, emptyDb, type MapDB, type Zone } from '../lib/mapModel'
 import { observeRoom, locateRoom, recordArc, nodeZoneId, findRoute, findNode, matchRoom, firstUnwalkableLink } from '../lib/mapper'
-import { seedFromDataset, recordedZone, reseedZone } from '../lib/mapSeed'
+import { seedFromDataset, recordedZone, reseedZone, hasSeed } from '../lib/mapSeed'
 
 // A captured movement is only paired with the room change it caused if the change
 // lands within this window (a move + server round-trip). Beyond it, the room
@@ -39,6 +39,7 @@ const MAP_DEBUG = (() => { try { return localStorage.getItem('magiloom-automap-d
 export function useAutomapper() {
   const [db, setDb]     = useAtom(mapDbAtom)
   const setCurrentNode  = useSetAtom(currentNodeIdAtom)
+  const setSeeded       = useSetAtom(mapSeededAtom)
   const autoRecord      = useAtomValue(autoRecordAtom)
   const room            = useAtomValue(roomAtom)
   const promptCount     = useAtomValue(promptCountAtom)
@@ -104,6 +105,7 @@ export function useAutomapper() {
         // the player's own store would bloat it and blur which rooms they actually
         // walked — the distinction the merge relies on to know what wins.
         if (seeded.added) setDb(seeded.db)
+        setSeeded(hasSeed())
         if (MAP_DEBUG) {
           console.log(`[automap] seeded ${seeded.added} rooms (${seeded.skipped} already known), ` +
             `layouts ${seeded.baked ? 'baked' : `live${seeded.staleReason ? ` — ${seeded.staleReason}` : ''}`}`)
@@ -124,7 +126,7 @@ export function useAutomapper() {
       setDb(prev => ({ ...prev, zones: { ...prev.zones, [merged.id]: merged } }))
     })
     return () => { cancelled = true; off() }
-  }, [setDb])
+  }, [setDb, setSeeded])
 
   // ── Reset position tracking on (re)connect ──────────────────────────────────
   // A fresh connection (or a character switch) starts at an unknown position, so

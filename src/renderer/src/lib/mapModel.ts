@@ -164,8 +164,22 @@ export function stripRoomTag(title: string): string {
 // trailing tag is the id we already display on its own. A title that arrives
 // without brackets (some rooms send a bare name) is left as-is.
 export function roomDisplayName(title: string): string {
-  const stripped = stripRoomTag(title)
+  const stripped = stripRoomTag(title).replace(LICH_TITLE_ID, ']')
   return stripped.replace(/^\[(.*)\]$/s, '$1').trim()
+}
+
+// ── Lich room id ──────────────────────────────────────────────────────────────
+// Lich numbers rooms itself (the id `;go2` takes), separately from the game's id.
+// With `;display lichid` on and the id placed in the title, Lich writes it inside
+// the closing bracket, optionally followed by its own rendering of the game id:
+//   "[Town Square - 1234] (230008)"       ;display lichid
+//   "[Town Square - 1234 - (u230008)]"    ;display lichid + ;display uid
+//   "[Town Square - (u230008)]"           ;display uid alone — no Lich id here
+// (see modify_room_display / room_number_display in Lich's lib/games.rb).
+const LICH_TITLE_ID = /(?: - (\d+))?(?: - \((?:u\d+|\*\*)\))?\]/
+
+export function parseLichRoomId(title: string): string | null {
+  return title.match(LICH_TITLE_ID)?.[1] ?? null
 }
 
 // ── Signature / identity ──────────────────────────────────────────────────────

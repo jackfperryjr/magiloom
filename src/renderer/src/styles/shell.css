@@ -200,13 +200,63 @@
   opacity: 0.05;
 }
 
+/* Rose Quartz, Prism and Phosphor draw their art from gradients alone — no image
+   asset — so each recipe is held in a custom property and painted twice: on the
+   surfaces below, and on the theme's own picker tile further down. The properties
+   are named per theme rather than swapped by [data-theme] because the picker shows
+   every tile at once, whatever theme is active.
+
+   Rose Quartz: two soft blooms and a pair of faint conic wedges off the upper-right
+   corner, which is what reads as a facet rather than as another glow. Each wedge
+   ramps up AND down — a conic stop that starts at full strength draws a hard line
+   clean across the surface, straight through the text.
+   Prism: a beam refracted across the surface, and a spectrum hairline along the top
+   edge. The band is held under 8% so it tints the ground without colouring the text
+   that crosses it.
+   Phosphor: scanlines, a tube vignette and a faint glow off-centre. All of it sits
+   BEHIND the text (z-index:-1), so the lines stripe the glass and not the letters. */
+:root {
+  --art-rosequartz:
+    conic-gradient(from 200deg at 88% 6%, transparent 0deg, rgba(255,143,192,0.07) 16deg, transparent 34deg, rgba(255,143,192,0.045) 52deg, transparent 74deg),
+    radial-gradient(ellipse at 85% 0%, rgba(255,120,180,0.16) 0%, transparent 55%),
+    radial-gradient(ellipse at 8% 100%, rgba(190,90,200,0.10) 0%, transparent 50%);
+  --art-prism:
+    linear-gradient(90deg, #ff4d5e, #ff9a3c, #ffe04a, #5fe36a, #4d8cff, #a86bff) top / 100% 2px no-repeat,
+    linear-gradient(118deg, transparent 34%, rgba(255,77,94,0.075) 40%, rgba(255,154,60,0.075) 45%, rgba(255,224,74,0.075) 50%, rgba(95,227,106,0.075) 55%, rgba(77,140,255,0.075) 60%, rgba(168,107,255,0.075) 65%, transparent 72%);
+  --art-phosphor:
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.30) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at 50% 50%, transparent 58%, rgba(0,0,0,0.42) 100%),
+    radial-gradient(ellipse at 40% 30%, rgba(255,176,0,0.07) 0%, transparent 60%);
+}
+:root[data-theme="rosequartz"] .game-output-wrap { background: #1c0d16; }
+:root[data-theme="prism"]      .game-output-wrap { background: #0e0e12; }
+:root[data-theme="phosphor"]   .game-output-wrap { background: #0b0703; }
+:root:is([data-theme="rosequartz"], [data-theme="prism"], [data-theme="phosphor"]) :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay) {
+  position: relative;
+  isolation: isolate;
+}
+:root:is([data-theme="rosequartz"], [data-theme="prism"], [data-theme="phosphor"]) :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+}
+:root[data-theme="rosequartz"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before { background: var(--art-rosequartz); }
+:root[data-theme="prism"]      :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before { background: var(--art-prism); }
+:root[data-theme="phosphor"]   :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before { background: var(--art-phosphor); }
+
 /* Theme-preview tiles (Settings → Appearance) preview their OWN theme's art via
    the data-theme-id on each swatch — independent of the active theme. */
 .theme-swatch { position: relative; isolation: isolate; overflow: hidden; }
 .theme-swatch[data-theme-id="magiloom"]::before,
 .theme-swatch[data-theme-id="ashfall"]::before,
 .theme-swatch[data-theme-id="bloodstone"]::before,
-.theme-swatch[data-theme-id="forest"]::before {
+.theme-swatch[data-theme-id="forest"]::before,
+.theme-swatch[data-theme-id="rosequartz"]::before,
+.theme-swatch[data-theme-id="prism"]::before,
+.theme-swatch[data-theme-id="phosphor"]::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -243,3 +293,7 @@
   background: url('./themes/trees.png') center bottom / cover no-repeat;
   opacity: 0.55;
 }
+/* The gradient themes reuse their surface recipe as-is (see --art-* above). */
+.theme-swatch[data-theme-id="rosequartz"]::before { background: var(--art-rosequartz); }
+.theme-swatch[data-theme-id="prism"]::before      { background: var(--art-prism); }
+.theme-swatch[data-theme-id="phosphor"]::before   { background: var(--art-phosphor); }

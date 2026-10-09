@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSetAtom } from 'jotai'
 import { applyTheme, type ThemeMode } from '../../lib/themes'
 import { appearanceAtom } from '../../store/game'
@@ -22,28 +22,42 @@ import { AliasesTab } from './settings/AliasesTab'
 import { TriggersTab } from './settings/TriggersTab'
 import { SettingRow } from './settings/Field'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import {
+  TABS, searchSettings, entryTitle, entryPath, type TabId, type SettingEntry,
+} from '../../lib/settingsIndex'
 
 interface SettingsModalProps {
   charName?: string
   onClose: () => void
 }
 
-type TabId = 'appearance' | 'ambient' | 'notifications' | 'hotkeys' | 'aliases' | 'triggers' | 'scripts' | 'lich' | 'logs'
+// The tab list lives in lib/settingsIndex, beside the catalogue search runs over.
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'appearance',    label: 'Appearance' },
-  { id: 'ambient',       label: 'Ambient' },
-  { id: 'notifications', label: 'Notifications' },
-  { id: 'hotkeys',       label: 'Hotkeys' },
-  { id: 'aliases',       label: 'Aliases' },
-  { id: 'triggers',      label: 'Triggers' },
-  { id: 'scripts',       label: 'Scripts' },
-  { id: 'lich',          label: 'Lich' },
-  // Lantern's own game-output logs. Separate from the Lich tab because they are a
-  // different set of files with a different owner — Lich writes its own, and mixing
-  // the two under one heading is what made it unclear which was eating the disk.
-  { id: 'logs',          label: 'Lantern Logs' },
-]
+/**
+ * The element a search result points at, inside the tab that is now showing.
+ *
+ * Found by the text the user can see rather than by ids threaded through every
+ * tab: section heading first (two toggles are both called "Whispers"), then the
+ * row. An exact name wins; failing that, a row containing every word of the label,
+ * which is what finds "Log Jackreous's game output" from "Log game output". When
+ * the row can't be found the heading is still the right place to land.
+ */
+function findSettingEl(root: HTMLElement, e: SettingEntry): HTMLElement | null {
+  const text = (el: Element | null): string =>
+    (el?.textContent ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
+  const section = [...root.querySelectorAll<HTMLElement>('.settings-section')]
+    .find(sec => text(sec.querySelector('.settings-section-label')) === e.section.toLowerCase())
+  if (!section) return null
+  const heading = section.querySelector<HTMLElement>('.settings-section-label')
+  if (!e.label) return heading
+  const want  = e.label.toLowerCase()
+  const words = want.split(' ')
+  const rows  = [...section.querySelectorAll<HTMLElement>('.setting-row, .lf-embed-head')]
+  const name  = (r: HTMLElement): string => text(r.querySelector('.setting-name, .settings-label'))
+  return rows.find(r => name(r) === want)
+      ?? rows.find(r => words.every(w => name(r).includes(w)))
+      ?? heading
+}
 
 export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const isWeb = window.dr.app.platform === 'web'
@@ -104,6 +118,101 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const openTab = (id: TabId) => { setTab(id); setAtMenu(false) }
   // Only the menu screen has no tab open; on desktop there is always one.
   const showMenu = isMobile && atMenu
+
+  // ── Search ──
+  // Typing replaces the tab with a list of matching settings; picking one opens its
+  // tab and scrolls to it. `jump` is the picked entry, held until the tab it lives
+  // in has rendered — the row doesn't exist to scroll to until then.
+  const [query,  setQuery]  = useState('')
+  const [active, setActive] = useState(0)
+  const [jump,   setJump]   = useState<SettingEntry | null>(null)
+  const searchRef  = useRef<HTMLInputElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const results   = useMemo(() => searchSettings(query, isWeb), [query, isWeb])
+  const searching = query.trim() !== ''
+  const hitTabs   = useMemo(() => new Set(results.map(r => r.tab)), [results])
+
+  const goTo = (e: SettingEntry) => {
+    setTab(e.tab); setAtMenu(false); setQuery(''); setJump(e)
+  }
+
+  useEffect(() => {
+    if (!jump || searching) return
+    const root = contentRef.current
+    const el   = root && findSettingEl(root, jump)
+    setJump(null)
+    if (!root || !el) return
+    // Scrolled by hand rather than with scrollIntoView, which also scrolls every
+    // clipped ancestor it can — and the modal sits inside several.
+    const r = el.getBoundingClientRect(), c = root.getBoundingClientRect()
+    root.scrollTop += r.top - c.top - Math.max(0, (c.height - r.height) / 2)
+    el.classList.remove('setting-flash')
+    void el.offsetWidth   // restart the animation if this row was only just flashed
+    el.classList.add('setting-flash')
+    el.addEventListener('animationend', () => el.classList.remove('setting-flash'), { once: true })
+  }, [jump, searching, tab])
+
+  // "/" or Ctrl/Cmd+F puts the cursor in the search box. "/" is left alone while
+  // typing in a field — it is a character in a path, a pattern and a command. And
+  // neither is taken from a code editor, where Ctrl+F means find IN THE FILE.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const find  = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f'
+      const t     = e.target as HTMLElement | null
+      if (t?.closest?.('.code-editor')) return
+      const typing = !!t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))
+      if (!find && !(e.key === '/' && !typing)) return
+      if (!searchRef.current) return
+      e.preventDefault()
+      searchRef.current.focus()
+      searchRef.current.select()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown')    { e.preventDefault(); setActive(i => Math.min(i + 1, results.length - 1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(i => Math.max(i - 1, 0)) }
+    else if (e.key === 'Enter')   { const hit = results[active]; if (hit) { e.preventDefault(); goTo(hit) } }
+    else if (e.key === 'Escape' && query) { e.stopPropagation(); setQuery('') }
+  }
+
+  const searchBox = (
+    <div className="settings-search">
+      <input
+        ref={searchRef}
+        className="settings-search-input"
+        type="text"
+        role="searchbox"
+        aria-label="Search settings"
+        placeholder="Search settings"
+        spellCheck={false}
+        // A phone would answer this by throwing its keyboard over the menu.
+        autoFocus={!isMobile}
+        value={query}
+        onChange={e => { setQuery(e.target.value); setActive(0) }}
+        onKeyDown={onSearchKey}
+      />
+      {query
+        ? <button className="settings-search-clear" aria-label="Clear search" onClick={() => { setQuery(''); searchRef.current?.focus() }}>×</button>
+        : !isMobile && <kbd className="settings-search-key" aria-hidden="true">/</kbd>}
+    </div>
+  )
+
+  const resultList = results.length === 0
+    ? <div className="settings-results-empty">No settings match “{query.trim()}”.</div>
+    : results.map((r, i) => (
+        <button
+          key={`${r.tab}/${r.section}/${r.label ?? ''}`}
+          className={'settings-result' + (i === active ? ' active' : '')}
+          onMouseEnter={() => setActive(i)}
+          onClick={() => goTo(r)}
+        >
+          <span className="settings-result-title">{entryTitle(r)}</span>
+          <span className="settings-result-path">{entryPath(r)}</span>
+        </button>
+      ))
 
   const setFk = (key: string, cmd: string) =>
     setFunctionKeys(prev => ({ ...prev, [key]: cmd }))
@@ -257,11 +366,14 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
               first screen instead (rendered below), so there is nothing to pin. */}
           {!isMobile && (
             <nav className="settings-nav">
+              {searchBox}
               {tabs.map(t => (
                 <button
                   key={t.id}
-                  className={'settings-nav-item' + (tab === t.id ? ' active' : '')}
-                  onClick={() => setTab(t.id)}
+                  // While searching, the rail shows where the matches are: no tab is
+                  // "current", and the ones with nothing in them step back.
+                  className={'settings-nav-item' + (!searching && tab === t.id ? ' active' : '') + (searching && !hitTabs.has(t.id) ? ' no-hit' : '')}
+                  onClick={() => { setQuery(''); setTab(t.id) }}
                 >
                   {t.label}
                 </button>
@@ -271,7 +383,8 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
 
           {showMenu && (
             <nav className="settings-menu">
-              {tabs.map(t => (
+              {searchBox}
+              {searching ? resultList : tabs.map(t => (
                 <button key={t.id} className="settings-menu-item" onClick={() => openTab(t.id)}>
                   <span className="settings-menu-label">{t.label}</span>
                   <span className="settings-menu-chevron" aria-hidden="true">›</span>
@@ -280,8 +393,12 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
             </nav>
           )}
 
-          {!showMenu && (
-          <div className="modal-body settings-content">
+          {!showMenu && searching && (
+            <div className="settings-results">{resultList}</div>
+          )}
+
+          {!showMenu && !searching && (
+          <div className="modal-body settings-content" ref={contentRef}>
             {tab === 'appearance' && (
               <AppearanceTab
                 theme={theme} previewTheme={previewTheme}

@@ -18,7 +18,7 @@
  */
 
 import {
-  mergeSeed, applyBakedLayouts, recordedZone, reseedZone, seedFromDataset,
+  mergeSeed, applyBakedLayouts, recordedZone, reseedZone, seedFromDataset, lichRoomIdForUid,
   LAYOUT_VERSION, type BakedLayouts,
 } from './mapSeed'
 import { emptyDb, type MapDB, type MapNode, type Zone } from './mapModel'
@@ -188,6 +188,7 @@ const linksOf = (z: Zone): string => z.arcs.map(a => `${a.from}>${a.to}`).sort()
   // through unchanged rather than being emptied.
   const z = zoneOf(db([node('a')]))
   check('reseedZone is a no-op with no dataset', reseedZone(z) === z)
+  eq('no dataset, no Lich room id', lichRoomIdForUid('230008'), null)
 }
 {
   // Load a tiny dataset through the real path, so cachedSeed is populated exactly
@@ -195,8 +196,8 @@ const linksOf = (z: Zone): string => z.arcs.map(a => `${a.from}>${a.to}`).sort()
   const rooms = JSON.stringify({
     instance: 'dr-prime', source: 'test', generated: 0, roomsVersion: 'v1',
     rooms: [
-      { id: 1, t: '[Town, Square]', desc: 'd1', h: 'h1', e: ['north'], loc: 'Zoluren', f: ['rock'], x: [[2, 'north', 'north']] },
-      { id: 2, t: '[Town, Road]',   desc: 'd2', h: 'h2', e: ['south'], x: [] },
+      { id: 1, uid: [230008], t: '[Town, Square]', desc: 'd1', h: 'h1', e: ['north'], loc: 'Zoluren', f: ['rock'], x: [[2, 'north', 'north']] },
+      { id: 2, uid: [5, 6],   t: '[Town, Road]',   desc: 'd2', h: 'h2', e: ['south'], x: [] },
     ],
   })
   ;(globalThis as unknown as { window: unknown }).window = {
@@ -211,6 +212,13 @@ const linksOf = (z: Zone): string => z.arcs.map(a => `${a.from}>${a.to}`).sort()
   check('forage carried onto the node',
     Object.values(live.nodes).some(n => n.forage?.[0] === 'rock'))
   check('seeded rooms are flagged', Object.values(live.nodes).every(n => n.seed === true))
+
+  // The dataset's own `id` is Lich's room number — the title bar joins the game's
+  // id to it here. An instanced room answers to every uid it has.
+  eq('game id resolves to the Lich id', lichRoomIdForUid('230008'), '1')
+  eq('each uid of an instanced room resolves', lichRoomIdForUid('6'), '2')
+  eq('an unknown room has none', lichRoomIdForUid('999'), null)
+  eq('a room with no game id has none', lichRoomIdForUid(''), null)
 
   // What the store would actually hold for this zone after the player walked one
   // room of it — and what another window then hands us back.

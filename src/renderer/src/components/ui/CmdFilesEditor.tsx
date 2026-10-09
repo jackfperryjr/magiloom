@@ -80,7 +80,7 @@ export function CmdFilesEditor() {
         <span className="settings-label" style={{ margin: 0 }}>Script files</span>
         {status && <span className="lf-status">{status}</span>}
       </div>
-      <div className="lf-body lf-body-embed">
+      <div className="lf-body lf-body-embed lf-body-code">
         <div className="lf-list">
           <div className="lf-group">
             <div className="lf-group-head">
@@ -121,7 +121,7 @@ export function CmdFilesEditor() {
               <span className="lf-editor-name">{selected}.cmd{dirty ? ' •' : ''}</span>
               <button className="login-btn" style={{ width: 'auto', padding: '5px 14px' }} disabled={!dirty} onClick={() => void save()}>Save</button>
             </div>
-            <CodeEditor value={content} onChange={v => { setContent(v); setDirty(true) }} />
+            <CodeEditor path={selected + '.cmd'} value={content} onChange={v => { setContent(v); setDirty(true) }} onSave={() => void save()} />
           </> : <div className="lf-empty">Select a script to edit, or use + / ↑ to create or upload one.</div>}
         </div>
       </div>
