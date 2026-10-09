@@ -8,7 +8,7 @@ import {
   connectionStatusAtom, promptCountAtom, wealthAtom, beginSilentInfoAtom,
   type OutputLine,
 } from '../../store/game'
-import { ranksGained, sleepState } from '../../lib/exp-parser'
+import { ranksGained, sleepState, hasFieldExp } from '../../lib/exp-parser'
 import {
   invSnapshotAtom, invStatusAtom, invErrorAtom, refreshInventoryAtom, ensureInventoryAtom,
 } from '../../store/inventory'
@@ -151,7 +151,7 @@ export function ExperiencePanel() {
   // The session clock is the one figure that moves on its own, so it rides the
   // shared 1 s tick rather than a timer of its own.
   const now = useAtomValue(tickAtom)
-  const activeSkills = exp.skills.filter(s => s.pct > 0)
+  const activeSkills = exp.skills.filter(hasFieldExp)
   // Free accounts have no rested experience at all, and a character can have a
   // circle and TDPs while nothing is absorbing — so the tiles are shown whenever
   // the report has landed, reading "—" for what the character doesn't have,

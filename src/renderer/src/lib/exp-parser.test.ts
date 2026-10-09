@@ -11,7 +11,7 @@
 
 import {
   parseExpSkills, parseRestedExp, restedSeconds,
-  parseCircle, parseOverallMind, sleepState, ranksGained,
+  parseCircle, parseOverallMind, sleepState, ranksGained, hasFieldExp,
 } from './exp-parser'
 
 let passed = 0
@@ -115,6 +115,30 @@ eq(
   ranksGained([{ name: 'Athletics', rank: 305, pct: 0 }], { Athletics: 305.66 }),
   0,
 )
+
+// ── Field experience ─────────────────────────────────────────────────────────
+// What decides whether a skill is listed in the Experience panel. It is the
+// mindstate pool and never the percent toward the next rank — the panel used to
+// test the percent, which hid a skill for as long as it sat at the start of a rank.
+{
+  check('a learning skill at 0% of a rank still has field exp',
+    hasFieldExp({ mind: '12/34', mindWord: 'learning' }))
+  check('a clear skill part-way through a rank has none',
+    !hasFieldExp({ mind: '0/34', mindWord: 'clear' }))
+  check('a fraction with padding is read', hasFieldExp({ mind: ' 1/34' }))
+  check('no fraction: a mindstate word counts', hasFieldExp({ mind: '', mindWord: 'dabbling' }))
+  check('no fraction: "clear" does not', !hasFieldExp({ mind: '', mindWord: 'clear' }))
+  check('no fraction and no word is nothing', !hasFieldExp({ mind: '' }))
+
+  // Straight off a report line, as the panel receives it: a guild skill that has
+  // just ranked up, and a skill that is 13% into a rank but not learning at all.
+  const [astrology, lunar] = parseExpSkills(
+    '       Astrology:    450  0% mind lock    (34/34)     Lunar Magic:   1432 13% clear          (0/34)')
+    .map(r => ({ name: r.name, mind: r.frac, mindWord: r.mind }))
+  eq('the report line parses', `${astrology?.name}, ${lunar?.name}`, 'Astrology, Lunar Magic')
+  check('ranked-up and mind locked is listed', hasFieldExp(astrology))
+  check('mid-rank and clear is not', !hasFieldExp(lunar))
+}
 
 /** The panel rounds for display; do the same here so float noise can't fail the test. */
 function ranksLabelish(n: number): string {
