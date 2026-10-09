@@ -18,30 +18,31 @@ function hl(id: string, pattern: string, color: string, bgcolor = '', bold = fal
   return { id, pattern, isRegex, color, bgcolor, bold, enabled: true }
 }
 
+// What a character with no highlights of their own starts with. Deliberately short:
+// every rule here fires for every player, so it holds only what is unambiguous in
+// any session — nothing keyed to one character, one guild or one play style.
+//
+// A pattern with `|` in it MUST be flagged as a regex. As a plain substring the bar
+// is a literal character, and the rule silently never matches anything.
 export const DEFAULT_HIGHLIGHTS: Highlight[] = [
-  // Your character name — bright white on a dark highlight
-  hl('char-name',    'Jackreous',             '#ffffff', '#2a1e3a', true),
   // Combat
-  hl('death',        '\\bslain\\b|you die|killed\\b', '#ff4040', '#2a0808', true, true),
+  hl('death',        '\bslain\b|you die|killed\b', '#ff4040', '#2a0808', true, true),
   hl('roundtime',    'Roundtime:',            '#e0c060', '', true),
   hl('stunned',      'stunned',               '#ff8040', '', true),
-  hl('bleeding',     'bleeding',              '#cc3030', '', false),
   hl('webbed',       'webbed',                '#80c0e0', '', false),
-  // Loot
-  hl('coins',        'copper|silver|gold|platinum', '#e0c060', '', false, true),
-  hl('gem',          '\\bgem\\b|\\bstone\\b|\\bcrystal\\b', '#80d8c0', '', false, true),
   // Social
-  hl('speech-you',   'says,|say,|exclaims,|asks,', '#7ec8a0', '', false),
+  hl('speech-you',   'says,|say,|exclaims,|asks,', '#7ec8a0', '', false, true),
   hl('whisper',      'whispers',              '#a898d8', '', true),
   hl('thought',      'thinks,',               '#c890c8', '', true),
   // Danger
-  hl('danger',       'critical|CRITICAL|shatters|broken', '#ff6040', '', true),
-  // System
-  hl('lich-active',  'Lich v',               '#7058c0', '', false),
-  hl('exp-gained',   'You gain.*experience', '#60c878', '', false, true),
+  hl('danger',       'critical|CRITICAL|shatters|broken', '#ff6040', '', true, true),
+  // Progress
+  hl('exp-gained',   "You've gained",         '#e8c87a', '', false),
   // Navigation / social
   hl('also-here',    'Also here:',            '#d4a843', '', true),
   hl('obvious-paths','Obvious paths:',        '#60c878', '', false),
+  // System — the leading "*" is literal, so this one must stay a plain substring.
+  hl('logon',        '* Log-on system converted', '#e8c87a', '', false),
 ]
 /**
  * Which face of a DUAL theme is showing. Single-face themes are always 'dark' —

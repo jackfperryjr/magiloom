@@ -5,7 +5,7 @@ import { ambienceFromCode } from '../lib/roomAmbient'
 import { currentNodeAtom } from './map'
 import type { GameEvent, LinkSpan, TextStyle, VitalField, StreamId } from '../lib/sge-parser'
 import {
-  parseExpSkills, parseRestedExp, parseCircle, parseOverallMind, fractionalRank,
+  parseExpSkills, parseRestedExp, parseCircle, parseOverallMind, fractionalRank, hasFieldExp,
 } from '../lib/exp-parser'
 import { isAtmospheric } from '../lib/atmospherics'
 import { strikeIntensity } from '../lib/combatStrike'
@@ -755,9 +755,13 @@ let _silentExpBatch = false
 // Resets one skill's field experience to cleared, preserving its known capacity
 // (e.g. "340/900" -> "0/900"). Used both when an EXP report omits a decayed
 // skill and when a mass drain wipes every skill at once.
+//
+// Only the pool is emptied. `pct` — progress toward the next rank — is left alone:
+// a skill doesn't lose rank progress when its field experience drains, and zeroing
+// it here made the session's "ranks gained" forget whatever the skill had earned.
 function clearSkillExp(s: ExpSkill): ExpSkill {
   const cap = s.mind.split('/')[1]
-  return { ...s, pct: 0, mind: cap ? `0/${cap}` : '', mindWord: 'clear' }
+  return { ...s, mind: cap ? `0/${cap}` : '', mindWord: 'clear' }
 }
 
 // Two events drain ALL field experience at once without pushing per-skill
@@ -1457,7 +1461,7 @@ export const dispatchGameEventAtom = atom(
       case 'expClear': {
         const exp = get(expAtom)
         const idx = exp.skills.findIndex(s => s.name === event.name)
-        if (idx >= 0 && exp.skills[idx].pct > 0) {
+        if (idx >= 0 && hasFieldExp(exp.skills[idx])) {
           set(expAtom, { ...exp, skills: exp.skills.map((s, i) => i === idx ? clearSkillExp(s) : s) })
         }
         break

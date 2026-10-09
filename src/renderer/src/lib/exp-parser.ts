@@ -92,6 +92,28 @@ export function sleepState(text: string): SleepState {
   return /deep sleep/i.test(text) ? 'deep' : 'resting'
 }
 
+// ── Field experience ─────────────────────────────────────────────────────────
+/**
+ * Whether a skill is holding field experience — i.e. whether it is learning.
+ *
+ * That is the MINDSTATE, the "12/34" pool, and nothing else. It is easy to reach for
+ * `pct` instead, and wrong: `pct` is progress toward the next RANK, which has no
+ * bearing on it. A skill that has just ranked up reads 0% while its pool is full,
+ * and a skill sitting at 40% of a rank can be perfectly clear. Filtering on `pct`
+ * therefore hid any skill at the start of a rank — however hard it was learning —
+ * until it crept to 1%, and a skill that gains ranks slowly could sit hidden there
+ * for a long time.
+ *
+ * A push with no fraction at all (the word form, see EXP_COMP_WORD_RE) is judged by
+ * its mindstate word instead; "clear" is the one word that means an empty pool.
+ */
+export function hasFieldExp(s: { mind: string; mindWord?: string }): boolean {
+  const pool = parseInt(s.mind.split('/')[0] ?? '', 10)
+  if (Number.isFinite(pool)) return pool > 0
+  const word = s.mindWord?.trim().toLowerCase()
+  return !!word && word !== 'clear'
+}
+
 // ── Session progress ─────────────────────────────────────────────────────────
 /** A skill's position as one fractional rank, which is what gains are counted in. */
 export const fractionalRank = (s: { rank: number; pct: number }): number => s.rank + s.pct / 100
