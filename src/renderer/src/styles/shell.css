@@ -210,9 +210,9 @@
    corner, which is what reads as a facet rather than as another glow. Each wedge
    ramps up AND down — a conic stop that starts at full strength draws a hard line
    clean across the surface, straight through the text.
-   Prism: a beam refracted across the surface, and a spectrum hairline along the top
-   edge. The band is held under 8% so it tints the ground without colouring the text
-   that crosses it.
+   Prism: a beam refracted across the surface, a spectrum hairline along the top
+   edge, and a different hue pooled in each corner. The band is held under 15% so it
+   tints the ground without colouring the text that crosses it.
    Phosphor: scanlines, a tube vignette and a faint glow off-centre. All of it sits
    BEHIND the text (z-index:-1), so the lines stripe the glass and not the letters. */
 :root {
@@ -220,16 +220,21 @@
     conic-gradient(from 200deg at 88% 6%, transparent 0deg, rgba(255,143,192,0.07) 16deg, transparent 34deg, rgba(255,143,192,0.045) 52deg, transparent 74deg),
     radial-gradient(ellipse at 85% 0%, rgba(255,120,180,0.16) 0%, transparent 55%),
     radial-gradient(ellipse at 8% 100%, rgba(190,90,200,0.10) 0%, transparent 50%);
+  --prism-spectrum: linear-gradient(90deg, #ff4d5e, #ff9a3c, #ffe04a, #5fe36a, #3fd0ff, #6f8cff, #c06bff, #ff5fc8);
   --art-prism:
-    linear-gradient(90deg, #ff4d5e, #ff9a3c, #ffe04a, #5fe36a, #4d8cff, #a86bff) top / 100% 2px no-repeat,
-    linear-gradient(118deg, transparent 34%, rgba(255,77,94,0.075) 40%, rgba(255,154,60,0.075) 45%, rgba(255,224,74,0.075) 50%, rgba(95,227,106,0.075) 55%, rgba(77,140,255,0.075) 60%, rgba(168,107,255,0.075) 65%, transparent 72%);
+    var(--prism-spectrum) top / 100% 3px no-repeat,
+    linear-gradient(118deg, transparent 26%, rgba(255,77,94,0.13) 34%, rgba(255,154,60,0.13) 40%, rgba(255,224,74,0.12) 46%, rgba(95,227,106,0.12) 52%, rgba(63,208,255,0.13) 58%, rgba(111,140,255,0.14) 64%, rgba(192,107,255,0.14) 70%, transparent 78%),
+    radial-gradient(ellipse at 0% 0%, rgba(255,95,200,0.16) 0%, transparent 45%),
+    radial-gradient(ellipse at 100% 0%, rgba(63,208,255,0.14) 0%, transparent 45%),
+    radial-gradient(ellipse at 0% 100%, rgba(255,154,60,0.11) 0%, transparent 45%),
+    radial-gradient(ellipse at 100% 100%, rgba(95,227,106,0.10) 0%, transparent 45%);
   --art-phosphor:
     repeating-linear-gradient(0deg, rgba(0,0,0,0.30) 0 1px, transparent 1px 3px),
     radial-gradient(ellipse at 50% 50%, transparent 58%, rgba(0,0,0,0.42) 100%),
     radial-gradient(ellipse at 40% 30%, rgba(255,176,0,0.07) 0%, transparent 60%);
 }
 :root[data-theme="rosequartz"] .game-output-wrap { background: #27141f; }
-:root[data-theme="prism"]      .game-output-wrap { background: #0e0e12; }
+:root[data-theme="prism"]      .game-output-wrap { background: #0c0a1e; }
 :root[data-theme="phosphor"]   .game-output-wrap { background: #0b0703; }
 :root:is([data-theme="rosequartz"], [data-theme="prism"], [data-theme="phosphor"]) :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay) {
   position: relative;
@@ -246,6 +251,60 @@
 :root[data-theme="rosequartz"] :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before { background: var(--art-rosequartz); }
 :root[data-theme="prism"]      :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before { background: var(--art-prism); }
 :root[data-theme="phosphor"]   :is(.game-output-wrap, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .map-overlay)::before { background: var(--art-phosphor); }
+/* ── Prism: the spectrum in the chrome ─────────────────────────────────────────
+   The palette alone can only hand each element ONE colour, so a rainbow theme needs
+   rules of its own. Everything here is either a fill of the whole spectrum or one
+   step of a cycle through it; nothing introduces a colour from outside it.
+
+   Gradient TEXT is kept to short display text (titles, headings, the room name). On
+   running text it would make a line's colour depend on where its words happen to
+   fall, which is noise — and the semantic colours (speech, whisper, warning) already
+   mean something there. */
+:root[data-theme="prism"] :is(.modal-title, .settings-section-label, .preset-roomname, .lf-group-head > span:first-child) {
+  background: var(--prism-spectrum);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* These are block-level; without this the gradient spans the full row and a short
+   title only ever shows its first colour or two. */
+:root[data-theme="prism"] :is(.modal-title, .settings-section-label, .preset-roomname) { width: fit-content; }
+:root[data-theme="prism"] .settings-section-label { border-bottom: none; }
+
+/* Sidebar panels step through the spectrum down the rail, one hue per card. */
+:root[data-theme="prism"] .panel-card            { --prism-hue: #ff4d5e; }
+:root[data-theme="prism"] .panel-card:nth-child(8n+2) { --prism-hue: #ff9a3c; }
+:root[data-theme="prism"] .panel-card:nth-child(8n+3) { --prism-hue: #ffe04a; }
+:root[data-theme="prism"] .panel-card:nth-child(8n+4) { --prism-hue: #5fe36a; }
+:root[data-theme="prism"] .panel-card:nth-child(8n+5) { --prism-hue: #3fd0ff; }
+:root[data-theme="prism"] .panel-card:nth-child(8n+6) { --prism-hue: #6f8cff; }
+:root[data-theme="prism"] .panel-card:nth-child(8n+7) { --prism-hue: #c06bff; }
+:root[data-theme="prism"] .panel-card:nth-child(8n+8) { --prism-hue: #ff5fc8; }
+:root[data-theme="prism"] .panel-header {
+  border-bottom-color: color-mix(in srgb, var(--prism-hue) 55%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--prism-hue) 16%, transparent) 0%, transparent 100%);
+}
+:root[data-theme="prism"] .panel-title { color: var(--prism-hue); }
+
+/* Filled controls take the whole spectrum. Their labels are dark (see .login-btn in
+   modals.css): the gradient is bright from end to end. */
+:root[data-theme="prism"] :is(.login-btn, .jump-present, .toggle.on) {
+  background: var(--prism-spectrum);
+  border-color: transparent;
+}
+:root[data-theme="prism"] .settings-nav-item.active {
+  color: var(--text-bright);
+  box-shadow: inset 3px 0 0 #ff5fc8;
+  background: linear-gradient(90deg, rgba(255,95,200,0.22), rgba(111,140,255,0.16) 60%, rgba(63,208,255,0.10));
+}
+/* A spectrum seam under the title bar and a spectrum ring on the command line. */
+:root[data-theme="prism"] .status-bar {
+  background: var(--prism-spectrum) bottom / 100% 2px no-repeat, var(--bg-shell);
+}
+:root[data-theme="prism"] .command-input-wrap:focus-within {
+  box-shadow: -3px 0 10px rgba(255,95,200,0.35), 3px 0 10px rgba(63,208,255,0.35), 0 0 0 2px rgba(150,120,255,0.45);
+}
+
 /* Rose Quartz also gets a flight of butterflies rising from the lower-right of the
    game window. Like Bloodstone's blade and Thornwood's tree-line it rides ::after on
    the game window only — the blooms above are enough for a small modal — and sits
@@ -258,7 +317,7 @@
   z-index: -1;
   pointer-events: none;
   background: url('./themes/butterflies.svg') right bottom / auto 100% no-repeat;
-  opacity: 0.16;
+  opacity: 0.11;
 }
 
 /* Theme-preview tiles (Settings → Appearance) preview their OWN theme's art via

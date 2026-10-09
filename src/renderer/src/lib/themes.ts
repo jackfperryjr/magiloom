@@ -483,31 +483,36 @@ export const THEMES: Theme[] = [
     }
   },
   {
-    // Rainbow. The chrome is a near-neutral charcoal on purpose: the spectrum is
-    // carried by the things that already come in sets — the four vitals run red →
-    // amber → blue → violet, and the semantic colours fill in the rest — plus the
-    // refracted band and spectrum hairline drawn in shell.css. Colouring the panels
-    // themselves would leave no neutral ground for any of that to read against.
+    // Rainbow. The spectrum is carried three ways: by the things that already come
+    // in sets (the four vitals run red → amber → blue → violet, and the semantic
+    // colours fill in the rest); by the chrome itself, which shell.css paints with
+    // the spectrum — panel headers cycle through it, titles and room names are
+    // gradient text, buttons and switches are filled with it; and by the ground,
+    // a deep indigo rather than a grey, so the colours sit on colour.
+    //
+    // The ground is still DARK and only lightly saturated. That is what keeps this a
+    // prism and not a paint spill: every hue needs the same backdrop to read against,
+    // and a backdrop bright enough to compete would cost the text its contrast.
     id: 'prism',
     name: 'Prism',
     vars: {
-      '--bg-shell':      '#101014',
-      '--bg-panel':      '#17171d',
-      '--bg-input':      '#0c0c10',
-      '--bg-sidebar':    '#131318',
-      '--border':        '#3a3a48',
-      '--border-soft':   '#24242d',
+      '--bg-shell':      '#0f0d20',
+      '--bg-panel':      '#18153a',
+      '--bg-input':      '#0a0918',
+      '--bg-sidebar':    '#13112c',
+      '--border':        '#4a4390',
+      '--border-soft':   '#2a2658',
       '--border-accent': '#62d4ff',
-      '--text-main':     '#d8d8e2',
-      '--text-dim':      '#737386',
+      '--text-main':     '#dedcf5',
+      '--text-dim':      '#8580b8',
       '--text-bright':   '#ffffff',
-      '--text-muted':    '#9c9cb0',
+      '--text-muted':    '#aaa6dc',
       '--accent':        '#62d4ff',
       '--accent-glow':   'rgba(98,212,255,0.22)',
-      '--accent-dim':    '#1c2a36',
-      '--bg-overlay':    'rgba(6, 6, 9, 0.92)',
+      '--accent-dim':    '#1d2f55',
+      '--bg-overlay':    'rgba(8, 6, 20, 0.92)',
       '--color-roomname':'#ffffff',
-      '--color-roomdesc':'#a4a4b8',
+      '--color-roomdesc':'#b0acdc',
       '--color-speech':  '#5fe36a',
       '--color-whisper': '#6f9dff',
       '--color-thought': '#c78bff',
@@ -519,16 +524,16 @@ export const THEMES: Theme[] = [
       '--mana-color':    '#4d8cff',
       '--stamina-color': '#ffb83c',
       '--spirit-color':  '#a86bff',
-      '--map-bg':       '#15151b',
-      '--map-haze':     'rgba(140,120,255,0.05)',
+      '--map-bg':       '#141230',
+      '--map-haze':     'rgba(150,110,255,0.09)',
       '--map-vignette': 'rgba(0,0,0,0.5)',
-      '--map-chip':     'rgba(16,16,20,0.78)',
-      '--map-room':      '#26262f',
-      '--map-room-hover':'#33333f',
-      '--map-line':      '#55556a',
-      '--body-base':     '#4a4a5e',
-      '--body-eye':      '#141419',
-      '--body-outline':  '#0e0e12',
+      '--map-chip':     'rgba(15,13,32,0.78)',
+      '--map-room':      '#2a2660',
+      '--map-room-hover':'#39347c',
+      '--map-line':      '#655dc0',
+      '--body-base':     '#544c9c',
+      '--body-eye':      '#12102c',
+      '--body-outline':  '#0c0a1c',
       '--bg-theme-image': 'none',
     }
   },
