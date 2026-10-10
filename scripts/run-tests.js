@@ -48,6 +48,7 @@ const TESTS = [
   'src/renderer/src/lib/loginArtFx.test.ts',
   'src/renderer/src/lib/settingsIndex.test.ts',
   'src/renderer/src/lib/silentReport.test.ts',
+  'src/renderer/src/lib/listBlocks.test.ts',
 ]
 
 fs.mkdirSync(CACHE, { recursive: true })

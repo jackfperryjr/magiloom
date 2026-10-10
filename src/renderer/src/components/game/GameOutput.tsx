@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState, useLayoutEffect, useCallback, memo, Fragment } from 'react'
 import { outputLinesAtom, avatarsAtom, serverAvatarsAtom, aiAvatarsAtom, selfNameAtom, connectionStatusAtom, setOutputBufferSize, type OutputLine } from '../../store/game'
 import { parseExpSkills, type ParsedExpSkill } from '../../lib/exp-parser'
+import { listLineKind, listRowText, listBlockText } from '../../lib/listBlocks'
 import type { LinkSpan } from '../../lib/sge-parser'
 import { resolveAvatarSrc } from '../../lib/avatar'
 import { promptFromLook } from '../../lib/lookPortrait'
@@ -268,8 +269,14 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
                     /^You (were born|have \d+ active)/i.test(line.text.trim()) ||
                     /^\[You can pay/i.test(line.text.trim())
 
+  // A row of INVENTORY LIST or a vault report: tagged so the run of them can be
+  // copied in one click (see ListCopyButton), and copied as the game laid it out.
+  const listKind = listLineKind(line)
+  const copyText = listKind ? listRowText(listKind, line) : line.text
+
   const classList = ['game-line',
     ...line.styles.map(s => s.preset ? (PRESET_CLASS[s.preset] ?? '') : s.bold ? 'text-bold' : ''),
+    listKind ? `list-row list-row-${listKind}` : '',
     isShopLine ? 'shop-line' : '',
     isShopHeader ? 'shop-header' : '',
     isShopSurface ? 'shop-surface' : '',
@@ -364,7 +371,12 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
       remaining = remaining.slice(idx + link.text.length)
     }
     if (remaining) parts.push(<span key={key++}>{remaining}</span>)
-    return <div className={classList.join(' ')} style={style} data-copy-text={line.text}>{parts}</div>
+    return (
+      <div className={classList.join(' ')} style={style} data-copy-text={copyText}>
+        {parts}
+        {listKind && <ListCopyButton kind={listKind} />}
+      </div>
+    )
   }
 
   // Exp skill lines: parse and render in a 2-column grid so spaces don't collapse
@@ -387,8 +399,9 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
   }
 
   return (
-    <div className={classList.join(' ')} style={style} data-copy-text={line.text}>
+    <div className={classList.join(' ')} style={style} data-copy-text={copyText}>
       {line.text}
+      {listKind && <ListCopyButton kind={listKind} />}
     </div>
   )
 })
@@ -406,12 +419,19 @@ function ExpSkillHalf({ s }: { s: ParsedExpSkill }) {
   )
 }
 
-// Copies a whole EXP readout's skill rows in one click. Every skill row renders one,
-// and CSS shows only the button under the LAST row of a run (panels.css) — a line can't
-// know whether it opens a readout without looking at its neighbours, which would cost
-// GameLine its memo. So the run is read back off the DOM at click time instead: this
-// row and every skill row directly before it, each by its canonical data-copy-text.
-function ExpCopyButton() {
+// Copies a whole run of rows in one click — an EXP readout's skills, an inventory
+// list, a vault report. Every row of the run renders one, and CSS shows only the
+// button under the LAST row (panels.css) — a line can't know whether it opens a run
+// without looking at its neighbours, which would cost GameLine its memo. So the run
+// is read back off the DOM at click time instead: this row and every row of the same
+// kind directly before it, each by its canonical data-copy-text.
+function RunCopyButton({ rowClass, label, join = rows => rows.join('\n') }: {
+  /** The class every row of the run carries, and no other line does. */
+  rowClass: string
+  label:    string
+  /** Rows → clipboard text. */
+  join?:    (rows: string[]) => string
+}) {
   const [copied, setCopied] = useState(false)
   useEffect(() => {
     if (!copied) return
@@ -421,12 +441,12 @@ function ExpCopyButton() {
 
   const copy = async (e: React.MouseEvent<HTMLButtonElement>) => {
     const rows: string[] = []
-    let el: Element | null = e.currentTarget.closest('.exp-data-line')
-    for (; el instanceof HTMLElement && el.classList.contains('exp-data-line'); el = el.previousElementSibling) {
+    let el: Element | null = e.currentTarget.closest('.' + rowClass)
+    for (; el instanceof HTMLElement && el.classList.contains(rowClass); el = el.previousElementSibling) {
       rows.unshift(el.dataset.copyText ?? '')
     }
     try {
-      await navigator.clipboard.writeText(rows.join('\n'))
+      await navigator.clipboard.writeText(join(rows))
       setCopied(true)
     } catch { /* clipboard blocked — leave the icon as-is rather than lying */ }
   }
@@ -439,10 +459,20 @@ function ExpCopyButton() {
             ? <path d="M3 8.5l3.2 3.2L13 4.8" />
             : <><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" /><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2" /></>}
         </svg>
-        {copied ? 'Copied' : 'Copy skills'}
+        {copied ? 'Copied' : label}
       </button>
     </div>
   )
+}
+
+const ExpCopyButton = () => <RunCopyButton rowClass="exp-data-line" label="Copy skills" />
+
+// INVENTORY LIST and the vault reports (VAULT STANDARD / VAULT FAMILY). The rows are
+// pulled back to the margin as a block, so what is pasted keeps the nesting and
+// loses the indent the game puts in front of the whole list.
+const LIST_COPY_LABEL = { inv: 'Copy inventory', vault: 'Copy vault' } as const
+function ListCopyButton({ kind }: { kind: keyof typeof LIST_COPY_LABEL }) {
+  return <RunCopyButton rowClass={`list-row-${kind}`} label={LIST_COPY_LABEL[kind]} join={listBlockText} />
 }
 
 function InfoPairHalf({ pair }: { pair: ParsedInfoPair }) {
