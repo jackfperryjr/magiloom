@@ -12,16 +12,23 @@
  *     skill that is depends on your character, so it's resolved per report.
  *   • NAMED — "Parry Ability", "Stealth", "Theurgy" name one specific skill.
  *
- * The rule tying them together, and the one assumption in this file worth stating:
- * a skill named explicitly by a guild's table is EXCLUDED from that guild's
- * positional pool. Otherwise Thief's "Stealth" requirement and its "1st Survival"
- * requirement could both be satisfied by the same rank of Stealth, and the eight
- * positional Survival slots would be competing with two named ones for the same
- * skills. The arithmetic corroborates it: Thief has exactly eight positional Survival
- * slots and exactly eight Survival skills once Stealth and Thievery are removed. Every
- * guild is checked against this in the tests — if a guild ever asks for more positional
- * slots than it has skills to fill them, that's a taxonomy error and it fails loudly
- * rather than silently under-reporting.
+ * WHICH SKILLS CAN FILL AN Nth SLOT is the part that is easy to get wrong, and this
+ * file did: it used to let any skill of the skillset fill a positional slot unless the
+ * guild named it. The game's rule, as each guild's Elanthipedia page states it, is
+ * narrower in three ways and wider in one — see `nthPool` below, which is the single
+ * place it is applied:
+ *   • "Mastery" skills never count, for anyone: Defending, Parry Ability, Offhand
+ *     Weapon, Melee Mastery, Missile Mastery, and the guild's own primary magic.
+ *   • A guild's HARD requirements (Barbarian's Evasion, Trader's Appraisal) are checked
+ *     on their own and cannot also be one of its Nth skills.
+ *   • A few skills are barred per guild (Sorcery and Thievery for a Cleric).
+ *   • But a guild's SOFT requirements (Thief's Stealth and Thievery) are checked on
+ *     their own AND count as Nth skills. The old rule excluded every named skill,
+ *     which under-counted exactly the skills those guilds train hardest.
+ *
+ * Every guild is checked in the tests for having enough eligible skills to fill its
+ * positional slots — if one ever asks for more than it has, that's a taxonomy error
+ * and it fails loudly rather than silently under-reporting.
  *
  * Pure: no DOM, no React.
  */
@@ -46,12 +53,11 @@ export function isProjectedCircle(guild: string, circle: number): boolean {
 /**
  * Skillset membership, per https://elanthipedia.play.net/Category:Skills.
  *
- * Guild skills are INCLUDED in whichever skillset they belong to. The experience
- * window shows them in their own "Guild Skills" row, but that's a display grouping —
- * mechanically Backstab is a Survival skill and Expertise a Weapon skill, and circle
- * requirements treat them that way. The arithmetic confirms it: Thief asks for eight
- * positional Survival slots and has exactly eight Survival skills once its two named
- * ones (Stealth, Thievery) are removed — which only works with Backstab in the pool.
+ * This is MEMBERSHIP — which skillset a skill belongs to — and nothing more. Being a
+ * Weapon skill does not make a skill count toward "2nd Weapon"; `nthPool` decides
+ * that. Guild skills are listed under the skillset they belong to (the experience
+ * window's "Guild Skills" row is a display grouping: mechanically Backstab is a
+ * Survival skill and Expertise a Weapon skill).
  *
  * Weapon names are the DR 3.0 ones. Light + Medium Edged were merged into Small
  * Edged and Heavy Edged renamed to Large Edged (same for Blunt); the old names are
@@ -149,15 +155,83 @@ export const GUILD_BY_SKILL: Record<string, string> = {
   'Summoning':   'Warrior Mage',
 }
 
+// ── Which skills can fill an Nth slot ───────────────────────────────────────────
+// Source for everything in this section: the "Circle Requirements" section of each
+// guild's page on https://elanthipedia.play.net (e.g. /Barbarian, /Paladin, /Thief).
+
+/**
+ * "Mastery" skills. Each page carries the same note: they "never count toward Nth
+ * skill requirements, since they affect all or most of the skillset". The guild's
+ * primary magic skill is on that list too — see PRIMARY_MAGIC_BY_GUILD.
+ */
+const NEVER_NTH = ['Defending', 'Parry Ability', 'Offhand Weapon', 'Melee Mastery', 'Missile Mastery']
+
+/**
+ * SOFT requirements: named in the guild's table, and ALSO eligible as an Nth skill.
+ * Every other named requirement is HARD — checked on its own, and barred from the
+ * Nth slots. Hard is the default for anything not listed here, because wrongly
+ * calling a requirement soft lets one skill satisfy two requirements and tells a
+ * player they can circle when they can't.
+ *
+ * Warrior Mage is the one entry read between the lines: its page names Summoning as
+ * its only hard requirement, which leaves Scholarship and Targeted Magic soft.
+ */
+const SOFT_BY_GUILD: Record<string, string[]> = {
+  Bard:           ['Tactics'],
+  Empath:         ['Outdoorsmanship'],
+  Necromancer:    ['Targeted Magic'],
+  Paladin:        ['Shield Usage', 'Tactics', 'Scholarship'],
+  Ranger:         ['Instinct'],
+  Thief:          ['Stealth', 'Thievery'],
+  'Warrior Mage': ['Scholarship', 'Targeted Magic'],
+}
+
+/**
+ * Skills a guild cannot use toward its Nth slots although it names no requirement
+ * for them. Two kinds: skills the guild's page bars outright ("For Clerics, Sorcery
+ * and Thievery also do not count"), and guild skills its eligible-skill list leaves
+ * out (Expertise is a Weapon skill, but not one of the fourteen that count).
+ *
+ * Only what a page states is here. Several pages say nothing either way — whether
+ * Sorcery counts for a Thief or a Trader, and whether Backstab counts toward a
+ * Thief's Nth Survival — and those are left counting, as they did before.
+ */
+const BARRED_BY_GUILD: Record<string, string[]> = {
+  Barbarian:      ['Expertise', 'Targeted Magic', 'Sorcery', 'Thievery'],
+  Bard:           ['Bardic Lore'],
+  Cleric:         ['Sorcery', 'Thievery'],
+  'Moon Mage':    ['Thievery'],
+  'Warrior Mage': ['Sorcery', 'Thievery'],
+}
+
+/**
+ * The skills eligible to fill a guild's "Nth <skillset>" slots — the skillset's
+ * members, less everything the rules above take out. Order is not meaningful.
+ */
+export function nthPool(guild: string, skillset: string): string[] {
+  const named = (CIRCLE_REQS[guild]?.slots ?? []).map(parseSlot)
+    .filter(p => p.skill).map(p => p.skill!.toLowerCase())
+  const soft = new Set((SOFT_BY_GUILD[guild] ?? []).map(s => s.toLowerCase()))
+  const out = new Set([
+    ...NEVER_NTH,
+    ...(BARRED_BY_GUILD[guild] ?? []),
+    ...(PRIMARY_MAGIC_BY_GUILD[guild] ? [PRIMARY_MAGIC_BY_GUILD[guild]] : []),
+  ].map(s => s.toLowerCase()))
+  for (const n of named) if (!soft.has(n)) out.add(n)   // hard requirements
+  // Another guild's guild skill: nobody outside that guild can train it at all.
+  for (const [skill, owner] of Object.entries(GUILD_BY_SKILL)) if (owner !== guild) out.add(skill.toLowerCase())
+  return (SKILLSETS[skillset] ?? []).filter(s => !out.has(s.toLowerCase()))
+}
+
 /**
  * Slots satisfied by the best of a small set of skills rather than by one named skill
  * or by a position in a whole skillset. Barbarian's "Primary Mastery" is whichever of
  * the two masteries you've trained higher — a Barbarian who went missile shouldn't be
  * told to train Melee Mastery.
  *
- * The masteries are deliberately kept OUT of `SKILLSETS.Weapon`: they belong to the
- * Weapon skillset in the game, but letting them into the positional pool would mean a
- * high Melee Mastery could satisfy "2nd Weapon", which is asking about actual weapons.
+ * The masteries are not listed in `SKILLSETS.Weapon` at all, and are in NEVER_NTH
+ * besides: a high Melee Mastery must not satisfy "2nd Weapon", which is asking about
+ * actual weapons.
  */
 const SLOT_BEST_OF: Record<string, string[]> = {
   'Primary Mastery': ['Melee Mastery', 'Missile Mastery'],
@@ -263,10 +337,6 @@ export function checkCircle(
 
   const parsed = req.slots.map(parseSlot)
 
-  // Skills this guild names explicitly are spoken for and can't also fill a
-  // positional slot — see the header.
-  const claimed = new Set(parsed.filter(p => p.skill).map(p => p.skill!.toLowerCase()))
-
   // Rank lookup that tolerates the case and spacing of a pasted report.
   const rankOf = (skill: string): number => {
     const want = canonicalSkill(skill).toLowerCase()
@@ -276,12 +346,11 @@ export function checkCircle(
     return 0
   }
 
-  // Positional pools: each skillset's skills, minus the claimed ones, ranked high to
-  // low. Built once per skillset rather than per slot.
+  // Positional pools: the skills eligible for each skillset's Nth slots (see nthPool),
+  // ranked high to low. Built once per skillset rather than per slot.
   const pools = new Map<string, { skill: string; rank: number }[]>()
-  for (const [set, skills] of Object.entries(SKILLSETS)) {
-    pools.set(set, skills
-      .filter(s => !claimed.has(s.toLowerCase()))
+  for (const set of Object.keys(SKILLSETS)) {
+    pools.set(set, nthPool(guild, set)
       .map(s => ({ skill: s, rank: rankOf(s) }))
       .sort((a, b) => b.rank - a.rank || a.skill.localeCompare(b.skill)))
   }
