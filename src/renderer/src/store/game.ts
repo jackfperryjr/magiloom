@@ -15,6 +15,8 @@ import { computeMoonPositions, correctionFromMoonLine, type MoonCorrections, typ
 import { applyGagSub as applyGagSubRules, type TextRule } from '../lib/rules'
 import { parseLichList, type LichScript } from '../lib/quickActions'
 import { SilentReport } from '../lib/silentReport'
+import { HoldingsReader } from '../lib/holdings'
+import { holdingsCaptureAtom } from './holdings'
 import { ServerClock } from '../lib/serverClock'
 import { parseActiveSpellLine, type ActiveSpell } from '../lib/activeSpells'
 import { WealthReader, mergeWealth, type WealthReport } from '../lib/wealth'
@@ -774,6 +776,12 @@ function clearSkillExp(s: ExpSkill): ExpSkill {
 // per account.
 const EXP_DRAIN_RE = /Log-on system converted|drained your field experience/i
 
+// Account inventory: collects INVENTORY LIST / VAULT reports as they go past (see
+// lib/holdings). It only listens — the reports still print as normal — and hands a
+// finished one to holdingsCaptureAtom at the prompt that ends it.
+const _holdings = new HoldingsReader()
+let _holdingsSeq = 0
+
 // ── Echo ──────────────────────────────────────────────────────────────────────
 export const echoCommandAtom = atom(
   null,
@@ -796,6 +804,8 @@ export const echoCommandAtom = atom(
       _expBatchNames  = new Set()
       _silentExp.cancel()   // manual send wins over any pending background poll
     }
+    // A typed VAULT FAMILY says which vault the next vault sheet is.
+    _holdings.command(command)
     // Same for INFO / WEALTH: the player asked to see it. ("wea" alone is WEATHER.)
     if (/^(?:inf|info|weal|wealt|wealth)$/i.test(command.trim())) {
       _silentInfoPending = false
@@ -949,6 +959,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _pendingLookTarget = ''
   _expBatchNames     = null
   _silentExp.cancel()
+  _holdings.reset()
   _spellBatch        = null
   _skyPending        = 0
   _weatherReportWait = 0
@@ -1006,6 +1017,7 @@ export const dispatchGameEventAtom = atom(
           // Buffer a pending TOUCH assessment (parsed on the next prompt). The
           // lines still flow to the main output; we just also collect them.
           if (_touchName) _touchBuf.push(event.text)
+          _holdings.line(event)
 
           // Wealth report (WEALTH, or the Wealth/Debt/purchases tail of INFO). Read
           // before gags so a gagged line can't blind the panel; the lines stay
@@ -1555,6 +1567,10 @@ export const dispatchGameEventAtom = atom(
       case 'prompt':
         _serverClock.observe(event.time, Date.now())
         commitWealth(get, set)
+        {
+          const report = _holdings.prompt()
+          if (report) set(holdingsCaptureAtom, { ...report, seq: ++_holdingsSeq })
+        }
         if (_silentInfoActive) { _silentInfoActive = false; _silentInfoPending = false }
         else if (_silentInfoPending && --_silentInfoPrompts <= 0) _silentInfoPending = false
         // A TOUCH response lands as one server message ending in this prompt.

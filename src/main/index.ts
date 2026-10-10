@@ -10,6 +10,7 @@ import { inventoryProbeEnabled, probeSent, probeRaw } from './inventory-probe'
 import { CmdScriptEngine } from './cmd-script-engine'
 import { BroadcastBus } from './broadcast-bus'
 import { MapStore, type StoredZone } from './map-store'
+import { HoldingsStore, type HoldingsDoc, type HoldingsPut } from './holdings-store'
 import { loadRawDataset } from './map-dataset'
 import { LogStore, logSlug } from './log-store'
 import { SettingsStore } from './settings-store'
@@ -104,6 +105,9 @@ const broadcastBus = new BroadcastBus(SHARED_DIR)
 // Shared world-map database (automapper). Lives in the SHARED dir so every
 // character's exploration accumulates into one map.
 const mapStore = new MapStore(SHARED_DIR)
+// Account inventory: each character's last INVENTORY LIST / VAULT report. In the
+// SHARED dir so every character's window files into, and reads from, the same list.
+const holdingsStore = new HoldingsStore(SHARED_DIR)
 // Optional game-output logging (off by default; toggled per character in
 // Settings → Lich → Logs). The flag is resolved per character, so it's applied
 // whenever the active character becomes known and whenever it's re-saved.
@@ -569,6 +573,10 @@ function setupIpcHandlers(): void {
   // ── Automapper: shared world-map persistence ──────────────────────────────
   // A zone rewritten by another character's window flows back into this one.
   mapStore.on('zoneChanged', (zone: StoredZone) => send('map:zone-changed', zone))
+  holdingsStore.on('changed', (doc: HoldingsDoc) => send('holdings:changed', doc))
+  ipcMain.handle('holdings:get',    () => holdingsStore.get())
+  ipcMain.handle('holdings:put',    (_e, report: HoldingsPut) => holdingsStore.put(report))
+  ipcMain.handle('holdings:remove', (_e, account: string, character?: string) => holdingsStore.remove(account, character))
   ipcMain.handle('map:load',        () => mapStore.loadAll())
   ipcMain.handle('map:save-zone',   (_e, zone: StoredZone) => mapStore.saveZone(zone))
   ipcMain.handle('map:delete-zone', (_e, zoneId: string)   => mapStore.deleteZone(zoneId))

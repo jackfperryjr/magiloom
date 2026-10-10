@@ -253,6 +253,12 @@ export function installDr(): void {
       export:     (content: string, defaultName: string) => downloadFile(content, defaultName),
       onZoneChanged: (cb: (zone: unknown) => void) => t.on('map:zone-changed', cb),
     },
+    holdings: {
+      get:    () => t.invoke('holdings:get'),
+      put:    (report: object) => t.invoke('holdings:put', report),
+      remove: (account: string, character?: string) => t.invoke('holdings:remove', account, character),
+      onChanged: (cb: (doc: unknown) => void) => t.on('holdings:changed', cb),
+    },
     broadcast: {
       send:       (cmd: string) => t.invoke('broadcast:send', cmd),
       setReceive: (on: boolean) => t.invoke('broadcast:set-receive', on),

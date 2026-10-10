@@ -260,6 +260,21 @@ interface DrAPI {
     setReceive: (on: boolean) => Promise<void>
     onIncoming: (cb: (cmd: string) => void) => () => void
   }
+  // Account inventory — every character's last INVENTORY LIST / VAULT report. On the
+  // web it belongs to the signed-in Magiloom account and follows it everywhere; on
+  // the desktop there is no account, so it is one file for the machine.
+  holdings: {
+    get:    () => Promise<import('./lib/holdings').HoldingsDoc>
+    /** Replace one report; resolves to the whole document as it now stands. */
+    put:    (report: {
+      account: string; character: string
+      kind: import('./lib/holdings').HoldingKind
+      items: import('./lib/holdings').HoldingItem[]
+    }) => Promise<import('./lib/holdings').HoldingsDoc>
+    /** Forget a character, or (with no character) an account's family vault. */
+    remove: (account: string, character?: string) => Promise<import('./lib/holdings').HoldingsDoc>
+    onChanged: (cb: (doc: import('./lib/holdings').HoldingsDoc) => void) => () => void
+  }
   map: {
     load:       () => Promise<MapDB>
     // Shipped room graph + baked coordinates, as raw JSON text. Absent on the web

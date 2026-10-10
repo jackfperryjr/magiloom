@@ -25,6 +25,8 @@ import { MapPanel } from './components/map/MapPanel'
 import { CalendarPanel } from './components/layout/CalendarPanel'
 import { BodyPanel, BodyOverlay } from './components/game/BodyPanel'
 import { ItemManager }           from './components/game/ItemManager'
+import { HoldingsWindow }        from './components/game/HoldingsWindow'
+import { useHoldingsSync }       from './hooks/useHoldingsSync'
 import { MapOverlay } from './components/map/MapOverlay'
 import {
   echoCommandAtom, beginSilentExpAtom, appendSystemLineAtom, tickAtom,
@@ -263,6 +265,7 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
   // Automapper: records rooms into the shared world map (movement is captured
   // universally via dr.game.onSent inside the hook).
   const automap = useAutomapper()
+  useHoldingsSync(charName, accountName)
   // Procedural ambient sound, driven by the same weather/room state AmbientOverlay
   // paints. Opens no AudioContext at all until something actually wants to sound.
   useAmbientAudio()
@@ -437,6 +440,7 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
   const [showMap,        setShowMap]        = useState(false)
   const [showBody,       setShowBody]       = useState(false)
   const [showItems,      setShowItems]      = useState(false)
+  const [showHoldings,   setShowHoldings]   = useState(false)
   const [sidebarWidth,   setSidebarWidth]   = useState<number | null>(null)
   const [functionKeys,   setFunctionKeys]   = useState<Record<string, string>>({})
   const appendSystemLine = useSetAtom(appendSystemLineAtom)
@@ -545,7 +549,7 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
   const renderPanelWithLich = useCallback((id: PanelId) => {
     if (id === 'map') return <MapPanel onNodeClick={automap.walkTo} onStopWalk={automap.stopWalk} onExpand={() => setShowMap(true)} />
     if (id === 'body') return <BodyPanel onExpand={() => setShowBody(true)} />
-    if (id === 'inventory') return <InventoryPanel onManage={() => setShowItems(true)} />
+    if (id === 'inventory') return <InventoryPanel onManage={() => setShowItems(true)} onAccount={() => setShowHoldings(true)} />
     // Scripts needs the live command path (quick buttons, `;list`, `;kill`), which
     // only exists inside the layout — same reason as the map/body panels above.
     if (id === 'scripts') return (
@@ -598,6 +602,7 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
               watching={watching}
               onLeaveWatch={onLeaveWatch}
               onHighlights={() => setShowHighlights(true)}
+              onHoldings={() => setShowHoldings(true)}
               onSettings={onOpenSettings}
               onDisconnect={disconnect}
               onConnect={onRequestConnect}
@@ -615,6 +620,7 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
       {showMap && <MapOverlay onClose={() => setShowMap(false)} onWalkTo={automap.walkTo} onStopWalk={automap.stopWalk} />}
       {showBody && <BodyOverlay onClose={() => setShowBody(false)} />}
       {showItems && <ItemManager onClose={() => setShowItems(false)} />}
+      {showHoldings && <HoldingsWindow charName={charName} onClose={() => setShowHoldings(false)} />}
       <NotificationCenter charName={charName} status={status} />
       <GlobalTooltip />
     </div>
