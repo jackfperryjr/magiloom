@@ -20,7 +20,8 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { parseLine, resetParser, type GameEvent } from './sge-parser'
 import {
-  HoldingsReader, holdingsView, searchSnapshot, ageLabel, type HoldingsCapture,
+  HoldingsReader, holdingsView, searchSnapshot, ageLabel, holdingsText, holdingsFileName, stamp,
+  type HoldingsCapture,
 } from './holdings'
 import { HoldingsStore } from '../../../main/holdings-store'
 
@@ -251,6 +252,70 @@ const VAULT = [
   eq('age: hours', ageLabel(now - 3 * 3600_000, now), '3 hr ago')
   eq('age: one day', ageLabel(now - 30 * 3600_000, now), '1 day ago')
   eq('age: days', ageLabel(now - 5 * 24 * 3600_000, now), '5 days ago')
+}
+
+// ── 4. Saving to a file ──────────────────────────────────────────────────────
+{
+  // Built from local-time parts, so the expected text holds in any time zone.
+  const taken = new Date(2026, 9, 9, 8, 5).getTime()
+  const saved = new Date(2026, 9, 10, 14, 32).getTime()
+  eq('stamp: local, zero-padded, sortable', stamp(taken), '2026-10-09 08:05')
+
+  const doc = {
+    version: 1 as const,
+    accounts: {
+      jackp: { name: 'JACKP',
+        family: { at: taken, by: 'Penello', items: [{ name: 'an ironwood chest', depth: 0 }] },
+        characters: {
+          refia: { name: 'Refia',
+            inv:   { at: taken, items: [{ name: 'a backpack', depth: 0 }, { name: 'a vial', depth: 1 }, { name: 'a cork', depth: 2 }] },
+            vault: { at: taken, items: [] } },
+          penello: { name: 'Penello', inv: { at: taken, items: [{ name: 'a staff', depth: 0 }] } },
+        } },
+    },
+  }
+  const view = holdingsView(doc, 'Refia')
+  eq('file: everything, nested, each list dated when it was taken', holdingsText(view, saved), [
+    'Lantern — Account inventory',
+    'Saved 2026-10-10 14:32',
+    '', '',
+    'JACKP',
+    '=====',
+    '',
+    'Refia',
+    '-----',
+    '',
+    'On person — 3 items, as of 2026-10-09 08:05',
+    '  a backpack',
+    '    a vial',
+    '      a cork',
+    '',
+    'Vault — 0 items, as of 2026-10-09 08:05',
+    '  (empty)',
+    '',
+    'Penello',
+    '-------',
+    '',
+    'On person — 1 item, as of 2026-10-09 08:05',
+    '  a staff',
+    '',
+    'Family vault',
+    '------------',
+    '',
+    'Seen by Penello — 1 item, as of 2026-10-09 08:05',
+    '  an ironwood chest',
+    '',
+  ].join('\n'))
+
+  // One character: the same document, cut down to them.
+  const one = view.map(a => ({ ...a, family: undefined, characters: a.characters.filter(c => c.name === 'Penello') }))
+  const text = holdingsText(one, saved)
+  check('file: one character has only that character', text.includes('Penello') && !text.includes('Refia') && !text.includes('ironwood'))
+
+  eq('file name: a character', holdingsFileName('Refia', saved), 'lantern-inventory-refia-2026-10-10.txt')
+  eq('file name: everything', holdingsFileName('', saved), 'lantern-inventory-all-2026-10-10.txt')
+  eq('file name: nothing a file system objects to', holdingsFileName('Family vault (JACKP)', saved),
+    'lantern-inventory-family-vault-jackp-2026-10-10.txt')
 }
 
 // ── Report ───────────────────────────────────────────────────────────────────

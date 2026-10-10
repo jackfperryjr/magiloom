@@ -184,6 +184,56 @@ export function searchSnapshot(snapshot: HoldingSnapshot, query: string): Holdin
   return out
 }
 
+// ── Saving to a file ─────────────────────────────────────────────────────────
+
+/** A moment as local "2026-10-10 14:32" — sortable, and unambiguous to read back. */
+export function stamp(at: number): string {
+  const d = new Date(at)
+  const two = (n: number): string => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}:${two(d.getMinutes())}`
+}
+
+/**
+ * The account inventory as a plain-text document, for keeping or sharing.
+ *
+ * Text rather than a spreadsheet format because the thing being saved is a set of
+ * nested lists: indentation carries "this is inside that" directly, and it opens
+ * anywhere. Each list is dated with when it was TAKEN — a saved copy of an old list
+ * must not read as if it were current as of the save.
+ *
+ * `accounts` is whatever holdingsView returned, cut down to what should be saved:
+ * everything, or one character.
+ */
+export function holdingsText(accounts: HoldingsAccountView[], now: number): string {
+  const out: string[] = ['Lantern — Account inventory', `Saved ${stamp(now)}`]
+  const section = (s: HoldingsSection, title = s.label): void => {
+    const n = s.snapshot.items.length
+    out.push('', `${title} — ${n} item${n === 1 ? '' : 's'}, as of ${stamp(s.snapshot.at)}`)
+    if (n === 0) out.push('  (empty)')
+    for (const item of s.snapshot.items) out.push(`${'  '.repeat(item.depth + 1)}${item.name}`)
+  }
+  for (const account of accounts) {
+    const name = account.name || 'Account not recorded'
+    out.push('', '', name, '='.repeat(name.length))
+    for (const c of account.characters) {
+      out.push('', c.name, '-'.repeat(c.name.length))
+      for (const s of c.sections) section(s)
+    }
+    if (account.family) {
+      const by = account.family.snapshot.by
+      out.push('', 'Family vault', '------------')
+      section(account.family, by ? `Seen by ${by}` : 'Family vault')
+    }
+  }
+  return out.join('\n') + '\n'
+}
+
+/** A file name for a saved copy: "lantern-inventory-refia-2026-10-10.txt". */
+export function holdingsFileName(who: string, now: number): string {
+  const slug = who.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'all'
+  return `lantern-inventory-${slug}-${stamp(now).slice(0, 10)}.txt`
+}
+
 /** "just now", "12 min ago", "3 hr ago", "5 days ago" — how stale a report is. */
 export function ageLabel(at: number, now: number): string {
   const mins = Math.max(0, Math.floor((now - at) / 60_000))

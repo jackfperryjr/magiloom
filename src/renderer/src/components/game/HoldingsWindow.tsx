@@ -5,7 +5,7 @@ import { Tooltip } from '../ui/Tooltip'
 import { useDetachedWindow } from '../../hooks/useDetachedWindow'
 import { holdingsAtom } from '../../store/holdings'
 import {
-  holdingsView, searchSnapshot, ageLabel,
+  holdingsView, searchSnapshot, ageLabel, holdingsText, holdingsFileName,
   type HoldingsSection, type HoldingsAccountView, type HoldingMatch,
 } from '../../lib/holdings'
 
@@ -46,6 +46,18 @@ function entriesOf(account: HoldingsAccountView): Entry[] {
     })
   }
   return out
+}
+
+/**
+ * Hand the browser a text file to save. The anchor is made in the MAIN document even
+ * when this is showing in a popped-out window: a download belongs to the page that
+ * started it, and the pop-out is an about:blank with no origin of its own to own one.
+ */
+function saveText(name: string, text: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
+  const a = document.createElement('a')
+  a.href = url; a.download = name; a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 const plural  = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
@@ -101,6 +113,17 @@ function HoldingsBody({ charName, detached, onDetach, onAttach, onClose }: {
     return next
   })
 
+  // Saved copies are of what is RECORDED, never of a search: a file holding only the
+  // matches would look like a character's whole list and be missing most of it.
+  const downloadAll = (): void => saveText(holdingsFileName('', Date.now()), holdingsText(accounts, Date.now()))
+  const downloadOne = (e: Entry): void => {
+    const only = accounts.filter(a => a.name === e.account).map(a => e.character
+      ? { ...a, family: undefined, characters: a.characters.filter(c => c.name === e.character) }
+      : { ...a, characters: [] })
+    const who = e.character ?? `family vault ${e.account}`
+    saveText(holdingsFileName(who, Date.now()), holdingsText(only, Date.now()))
+  }
+
   const doForget = async (e: Entry): Promise<void> => {
     setForget(null)
     try { setDoc(await window.dr.holdings.remove(e.account, e.character)); setError('') }
@@ -115,6 +138,9 @@ function HoldingsBody({ charName, detached, onDetach, onAttach, onClose }: {
           {entries.length === 0 ? '' : `${plural(people, 'character')} — ${plural(totalItems, 'item')}`}
         </span>
         <div className="inv-mgr-spacer" />
+        <Tooltip text="Save every character's lists as a text file">
+          <button className="inv-mgr-btn" onClick={downloadAll} disabled={entries.length === 0}>Download all</button>
+        </Tooltip>
         <Tooltip text={detached ? 'Put it back in the main window' : 'Move this into its own window'}>
           <button className="inv-mgr-btn" onClick={detached ? onAttach : onDetach}>
             {detached ? 'Return' : 'Pop out'}
@@ -166,8 +192,9 @@ function HoldingsBody({ charName, detached, onDetach, onAttach, onClose }: {
               {shown.map(e => {
                 const isOpen = searching || open.has(e.key)
                 const count  = e.sections.reduce((n, s) => n + s.snapshot.items.length, 0)
+                const mine   = e.character?.toLowerCase() === charName.toLowerCase()
                 return (
-                  <div key={e.key} className={'hold-entry' + (isOpen ? ' open' : '')}>
+                  <div key={e.key} className={'hold-entry' + (isOpen ? ' open' : '') + (mine ? ' hold-entry-mine' : '')}>
                     <div className="hold-entry-head">
                       <button
                         className="hold-entry-toggle"
@@ -177,7 +204,7 @@ function HoldingsBody({ charName, detached, onDetach, onAttach, onClose }: {
                       >
                         <span className="hold-chevron" aria-hidden="true">›</span>
                         <span className="hold-entry-name">{e.title}</span>
-                        {e.character?.toLowerCase() === charName.toLowerCase() && <span className="hold-tag">playing</span>}
+                        {mine && <span className="hold-tag">playing</span>}
                         {e.note && <span className="hold-entry-note">{e.note}</span>}
                         <span className="hold-entry-count">
                           {searching
@@ -185,6 +212,9 @@ function HoldingsBody({ charName, detached, onDetach, onAttach, onClose }: {
                             : plural(count, 'item')}
                         </span>
                       </button>
+                      <Tooltip text={e.character ? `Save ${e.character}'s lists as a text file` : 'Save this family vault as a text file'}>
+                        <button className="inv-mgr-btn hold-row-btn" onClick={() => downloadOne(e)}>Download</button>
+                      </Tooltip>
                       {forget === e.key ? (
                         <span className="hold-confirm">
                           <button className="inv-mgr-btn hold-danger" onClick={() => void doForget(e)}>Forget</button>
@@ -192,7 +222,7 @@ function HoldingsBody({ charName, detached, onDetach, onAttach, onClose }: {
                         </span>
                       ) : (
                         <Tooltip text={e.character ? `Remove ${e.character}'s lists from here` : 'Remove this family vault from here'}>
-                          <button className="inv-mgr-btn hold-forget" onClick={() => setForget(e.key)}>Forget</button>
+                          <button className="inv-mgr-btn hold-row-btn" onClick={() => setForget(e.key)}>Forget</button>
                         </Tooltip>
                       )}
                     </div>
