@@ -373,6 +373,14 @@
   text-align: right;
 }
 .exp-data-line:not(:has(+ .exp-data-line)) .exp-copy-wrap { display: block; }
+/* The same button under an inventory list or a vault report (see ListCopyButton).
+   These rows are ordinary block lines, so the wrap simply takes the next line. Each
+   kind is matched against its own class: an inventory row followed by a vault row is
+   still the end of the inventory. The left padding undoes any indent a monospaced
+   row carries, which would otherwise push the button's line in with it. */
+.list-row-inv:not(:has(+ .list-row-inv)) .exp-copy-wrap,
+.list-row-vault:not(:has(+ .list-row-vault)) .exp-copy-wrap { display: block; }
+.list-row .exp-copy-wrap { white-space: normal; }
 .exp-copy-btn {
   display: inline-flex;
   align-items: center;
