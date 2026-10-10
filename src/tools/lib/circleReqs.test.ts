@@ -15,7 +15,7 @@
 import {
   CIRCLE_REQS, GUILDS, SKILLSETS, parseSlot, guildFromSkills,
   checkCircle, reqsFor, highestCircleMet, GUILD_BY_SKILL, PRIMARY_MAGIC_BY_GUILD, circleForSlot, canonicalSkill,
-  isProjectedCircle,
+  isProjectedCircle, nthPool,
 } from './circleReqs'
 import { EXP_GROUPS } from '../../renderer/src/lib/expGroups'
 
@@ -51,7 +51,6 @@ for (const guild of GUILDS) {
 for (const guild of GUILDS) {
   const g = CIRCLE_REQS[guild]
   const parsed = g.slots.map(parseSlot)
-  const claimed = new Set(parsed.filter(p => p.skill).map(p => p.skill!.toLowerCase()))
 
   // Named slots must name a skill we actually know about, or the alias table is stale.
   for (const p of parsed.filter(p => p.skill)) {
@@ -78,7 +77,7 @@ for (const guild of GUILDS) {
     deepest.set(p.skillset, Math.max(deepest.get(p.skillset) ?? 0, p.position))
   }
   for (const [set, depth] of deepest) {
-    const available = (SKILLSETS[set] ?? []).filter(s => !claimed.has(s.toLowerCase())).length
+    const available = nthPool(guild, set).length
     check(`${guild}: ${set} has ${depth} slots and ${available} skills to fill them`,
           available >= depth, `needs ${depth}, pool has ${available}`)
   }
@@ -233,16 +232,55 @@ eq('guild: one guild skill per guild', new Set(Object.values(GUILD_BY_SKILL)).si
         JSON.stringify(ok.slots.filter(s => s.skill === null)))
 }
 
-// Named skills are excluded from the positional pool, so the same rank can't satisfy
-// two requirements at once.
+// ── Which skills can fill an Nth slot ───────────────────────────────────────────
+// The rules are the game's, from each guild's Elanthipedia page; see nthPool.
 {
-  const ranks = new Map<string, number>([['Stealth', 999]])
-  const c = checkCircle('Thief', 2, ranks)!
-  const stealthSlot = c.slots.find(s => s.slot === 'Stealth')!
-  const firstSurv   = c.slots.find(s => s.slot === '1st Survival')!
-  eq('exclusion: Stealth fills its named slot', stealthSlot.have, 999)
-  check('exclusion: and does NOT also fill 1st Survival', firstSurv.skill !== 'Stealth',
-        `1st Survival resolved to ${firstSurv.skill}`)
+  const slotOf = (guild: string, ranks: [string, number][], slot: string) =>
+    checkCircle(guild, 2, new Map(ranks))!.slots.find(s => s.slot === slot)!
+
+  // Mastery skills never count, for any guild. Offhand Weapon was the one reported:
+  // a Thief with a high Offhand Weapon was being told it was their best weapon.
+  const offhand = slotOf('Thief', [['Offhand Weapon', 900], ['Small Edged', 40]], '1st Weapon')
+  eq('mastery: Offhand Weapon is not a weapon for Nth purposes', offhand.skill, 'Small Edged')
+  eq('mastery: so the real weapon rank is what is checked', offhand.have, 40)
+  for (const guild of GUILDS) {
+    for (const m of ['Offhand Weapon', 'Parry Ability', 'Melee Mastery', 'Missile Mastery']) {
+      check(`mastery: ${m} never fills ${guild} Nth Weapon`, !nthPool(guild, 'Weapon').includes(m))
+    }
+    check(`mastery: Defending never fills ${guild} Nth Armor`, !nthPool(guild, 'Armor').includes('Defending'))
+    const primary = PRIMARY_MAGIC_BY_GUILD[guild]
+    check(`mastery: ${primary} never fills ${guild} Nth Magic`, !nthPool(guild, 'Magic').includes(primary))
+  }
+  // Trader names no Parry requirement, so "named skills are excluded" never caught it.
+  eq('mastery: Parry does not count for a guild that does not name it',
+    slotOf('Trader', [['Parry Ability', 900], ['Staves', 25]], '1st Weapon').skill, 'Staves')
+  eq('mastery: Defending is not armor for a Thief',
+    slotOf('Thief', [['Defending', 900], ['Light Armor', 30]], '1st Armor').skill, 'Light Armor')
+
+  // Soft requirements are checked on their own AND count as Nth skills.
+  const soft: [string, number][] = [['Stealth', 999]]
+  eq('soft: Stealth fills its named slot', slotOf('Thief', soft, 'Stealth').have, 999)
+  eq('soft: and ALSO counts as the Thief 1st Survival', slotOf('Thief', soft, '1st Survival').skill, 'Stealth')
+  check('soft: Instinct counts toward a Ranger Nth Survival', nthPool('Ranger', 'Survival').includes('Instinct'))
+  check('soft: Tactics counts toward a Paladin Nth Lore', nthPool('Paladin', 'Lore').includes('Tactics'))
+
+  // Hard requirements are checked on their own and can NOT also be an Nth skill.
+  eq('hard: Evasion fills the Barbarian Evasion slot',
+    slotOf('Barbarian', [['Evasion', 999]], 'Evasion').have, 999)
+  check('hard: but not its 1st Survival',
+    slotOf('Barbarian', [['Evasion', 999]], '1st Survival').skill !== 'Evasion')
+  check('hard: Appraisal is not one of a Trader Nth Lore', !nthPool('Trader', 'Lore').includes('Appraisal'))
+  check('hard: Tactics is hard for a Barbarian though soft for a Bard',
+    !nthPool('Barbarian', 'Lore').includes('Tactics') && nthPool('Bard', 'Lore').includes('Tactics'))
+
+  // Barred per guild.
+  check('barred: Sorcery and Thievery do not count for a Cleric',
+    !nthPool('Cleric', 'Magic').includes('Sorcery') && !nthPool('Cleric', 'Survival').includes('Thievery'))
+  check('barred: Sorcery does count for a Moon Mage', nthPool('Moon Mage', 'Magic').includes('Sorcery'))
+  check('barred: Expertise is not one of a Barbarian weapons', !nthPool('Barbarian', 'Weapon').includes('Expertise'))
+
+  // What is left is the fourteen real weapons, for everyone.
+  eq('pool: fourteen weapons count for a Thief', nthPool('Thief', 'Weapon').length, 14)
 }
 
 // Positional ordering really is by rank, highest first.
