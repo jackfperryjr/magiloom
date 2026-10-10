@@ -14,7 +14,7 @@ import { useProfile } from '../../hooks/useProfile'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import {
-  IconCog, IconPaintBrush, IconPhoto, IconPower, IconBolt, IconBroadcast, IconSwitch,
+  IconCog, IconPaintBrush, IconPanelInventory, IconPhoto, IconPower, IconBolt, IconBroadcast, IconSwitch,
   IconSun, IconMoon,
 } from '../ui/Icons'
 import { Tooltip } from '../ui/Tooltip'
@@ -171,7 +171,7 @@ const ModeIcon  = ({ mode, size }: { mode: ThemeMode; size: number }) =>
 
 function CharacterMenu({
   status, presenceMode, onSetPresence, onEditAvatar, avatar, crop, initial, charName, profile,
-  onDisconnect, onConnect, onSwitchCharacter, magiAccount, onSignIn, onSignOut, watching, onLeaveWatch, onClose, showActions, onBroadcast, onHighlights, onSettings,
+  onDisconnect, onConnect, onSwitchCharacter, magiAccount, onSignIn, onSignOut, watching, onLeaveWatch, onClose, showActions, onBroadcast, onHighlights, onHoldings, onSettings,
   themeMode,
 }: {
   status:        ConnectionStatus
@@ -195,6 +195,7 @@ function CharacterMenu({
   showActions:   boolean        // mobile: quick actions live here instead of the bar
   onBroadcast:   () => void
   onHighlights:  () => void
+  onHoldings:    () => void
   onSettings:    () => void
   themeMode:     ThemeToggle
 }) {
@@ -235,6 +236,9 @@ function CharacterMenu({
             <div className="char-menu-sep" />
           </>
         )}
+        {/* Not a quick action on the bar, so it is offered here on every layout. */}
+        <button className="char-menu-item" onClick={run(onHoldings)}><IconPanelInventory size={15} /> Account inventory</button>
+        <div className="char-menu-sep" />
         {status === 'connected' && (
           <>
             {(['online', 'idle', 'dnd'] as PresenceMode[]).map(m => (
@@ -297,7 +301,7 @@ function CharacterMenu({
 }
 
 export function CharacterBar({
-  charName, accountName, status, watching = false, onLeaveWatch, onHighlights, onSettings, onDisconnect, onConnect, onSwitchCharacter,
+  charName, accountName, status, watching = false, onLeaveWatch, onHighlights, onHoldings, onSettings, onDisconnect, onConnect, onSwitchCharacter,
 }: {
   charName:     string
   accountName:  string
@@ -305,6 +309,7 @@ export function CharacterBar({
   watching?:    boolean
   onLeaveWatch?: () => void
   onHighlights: () => void
+  onHoldings:   () => void
   onSettings:   () => void
   onDisconnect: () => void
   onConnect:    () => void
@@ -508,6 +513,7 @@ export function CharacterBar({
           showActions={isMobile}
           onBroadcast={() => setShowBroadcast(true)}
           onHighlights={onHighlights}
+          onHoldings={onHoldings}
           onSettings={onSettings}
           themeMode={themeMode}
         />

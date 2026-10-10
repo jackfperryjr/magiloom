@@ -578,7 +578,7 @@ function EmptyHand() {
   return <span className="hand-empty">empty</span>
 }
 
-export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
+export function InventoryPanel({ onManage, onAccount }: { onManage?: () => void; onAccount?: () => void } = {}) {
   const lines    = useAtomValue(inventoryLinesAtom).filter(l => !INV_HEADER_RE.test(l))
   const snapshot = useAtomValue(invSnapshotAtom)
   const status   = useAtomValue(invStatusAtom)
@@ -617,6 +617,9 @@ export function InventoryPanel({ onManage }: { onManage?: () => void } = {}) {
       <div className="panel-btn-row">
         {onManage && (
           <button className="panel-btn" onClick={onManage}>Manage items…</button>
+        )}
+        {onAccount && (
+          <button className="panel-btn" onClick={onAccount} data-tooltip="What every character was last seen holding">All characters…</button>
         )}
         <button
           className="panel-btn"

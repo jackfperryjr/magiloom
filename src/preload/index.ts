@@ -154,6 +154,17 @@ contextBridge.exposeInMainWorld('dr', {
       return () => ipcRenderer.removeListener('map:zone-changed', h)
     }
   },
+  holdings: {
+    // Account inventory: every character's last INVENTORY LIST / VAULT report.
+    get:    ()                                  => ipcRenderer.invoke('holdings:get'),
+    put:    (report: object)                    => ipcRenderer.invoke('holdings:put', report),
+    remove: (account: string, character?: string) => ipcRenderer.invoke('holdings:remove', account, character),
+    onChanged: (cb: (doc: unknown) => void) => {
+      const h = (_e: unknown, doc: unknown) => cb(doc)
+      ipcRenderer.on('holdings:changed', h)
+      return () => ipcRenderer.removeListener('holdings:changed', h)
+    }
+  },
   broadcast: {
     // Send a command to OTHER Magiloom windows (this window runs its own copy).
     send:       (cmd: string) => ipcRenderer.invoke('broadcast:send', cmd),
