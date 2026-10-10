@@ -298,12 +298,15 @@
   padding: 1px 6px; border-radius: 999px;
   color: var(--accent); border: 1px solid var(--border-soft);
 }
-/* Forgetting is rare and destructive: out of the way until the row is pointed at. */
-.hold-forget { opacity: 0; }
-.hold-entry-head:hover .hold-forget, .hold-forget:focus-visible { opacity: 1; }
+/* Per-row actions (Download, Forget) are occasional: out of the way until the row
+   is pointed at, except for the character being played — its Download is the one
+   reached for most, so it is always there. */
+.hold-row-btn { opacity: 0; }
+.hold-entry-head:hover .hold-row-btn, .hold-row-btn:focus-visible,
+.hold-entry-mine .hold-row-btn { opacity: 1; }
 .hold-confirm { display: flex; gap: 6px; }
 .hold-danger, .hold-danger:hover:not(:disabled) { color: var(--color-warning); }
-@media (hover: none) { .hold-forget { opacity: 1; } }
+@media (hover: none) { .hold-row-btn { opacity: 1; } }
 
 .hold-section { margin: 2px 8px 0 26px; }
 .hold-section-head {
