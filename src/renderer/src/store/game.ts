@@ -27,6 +27,7 @@ import {
 } from '../lib/injuries'
 import { receiveInvEnvelopeAtom, clearInventoryAtom } from './inventory'
 import { DEFAULT_APPEARANCE, type CharAppearance } from '../lib/charSettings'
+import type { DropCause } from '../lib/disconnect'
 
 export type { StreamId }
 
@@ -79,6 +80,7 @@ export interface OutputLine {
   bolds?:     string[]   // inline-bold substrings within `text`
   separator?: boolean
   divider?:   string   // labeled separator line (e.g. "Disconnected")
+  dividerNote?: string // why, shown beside the divider's time (e.g. "Closed by the game server")
   speaker?:   string   // for conversation lines: who is talking (for the avatar)
   look?:      { name: string; lines: string[] }  // LOOK-at-player block: portrait card
 }
@@ -131,16 +133,21 @@ function appendDedup(lines: OutputLine[], line: OutputLine, max: number = _outpu
 export const outputLinesAtom  = atom<OutputLine[]>([])
 
 // Append a labeled "Disconnected" divider to the main output, marking
-// where the connection dropped. Guarded so repeated disconnect events (or a
-// disconnect with no intervening output) don't stack multiple dividers.
-export const appendDisconnectNoticeAtom = atom(null, (get, set) => {
+// where the connection dropped and (`note`) why. Guarded so repeated disconnect
+// events (or a disconnect with no intervening output) don't stack multiple dividers.
+export const appendDisconnectNoticeAtom = atom(null, (get, set, note?: string) => {
   const lines = get(outputLinesAtom)
   if (lines[lines.length - 1]?.divider) return
   set(outputLinesAtom, appendMain(lines, {
     id: lineId++, text: '', styles: [], stream: 'main' as StreamId,
-    timestamp: Date.now(), divider: 'Disconnected',
+    timestamp: Date.now(), divider: 'Disconnected', dividerNote: note,
   }))
 })
+
+// The most recent drop of a LIVE connection and what caused it (lib/disconnect).
+// `seq` makes every drop a distinct value, so two in a row with the same cause still
+// re-run whatever is watching — the auto-reconnect (hooks/useAutoReconnect).
+export const lastDropAtom = atom<{ seq: number; cause: DropCause; note: string } | null>(null)
 
 // Stream-specific lines
 export const expLinesAtom     = atom<OutputLine[]>([])
@@ -214,6 +221,9 @@ export const vitalsAtom = atom<Record<VitalField, VitalState>>({
 // placeholder, not a measurement, so the first push must not be diffed against them
 // as if it were a hit (see the 'vitals' case in dispatch).
 let _healthSeen = false
+// The same fact for the UI: the HUD keeps its bars up after a disconnect, but only if
+// they ever showed a real reading — a window that never connected has nothing to keep.
+export const vitalsSeenAtom = atom(false)
 
 // ── Body injuries ───────────────────────────────────────────────────────────
 // The logged-in character's wounds/scars per body location, fed by DR's
@@ -902,6 +912,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
     spirit:  { value: 100, max: 100 },
   })
   _healthSeen = false   // the placeholder above isn't a reading — see _healthSeen
+  set(vitalsSeenAtom, false)
   set(handsAtom, { left: '', right: '' })
   set(bodyInjuriesAtom, {})
   set(patientBodyAtom, null)
@@ -1504,6 +1515,7 @@ export const dispatchGameEventAtom = atom(
         if (event.field === 'health') {
           if (!_healthSeen) {
             _healthSeen = true
+            set(vitalsSeenAtom, true)
           } else if (event.value < prev.health.value) {
             const dropFrac = prev.health.max > 0 ? (prev.health.value - event.value) / prev.health.max : 0
             bumpHeat(get, set, 0.55 + Math.min(0.45, dropFrac * 2))

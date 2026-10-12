@@ -50,6 +50,7 @@ const TESTS = [
   'src/renderer/src/lib/silentReport.test.ts',
   'src/renderer/src/lib/listBlocks.test.ts',
   'src/renderer/src/lib/holdings.test.ts',
+  'src/renderer/src/lib/disconnect.test.ts',
 ]
 
 fs.mkdirSync(CACHE, { recursive: true })

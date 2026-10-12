@@ -114,6 +114,16 @@
   text-transform: uppercase;
   color: var(--text-dim);
 }
+/* Why the connection dropped. Sentence case (it's a sentence, unlike the stamp) and
+   the first thing to give way on a narrow panel. */
+.game-divider-note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-muted);
+}
 .game-divider-badge {
   flex-shrink: 0;
   background: var(--color-penalty);

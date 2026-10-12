@@ -21,6 +21,7 @@ import {
 import { MessagesPanel } from './components/layout/MessagesPanel'
 import { useMessaging } from './hooks/useMessaging'
 import { useSessionSnapshot } from './hooks/useSessionSnapshot'
+import { useAutoReconnect } from './hooks/useAutoReconnect'
 import { MapPanel } from './components/map/MapPanel'
 import { CalendarPanel } from './components/layout/CalendarPanel'
 import { BodyPanel, BodyOverlay } from './components/game/BodyPanel'
@@ -261,7 +262,7 @@ function ColResize({ onDrag }: { onDrag: (dx: number) => void }) {
 
 
 // ── Game layout ───────────────────────────────────────────────────────────────
-function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, onOpenSettings, onRequestConnect, onSwitchCharacter, updateSlot }: { charName: string; accountName: string; watching: boolean; resumed: boolean; onLeaveWatch: () => void; onOpenSettings: () => void; onRequestConnect: () => void; onSwitchCharacter: () => void; updateSlot: React.ReactNode }) {
+function GameLayout({ charName, accountName, watching, resumed, loginOpen, onLeaveWatch, onOpenSettings, onRequestConnect, onSwitchCharacter, updateSlot }: { charName: string; accountName: string; watching: boolean; resumed: boolean; loginOpen: boolean; onLeaveWatch: () => void; onOpenSettings: () => void; onRequestConnect: () => void; onSwitchCharacter: () => void; updateSlot: React.ReactNode }) {
   // Automapper: records rooms into the shared world map (movement is captured
   // universally via dr.game.onSent inside the hook).
   const automap = useAutomapper()
@@ -270,7 +271,9 @@ function GameLayout({ charName, accountName, watching, resumed, onLeaveWatch, on
   // paints. Opens no AudioContext at all until something actually wants to sound.
   useAmbientAudio()
   const isMobile = useIsMobile()
-  const { status, disconnect, send } = useGameConnection(charName)
+  const { status, disconnect, send } = useGameConnection(charName, loginOpen)
+  // Sign back in on our own when the connection drops and nobody here dropped it.
+  useAutoReconnect(charName, accountName, watching || loginOpen)
   // Carry room/exp/hands across a reload. The game announces those once, on
   // change, so a session resumed mid-hunt would otherwise show nothing until the
   // character next moves. See lib/sessionSnapshot.ts.
@@ -777,7 +780,7 @@ function AppInner() {
       {!inGame && <div className="app-titlebar-shell">{updateSlot}<WindowControls /></div>}
       {!inGame
         ? <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} />
-        : <GameLayout charName={charName} accountName={accountName} watching={watching} resumed={resumedSession} onLeaveWatch={leaveWatch} onOpenSettings={() => setShowSettings(true)} onRequestConnect={openConnect} onSwitchCharacter={openSwitchCharacter} updateSlot={updateSlot} />
+        : <GameLayout charName={charName} accountName={accountName} watching={watching} resumed={resumedSession} loginOpen={showReconnect} onLeaveWatch={leaveWatch} onOpenSettings={() => setShowSettings(true)} onRequestConnect={openConnect} onSwitchCharacter={openSwitchCharacter} updateSlot={updateSlot} />
       }
       {inGame && showReconnect && (
         <div className="reconnect-overlay">

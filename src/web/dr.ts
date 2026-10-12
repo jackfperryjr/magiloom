@@ -23,6 +23,9 @@ class Transport {
   private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: unknown) => void }>()
   private listeners = new Map<string, Set<AnyFn>>()
   private queue: string[] = []          // invokes buffered until the socket opens
+  private opens = 0
+  /** When the socket last had to be RE-opened (epoch ms); 0 until the first drop. */
+  reopenedAt = 0
 
   constructor() { this.connect() }
 
@@ -30,7 +33,10 @@ class Transport {
     let ws: WebSocket
     try { ws = new WebSocket(wsUrl()) } catch { setTimeout(() => this.connect(), 1500); return }
     this.ws = ws
-    ws.onopen = () => { for (const m of this.queue) ws.send(m); this.queue = [] }
+    ws.onopen = () => {
+      if (this.opens++ > 0) this.reopenedAt = Date.now()
+      for (const m of this.queue) ws.send(m); this.queue = []
+    }
     ws.onmessage = ev => this.onMessage(String(ev.data))
     ws.onclose = () => {
       this.ws = null
@@ -244,6 +250,7 @@ export function installDr(): void {
       onConnected:    (cb: () => void)            => t.on('game:connected', cb),
       onDisconnected: (cb: () => void)            => t.on('game:disconnected', cb),
       onError:        (cb: (e: string) => void)   => t.on('game:error', cb),
+      linkReopenedAt: () => t.reopenedAt,
     },
     map: {
       load:       () => t.invoke('map:load'),

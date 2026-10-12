@@ -9,10 +9,15 @@ export class GameConnection extends EventEmitter {
   // socket reads, so a small tail is kept until it's seen (once per connection).
   private dialogAnnounced = false
   private loginPeek = ''
+  // Bumped by every connect and by disconnect(). The Lich paths below retry for up
+  // to two minutes while Lich boots; a retry loop whose generation has passed
+  // belongs to a connection that was since replaced or dropped and must stop, or
+  // two loops race for the same Lich port and the winner's stream arrives doubled.
+  private gen = 0
 
   connectDirect(host: string, port: number, key: string): void {
-    if (this.socket) this.disconnect()
-    this.socket = new Socket()
+    this.disconnect()
+    const s = this.socket = new Socket()
     this.socket.setEncoding('latin1')
     this.socket.on('connect', () => {
       // Full StormFront game-server login. Talking straight to the game (no Lich),
@@ -27,23 +32,25 @@ export class GameConnection extends EventEmitter {
       this.emit('connected')
     })
     this.socket.on('data',  (c: string) => this.onData(c))
-    this.socket.on('close', ()          => { this.emit('disconnected'); this.socket = null })
+    this.socket.on('close', ()          => { this.emit('disconnected'); if (this.socket === s) this.socket = null })
     this.socket.on('error', (e)         => this.emit('error', e.message))
     this.socket.connect(port, host)
   }
 
   connectWithKey(host: string, port: number, key: string): void {
-    if (this.socket) this.disconnect()
+    this.disconnect()
+    const gen = this.gen
     this.emit('log', 'Attempting to connect to ' + host + ':' + port + '...')
-    this._tryConnectWithKey(host, port, key, 0)
+    this._tryConnectWithKey(host, port, key, gen, 0)
   }
 
-  private _tryConnectWithKey(host: string, port: number, key: string, attempts: number): void {
-    if (this.socket) return
+  private _tryConnectWithKey(host: string, port: number, key: string, gen: number, attempts: number): void {
+    if (this.socket || gen !== this.gen) return
     const s = new Socket()
     s.setEncoding('latin1')
     let connected = false
     s.on('connect', () => {
+      if (gen !== this.gen) { s.destroy(); return }
       connected = true
       this.socket = s
       this.emit('log', 'Connected to Lich on port ' + port + ', sending key + FE token...')
@@ -58,8 +65,8 @@ export class GameConnection extends EventEmitter {
     s.on('error', (err) => {
       s.destroy()
       if (err.message.includes('ECONNREFUSED') && attempts < 240) {
-        setTimeout(() => this._tryConnectWithKey(host, port, key, attempts + 1), 500)
-      } else {
+        setTimeout(() => this._tryConnectWithKey(host, port, key, gen, attempts + 1), 500)
+      } else if (gen === this.gen) {
         this.emit('error', err.message)
       }
     })
@@ -67,17 +74,19 @@ export class GameConnection extends EventEmitter {
   }
 
   connect(host: string, port: number): void {
-    if (this.socket) this.disconnect()
+    this.disconnect()
+    const gen = this.gen
     this.emit('log', 'Attempting to connect to ' + host + ':' + port + '...')
-    this._tryConnect(host, port, 0)
+    this._tryConnect(host, port, gen, 0)
   }
 
-  private _tryConnect(host: string, port: number, attempts: number): void {
-    if (this.socket) return
+  private _tryConnect(host: string, port: number, gen: number, attempts: number): void {
+    if (this.socket || gen !== this.gen) return
     const s = new Socket()
     s.setEncoding('latin1')
     let connected = false
     s.on('connect', () => {
+      if (gen !== this.gen) { s.destroy(); return }
       connected = true
       this.socket = s
       this.emit('log', 'Connected to ' + host + ':' + port)
@@ -88,8 +97,8 @@ export class GameConnection extends EventEmitter {
     s.on('error', (err) => {
       s.destroy()
       if (err.message.includes('ECONNREFUSED') && attempts < 240) {
-        setTimeout(() => this._tryConnect(host, port, attempts + 1), 500)
-      } else {
+        setTimeout(() => this._tryConnect(host, port, gen, attempts + 1), 500)
+      } else if (gen === this.gen) {
         this.emit('error', err.message)
       }
     })
@@ -101,6 +110,7 @@ export class GameConnection extends EventEmitter {
   }
 
   disconnect(): void {
+    this.gen++
     this.socket?.destroy()
     this.socket = null
     this.buffer = ''
