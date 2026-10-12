@@ -213,21 +213,25 @@ export function ExperiencePanel() {
       {sleep !== 'awake' && (
         <div className={`exp-sleep exp-sleep-${sleep}`}>☾ {SLEEP_NOTE[sleep]}</div>
       )}
-      <div className="panel-section">Rested EXP</div>
-      <div className="panel-stats panel-stats-lead">
-        <div className="panel-stat" data-tooltip="Rested experience banked while logged out.">
-          <span className="panel-stat-n">{restedLabel(rested?.stored ?? 0)}</span>
-          <span className="panel-stat-k">stored</span>
-        </div>
-        <div className="panel-stat" data-tooltip="Rested experience still spendable in this cycle.">
-          <span className="panel-stat-n" style={{ color: (rested?.usable ?? 0) > 0 ? 'var(--accent)' : undefined }}>
-            {restedLabel(rested?.usable ?? 0)}
-          </span>
-          <span className="panel-stat-k">usable</span>
-        </div>
-        <div className="panel-stat" data-tooltip="Time until the next cycle refills the usable share.">
-          <span className="panel-stat-n">{restedLabel(rested?.refresh ?? 0)}</span>
-          <span className="panel-stat-k">refresh</span>
+      {/* Pinned to the top of the panel while the skill table scrolls under it —
+          see .exp-rested. */}
+      <div className="exp-rested">
+        <div className="panel-section">Rested EXP</div>
+        <div className="panel-stats panel-stats-lead">
+          <div className="panel-stat" data-tooltip="Rested experience banked while logged out.">
+            <span className="panel-stat-n">{restedLabel(rested?.stored ?? 0)}</span>
+            <span className="panel-stat-k">stored</span>
+          </div>
+          <div className="panel-stat" data-tooltip="Rested experience still spendable in this cycle.">
+            <span className="panel-stat-n" style={{ color: (rested?.usable ?? 0) > 0 ? 'var(--accent)' : undefined }}>
+              {restedLabel(rested?.usable ?? 0)}
+            </span>
+            <span className="panel-stat-k">usable</span>
+          </div>
+          <div className="panel-stat" data-tooltip="Time until the next cycle refills the usable share.">
+            <span className="panel-stat-n">{restedLabel(rested?.refresh ?? 0)}</span>
+            <span className="panel-stat-k">refresh</span>
+          </div>
         </div>
       </div>
       {/* The totals above are worth showing on their own, so the "no field exp"
