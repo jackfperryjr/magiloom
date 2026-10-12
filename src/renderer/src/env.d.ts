@@ -254,6 +254,10 @@ interface DrAPI {
     onConnected:    (cb: () => void)           => () => void
     onDisconnected: (cb: () => void)           => () => void
     onError:        (cb: (e: string) => void)  => () => void
+    // Web only: when (epoch ms) the link to the Magiloom server last had to be
+    // RE-opened, 0 if it never dropped. A game disconnect reported right after one
+    // means the server lost the session, not that the game closed it.
+    linkReopenedAt?: () => number
   }
   broadcast: {
     send:       (cmd: string) => Promise<void>

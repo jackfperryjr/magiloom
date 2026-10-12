@@ -1,9 +1,10 @@
 import { useEffect, useCallback, useRef } from 'react'
 import { useSetAtom, useAtom, useAtomValue } from 'jotai'
 import { parseLine, resetParser } from '../lib/sge-parser'
-import { connectionStatusAtom, dispatchGameEventAtom, appendDisconnectNoticeAtom, appendScriptOutputAtom, echoCommandAtom, linkModeAtom, broadcastReceiveAtom, classStatesAtom, disabledClassesAtom, injuryModeAtom } from '../store/game'
+import { connectionStatusAtom, dispatchGameEventAtom, appendDisconnectNoticeAtom, lastDropAtom, appendScriptOutputAtom, echoCommandAtom, linkModeAtom, broadcastReceiveAtom, classStatesAtom, disabledClassesAtom, injuryModeAtom } from '../store/game'
 import { expandAlias, matchTriggers, substituteVars, type Alias, type Trigger } from '../lib/automation'
 import { injuryModeCommand } from '../lib/injuries'
+import { classifyDrop, reconnectBudget } from '../lib/disconnect'
 
 // How long after connect to ask the game which injury view to report. The login
 // burst has to settle first, or the request lands before the game will answer it.
@@ -13,10 +14,21 @@ const INJURY_REQUEST_DELAY_MS = 1200
 // trigger whose command re-produces its own matching line can't storm the game.
 const TRIGGER_COOLDOWN_MS = 500
 
-export function useGameConnection(charName = '') {
+// `loginOpen`: the connect / switch-character overlay is up. A drop while it is
+// belongs to the login it's running, not to the game (see lib/disconnect).
+export function useGameConnection(charName = '', loginOpen = false) {
   const [status, setStatus] = useAtom(connectionStatusAtom)
   const dispatch = useSetAtom(dispatchGameEventAtom)
   const appendDisconnectNotice = useSetAtom(appendDisconnectNoticeAtom)
+  const setLastDrop = useSetAtom(lastDropAtom)
+  // What classifyDrop needs to know at the moment a drop is reported. All refs: the
+  // game listeners below are registered once and must read the current values.
+  const liveRef          = useRef(false)   // a connection is up, so a drop is a real one
+  const userDropRef      = useRef(false)   // Disconnect was chosen in this window
+  const viaLichRef       = useRef(false)
+  const lastSentRef      = useRef({ cmd: '', at: 0 })
+  const loginOpenRef     = useRef(loginOpen)
+  useEffect(() => { loginOpenRef.current = loginOpen }, [loginOpen])
   const appendScriptOutput = useSetAtom(appendScriptOutputAtom)
   const echoCommand = useSetAtom(echoCommandAtom)
   const linkMode = useAtomValue(linkModeAtom)
@@ -105,7 +117,10 @@ export function useGameConnection(charName = '') {
     return unsub
   }, [appendScriptOutput])
 
-  const disconnect = useCallback(() => window.dr.game.disconnect(), [])
+  const disconnect = useCallback(() => {
+    userDropRef.current = true
+    return window.dr.game.disconnect()
+  }, [])
 
   // Local execution of one command: expand aliases, then route. A leading '.'
   // runs a native .cmd script ('.kill'/'.stop' halts all); everything else goes
@@ -139,6 +154,9 @@ export function useGameConnection(charName = '') {
   //   link on  → every normal command also mirrors to my other windows
   // Peers only run it if they've opted in to receive (per-window setting).
   const send = useCallback((cmd: string) => {
+    // Someone is at the keyboard on a live session: automatic reconnects are earned
+    // back (see ReconnectBudget for why a successful reconnect alone doesn't do it).
+    if (liveRef.current) reconnectBudget.refill()
     const t = cmd.trimStart()
     if (t.startsWith('/')) {
       const all  = t.startsWith('//')                   // '//' = include this window
@@ -195,19 +213,52 @@ export function useGameConnection(charName = '') {
 
     // When GameLayout mounts, we may have already connected (the connected
     // event fired before this hook ran). Ask for current status immediately.
+    // A connection came up (or was already up when this mounted).
+    const wentLive = (): void => {
+      liveRef.current = true
+      userDropRef.current = false
+      // main/server record the login's Lich choice here on every connect.
+      window.dr.settings.getAll().then(s => { viaLichRef.current = !!s.connectWithLich })
+    }
+
+    // The connection is gone. Only the drop of a LIVE connection is marked in the
+    // output and classified: an error is followed by its own 'disconnected', and a
+    // connect attempt that never got through reports both too — none of those is a
+    // second disconnect.
+    const dropped = (error?: string): void => {
+      if (!liveRef.current) return
+      liveRef.current = false
+      const reopened = window.dr.game.linkReopenedAt?.() ?? 0
+      const drop = classifyDrop({
+        userRequested: userDropRef.current,
+        loginOpen:     loginOpenRef.current,
+        lastSent:      lastSentRef.current.cmd,
+        lastSentAgoMs: Date.now() - lastSentRef.current.at,
+        error,
+        linkReopenedAgoMs: reopened ? Date.now() - reopened : undefined,
+        viaLich:       viaLichRef.current,
+      })
+      userDropRef.current = false
+      appendDisconnectNotice(drop.note)
+      setLastDrop(prev => ({ seq: (prev?.seq ?? 0) + 1, ...drop }))
+    }
+
+    // When GameLayout mounts, we may have already connected (the connected
+    // event fired before this hook ran). Ask for current status immediately.
     window.dr.game.getStatus().then((s: string) => {
-      if (s === 'connected')    { setStatus('connected'); requestInjuryView() }
+      if (s === 'connected')    { wentLive(); setStatus('connected'); requestInjuryView() }
       if (s === 'disconnected') setStatus('disconnected')
     })
 
     const unsubs = [
-      window.dr.game.onConnected(()       => { resetParser(); setStatus('connected'); requestInjuryView() }),
-      window.dr.game.onDisconnected(()    => { setStatus('disconnected'); appendDisconnectNotice() }),
-      window.dr.game.onError(()           => { setStatus('error'); appendDisconnectNotice() }),
+      window.dr.game.onConnected(()       => { wentLive(); resetParser(); setStatus('connected'); requestInjuryView() }),
+      window.dr.game.onDisconnected(()    => { setStatus('disconnected'); dropped() }),
+      window.dr.game.onError((e: string)  => { setStatus('error'); dropped(e || 'unknown error') }),
+      window.dr.game.onSent((cmd: string) => { lastSentRef.current = { cmd, at: Date.now() } }),
       window.dr.game.onData((raw: string) => { parseLine(raw).forEach(dispatch); runTriggers(raw) })
     ]
     return () => { window.clearTimeout(injuryTimer); unsubs.forEach(fn => fn()) }
-  }, [dispatch, setStatus, appendDisconnectNotice, runTriggers])
+  }, [dispatch, setStatus, appendDisconnectNotice, setLastDrop, runTriggers])
 
   return { status, disconnect, send }
 }
