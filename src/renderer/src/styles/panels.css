@@ -142,6 +142,19 @@
 /* ── Experience panel ────────────────────────────────────────────────────── */
 .exp-panel { display: flex; flex-direction: column; gap: 4px; }
 .exp-table { width: 100%; border-collapse: collapse; }
+/* Rested EXP stays in view while the skill table scrolls: with a long table it is
+   the one block you'd otherwise keep scrolling back up to check. Sticky needs an
+   opaque surface or the rows show through, and the panel body is a different
+   colour as a sidebar card than as the mobile sheet, hence the variable. The tiles'
+   bottom margin moves inside as padding so the gap below them is masked too. */
+.panel-content     { --panel-surface: var(--bg-panel); }
+.panel-mobile-body { --panel-surface: var(--bg-sidebar); }
+.exp-rested {
+  position: sticky; top: 0; z-index: 1;
+  padding-bottom: 6px;
+  background: var(--panel-surface, var(--bg-panel));
+}
+.exp-rested .panel-stats { margin-bottom: 0; }
 /* The rows lay out as flex, not as table cells — the columns are narrow and fixed
    and a real table column would stretch to its widest skill name. Spelled out here
    rather than inherited from the (unrelated) settings-modal rules of the same name. */
