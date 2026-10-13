@@ -1,0 +1,285 @@
+/* theme-dialup.css — the Dial-Up theme's chrome. Imported LAST from global.css.
+
+   Every other theme is a palette plus some art behind the text. This one is a
+   period piece — a mid-90s online service running on a Windows 95 desktop — and
+   that look is carried by SHAPE far more than by colour: square corners, and a
+   two-tone bevel that makes every window and button stand proud of the surface and
+   every text field sink into it. So it needs rules of its own, and enough of them
+   that they get a file rather than another block in shell.css.
+
+   Everything is scoped to :root[data-theme="dialup"], which also outranks the
+   [data-mode="light"] corrections this theme inherits by being a light one.
+
+   The hex values here are the fixed system colours of that desktop (silver, the two
+   bevel greys, navy, teal), not theme variables: a bevel is only a bevel if its four
+   edges keep their relationship to the face they sit on. */
+
+:root[data-theme="dialup"] {
+  --font-ui: 'Microsoft Sans Serif', 'MS Sans Serif', Tahoma, Arial, sans-serif;
+  --scrollbar:       #c0c0c0;
+  --scrollbar-hover: #c0c0c0;
+  /* Raised: lit from the upper left. Sunken: the same four edges turned over. */
+  --w95-raised: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf;
+  --w95-sunken: inset 1px 1px 0 #808080, inset -1px -1px 0 #fff, inset 2px 2px 0 #000, inset -2px -2px 0 #dfdfdf;
+  --w95-title:  linear-gradient(90deg, #000080, #1084d0);
+  --w95-drop:   2px 2px 0 rgba(0, 0, 0, 0.4);
+}
+:root[data-theme="dialup"] ::selection { background: #000080; color: #fff; }
+
+/* ── Windows ──────────────────────────────────────────────────────────────────
+   Sidebar panels and modals are windows: a silver frame with a raised edge and a
+   navy title bar. The 3px padding is what lets the frame show — the bevel is an
+   inset shadow, and a title bar running edge to edge would paint straight over it. */
+:root[data-theme="dialup"] :is(.panel-card, .modal-card, .modal-box, .broadcast-modal, .avatar-modal, .login-card) {
+  padding: 3px;
+  border: none;
+  border-radius: 0;
+  background: #c0c0c0;
+  box-shadow: var(--w95-raised);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* Floating surfaces get the frame without the title-bar inset, plus a hard drop
+   shadow — soft blurred shadows are a later decade's idea. */
+:root[data-theme="dialup"] :is(.panel-manager-popup, .cmd-suggest, .cmd-verbinfo, .char-menu, .panel-ctx-menu, .character-bar) {
+  border: none;
+  border-radius: 0;
+  box-shadow: var(--w95-raised);
+}
+:root[data-theme="dialup"] :is(.modal-box, .broadcast-modal, .avatar-modal, .panel-manager-popup, .cmd-suggest, .cmd-verbinfo, .char-menu, .panel-ctx-menu),
+:root[data-theme="dialup"] .modal-card:not(.settings-modal) {
+  box-shadow: var(--w95-raised), var(--w95-drop);
+}
+:root[data-theme="dialup"] .modal-overlay-popover > :is(.broadcast-modal, .modal-box) {
+  box-shadow: var(--w95-raised), var(--w95-drop);
+}
+/* The toast keeps its coloured left edge — that stripe says what kind it is. */
+:root[data-theme="dialup"] .toast {
+  border-width: 0 0 0 4px;
+  border-radius: 0;
+  box-shadow: var(--w95-raised), var(--w95-drop);
+}
+
+:root[data-theme="dialup"] :is(.panel-header, .modal-header, .avatar-modal-header) {
+  background: var(--w95-title);
+  border-bottom: none;
+}
+:root[data-theme="dialup"] .panel-header { padding: 3px 3px 3px 6px; }
+:root[data-theme="dialup"] .modal-header,
+:root[data-theme="dialup"] .avatar-modal-header { padding: 5px 5px 5px 8px; }
+:root[data-theme="dialup"] :is(.panel-title, .modal-title) {
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: none;
+}
+/* Caption buttons. `opacity` needs !important: the hide-panel button dims itself
+   with an inline style, and a half-transparent bevel reads as a rendering fault. */
+:root[data-theme="dialup"] :is(.panel-header .panel-collapse-btn, .modal-header .modal-close, .avatar-modal-header .modal-close) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 14px;
+  margin-left: 2px;
+  padding: 0 0 1px;
+  background: #c0c0c0;
+  color: #000;
+  font-size: 11px;
+  line-height: 1;
+  box-shadow: var(--w95-raised);
+  opacity: 1 !important;
+}
+:root[data-theme="dialup"] :is(.panel-header .panel-collapse-btn, .modal-header .modal-close, .avatar-modal-header .modal-close):active {
+  box-shadow: var(--w95-sunken);
+}
+
+/* ── Title bar ────────────────────────────────────────────────────────────── */
+:root[data-theme="dialup"] .status-bar { background: var(--w95-title); color: #fff; }
+:root[data-theme="dialup"] .app-title {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: #fff;
+  text-shadow: none;
+}
+:root[data-theme="dialup"] .titlebar-help { color: #fff; }
+:root[data-theme="dialup"] .titlebar-sep  { background: rgba(255, 255, 255, 0.45); }
+/* The session chips become status-bar wells. */
+:root[data-theme="dialup"] .titlebar-chip,
+:root[data-theme="dialup"] .titlebar-chip-btn:hover {
+  border: none;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: var(--w95-sunken);
+  padding: 3px 8px;
+}
+:root[data-theme="dialup"] .window-controls { align-items: center; gap: 2px; padding: 0 6px; }
+:root[data-theme="dialup"] .status-bar .window-controls { margin-right: -8px; }
+:root[data-theme="dialup"] .wc-btn,
+:root[data-theme="dialup"] .wc-btn:hover {
+  width: 22px;
+  height: 20px;
+  background: #c0c0c0;
+  color: #000;
+  box-shadow: var(--w95-raised);
+}
+:root[data-theme="dialup"] .wc-btn:active { box-shadow: var(--w95-sunken); }
+
+/* ── The desktop ──────────────────────────────────────────────────────────────
+   The panel column is the one place bare background shows between windows, so it
+   gets the teal. */
+:root[data-theme="dialup"] .panel-sidebar-scroll { background: #008080; padding: 6px; }
+:root[data-theme="dialup"] .panel-sidebar-empty  { color: #fff; }
+:root[data-theme="dialup"] .game-col { border-radius: 0; }
+
+/* ── Text wells ───────────────────────────────────────────────────────────── */
+:root[data-theme="dialup"] .game-output-wrap {
+  background: #fff;
+  box-shadow: var(--w95-sunken);
+  padding: 2px;
+}
+:root[data-theme="dialup"] :is(.command-input-wrap, .command-input-wrap:focus-within, .settings-input, .settings-search-input, .login-input, .login-input:focus) {
+  background-color: #fff;
+  color: #000;
+  border: none;
+  border-radius: 0;
+  box-shadow: var(--w95-sunken);
+}
+/* Links the way a browser of the period drew them. */
+:root[data-theme="dialup"] .game-link,
+:root[data-theme="dialup"] .game-link:hover {
+  color: #0000ee;
+  background: none;
+  font-weight: inherit;
+  text-decoration: underline;
+}
+:root[data-theme="dialup"] .game-link:hover { color: #c80000; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+:root[data-theme="dialup"] :is(.login-btn, .login-btn-secondary, .jump-present, .panel-btn, .script-refresh, .script-stopall),
+:root[data-theme="dialup"] :is(.login-btn, .login-btn-secondary, .jump-present, .script-refresh, .script-stopall):hover,
+:root[data-theme="dialup"] .panel-btn:hover:not(:disabled) {
+  background: #c0c0c0;
+  color: #000;
+  border: none;
+  border-radius: 0;
+  box-shadow: var(--w95-raised);
+  filter: none;
+  letter-spacing: 0;
+}
+/* The default button of a dialog wears a black ring. */
+:root[data-theme="dialup"] .login-btn,
+:root[data-theme="dialup"] .login-btn:hover { box-shadow: var(--w95-raised), 0 0 0 1px #000; }
+:root[data-theme="dialup"] .script-stopall,
+:root[data-theme="dialup"] .script-stopall:hover { color: var(--color-warning); }
+/* Quick actions keep their left edge: its colour says what kind of button it is. */
+:root[data-theme="dialup"] .quick-btn,
+:root[data-theme="dialup"] .quick-btn:hover {
+  background: #c0c0c0;
+  color: #000;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 0;
+  box-shadow: var(--w95-raised);
+}
+:root[data-theme="dialup"] :is(.login-btn, .login-btn-secondary, .jump-present, .panel-btn, .quick-btn, .script-refresh, .script-stopall, .panel-rail-btn):active:not(:disabled) {
+  box-shadow: var(--w95-sunken);
+}
+
+/* The rail is a toolbar of raised tiles with coloured glyphs. Each hue is mixed
+   half-way to black: that is the most colour all fourteen can carry while still
+   clearing 3:1 against the silver tile. */
+:root[data-theme="dialup"] .panel-rail-btn,
+:root[data-theme="dialup"] .panel-rail-btn:hover {
+  border: none;
+  border-radius: 0;
+  background: #c0c0c0;
+  box-shadow: var(--w95-raised);
+}
+:root[data-theme="dialup"] .panel-rail-btn[data-panel],
+:root[data-theme="dialup"] .panel-rail-btn[data-panel]:hover {
+  color: color-mix(in srgb, var(--rail-hue) 50%, #000);
+}
+:root[data-theme="dialup"] .panel-rail-add,
+:root[data-theme="dialup"] .panel-rail-add:hover { color: #000080; }
+:root[data-theme="dialup"] .panel-rail-update,
+:root[data-theme="dialup"] .panel-rail-update:hover { color: var(--color-bonus); }
+
+/* ── Selection: navy bar, white text ──────────────────────────────────────── */
+:root[data-theme="dialup"] :is(.settings-nav-item, .cmd-suggest-item, .char-menu-item, .script-row) { border-radius: 0; }
+:root[data-theme="dialup"] :is(.settings-nav-item.active, .cmd-suggest-item.active, .char-menu-item:hover, .panel-ctx-item:hover, .panel-manager-item:hover) {
+  background: #000080;
+  color: #fff;
+}
+:root[data-theme="dialup"] .cmd-suggest-item.active .cmd-suggest-tag,
+:root[data-theme="dialup"] .char-menu-item:hover .char-menu-check { color: #fff; }
+
+/* ── Toggle → check box ───────────────────────────────────────────────────────
+   A pill switch is the one control here with no ancestor on that desktop, so it is
+   redrawn as what it would have been: a sunken white box, ticked when on. */
+:root[data-theme="dialup"] .toggle,
+:root[data-theme="dialup"] .toggle.on {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: var(--w95-sunken);
+}
+:root[data-theme="dialup"] .toggle-knob { display: none; }
+:root[data-theme="dialup"] .toggle.on::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid #000;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+:root[data-theme="dialup"] .toggle:focus-visible { outline: 1px dotted #000; outline-offset: 2px; }
+
+/* ── Tooltips: the pale-yellow info tip, no arrow ─────────────────────────── */
+:root[data-theme="dialup"] .tooltip-custom {
+  background: #ffffe1;
+  color: #000;
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 3px 6px;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+:root[data-theme="dialup"] .tooltip-custom::before,
+:root[data-theme="dialup"] .tooltip-custom::after { display: none; }
+
+/* ── Scrollbars ───────────────────────────────────────────────────────────────
+   Widths are left alone everywhere but the game window: several scrollers are
+   deliberately hairline (or hidden, on the rail) and a blanket width would undo
+   that. The thumb and the dithered trough apply at whatever width they get. */
+:root[data-theme="dialup"] ::-webkit-scrollbar-thumb,
+:root[data-theme="dialup"] ::-webkit-scrollbar-thumb:hover {
+  background: #c0c0c0;
+  border-radius: 0;
+  box-shadow: var(--w95-raised);
+}
+:root[data-theme="dialup"] ::-webkit-scrollbar-track {
+  background: repeating-conic-gradient(#c0c0c0 0 25%, #fff 0 50%) 0 0 / 2px 2px;
+}
+:root[data-theme="dialup"] .game-output::-webkit-scrollbar { width: 16px; }
+:root[data-theme="dialup"] .game-output::-webkit-scrollbar-button:single-button {
+  display: block;
+  height: 16px;
+  background: #c0c0c0 center / 7px 4px no-repeat;
+  box-shadow: var(--w95-raised);
+}
+:root[data-theme="dialup"] .game-output::-webkit-scrollbar-button:single-button:vertical:decrement {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 4'%3E%3Cpath d='M0 4h7L3.5 0z'/%3E%3C/svg%3E");
+}
+:root[data-theme="dialup"] .game-output::-webkit-scrollbar-button:single-button:vertical:increment {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 4'%3E%3Cpath d='M0 0h7L3.5 4z'/%3E%3C/svg%3E");
+}
