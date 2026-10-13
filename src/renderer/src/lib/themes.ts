@@ -45,9 +45,9 @@ export const DEFAULT_HIGHLIGHTS: Highlight[] = [
   hl('logon',        '* Log-on system converted', '#e8c87a', '', false),
 ]
 /**
- * Which face of a DUAL theme is showing. Single-face themes are always 'dark' —
- * every other theme in the list is dark, and the CSS that keys off a light UI
- * (see :root[data-mode="light"]) must not fire for them.
+ * Which face of a DUAL theme is showing. Single-face themes ignore it: they are
+ * 'dark' unless the theme is marked `lightOnly`, so the CSS that keys off a light
+ * UI (see :root[data-mode="light"]) fires for exactly the palettes that need it.
  */
 export type ThemeMode = 'dark' | 'light'
 
@@ -63,6 +63,11 @@ export interface Theme {
    * it omitted still holding the dark value.
    */
   light?: Record<string, string>
+  /**
+   * A single-face theme whose one palette (`vars`) is light. It gets
+   * data-mode="light" without having a second face to toggle to.
+   */
+  lightOnly?: boolean
 }
 
 export const THEMES: Theme[] = [
@@ -539,54 +544,64 @@ export const THEMES: Theme[] = [
     }
   },
   {
-    // An amber-phosphor terminal: the one theme whose body text is itself coloured.
-    // Every other palette here is pale text on a tinted ground; this is a single
-    // warm phosphor on black, with scanlines behind it (shell.css). The functional
-    // colours are NOT folded into the monochrome — a terminal that can't tell a
-    // whisper from a warning is a worse client, however authentic — so they stay
-    // distinct hues, and bold goes to near-white because yellow-on-amber is no
-    // emphasis at all.
-    id: 'phosphor',
-    name: 'Phosphor',
+    // A mid-90s online service on a Windows 95 desktop: silver chrome, navy title
+    // bars, a white text window, and the 16-colour VGA palette for everything else.
+    // It replaced Phosphor (charSettings.ts moves saved prefs over).
+    //
+    // The palette only gets it halfway — a flat grey panel is just a grey theme. What
+    // makes it read as the period is the BEVEL (two-tone raised and sunken edges on
+    // every window, button and field), and that lives in styles/theme-dialup.css.
+    //
+    // The one single-face theme that is LIGHT, hence `lightOnly`. The semantic colours
+    // are the VGA darks rather than the pure primaries because they have to clear
+    // contrast on two grounds at once: the white game window and the #c0c0c0 panels.
+    // Pure green (#008000) and pure red (#ff0000) both fail on the silver.
+    id: 'dialup',
+    name: 'Dial-Up',
+    lightOnly: true,
     vars: {
-      '--bg-shell':      '#0a0703',
-      '--bg-panel':      '#120c05',
-      '--bg-input':      '#070502',
-      '--bg-sidebar':    '#0e0904',
-      '--border':        '#5a3c12',
-      '--border-soft':   '#2e1f0a',
-      '--border-accent': '#ffb000',
-      '--text-main':     '#f0b354',
-      '--text-dim':      '#8f6424',
-      '--text-bright':   '#ffd98a',
-      '--text-muted':    '#c08a38',
-      '--accent':        '#ffb000',
-      '--accent-glow':   'rgba(255,176,0,0.25)',
-      '--accent-dim':    '#3a2606',
-      '--bg-overlay':    'rgba(5, 3, 1, 0.92)',
-      '--color-roomname':'#ffe2a0',
-      '--color-roomdesc':'#c9963f',
-      '--color-speech':  '#6fe06f',
-      '--color-whisper': '#7fb0ff',
-      '--color-thought': '#f080e0',
-      '--color-warning': '#ff5a2a',
-      '--color-bonus':   '#58d858',
-      '--color-penalty': '#ff4030',
-      '--color-bold':    '#fff3c4',
-      '--health-color':  '#e83a1e',
-      '--mana-color':    '#3a8ae0',
-      '--stamina-color': '#58c8a0',
-      '--spirit-color':  '#b060e0',
-      '--map-bg':       '#0f0a04',
-      '--map-haze':     'rgba(255,176,0,0.045)',
-      '--map-vignette': 'rgba(0,0,0,0.55)',
-      '--map-chip':     'rgba(10,7,3,0.8)',
-      '--map-room':      '#2a1c08',
-      '--map-room-hover':'#3d290c',
-      '--map-line':      '#7a5218',
-      '--body-base':     '#6b4a16',
-      '--body-eye':      '#1a1004',
-      '--body-outline':  '#0c0702',
+      '--bg-shell':      '#c0c0c0',
+      '--bg-panel':      '#c0c0c0',
+      '--bg-input':      '#ffffff',
+      '--bg-sidebar':    '#c0c0c0',
+      '--border':        '#808080',
+      '--border-soft':   '#a0a0a0',
+      '--border-accent': '#000080',
+      '--text-main':     '#000000',
+      '--text-dim':      '#4a4a4a',
+      '--text-bright':   '#000000',
+      '--text-muted':    '#333333',
+      '--accent':        '#000080',
+      '--accent-glow':   'rgba(0,0,128,0.25)',
+      // Accent-coloured text sits ON this (active rows, the avatar), so it is the
+      // system palette's sky blue rather than a dark tint.
+      '--accent-dim':    '#a6caf0',
+      // A wash of the desktop teal rather than a black scrim.
+      '--bg-overlay':    'rgba(0, 72, 72, 0.62)',
+      '--color-roomname':'#000080',
+      '--color-roomdesc':'#333333',
+      '--color-speech':  '#005a00',
+      '--color-whisper': '#0000c8',
+      '--color-thought': '#800080',
+      '--color-warning': '#8f2a00',
+      '--color-bonus':   '#005a00',
+      '--color-penalty': '#a00000',
+      '--color-bold':    '#5c4400',
+      '--health-color':  '#c80000',
+      '--mana-color':    '#0000c8',
+      '--stamina-color': '#008080',
+      '--spirit-color':  '#800080',
+      '--map-bg':       '#ffffff',
+      '--map-haze':     'rgba(0,0,128,0.03)',
+      '--map-vignette': 'rgba(0,0,0,0.10)',
+      '--map-chip':     'rgba(255,255,255,0.86)',
+      '--map-room':      '#c0c0c0',
+      '--map-room-hover':'#a6caf0',
+      '--map-line':      '#808080',
+      // Pale ground, so the keyline goes soft the way Ashfall's light face does.
+      '--body-base':     '#888888',
+      '--body-eye':      '#303030',
+      '--body-outline':  '#606060',
       '--bg-theme-image': 'none',
     }
   },
@@ -602,8 +617,8 @@ export function applyTheme(id: string, mode: ThemeMode = 'dark'): void {
   // A saved mode of 'light' on a theme that has no light face is not an error — it's
   // what you get after switching from the dual theme to a single-face one — so it
   // falls back rather than blanking the palette.
-  const light = mode === 'light' && !!theme.light
-  const vars  = light ? theme.light! : theme.vars
+  const vars  = mode === 'light' && theme.light ? theme.light : theme.vars
+  const light = vars === theme.light || !!theme.lightOnly
   const root  = document.documentElement
   for (const [key, val] of Object.entries(vars)) {
     root.style.setProperty(key, val)

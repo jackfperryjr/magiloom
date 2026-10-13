@@ -28,9 +28,12 @@ export const DEFAULT_APPEARANCE: CharAppearance = {
  * Sending them to the dark face would be a jarring, unexplained change on next
  * launch. Applied on read rather than by a migration pass so it also catches
  * settings.json files synced in from another machine.
+ *
+ * Dial-Up replaced Phosphor outright, so that one is a straight rename.
  */
 function migrate(a: CharAppearance): CharAppearance {
   if (a.theme === 'parchment') return { ...a, theme: 'ashfall', themeMode: 'light' }
+  if (a.theme === 'phosphor')  return { ...a, theme: 'dialup' }
   return a
 }
 
