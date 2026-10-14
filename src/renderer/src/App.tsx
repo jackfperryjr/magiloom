@@ -42,7 +42,7 @@ import {
 } from './store/game'
 import { quickActionCommand, quickActionLabel, type QuickAction } from './lib/quickActions'
 import { DEFAULT_HIGHLIGHTS, type Highlight } from './lib/themes'
-import { loadCharAppearance, applyAppearance } from './lib/charSettings'
+import { loadCharAppearance, applyAppearance, DEFAULT_APPEARANCE } from './lib/charSettings'
 import { IconExclamationTriangle, IconArrowDownTray } from './components/ui/Icons'
 import { Tooltip } from './components/ui/Tooltip'
 import { GlobalTooltip } from './components/ui/GlobalTooltip'
@@ -454,10 +454,10 @@ function GameLayout({ charName, accountName, watching, resumed, loginOpen, onLea
   // is per-character too and applied further down.
   useEffect(() => {
     window.dr.settings.getAll().then(s => {
-      // Theme the login screen with the last-used character's appearance so it
-      // matches what the player last saw (before any character is active).
+      // Seed the last-used character's appearance before any character is active.
+      // Only the atom is set here — AppInner is what applies it to the document.
       const lastChar = s.accounts?.find(a => a.name === s.lastAccount)?.lastCharacter
-      if (lastChar) loadCharAppearance(lastChar).then(a => { applyAppearance(a); setAppearance(a) })
+      if (lastChar) loadCharAppearance(lastChar).then(a => setAppearance(a))
       if (s.outputBufferSize) setOutputBuffer(s.outputBufferSize)
       if (s.avatars)          setAvatars(s.avatars)
       if (s.avatarCrops)      setAvatarCrops(s.avatarCrops)
@@ -488,13 +488,13 @@ function GameLayout({ charName, accountName, watching, resumed, loginOpen, onLea
   // it changes — the aliases/triggers matchers read it via useGameConnection.
   useEffect(() => { setDisabledClasses(disabledClasses) }, [disabledClasses])
 
-  // Apply this character's appearance (theme / font / density / timestamps),
+  // Load this character's appearance (theme / font / density / timestamps),
   // reloading whenever the active character changes. A character with nothing
-  // saved falls back to app defaults.
+  // saved falls back to app defaults. AppInner applies it.
   useEffect(() => {
     if (!charName) return
     let cancelled = false
-    loadCharAppearance(charName).then(a => { if (!cancelled) { applyAppearance(a); setAppearance(a) } })
+    loadCharAppearance(charName).then(a => { if (!cancelled) setAppearance(a) })
     return () => { cancelled = true }
   }, [charName, setAppearance])
 
@@ -677,6 +677,23 @@ function AppInner() {
   const [charName,      setCharName]      = useState('')
   const [accountName,   setAccountName]   = useState('')
   const [showSettings,  setShowSettings]  = useState(false)
+  // The login screen is always the default theme, whatever the character's own is:
+  // it is built around its scene art and a translucent card, and a theme that
+  // restyles the chrome wholesale (Dial-Up) comes out wrong on it. That covers the
+  // reconnect overlay too — the theme lives on the document root, so the frosted
+  // game behind the card goes default along with it until the card closes. Font
+  // and density still follow the character.
+  //
+  // This is the one place the appearance atom reaches the document. showSettings is
+  // a dependency so closing Settings — which previews themes live — puts back
+  // whichever of the two belongs here.
+  const appearance   = useAtomValue(appearanceAtom)
+  const loginShowing = !inGame || showReconnect
+  useEffect(() => {
+    applyAppearance(loginShowing
+      ? { ...appearance, theme: DEFAULT_APPEARANCE.theme, themeMode: DEFAULT_APPEARANCE.themeMode }
+      : appearance)
+  }, [loginShowing, appearance, showSettings])
   const [offline,       setOffline]       = useState(!navigator.onLine)
   // A launch-check update (desktop) surfaces in the title bar; a while-running update
   // (poll / web) is filtered to the panel rail (see PanelSidebar).
