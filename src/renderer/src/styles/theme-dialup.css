@@ -53,6 +53,9 @@
 :root[data-theme="dialup"] .modal-overlay-popover > :is(.broadcast-modal, .modal-box) {
   box-shadow: var(--w95-raised), var(--w95-drop);
 }
+/* On a phone the character bar is just the avatar, docked inside the command line
+   (mobile.css strips its card there) — so it is not a window and gets no frame. */
+:root[data-theme="dialup"] .command-input-wrap > .character-bar { box-shadow: none; }
 /* The toast keeps its coloured left edge — that stripe says what kind it is. */
 :root[data-theme="dialup"] .toast {
   border-width: 0 0 0 4px;
@@ -106,15 +109,19 @@
 }
 :root[data-theme="dialup"] .titlebar-help { color: #fff; }
 :root[data-theme="dialup"] .titlebar-sep  { background: rgba(255, 255, 255, 0.45); }
-/* The session chips become status-bar wells. */
+/* The session chips are silver like the rest of the chrome. The ones that are
+   buttons (click copies the id) are raised; the ones that only report are wells. */
 :root[data-theme="dialup"] .titlebar-chip,
 :root[data-theme="dialup"] .titlebar-chip-btn:hover {
   border: none;
   border-radius: 0;
-  background: #fff;
+  background: #c0c0c0;
   box-shadow: var(--w95-sunken);
   padding: 3px 8px;
 }
+:root[data-theme="dialup"] .titlebar-chip-btn,
+:root[data-theme="dialup"] .titlebar-chip-btn:hover  { box-shadow: var(--w95-raised); }
+:root[data-theme="dialup"] .titlebar-chip-btn:active { box-shadow: var(--w95-sunken); }
 :root[data-theme="dialup"] .window-controls { align-items: center; gap: 2px; padding: 0 6px; }
 :root[data-theme="dialup"] .status-bar .window-controls { margin-right: -8px; }
 :root[data-theme="dialup"] .wc-btn,
