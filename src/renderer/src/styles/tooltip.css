@@ -111,3 +111,8 @@
   color: var(--text-main);
 }
 .panel-ctx-item:hover { background: rgba(139,134,248,0.08); }
+
+/* PopoutButton — the icon-only pop-out control. Callers bring the button's look;
+   this just keeps the glyph centred whatever padding that look has. */
+.popout-btn { display: inline-flex; align-items: center; justify-content: center; line-height: 0; }
+.popout-btn svg { display: block; }

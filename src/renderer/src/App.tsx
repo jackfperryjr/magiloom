@@ -9,6 +9,7 @@ import { CommandInput, StatusBar, WindowControls, HudBar, CharacterBar } from '.
 import { AmbientOverlay } from './components/game/AmbientOverlay'
 import { LoginFlow }          from './components/ui/LoginFlow'
 import { SettingsModal }      from './components/ui/SettingsModal'
+import { ScriptPopouts }      from './components/ui/ScriptPopouts'
 import { HighlightsModal }    from './components/ui/HighlightsModal'
 import { NotificationCenter }  from './components/ui/Notifications'
 import { PanelSidebar }       from './components/layout/PanelSidebar'
@@ -811,6 +812,8 @@ function AppInner() {
           onClose={() => setShowSettings(false)}
         />
       )}
+      {/* Script files popped out of Settings — outside it, so they outlive it. */}
+      <ScriptPopouts />
     </>
   )
 }

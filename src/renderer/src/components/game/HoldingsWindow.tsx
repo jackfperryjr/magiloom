@@ -2,6 +2,7 @@ import { useAtom } from 'jotai'
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Tooltip } from '../ui/Tooltip'
+import { PopoutButton } from '../ui/PopoutButton'
 import { useDetachedWindow } from '../../hooks/useDetachedWindow'
 import { holdingsAtom } from '../../store/holdings'
 import {
@@ -141,11 +142,9 @@ function HoldingsBody({ charName, detached, onDetach, onAttach, onClose }: {
         <Tooltip text="Save every character's lists as a text file">
           <button className="inv-mgr-btn" onClick={downloadAll} disabled={entries.length === 0}>Download all</button>
         </Tooltip>
-        <Tooltip text={detached ? 'Put it back in the main window' : 'Move this into its own window'}>
-          <button className="inv-mgr-btn" onClick={detached ? onAttach : onDetach}>
-            {detached ? 'Return' : 'Pop out'}
-          </button>
-        </Tooltip>
+        <PopoutButton className="inv-mgr-btn inv-mgr-icon-btn" popped={detached}
+                      label={detached ? 'Put it back in the main window' : 'Move this into its own window'}
+                      onClick={detached ? onAttach : onDetach} />
         <button className="modal-close" onClick={onClose} aria-label="Close account inventory">×</button>
       </header>
 

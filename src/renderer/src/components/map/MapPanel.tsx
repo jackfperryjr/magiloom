@@ -3,6 +3,7 @@ import { useAtomValue } from 'jotai'
 import { mapDbAtom, currentNodeIdAtom, walkStateAtom } from '../../store/map'
 import { areaLayout } from '../../lib/mapper'
 import { MapView } from './MapView'
+import { PopoutButton } from '../ui/PopoutButton'
 
 export function MapPanel({ onNodeClick, onStopWalk, onExpand }: {
   onNodeClick?: (id: string) => void
@@ -25,7 +26,7 @@ export function MapPanel({ onNodeClick, onStopWalk, onExpand }: {
     return (
       <div className="map-panel">
         {onExpand && (
-          <button className="map-expand-btn" data-tooltip="Open full map" onClick={onExpand}>⤢</button>
+          <PopoutButton className="map-expand-btn" label="Open full map" onClick={onExpand} />
         )}
         <div className="map-nopos">
           <div className="map-nopos-title">Locating you…</div>
@@ -42,7 +43,7 @@ export function MapPanel({ onNodeClick, onStopWalk, onExpand }: {
   return (
     <div className="map-panel">
       {onExpand && (
-        <button className="map-expand-btn" data-tooltip="Open full map" onClick={onExpand}>⤢</button>
+        <PopoutButton className="map-expand-btn" label="Open full map" onClick={onExpand} />
       )}
       <MapView
         db={db}

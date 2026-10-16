@@ -322,3 +322,6 @@
 .hold-none { padding: 2px 10px; font-size: 13px; color: var(--text-dim); font-style: italic; }
 .hold-hit { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
 .hold-within { font-size: 12px; color: var(--text-dim); }
+
+/* The pop-out toggle: icon-only, so square it off against the text buttons beside it. */
+.inv-mgr-icon-btn { padding: 3px 6px; }

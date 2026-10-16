@@ -319,6 +319,29 @@ export function IconPanelScripts({ size = 16, className, style }: IconProps) {
   )
 }
 
+// ── Pop out / put back ────────────────────────────────────────────────────────
+// The one glyph for "show this bigger or in its own window", wherever that's offered
+// (Map, Body, Items, Account inventory, the script editors). Heroicons v2 outline.
+
+export function IconPopOut({ size = 14, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className} style={style} aria-hidden>
+      <path d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5" />
+      <path d="M7.5 16.5 21 3m0 0h-5.25M21 3v5.25" />
+    </svg>
+  )
+}
+
+// The reverse: bring a popped-out window back into the main one.
+export function IconPopIn({ size = 14, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className} style={style} aria-hidden>
+      <path d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5" />
+      <path d="M21 3 9 15m0 0h5.25M9 15V9.75" />
+    </svg>
+  )
+}
+
 // ── Window control icons ──────────────────────────────────────────────────────
 
 export function IconWinMinimize({ size = 10 }: { size?: number }) {

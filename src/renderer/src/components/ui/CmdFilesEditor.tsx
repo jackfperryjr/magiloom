@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Tooltip } from './Tooltip'
 import { CodeEditor } from './CodeEditor'
+import { PopoutButton } from './PopoutButton'
+import { useScriptPopout } from './ScriptPopouts'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 // Editor for the user's native Genie/Wizard `.cmd` scripts, embedded in
 // Settings → Scripts. Backed by the dr.script.* file API, which is confined to the
@@ -16,6 +19,7 @@ export function CmdFilesEditor() {
   const [files, setFiles]       = useState<string[]>([])
   const [selected, setSelected] = useState<string | null>(null)   // basename
   const [content, setContent]   = useState('')
+  const [saved, setSaved]       = useState('')    // what's on disk, for handing a file to a pop-out
   const [dirty, setDirty]       = useState(false)
   const [error, setError]       = useState('')
   const [status, setStatus]     = useState('')
@@ -23,6 +27,9 @@ export function CmdFilesEditor() {
   const [newName, setNewName]   = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const pop      = useScriptPopout('cmd')
+  const isMobile = useIsMobile()
+  const out      = selected !== null && pop.isOut(selected)
 
   const flash = (m: string) => { setStatus(m); window.setTimeout(() => setStatus(''), 2500) }
 
@@ -35,13 +42,32 @@ export function CmdFilesEditor() {
   const open = async (name: string) => {
     try {
       const res = await window.dr.script.readFile(name)
-      setSelected(name); setContent(res.content); setDirty(false); setError('')
+      setSelected(name); setContent(res.content); setSaved(res.content); setDirty(false); setError('')
     } catch (e) { setError(String(e)) }
   }
 
+  // The pop-out owns the file while it's out, unsaved edits and all. Back here by
+  // bringBack, it returns them; closed any other way it was saved or discarded
+  // there, so what's on disk is the truth — reread it.
+  const popOut = () => {
+    if (!selected) return
+    pop.popOut(selected, content, dirty ? saved : content)
+    setDirty(false)
+  }
+  const bringBack = () => {
+    const entry = selected ? pop.bringBack(selected) : null
+    if (entry) { setContent(entry.content); setSaved(entry.saved); setDirty(entry.content !== entry.saved) }
+  }
+  const wasOut = useRef(false)
+  useEffect(() => {
+    if (wasOut.current && !out && selected && !dirty) void open(selected)
+    wasOut.current = out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [out])
+
   const save = async () => {
     if (!selected) return
-    try { await window.dr.script.writeFile(selected, content); setDirty(false); flash('Saved'); void refresh() }
+    try { await window.dr.script.writeFile(selected, content); setSaved(content); setDirty(false); flash('Saved'); void refresh() }
     catch (e) { setError(String(e)) }
   }
 
@@ -49,6 +75,7 @@ export function CmdFilesEditor() {
     try {
       await window.dr.script.deleteFile(name)
       setConfirmDelete(null)
+      pop.drop(name)
       if (selected === name) { setSelected(null); setContent(''); setDirty(false) }
       flash('Deleted'); void refresh(); notifyScriptsChanged()
     } catch (e) { setError(String(e)) }
@@ -116,10 +143,18 @@ export function CmdFilesEditor() {
           </div>
         </div>
         <div className="lf-editor">
-          {selected ? <>
+          {selected && out ? (
+            <div className="lf-empty lf-popped">
+              <span><span className="lf-popped-name">{selected}.cmd</span> is open in its own window.</span>
+              <button className="lf-mini" onClick={bringBack}>Bring it back here</button>
+            </div>
+          ) : selected ? <>
             <div className="lf-editor-bar">
               <span className="lf-editor-name">{selected}.cmd{dirty ? ' •' : ''}</span>
-              <button className="login-btn" style={{ width: 'auto', padding: '5px 14px' }} disabled={!dirty} onClick={() => void save()}>Save</button>
+              <span className="lf-editor-actions">
+                {!isMobile && <PopoutButton className="lf-mini" label="Edit in its own window" onClick={popOut} />}
+                <button className="login-btn" style={{ width: 'auto', padding: '5px 14px' }} disabled={!dirty} onClick={() => void save()}>Save</button>
+              </span>
             </div>
             <CodeEditor path={selected + '.cmd'} value={content} onChange={v => { setContent(v); setDirty(true) }} onSave={() => void save()} />
           </> : <div className="lf-empty">Select a script to edit, or use + / ↑ to create or upload one.</div>}
