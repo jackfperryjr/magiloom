@@ -14,14 +14,81 @@ import { useEffect, useRef, useState } from 'react'
  *    window comes up blank. Writing a `<base>` first fixes every relative URL at
  *    once, and link hrefs are absolutised too so it holds either way.
  *  - **Styles.** Cloning every <style>/<link> covers both the dev build (Vite injects
- *    <style> tags) and a packaged/web build (a <link>).
- *  - **Theme.** Ours lives in a class and inline vars on <html>, which the head clone
+ *    <style> tags) and a packaged/web build (a <link>). The copy is kept LIVE, not
+ *    taken once: Monaco (the script editor) adds its own sheets to our <head> as it
+ *    goes — its theme colours, and rules inserted through the CSSOM, which leave no
+ *    text and fire no mutation — so a one-time clone leaves a popped-out editor
+ *    unstyled. See mirrorStyles.
+ *  - **Theme.** Ours lives in a class, data attributes and inline vars on <html>, which the head clone
  *    doesn't include — mirrored on open, then kept in sync with a MutationObserver so
  *    a theme change reaches the pop-out.
+ *
+ * Each hook gets its own window name: a shared one would make a second pop-out
+ * navigate the first's window out from under it.
  *
  * Returns null until the window exists. If the popup is blocked, `onClose` fires so
  * the caller can fall back to its in-app view rather than rendering into nothing.
  */
+let windowSeq = 0
+
+/** What a <style> currently says, CSSOM-inserted rules included. */
+function cssOf(el: HTMLStyleElement): string {
+  try {
+    const rules = el.sheet?.cssRules
+    if (rules) return Array.from(rules, r => r.cssText).join('\n')
+  } catch { /* unreadable sheet — fall back to its text */ }
+  return el.textContent ?? ''
+}
+
+/**
+ * Keeps `target`'s <head> carrying a copy of every <style>/<link> in ours, added,
+ * changed and removed as ours is. A head mutation resyncs at once; `sync()` is also
+ * called on a timer for the one change no observer sees, a rule inserted through the
+ * CSSOM (Monaco's decorations do this), which is caught by its sheet's rule count.
+ */
+function mirrorStyles(target: Document): { sync: () => void; dispose: () => void } {
+  const clones = new Map<Element, { node: HTMLElement; text: string | null; rules: number }>()
+
+  const ruleCount = (el: Element): number => {
+    try { return (el as HTMLStyleElement).sheet?.cssRules.length ?? 0 } catch { return 0 }
+  }
+
+  const sync = (): void => {
+    const live = new Set<Element>()
+    for (const el of document.head.children) {
+      if (el.tagName !== 'STYLE' && el.tagName !== 'LINK') continue
+      live.add(el)
+      const known = clones.get(el)
+      if (el.tagName === 'LINK') {
+        if (known) continue
+        const node = el.cloneNode(true) as HTMLElement
+        const href = node.getAttribute('href')
+        if (href) node.setAttribute('href', new URL(href, document.baseURI).href)
+        target.head.appendChild(node)
+        clones.set(el, { node, text: null, rules: 0 })
+        continue
+      }
+      const text = el.textContent, rules = ruleCount(el)
+      if (known && known.text === text && known.rules === rules) continue
+      const node = known?.node ?? target.createElement('style')
+      if (!known) {
+        for (const attr of el.getAttributeNames()) node.setAttribute(attr, el.getAttribute(attr)!)
+        target.head.appendChild(node)
+      }
+      node.textContent = cssOf(el as HTMLStyleElement)
+      clones.set(el, { node, text, rules })
+    }
+    for (const [el, { node }] of clones) {
+      if (!live.has(el)) { node.remove(); clones.delete(el) }
+    }
+  }
+
+  sync()
+  const observer = new MutationObserver(sync)
+  observer.observe(document.head, { childList: true, subtree: true, characterData: true })
+  return { sync, dispose: () => observer.disconnect() }
+}
+
 export function useDetachedWindow(
   open: boolean,
   { title, features = 'popup=yes,width=980,height=760', onClose }:
@@ -32,11 +99,13 @@ export function useDetachedWindow(
   // without re-running the effect (which would close and reopen the window).
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
+  const nameRef = useRef('')
+  if (!nameRef.current) nameRef.current = `lantern-detached-${++windowSeq}`
 
   useEffect(() => {
     if (!open) return
 
-    const child = window.open('about:blank', 'lantern-detached', features)
+    const child = window.open('about:blank', nameRef.current, features)
     if (!child) { onCloseRef.current(); return }
 
     // Write the skeleton synchronously rather than mutating the blank document:
@@ -51,26 +120,25 @@ export function useDetachedWindow(
     )
     child.document.close()
 
-    for (const el of [...document.head.children]) {
-      if (el.tagName !== 'STYLE' && el.tagName !== 'LINK') continue
-      const clone = el.cloneNode(true) as HTMLElement
-      const href = clone.getAttribute('href')
-      if (href) clone.setAttribute('href', new URL(href, document.baseURI).href)
-      child.document.head.appendChild(clone)
-    }
+    const styles = mirrorStyles(child.document)
 
     const mount = child.document.createElement('div')
     mount.className = 'detached-root'
     child.document.body.replaceChildren(mount)
     child.document.body.style.margin = '0'
 
+    // data-theme/data-mode too: theme CSS keys on them (`:root[data-mode="light"]`).
+    const THEME_ATTRS = ['class', 'style', 'data-theme', 'data-mode']
     const syncTheme = (): void => {
-      child.document.documentElement.className = document.documentElement.className
-      child.document.documentElement.style.cssText = document.documentElement.style.cssText
+      for (const attr of THEME_ATTRS) {
+        const v = document.documentElement.getAttribute(attr)
+        if (v === null) child.document.documentElement.removeAttribute(attr)
+        else child.document.documentElement.setAttribute(attr, v)
+      }
     }
     syncTheme()
     const observer = new MutationObserver(syncTheme)
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: THEME_ATTRS })
 
     const handleClosed = (): void => onCloseRef.current()
     child.addEventListener('beforeunload', handleClosed)
@@ -80,13 +148,17 @@ export function useDetachedWindow(
     // The browser can also close it out from under us (user hits the X on the popup);
     // polling is the only cross-platform signal that doesn't depend on beforeunload
     // firing, which popups are inconsistent about.
-    const watch = setInterval(() => { if (child.closed) onCloseRef.current() }, 1000)
+    const watch = setInterval(() => {
+      if (child.closed) onCloseRef.current()
+      else styles.sync()
+    }, 1000)
 
     setHost(mount)
 
     return () => {
       clearInterval(watch)
       observer.disconnect()
+      styles.dispose()
       child.removeEventListener('beforeunload', handleClosed)
       window.removeEventListener('beforeunload', closeChild)
       setHost(null)

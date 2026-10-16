@@ -14,6 +14,25 @@ import { CIRCLE_REQS, GUILDS, checkCircle, guildFromSkills, highestCircleMet, is
  * Your guild comes from your guild skill (each guild has exactly one), so the only
  * thing to choose is the circle.
  */
+
+// A positional slot whose pick is a tie: name the skills it's a choice between, since
+// "any of 6" alone leaves you guessing which six. A tie at rank 0 can take in a whole
+// skillset, so past a handful the rest fold into the tooltip.
+const TIE_SHOWN = 4
+function TiedSkills({ skills, rank }: { skills: string[]; rank: number }): JSX.Element {
+  const shown = skills.length > TIE_SHOWN ? skills.slice(0, TIE_SHOWN - 1) : skills
+  const more  = skills.length - shown.length
+  const list  = shown.length === 1 ? shown[0]
+    : more > 0 ? shown.join(', ')
+    : `${shown.slice(0, -1).join(', ')} or ${shown[shown.length - 1]}`
+  return (
+    <span data-tooltip={`Tied at ${rank}: ${skills.join(', ')}. Training any one of them fills this.`}>
+      <span className="muted">any of </span>{list}
+      {more > 0 && <span className="muted"> +{more} more</span>}
+    </span>
+  )
+}
+
 export function Circles(): JSX.Element {
   const [expText, setExpText]  = useState('')
   const [target, setTarget]    = useState<number | null>(null)
@@ -186,11 +205,8 @@ export function Circles(): JSX.Element {
                       </td>
                       <td>
                         {s.skill === null ? <span className="muted">—</span>
-                          : s.tiedWith > 0 && !s.met ? (
-                            <span className="muted" data-tooltip={`${s.skill} and ${s.tiedWith} other${s.tiedWith === 1 ? '' : 's'} are tied at ${s.have}`}>
-                              any of {s.tiedWith + 1}
-                            </span>
-                          ) : s.skill}
+                          : s.tied.length > 0 && !s.met ? <TiedSkills skills={s.tied} rank={s.have} />
+                          : s.skill}
                       </td>
                       <td className="num muted">{s.have}</td>
                       {/* The circle this requirement alone reaches. Matching the overall

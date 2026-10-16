@@ -301,6 +301,9 @@ export interface SlotResult {
    * do", and the UI says so instead of pointing at a skill picked alphabetically.
    */
   tiedWith: number
+  /** The skills in that tie, the chosen one included, in pool order — empty when
+   *  there is no tie. This is what "any of N" is a choice between. */
+  tied: string[]
 }
 
 export interface CircleCheck {
@@ -359,7 +362,7 @@ export function checkCircle(
     const needed = req.values[i]
     let skill: string | null = null
     let have = 0
-    let tiedWith = 0
+    let tied: string[] = []
 
     if (p.bestOf) {
       // Whichever candidate you've trained highest is the one being asked about.
@@ -379,13 +382,15 @@ export function checkCircle(
         // Everything else in the pool sitting on the same rank is an equally valid
         // answer; the sort put this one first alphabetically, which is not a reason
         // to recommend it.
-        tiedWith = pool.filter(e => e.rank === pick.rank).length - 1
+        const level = pool.filter(e => e.rank === pick.rank).map(e => e.skill)
+        if (level.length > 1) tied = level
       }
     }
 
     const short = Math.max(0, needed - have)
     return {
-      slot: p.label, skill, needed, have, short, met: short === 0, tiedWith,
+      slot: p.label, skill, needed, have, short, met: short === 0,
+      tiedWith: Math.max(0, tied.length - 1), tied,
       atCircle: circleForSlot(guild, i, have),
     }
   })

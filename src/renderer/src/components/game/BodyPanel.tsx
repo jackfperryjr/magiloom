@@ -15,6 +15,7 @@ import {
 } from '../../lib/injuries'
 import { BodyFigure } from './BodyFigure'
 import { Tooltip } from '../ui/Tooltip'
+import { PopoutButton } from '../ui/PopoutButton'
 
 // Character names are capitalized (first letter up), as the game expects.
 const capitalize = (s: string) => s ? s[0].toUpperCase() + s.slice(1) : s
@@ -301,9 +302,7 @@ export function BodyPanel({ onExpand }: { onExpand?: () => void }) {
         <SubjectToggle subject={subject} onChange={setSubject} />
         <ViewModeButton />
         {onExpand && (
-          <Tooltip text="Enlarge">
-            <button className="body-expand-btn" onClick={onExpand}>⤢</button>
-          </Tooltip>
+          <PopoutButton className="body-expand-btn" label="Enlarge" onClick={onExpand} />
         )}
       </div>
       {subject === 'character' && <InjuryModeToggle />}

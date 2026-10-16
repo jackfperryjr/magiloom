@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Tooltip } from './Tooltip'
 import { CodeEditor } from './CodeEditor'
+import { PopoutButton } from './PopoutButton'
+import { useScriptPopout } from './ScriptPopouts'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 // Editor for a user's Lich profiles (<Char>-setup.yaml) and custom scripts (.lic),
 // embedded in Settings → Lich. Backed by the path-jailed dr.lich.* file API — on
@@ -18,6 +21,7 @@ export function LichFilesEditor({ charName }: { charName?: string }) {
   const [files, setFiles]     = useState<LichFileEntry[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [content, setContent] = useState('')
+  const [saved, setSaved]     = useState('')    // what's on disk, for handing a file to a pop-out
   const [dirty, setDirty]     = useState(false)
   const [error, setError]     = useState('')
   const [status, setStatus]   = useState('')
@@ -26,6 +30,9 @@ export function LichFilesEditor({ charName }: { charName?: string }) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const uploadDir    = useRef<'profiles' | 'custom'>('custom')
+  const pop      = useScriptPopout('lich')
+  const isMobile = useIsMobile()
+  const out      = selected !== null && pop.isOut(selected)
 
   const flash = (m: string) => { setStatus(m); window.setTimeout(() => setStatus(''), 2500) }
 
@@ -38,13 +45,30 @@ export function LichFilesEditor({ charName }: { charName?: string }) {
   const open = async (rel: string) => {
     try {
       const res = await window.dr.lich.readFile(rel)
-      setSelected(rel); setContent(res.content); setDirty(false); setError('')
+      setSelected(rel); setContent(res.content); setSaved(res.content); setDirty(false); setError('')
     } catch (e) { setError(String(e)) }
   }
 
+  // Same hand-over as CmdFilesEditor: the pop-out owns the file while it's out.
+  const popOut = () => {
+    if (!selected) return
+    pop.popOut(selected, content, dirty ? saved : content)
+    setDirty(false)
+  }
+  const bringBack = () => {
+    const entry = selected ? pop.bringBack(selected) : null
+    if (entry) { setContent(entry.content); setSaved(entry.saved); setDirty(entry.content !== entry.saved) }
+  }
+  const wasOut = useRef(false)
+  useEffect(() => {
+    if (wasOut.current && !out && selected && !dirty) void open(selected)
+    wasOut.current = out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [out])
+
   const save = async () => {
     if (!selected) return
-    try { await window.dr.lich.writeFile(selected, content); setDirty(false); flash('Saved'); void refresh() }
+    try { await window.dr.lich.writeFile(selected, content); setSaved(content); setDirty(false); flash('Saved'); void refresh() }
     catch (e) { setError(String(e)) }
   }
 
@@ -52,6 +76,7 @@ export function LichFilesEditor({ charName }: { charName?: string }) {
     try {
       await window.dr.lich.deleteFile(rel)
       setConfirmDelete(null)
+      pop.drop(rel)
       if (selected === rel) { setSelected(null); setContent(''); setDirty(false) }
       flash('Deleted'); void refresh()
     } catch (e) { setError(String(e)) }
@@ -140,10 +165,18 @@ export function LichFilesEditor({ charName }: { charName?: string }) {
       <div className="lf-body lf-body-embed lf-body-code">
         <div className="lf-list">{GROUPS.map(renderGroup)}</div>
         <div className="lf-editor">
-          {selected ? <>
+          {selected && out ? (
+            <div className="lf-empty lf-popped">
+              <span><span className="lf-popped-name">{selected}</span> is open in its own window.</span>
+              <button className="lf-mini" onClick={bringBack}>Bring it back here</button>
+            </div>
+          ) : selected ? <>
             <div className="lf-editor-bar">
               <span className="lf-editor-name">{selected}{dirty ? ' •' : ''}</span>
-              <button className="login-btn" style={{ width: 'auto', padding: '5px 14px' }} disabled={!dirty} onClick={() => void save()}>Save</button>
+              <span className="lf-editor-actions">
+                {!isMobile && <PopoutButton className="lf-mini" label="Edit in its own window" onClick={popOut} />}
+                <button className="login-btn" style={{ width: 'auto', padding: '5px 14px' }} disabled={!dirty} onClick={() => void save()}>Save</button>
+              </span>
             </div>
             <CodeEditor path={selected} value={content} onChange={v => { setContent(v); setDirty(true) }} onSave={() => void save()} />
           </> : <div className="lf-empty">Select a file to edit, or use + / ↑ to create or upload one.</div>}

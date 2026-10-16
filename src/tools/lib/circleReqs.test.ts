@@ -304,6 +304,10 @@ eq('guild: one guild skill per guild', new Set(Object.values(GUILD_BY_SKILL)).si
   eq('ties: the trained weapon is unambiguous', first.tiedWith, 0)
   eq('ties: 1st Weapon is the trained one', first.skill, 'Small Edged')
   check('ties: 2nd Weapon is flagged as a tie', second.tiedWith > 0, `got ${second.tiedWith}`)
+  eq('ties: the tie names every skill in it', second.tied.length, second.tiedWith + 1)
+  check('ties: the tie includes the chosen skill', second.tied.includes(second.skill!), second.tied.join(', '))
+  check('ties: the trained weapon is not in the tie', !second.tied.includes('Small Edged'), second.tied.join(', '))
+  eq('ties: an unambiguous slot lists no tie', first.tied.length, 0)
 
   // With two distinct weapons there's no tie for either slot.
   const two = checkCircle('Thief', 2, new Map([['Small Edged', 50], ['Bow', 20]]))!
