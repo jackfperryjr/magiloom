@@ -136,14 +136,6 @@
 .map-tb-btn:hover:not(:disabled) { background: var(--bg-input); color: var(--text-main); }
 .map-tb-btn:disabled { opacity: 0.35; cursor: default; }
 
-.map-expand-btn {
-  position: absolute; right: 6px; top: 6px; z-index: 2;
-  background: var(--map-chip); border: 1px solid var(--border-soft);
-  color: var(--text-dim); cursor: pointer; border-radius: 4px;
-  font-size: 13px; line-height: 1; padding: 3px 6px;
-}
-.map-expand-btn:hover { color: var(--text-main); background: var(--bg-input); }
-
 .map-stop-btn {
   position: absolute; left: 50%; transform: translateX(-50%); top: 8px; z-index: 2;
   background: var(--color-warning); color: #fff; border: none;
@@ -153,21 +145,13 @@
 }
 .map-stop-btn:hover { filter: brightness(1.1); }
 
-/* ── Map pop-out overlay ──────────────────────────────────────────────────── */
-.map-overlay-backdrop {
-  position: fixed; inset: 0; z-index: 500;
-  background: var(--bg-overlay);
-  display: flex; align-items: center; justify-content: center;
-}
+/* ── Full map (the Map panel's pop-out window — fills it) ─────────────────── */
 .map-overlay {
   position: relative;
-  width: min(92vw, 1100px); height: min(88vh, 800px);
+  flex: 1; min-height: 0;
   background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
   display: flex; flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 12px 48px rgba(0,0,0,0.6);
 }
 .map-overlay-head {
   display: flex; align-items: center; gap: 8px;

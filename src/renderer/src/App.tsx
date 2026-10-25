@@ -13,7 +13,7 @@ import { ScriptPopouts }      from './components/ui/ScriptPopouts'
 import { HighlightsModal }    from './components/ui/HighlightsModal'
 import { NotificationCenter }  from './components/ui/Notifications'
 import { PanelSidebar }       from './components/layout/PanelSidebar'
-import type { PanelId }       from './components/layout/PanelSidebar'
+import type { PanelId, PanelPopout } from './components/layout/PanelSidebar'
 import {
   RoomPanel, SpellsPanel,
   ExperiencePanel, ConversationPanel, ThoughtsPanel, InventoryPanel,
@@ -25,11 +25,11 @@ import { useSessionSnapshot } from './hooks/useSessionSnapshot'
 import { useAutoReconnect } from './hooks/useAutoReconnect'
 import { MapPanel } from './components/map/MapPanel'
 import { CalendarPanel } from './components/layout/CalendarPanel'
-import { BodyPanel, BodyOverlay } from './components/game/BodyPanel'
+import { BodyPanel, BodyFull } from './components/game/BodyPanel'
 import { ItemManager }           from './components/game/ItemManager'
 import { HoldingsWindow }        from './components/game/HoldingsWindow'
 import { useHoldingsSync }       from './hooks/useHoldingsSync'
-import { MapOverlay } from './components/map/MapOverlay'
+import { MapFull } from './components/map/MapOverlay'
 import {
   echoCommandAtom, beginSilentExpAtom, appendSystemLineAtom, tickAtom,
   beginSilentSkySeedAtom, endSilentSkySeedAtom,
@@ -441,8 +441,6 @@ function GameLayout({ charName, accountName, watching, resumed, loginOpen, onLea
 
 
   const [showHighlights, setShowHighlights] = useState(false)
-  const [showMap,        setShowMap]        = useState(false)
-  const [showBody,       setShowBody]       = useState(false)
   const [showItems,      setShowItems]      = useState(false)
   const [showHoldings,   setShowHoldings]   = useState(false)
   const [sidebarWidth,   setSidebarWidth]   = useState<number | null>(null)
@@ -551,8 +549,8 @@ function GameLayout({ charName, accountName, watching, resumed, loginOpen, onLea
   // The map panel is injected here (not in the module-level renderPanel) so it can
   // receive layout-local handlers: click-to-walk and the pop-out toggle.
   const renderPanelWithLich = useCallback((id: PanelId) => {
-    if (id === 'map') return <MapPanel onNodeClick={automap.walkTo} onStopWalk={automap.stopWalk} onExpand={() => setShowMap(true)} />
-    if (id === 'body') return <BodyPanel onExpand={() => setShowBody(true)} />
+    if (id === 'map') return <MapPanel onNodeClick={automap.walkTo} onStopWalk={automap.stopWalk} />
+    if (id === 'body') return <BodyPanel />
     if (id === 'inventory') return <InventoryPanel onManage={() => setShowItems(true)} onAccount={() => setShowHoldings(true)} />
     // Scripts needs the live command path (quick buttons, `;list`, `;kill`), which
     // only exists inside the layout — same reason as the map/body panels above.
@@ -561,6 +559,14 @@ function GameLayout({ charName, accountName, watching, resumed, loginOpen, onLea
     )
     return renderPanel(id)
   }, [automap, send, echoCommand, status, charName])
+
+  // Panels whose pop-out is a bigger view rather than the panel itself: the whole
+  // world map, and the large figure. Everything else pops out as-is.
+  const renderPopout = useCallback((id: PanelId): PanelPopout | null => {
+    if (id === 'map')  return { node: <MapFull onWalkTo={automap.walkTo} onStopWalk={automap.stopWalk} />, width: 1100, height: 800 }
+    if (id === 'body') return { node: <BodyFull />, width: 480, height: 720 }
+    return null
+  }, [automap])
 
   const handleColDrag = useCallback((dx: number) => {
     const el = mainAreaRef.current
@@ -593,7 +599,7 @@ function GameLayout({ charName, accountName, watching, resumed, loginOpen, onLea
           </footer>
         </div>
         <ColResize onDrag={handleColDrag} />
-        <PanelSidebar renderPanel={renderPanelWithLich} getClearFn={getClearFn} sidebarWidth={sidebarWidth} charName={charName} />
+        <PanelSidebar renderPanel={renderPanelWithLich} renderPopout={renderPopout} getClearFn={getClearFn} sidebarWidth={sidebarWidth} charName={charName} />
       </div>
       {/* Full-width bottom row: character bar (left) + command line (fills, status icons on its right). */}
       <div className={'command-row' + (isMobile ? ' command-row-mobile' : '')}>
@@ -621,8 +627,6 @@ function GameLayout({ charName, accountName, watching, resumed, loginOpen, onLea
         })()}
       </div>
       {showHighlights && <HighlightsModal onClose={handleHighlightsClose} charName={charName} />}
-      {showMap && <MapOverlay onClose={() => setShowMap(false)} onWalkTo={automap.walkTo} onStopWalk={automap.stopWalk} />}
-      {showBody && <BodyOverlay onClose={() => setShowBody(false)} />}
       {showItems && <ItemManager onClose={() => setShowItems(false)} />}
       {showHoldings && <HoldingsWindow charName={charName} onClose={() => setShowHoldings(false)} />}
       <NotificationCenter charName={charName} status={status} />

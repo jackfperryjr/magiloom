@@ -435,8 +435,9 @@ function groupConversation(lines: OutputLine[]): { speaker?: string; preset?: st
 
 // Popup card shown when a conversation avatar is clicked — the same larger
 // avatar + PROFILE summary as the character menu's header, for other players.
-function ProfileCard({ name, src, x, y, onClose }: {
-  name: string; src: string; x: number; y: number; onClose: () => void
+// `doc` is the window the avatar was clicked in — the panel may be popped out.
+function ProfileCard({ name, src, x, y, doc, onClose }: {
+  name: string; src: string; x: number; y: number; doc: Document; onClose: () => void
 }) {
   const profile = useProfile(name, true)
   return createPortal(
@@ -452,7 +453,7 @@ function ProfileCard({ name, src, x, y, onClose }: {
         </div>
       </div>
     </>,
-    document.body,
+    doc.body,
   )
 }
 
@@ -462,7 +463,7 @@ export function ConversationPanel() {
   const server  = useAtomValue(serverAvatarsAtom)
   const self    = useAtomValue(selfNameAtom)
   const groups  = groupConversation(lines)
-  const [card, setCard] = useState<{ name: string; src: string; x: number; y: number } | null>(null)
+  const [card, setCard] = useState<{ name: string; src: string; x: number; y: number; doc: Document } | null>(null)
   useEnsureAvatars(groups.map(g => g.speaker).filter((s): s is string => !!s))
 
   // Open the profile popup for a clicked avatar, positioned beside it (to the
@@ -471,11 +472,13 @@ export function ConversationPanel() {
     const name = speaker === 'You' ? self : speaker
     if (!name) return
     const r = e.currentTarget.getBoundingClientRect()
+    const doc = e.currentTarget.ownerDocument
+    const win = doc.defaultView ?? window
     const CARD_W = 290, CARD_H = 150
     let x = r.left - CARD_W - 10
-    if (x < 8) x = Math.min(r.right + 10, window.innerWidth - CARD_W - 8)
-    const y = Math.max(8, Math.min(r.top - 6, window.innerHeight - CARD_H - 8))
-    setCard({ name, src, x, y })
+    if (x < 8) x = Math.min(r.right + 10, win.innerWidth - CARD_W - 8)
+    const y = Math.max(8, Math.min(r.top - 6, win.innerHeight - CARD_H - 8))
+    setCard({ name, src, x, y, doc })
   }
 
   if (lines.length === 0) return <div className="panel-empty">No conversation yet</div>

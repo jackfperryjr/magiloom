@@ -3,12 +3,10 @@ import { useAtomValue } from 'jotai'
 import { mapDbAtom, currentNodeIdAtom, walkStateAtom } from '../../store/map'
 import { areaLayout } from '../../lib/mapper'
 import { MapView } from './MapView'
-import { PopoutButton } from '../ui/PopoutButton'
 
-export function MapPanel({ onNodeClick, onStopWalk, onExpand }: {
+export function MapPanel({ onNodeClick, onStopWalk }: {
   onNodeClick?: (id: string) => void
   onStopWalk?:  () => void
-  onExpand?:    () => void
 }) {
   const db            = useAtomValue(mapDbAtom)
   const currentNodeId = useAtomValue(currentNodeIdAtom)
@@ -25,9 +23,6 @@ export function MapPanel({ onNodeClick, onStopWalk, onExpand }: {
   if (!currentNodeId) {
     return (
       <div className="map-panel">
-        {onExpand && (
-          <PopoutButton className="map-expand-btn" label="Open full map" onClick={onExpand} />
-        )}
         <div className="map-nopos">
           <div className="map-nopos-title">Locating you…</div>
           <div className="map-nopos-hint">
@@ -42,9 +37,6 @@ export function MapPanel({ onNodeClick, onStopWalk, onExpand }: {
 
   return (
     <div className="map-panel">
-      {onExpand && (
-        <PopoutButton className="map-expand-btn" label="Open full map" onClick={onExpand} />
-      )}
       <MapView
         db={db}
         zone={area.zone}
@@ -57,7 +49,7 @@ export function MapPanel({ onNodeClick, onStopWalk, onExpand }: {
         walkActive={walk.active}
         onStopWalk={onStopWalk}
         // The wheel belongs to the sidebar here — scrolling past the map shouldn't
-        // zoom it. Use the toolbar +/− to zoom, or the popout, which keeps the wheel.
+        // zoom it. Use the toolbar +/− to zoom, or the pop-out, which keeps the wheel.
         wheelZoom={false}
         // The sidebar is a narrow column, so the full-map default zoom only ever
         // showed a couple of rooms around you. Start two toolbar clicks further out

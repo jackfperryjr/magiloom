@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useAtom, useAtomValue } from 'jotai'
 import { mapDbAtom, currentNodeIdAtom, walkStateAtom, autoRecordAtom } from '../../store/map'
 import { nodeZoneId, areaLayout, listAreas } from '../../lib/mapper'
@@ -9,8 +8,12 @@ import { MapView } from './MapView'
 
 const NODE_COLORS = ['', '#e0b050', '#6bc5a0', '#5fbcd4', '#7b8fe8', '#e06060', '#c78bd8']
 
-export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
-  onClose:    () => void
+/**
+ * The full world map — search, browse, annotate. It's the Map panel's pop-out, so it
+ * renders as the whole of its own window (PanelSidebar's PanelWindow does the
+ * portalling) and has no close button of its own: the window's is the way out.
+ */
+export function MapFull({ onWalkTo, onStopWalk }: {
   onWalkTo:   (id: string) => void
   onStopWalk: () => void
 }) {
@@ -158,181 +161,177 @@ export function MapOverlay({ onClose, onWalkTo, onStopWalk }: {
     setQuery('')
   }
 
-  return createPortal(
-    <div className="map-overlay-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="map-overlay">
-        <div className="map-overlay-head">
-          <span className="map-overlay-title">World Map</span>
-          <select className="map-zone-select" value={areaKey}
-                  onChange={e => setFocusId(e.target.value || null)}>
-            {areas.length === 0 && <option value="">No maps yet</option>}
-            {areas.map(a => (
-              <option key={a.id} value={a.id}>{a.name} ({a.rooms})</option>
-            ))}
-          </select>
-          <input
-            className="map-search" placeholder="Search rooms…"
-            value={query} onChange={e => setQuery(e.target.value)}
-          />
-          <div className="map-overlay-spacer" />
-          {/* Only offered while the view is pinned somewhere else — when it is already
-              following, the button would do nothing and its absence says so. */}
-          {browsing && (
-            <button
-              className="map-tb-btn map-text-btn map-follow-btn"
-              data-tooltip="Jump back to your character and follow as you move"
-              onClick={() => { setFocusId(null); setQuery('') }}
-            >
-              ◎ Follow
-            </button>
-          )}
-          <label className="map-autorec" data-tooltip="Record new rooms as you walk">
-            <input type="checkbox" checked={autoRecord} onChange={e => setAutoRecord(e.target.checked)} />
-            Auto-record
-          </label>
-          {/* Both clears are desktop-only, for the same reason: on the web client the
-              map is the shared server DB. A zone file there is the accumulated work of
-              everyone who has walked that area — nothing records who contributed what,
-              so there is no "your own" zone to clear, and deleting one erased geography
-              for every other player. The server now refuses both remotely, so these
-              would only ever raise an error. Desktop's map is the user's own local DB,
-              where clearing is legitimate. */}
-          {!isWeb && (
-            <button className="map-tb-btn map-text-btn" onClick={() => zoneId && setConfirmState({ kind: 'zone', label: `Clear the rooms you recorded in "${db.zones[zoneId]?.name ?? 'this zone'}"? Rooms from the shipped map are kept.` })} disabled={!zoneId}>Clear zone</button>
-          )}
-          {!isWeb && (
-            <button className="map-tb-btn map-text-btn" onClick={() => setConfirmState({ kind: 'all', label: 'Delete the ENTIRE recorded world map? This cannot be undone.' })} disabled={areas.length === 0}>Clear all</button>
-          )}
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
-
-        {status && <div className="map-status-bar">{status}</div>}
-        {confirmState && (
-          <div className="map-confirm-bar">
-            <span className="map-confirm-text">{confirmState.label}</span>
-            <button className="map-tb-btn map-text-btn map-confirm-yes" onClick={runConfirm}>
-              {confirmState.kind === 'zone' ? 'Clear' : 'Delete'}
-            </button>
-            <button className="map-tb-btn map-text-btn" onClick={() => setConfirmState(null)}>Cancel</button>
-          </div>
+  return (
+    <div className="map-overlay">
+      <div className="map-overlay-head">
+        <span className="map-overlay-title">World Map</span>
+        <select className="map-zone-select" value={areaKey}
+                onChange={e => setFocusId(e.target.value || null)}>
+          {areas.length === 0 && <option value="">No maps yet</option>}
+          {areas.map(a => (
+            <option key={a.id} value={a.id}>{a.name} ({a.rooms})</option>
+          ))}
+        </select>
+        <input
+          className="map-search" placeholder="Search rooms…"
+          value={query} onChange={e => setQuery(e.target.value)}
+        />
+        <div className="map-overlay-spacer" />
+        {/* Only offered while the view is pinned somewhere else — when it is already
+            following, the button would do nothing and its absence says so. */}
+        {browsing && (
+          <button
+            className="map-tb-btn map-text-btn map-follow-btn"
+            data-tooltip="Jump back to your character and follow as you move"
+            onClick={() => { setFocusId(null); setQuery('') }}
+          >
+            ◎ Follow
+          </button>
         )}
-
-        {results.length > 0 && (
-          <div className="map-search-results">
-            {results.map(r => (
-              <div key={r.id} className="map-search-item" onClick={() => focusResult(r)}>
-                <span className="map-search-room">{r.title || '(unnamed)'}</span>
-                <span className="map-search-zone">{r.zoneName}</span>
-                <button className="map-search-walk" data-tooltip="Walk here"
-                        onClick={e => { e.stopPropagation(); onWalkTo(r.id); setQuery('') }}>▸ walk</button>
-              </div>
-            ))}
-          </div>
+        <label className="map-autorec" data-tooltip="Record new rooms as you walk">
+          <input type="checkbox" checked={autoRecord} onChange={e => setAutoRecord(e.target.checked)} />
+          Auto-record
+        </label>
+        {/* Both clears are desktop-only, for the same reason: on the web client the
+            map is the shared server DB. A zone file there is the accumulated work of
+            everyone who has walked that area — nothing records who contributed what,
+            so there is no "your own" zone to clear, and deleting one erased geography
+            for every other player. The server now refuses both remotely, so these
+            would only ever raise an error. Desktop's map is the user's own local DB,
+            where clearing is legitimate. */}
+        {!isWeb && (
+          <button className="map-tb-btn map-text-btn" onClick={() => zoneId && setConfirmState({ kind: 'zone', label: `Clear the rooms you recorded in "${db.zones[zoneId]?.name ?? 'this zone'}"? Rooms from the shipped map are kept.` })} disabled={!zoneId}>Clear zone</button>
         )}
-
-        {/* Same honesty as the docked panel: with no position and nothing chosen to
-            browse, areaLayout would root on an arbitrary first room and present it as
-            where you are. The picker above still works, so browsing is unaffected. */}
-        {!rootId && (
-          <div className="map-overlay-body map-nopos">
-            <div className="map-nopos-title">Locating you…</div>
-            <div className="map-nopos-hint">
-              The map is watching for a room it recognises and will pick you up on its own.
-              If it stays lost, this room isn't on the map yet — walk to a known one, or turn
-              on auto-record to add it. You can still pick an area above to browse.
-            </div>
-          </div>
+        {!isWeb && (
+          <button className="map-tb-btn map-text-btn" onClick={() => setConfirmState({ kind: 'all', label: 'Delete the ENTIRE recorded world map? This cannot be undone.' })} disabled={areas.length === 0}>Clear all</button>
         )}
-
-        {rootId && (
-        <div className="map-overlay-body" onClick={() => setCtx(null)}>
-          <MapView
-            db={db}
-            zone={zone}
-            exits={area.exits}
-        labels={area.labels}
-            onExitClick={id => setFocusId(id)}   // step through to the next area
-            currentNodeId={currentNodeId}
-            selectedId={focusId ?? (walk.active ? walk.targetId : null)}
-            focusId={focusId}
-            onNodeClick={id => { setFocusId(id); setCtx(null) }}
-            onNodeContext={(id, e) => setCtx({ id, x: e.clientX, y: e.clientY })}
-            onNodeDrag={(id, x, y) => patchNode(id, { pin: { x: Math.round(x), y: Math.round(y) } })}
-            walkActive={walk.active}
-            onStopWalk={onStopWalk}
-            className="map-view-large"
-          />
-        </div>
-        )}
-
-        {ctx && (() => {
-          const node = zone?.nodes[ctx.id]
-          const editing = edit && edit.id === ctx.id
-          const commitEdit = () => {
-            if (!edit) return
-            const v = edit.value.trim() || undefined
-            patchNode(edit.id, edit.field === 'tag' ? { tag: v } : { note: v })
-            setEdit(null); setCtx(null)
-          }
-          return (
-            <div className="map-ctx-menu" style={{ left: ctx.x, top: ctx.y }} onClick={e => e.stopPropagation()}>
-              <div className="map-ctx-title">{node?.title || 'Room'}</div>
-              {editing ? (() => {
-                const hasValue = edit!.field === 'tag' ? !!node?.tag : !!node?.note
-                const removeField = () => {
-                  patchNode(edit!.id, edit!.field === 'tag' ? { tag: undefined } : { note: undefined })
-                  setEdit(null); setCtx(null)
-                }
-                return (
-                  <div className="map-ctx-edit">
-                    <input
-                      autoFocus className="map-ctx-input"
-                      placeholder={edit!.field === 'tag' ? 'Label — shown in the legend (first 3 chars on the node)' : 'Note'}
-                      value={edit!.value}
-                      onChange={e => setEdit({ ...edit!, value: e.target.value })}
-                      onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEdit(null) }}
-                    />
-                    <div className="map-ctx-edit-actions">
-                      <button className="map-tb-btn map-text-btn" onClick={commitEdit}>Save</button>
-                      {hasValue && <button className="map-tb-btn map-text-btn map-ctx-danger" onClick={removeField}>Remove</button>}
-                      <button className="map-tb-btn map-text-btn" onClick={() => setEdit(null)}>Cancel</button>
-                    </div>
-                  </div>
-                )
-              })() : (
-                <>
-                  <div className="map-ctx-item" onClick={() => { onWalkTo(ctx.id); setCtx(null) }}>Walk here</div>
-                  <div className="map-ctx-item" onClick={() => setEdit({ id: ctx.id, field: 'tag', value: node?.tag ?? '' })}>{node?.tag ? 'Edit label…' : 'Set label…'}</div>
-                  <div className="map-ctx-item" onClick={() => setEdit({ id: ctx.id, field: 'note', value: node?.note ?? '' })}>{node?.note ? 'Edit note…' : 'Add note…'}</div>
-                  {/* Dragging a room stores a manual `pin`; this is the way back. Only
-                      offered on a room that actually carries one, so the menu doesn't
-                      advertise an action that would do nothing. Dropping the pin is all
-                      that's needed — the layout is recomputed from the grid on every
-                      render, so the room snaps back as soon as the override is gone. */}
-                  {node?.pin && (
-                    <div className="map-ctx-item" onClick={() => { patchNode(ctx.id, { pin: undefined }); setCtx(null) }}>
-                      Reset position
-                    </div>
-                  )}
-                  <div className="map-ctx-colors">
-                    {NODE_COLORS.map(c => (
-                      <button key={c || 'none'} className="map-ctx-swatch" data-tooltip={c || 'default (plain)'}
-                              style={{ background: c || 'var(--panel-border, #444)' }}
-                              onClick={() => patchNode(ctx.id, { color: c || 'none' })} />
-                    ))}
-                    <input type="color" className="map-ctx-colorpick" data-tooltip="Custom colour"
-                           value={node?.color && node.color !== 'none' ? node.color : '#9a95ff'}
-                           onChange={e => patchNode(ctx.id, { color: e.target.value })} />
-                  </div>
-                  <div className="map-ctx-hint">Give a room a colour + a label to add your own category to the legend. The first swatch resets to plain (no colour, even if auto-classified).</div>
-                  <div className="map-ctx-item map-ctx-danger" onClick={() => { deleteNode(ctx.id); setCtx(null) }}>Delete room</div>
-                </>
-              )}
-            </div>
-          )
-        })()}
       </div>
-    </div>,
-    document.body,
+
+      {status && <div className="map-status-bar">{status}</div>}
+      {confirmState && (
+        <div className="map-confirm-bar">
+          <span className="map-confirm-text">{confirmState.label}</span>
+          <button className="map-tb-btn map-text-btn map-confirm-yes" onClick={runConfirm}>
+            {confirmState.kind === 'zone' ? 'Clear' : 'Delete'}
+          </button>
+          <button className="map-tb-btn map-text-btn" onClick={() => setConfirmState(null)}>Cancel</button>
+        </div>
+      )}
+
+      {results.length > 0 && (
+        <div className="map-search-results">
+          {results.map(r => (
+            <div key={r.id} className="map-search-item" onClick={() => focusResult(r)}>
+              <span className="map-search-room">{r.title || '(unnamed)'}</span>
+              <span className="map-search-zone">{r.zoneName}</span>
+              <button className="map-search-walk" data-tooltip="Walk here"
+                      onClick={e => { e.stopPropagation(); onWalkTo(r.id); setQuery('') }}>▸ walk</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Same honesty as the docked panel: with no position and nothing chosen to
+          browse, areaLayout would root on an arbitrary first room and present it as
+          where you are. The picker above still works, so browsing is unaffected. */}
+      {!rootId && (
+        <div className="map-overlay-body map-nopos">
+          <div className="map-nopos-title">Locating you…</div>
+          <div className="map-nopos-hint">
+            The map is watching for a room it recognises and will pick you up on its own.
+            If it stays lost, this room isn't on the map yet — walk to a known one, or turn
+            on auto-record to add it. You can still pick an area above to browse.
+          </div>
+        </div>
+      )}
+
+      {rootId && (
+      <div className="map-overlay-body" onClick={() => setCtx(null)}>
+        <MapView
+          db={db}
+          zone={zone}
+          exits={area.exits}
+      labels={area.labels}
+          onExitClick={id => setFocusId(id)}   // step through to the next area
+          currentNodeId={currentNodeId}
+          selectedId={focusId ?? (walk.active ? walk.targetId : null)}
+          focusId={focusId}
+          onNodeClick={id => { setFocusId(id); setCtx(null) }}
+          onNodeContext={(id, e) => setCtx({ id, x: e.clientX, y: e.clientY })}
+          onNodeDrag={(id, x, y) => patchNode(id, { pin: { x: Math.round(x), y: Math.round(y) } })}
+          walkActive={walk.active}
+          onStopWalk={onStopWalk}
+          className="map-view-large"
+        />
+      </div>
+      )}
+
+      {ctx && (() => {
+        const node = zone?.nodes[ctx.id]
+        const editing = edit && edit.id === ctx.id
+        const commitEdit = () => {
+          if (!edit) return
+          const v = edit.value.trim() || undefined
+          patchNode(edit.id, edit.field === 'tag' ? { tag: v } : { note: v })
+          setEdit(null); setCtx(null)
+        }
+        return (
+          <div className="map-ctx-menu" style={{ left: ctx.x, top: ctx.y }} onClick={e => e.stopPropagation()}>
+            <div className="map-ctx-title">{node?.title || 'Room'}</div>
+            {editing ? (() => {
+              const hasValue = edit!.field === 'tag' ? !!node?.tag : !!node?.note
+              const removeField = () => {
+                patchNode(edit!.id, edit!.field === 'tag' ? { tag: undefined } : { note: undefined })
+                setEdit(null); setCtx(null)
+              }
+              return (
+                <div className="map-ctx-edit">
+                  <input
+                    autoFocus className="map-ctx-input"
+                    placeholder={edit!.field === 'tag' ? 'Label — shown in the legend (first 3 chars on the node)' : 'Note'}
+                    value={edit!.value}
+                    onChange={e => setEdit({ ...edit!, value: e.target.value })}
+                    onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEdit(null) }}
+                  />
+                  <div className="map-ctx-edit-actions">
+                    <button className="map-tb-btn map-text-btn" onClick={commitEdit}>Save</button>
+                    {hasValue && <button className="map-tb-btn map-text-btn map-ctx-danger" onClick={removeField}>Remove</button>}
+                    <button className="map-tb-btn map-text-btn" onClick={() => setEdit(null)}>Cancel</button>
+                  </div>
+                </div>
+              )
+            })() : (
+              <>
+                <div className="map-ctx-item" onClick={() => { onWalkTo(ctx.id); setCtx(null) }}>Walk here</div>
+                <div className="map-ctx-item" onClick={() => setEdit({ id: ctx.id, field: 'tag', value: node?.tag ?? '' })}>{node?.tag ? 'Edit label…' : 'Set label…'}</div>
+                <div className="map-ctx-item" onClick={() => setEdit({ id: ctx.id, field: 'note', value: node?.note ?? '' })}>{node?.note ? 'Edit note…' : 'Add note…'}</div>
+                {/* Dragging a room stores a manual `pin`; this is the way back. Only
+                    offered on a room that actually carries one, so the menu doesn't
+                    advertise an action that would do nothing. Dropping the pin is all
+                    that's needed — the layout is recomputed from the grid on every
+                    render, so the room snaps back as soon as the override is gone. */}
+                {node?.pin && (
+                  <div className="map-ctx-item" onClick={() => { patchNode(ctx.id, { pin: undefined }); setCtx(null) }}>
+                    Reset position
+                  </div>
+                )}
+                <div className="map-ctx-colors">
+                  {NODE_COLORS.map(c => (
+                    <button key={c || 'none'} className="map-ctx-swatch" data-tooltip={c || 'default (plain)'}
+                            style={{ background: c || 'var(--panel-border, #444)' }}
+                            onClick={() => patchNode(ctx.id, { color: c || 'none' })} />
+                  ))}
+                  <input type="color" className="map-ctx-colorpick" data-tooltip="Custom colour"
+                         value={node?.color && node.color !== 'none' ? node.color : '#9a95ff'}
+                         onChange={e => patchNode(ctx.id, { color: e.target.value })} />
+                </div>
+                <div className="map-ctx-hint">Give a room a colour + a label to add your own category to the legend. The first swatch resets to plain (no colour, even if auto-classified).</div>
+                <div className="map-ctx-item map-ctx-danger" onClick={() => { deleteNode(ctx.id); setCtx(null) }}>Delete room</div>
+              </>
+            )}
+          </div>
+        )
+      })()}
+    </div>
   )
 }

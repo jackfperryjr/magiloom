@@ -8,7 +8,11 @@ type PosType = 'br' | 'bl' | 'ar' | 'al'
 // game/room links) share one styled popover with zero per-element React state.
 // Mount once at the app root. Visually identical to the <Tooltip> wrapper — both
 // render `.tooltip-custom`.
-export function GlobalTooltip() {
+//
+// `doc` is for a pop-out window (useDetachedWindow): its events never reach the main
+// document, so each window that shows `data-tooltip` content mounts its own copy.
+export function GlobalTooltip({ doc = document }: { doc?: Document } = {}) {
+  const win = doc.defaultView ?? window
   const [state, setState] = useState<{ x: number; y: number; text: string } | null>(null)
   const timer  = useRef<ReturnType<typeof setTimeout> | null>(null)
   const target = useRef<Element | null>(null)
@@ -42,21 +46,21 @@ export function GlobalTooltip() {
       reset()
     }
 
-    document.addEventListener('mouseover', onOver, true)
-    document.addEventListener('mousemove', onMove, true)
-    document.addEventListener('mouseout',  onOut,  true)
+    doc.addEventListener('mouseover', onOver, true)
+    doc.addEventListener('mousemove', onMove, true)
+    doc.addEventListener('mouseout',  onOut,  true)
     return () => {
-      document.removeEventListener('mouseover', onOver, true)
-      document.removeEventListener('mousemove', onMove, true)
-      document.removeEventListener('mouseout',  onOut,  true)
+      doc.removeEventListener('mouseover', onOver, true)
+      doc.removeEventListener('mousemove', onMove, true)
+      doc.removeEventListener('mouseout',  onOut,  true)
       clearTimer()
     }
-  }, [])
+  }, [doc])
 
   if (!state) return null
 
-  const nearRight  = state.x > window.innerWidth  * 0.65
-  const nearBottom = state.y > window.innerHeight * 0.80
+  const nearRight  = state.x > win.innerWidth  * 0.65
+  const nearBottom = state.y > win.innerHeight * 0.80
   const posType: PosType = nearRight && nearBottom ? 'al'
     : nearRight  ? 'bl'
     : nearBottom ? 'ar'
@@ -64,9 +68,9 @@ export function GlobalTooltip() {
 
   const style = {
     left:   nearRight  ? undefined : state.x + 14,
-    right:  nearRight  ? window.innerWidth  - state.x + 14 : undefined,
+    right:  nearRight  ? win.innerWidth  - state.x + 14 : undefined,
     top:    nearBottom ? undefined : state.y + 20,
-    bottom: nearBottom ? window.innerHeight - state.y + 10 : undefined,
+    bottom: nearBottom ? win.innerHeight - state.y + 10 : undefined,
   }
 
   return createPortal(
@@ -76,6 +80,6 @@ export function GlobalTooltip() {
       data-multiline={state.text.includes('\n') ? '' : undefined}
       style={style}
     >{state.text}</div>,
-    document.body,
+    doc.body,
   )
 }

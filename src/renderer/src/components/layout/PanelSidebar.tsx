@@ -1,6 +1,10 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useAtomValue } from 'jotai'
 import { Tooltip } from '../ui/Tooltip'
+import { PopoutButton } from '../ui/PopoutButton'
+import { GlobalTooltip } from '../ui/GlobalTooltip'
+import { useDetachedWindow } from '../../hooks/useDetachedWindow'
 import {
   IconArrowDownTray,
   IconPanelRoom, IconPanelMap, IconPanelSky, IconPanelBody, IconPanelExperience,
@@ -42,6 +46,17 @@ const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'connections',  label: 'Connections',   visible: false },
   { id: 'scripts',      label: 'Scripts',       visible: false },
 ]
+
+/**
+ * What a panel pops out as when it isn't simply itself — the map's is the whole world
+ * map, the body's the large figure. Because it's a different view, the panel stays
+ * live in the sidebar beside it instead of leaving a placeholder.
+ */
+export interface PanelPopout {
+  node:   React.ReactNode
+  width:  number
+  height: number
+}
 
 // Rail indicator for the Messages panel: an unread count, or a dot for a pending
 // contact request when there's nothing unread. Mirrors the conversation unread dot.
@@ -137,13 +152,19 @@ interface PanelDrag {
 
 // ── Single panel ───────────────────────────────────────────────────────────────
 function Panel({
-  config, children, onToggle, onClear,
+  config, children, onToggle, onClear, popped = false, leaves = false, onPopout,
   height, onResizeBottom, onResizeTop, drag,
 }: {
   config:          PanelConfig
   children:        React.ReactNode
   onToggle:        () => void
   onClear?:        () => void
+  /** Its pop-out window is open (flips the header icon to "put it back"). */
+  popped?:         boolean
+  /** …and the panel itself went with it — the card stays as a placeholder so the
+   *  layout keeps its slot. False for a pop-out that's a different, bigger view. */
+  leaves?:         boolean
+  onPopout?:       () => void
   height:          number | null
   onResizeBottom:  (h: number) => void
   onResizeTop?:    (delta: number) => void
@@ -239,6 +260,10 @@ function Panel({
           data-tooltip={drag ? 'Drag to reorder · double-click to collapse' : undefined}
         >{config.label}</span>
         <div className="panel-header-actions">
+          {onPopout && (
+            <PopoutButton className="panel-collapse-btn" popped={popped} onClick={onPopout}
+                          label={popped ? 'Put it back in the sidebar' : 'Open in its own window'} />
+          )}
           <Tooltip text={collapsed ? 'Expand' : 'Collapse'}>
             <button className="panel-collapse-btn" onClick={() => setCollapsed(c => !c)}>
               {collapsed ? '▸' : '▾'}
@@ -257,7 +282,13 @@ function Panel({
           </div>
         </>
       )}
-      {!collapsed && (
+      {!collapsed && leaves && (
+        <div className="panel-content panel-popped-stub">
+          <span>Open in its own window.</span>
+          <button className="panel-btn" onClick={onPopout}>Bring it back</button>
+        </div>
+      )}
+      {!collapsed && !leaves && (
         <>
           <div
             ref={bodyRef}
@@ -276,6 +307,37 @@ function Panel({
         </>
       )}
     </div>
+  )
+}
+
+// ── Popped-out panel ───────────────────────────────────────────────────────────
+// The same React subtree, portalled into a real window (see useDetachedWindow), so a
+// popped panel reads the same atoms and stays live with no IPC. Closing the window
+// puts the panel back in the sidebar.
+function PanelWindow({ label, onClose, popout, children }: {
+  label:    string
+  onClose:  () => void
+  popout:   PanelPopout | null
+  children: React.ReactNode
+}) {
+  const host = useDetachedWindow(true, {
+    title: `Lantern — ${label}`,
+    features: `popup=yes,width=${popout?.width ?? 440},height=${popout?.height ?? 620}`,
+    onClose,
+  })
+  if (!host) return null
+  return createPortal(
+    <div className="panel-window">
+      {popout
+        // A full view brings its own layout and scrolling.
+        ? <div className="panel-window-full">{popout.node}</div>
+        /* Same classes as the sidebar card's body: ScrollPanel scrolls its parent, and
+           the sticky blocks (exp-rested) are offset against this padding. */
+        : <div className="panel-content panel-content-scroll panel-window-body">{children}</div>}
+      {/* data-tooltip is delegated off a document, and this is a different one. */}
+      <GlobalTooltip doc={host.ownerDocument} />
+    </div>,
+    host,
   )
 }
 
@@ -471,8 +533,10 @@ function PanelManager({
 }
 
 // ── Main sidebar ───────────────────────────────────────────────────────────────
-export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName = '', footer }: {
+export function PanelSidebar({ renderPanel, renderPopout, getClearFn, sidebarWidth, charName = '', footer }: {
   renderPanel:   (id: PanelId) => React.ReactNode
+  /** A panel's pop-out when it's a different view from the panel; null → the panel itself. */
+  renderPopout?: (id: PanelId) => PanelPopout | null
   getClearFn?:   (id: PanelId) => (() => void) | undefined
   sidebarWidth?: number | null
   charName?:     string
@@ -509,6 +573,27 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
 
   const togglePanel = useCallback((id: PanelId) => {
     setPanels(prev => prev.map(p => p.id === id ? { ...p, visible: !p.visible } : p))
+  }, [])
+
+  // Which panels are in their own window. Session-only on purpose: reopening windows
+  // at launch would trip the browser's popup blocker on the web build.
+  const [popped, setPopped] = useState<ReadonlySet<PanelId>>(new Set())
+  const togglePopped = useCallback((id: PanelId) => {
+    setPopped(prev => {
+      const next = new Set(prev)
+      if (!next.delete(id)) next.add(id)
+      return next
+    })
+  }, [])
+  // Not a toggle: a closed window can be reported twice (beforeunload and the poll in
+  // useDetachedWindow), and toggling on the second report would pop it straight back.
+  const unpop = useCallback((id: PanelId) => {
+    setPopped(prev => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
   }, [])
 
   const setHeight = useCallback((id: string, h: number) => {
@@ -626,7 +711,11 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
             panel was open (the hidden card and the sheet), and each copy ran its own
             background work: two Scripts panels asking Lich `;list` on the same tick is
             exactly why the second reply ended up in the game output. Don't build them. */}
-        {!isMobile && visible.map((panel, i) => (
+        {!isMobile && visible.map((panel, i) => {
+          // Only a panel that pops out as ITSELF leaves the sidebar while it's out.
+          const isOut  = popped.has(panel.id)
+          const leaves = isOut && !renderPopout?.(panel.id)
+          return (
           <Panel
             key={panel.id}
             config={panel}
@@ -641,11 +730,15 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
             } : undefined}
             onToggle={() => togglePanel(panel.id)}
             onClear={getClearFn?.(panel.id)}
+            popped={isOut}
+            leaves={leaves}
+            onPopout={() => togglePopped(panel.id)}
             drag={isMobile ? undefined : panelDrag(panel.id)}
           >
-            {renderPanel(panel.id)}
+            {leaves ? null : renderPanel(panel.id)}
           </Panel>
-        ))}
+          )
+        })}
         {visible.length === 0 && (
           <div className="panel-sidebar-empty">No panels — click the <strong>+</strong> in the rail to add some.</div>
         )}
@@ -668,6 +761,12 @@ export function PanelSidebar({ renderPanel, getClearFn, sidebarWidth, charName =
           onClose={() => setShowManager(false)} anchorRef={managerBtnRef}
         />
       )}
+      {/* Hiding a panel closes its window too: it's filtered out of `visible`. */}
+      {!isMobile && visible.filter(p => popped.has(p.id)).map(p => (
+        <PanelWindow key={p.id} label={p.label} onClose={() => unpop(p.id)} popout={renderPopout?.(p.id) ?? null}>
+          {renderPanel(p.id)}
+        </PanelWindow>
+      ))}
       {mobileCfg && (
         <div className="panel-mobile-overlay" onClick={e => e.target === e.currentTarget && setMobilePanel(null)}>
           <div className="panel-mobile-sheet">
