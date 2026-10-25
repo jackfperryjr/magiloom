@@ -7,6 +7,7 @@ import { listLineKind, listRowText, listBlockText } from '../../lib/listBlocks'
 import type { LinkSpan } from '../../lib/sge-parser'
 import { resolveAvatarSrc } from '../../lib/avatar'
 import { promptFromLook } from '../../lib/lookPortrait'
+import { artworkThumbUrl, artworkFullUrl } from '../../lib/artwork'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
 import type { Highlight } from '../ui/HighlightsModal'
 import { matchHighlight as matchHighlightRule } from '../../lib/rules'
@@ -220,6 +221,38 @@ function LookCard({ name, lines }: { name: string; lines: string[] }) {
   )
 }
 
+// Official artwork from <resource picture>: the small thumbnail sits in the
+// stream, and a click opens the full picture in the same lightbox LOOK portraits
+// use. A picture play.net doesn't have removes the card rather than leaving a
+// broken-image box in the output.
+function ArtworkCard({ picture }: { picture: string }) {
+  const [zoomed, setZoomed] = useState(false)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    if (!zoomed) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setZoomed(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [zoomed])
+
+  if (failed) return null
+  return (
+    <div className="game-line artwork-card">
+      <img
+        className="artwork-thumb" src={artworkThumbUrl(picture)} alt="Artwork"
+        onClick={() => setZoomed(true)} onError={() => setFailed(true)}
+        data-tooltip="Click to enlarge"
+      />
+      {zoomed && createPortal(
+        <div className="modal-overlay look-lightbox" onClick={() => setZoomed(false)}>
+          <img className="look-lightbox-img" src={artworkFullUrl(picture)} alt="Artwork" />
+        </div>,
+        document.body,
+      )}
+    </div>
+  )
+}
+
 // Memoized so appending a new line doesn't re-render (and re-run the regex
 // classification below on) every existing line. `line` objects are immutable —
 // appended by reference — so a shallow prop compare skips all unchanged lines,
@@ -229,6 +262,7 @@ function LookCard({ name, lines }: { name: string; lines: string[] }) {
 const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine; highlights: Highlight[] }) {
   // LOOK-at-player block: portrait (avatar) beside the description text
   if (line.look) return <LookCard name={line.look.name} lines={line.look.lines} />
+  if (line.artwork) return <ArtworkCard picture={line.artwork} />
 
   // Chunk separator — a blank line's worth of space between command responses
   if (line.separator) return <div className="game-separator" aria-hidden />
