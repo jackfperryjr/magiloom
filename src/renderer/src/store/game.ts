@@ -83,6 +83,7 @@ export interface OutputLine {
   dividerNote?: string // why, shown beside the divider's time (e.g. "Closed by the game server")
   speaker?:   string   // for conversation lines: who is talking (for the avatar)
   look?:      { name: string; lines: string[] }  // LOOK-at-player block: portrait card
+  artwork?:   string   // official picture id from <resource picture>: an artwork card
 }
 
 // Pull the speaker out of a speech/whisper/thought line so the conversation
@@ -1541,6 +1542,32 @@ export const dispatchGameEventAtom = atom(
         _touchBuf  = []
         break
       }
+
+      case 'drWeather': {
+        // The server telling us the weather outright, instead of us grading prose
+        // as it scrolls past. A snapshot for some other room (stale, or a remote
+        // view) must not repaint this one's sky; "0" always means here.
+        const here = get(roomAtom).uid
+        if (event.room !== '0' && here && event.room !== here) break
+        if (event.status === 'unavailable') { set(weatherAtom, CLEAR); break }
+        // The text is the WEATHER report sentence, so it goes through the same
+        // grader as the report: the corpus first, then keyword fallbacks.
+        const region = regionFromLine(event.text)
+        if (region) set(weatherRegionAtom, region)
+        const w = weatherFromReportLine(event.text, get(skyAtom).season, get(weatherRegionAtom))
+        if (w) set(weatherAtom, w)
+        break
+      }
+
+      case 'artwork':
+        // Official art for the text that follows. Only the main window has room
+        // for a card; anywhere else it would just be noise.
+        if (event.stream !== 'main') break
+        set(outputLinesAtom, appendMain(get(outputLinesAtom), {
+          id: lineId++, text: '', styles: [], stream: 'main', timestamp: Date.now(), artwork: event.picture,
+        }))
+        _outputDirty = true
+        break
 
       case 'inventoryTree':
         // One envelope of a `_inventory manager` walk; store/inventory.ts owns the

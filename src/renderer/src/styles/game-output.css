@@ -77,6 +77,21 @@
 .look-avatar-zoomable { cursor: zoom-in; }
 .look-avatar-zoomable:hover { border-color: var(--accent); }
 
+/* Official artwork thumbnail (<resource picture>). Shown at the thumbnail's own
+   size (~81x106) so it never upscales into blur; the full image is a click away. */
+.artwork-card { padding: 3px 2px 5px; }
+.artwork-thumb {
+  display: block;
+  width: 84px;
+  height: 108px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-input);
+  cursor: zoom-in;
+}
+.artwork-thumb:hover { border-color: var(--accent); }
+
 /* Click-to-enlarge portrait lightbox (portaled onto .modal-overlay) */
 .look-lightbox { cursor: zoom-out; }
 .look-lightbox-img {

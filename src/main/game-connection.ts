@@ -20,15 +20,22 @@ export class GameConnection extends EventEmitter {
     const s = this.socket = new Socket()
     this.socket.setEncoding('latin1')
     this.socket.on('connect', () => {
-      // Full StormFront game-server login. Talking straight to the game (no Lich),
-      // the server needs the complete FE identification + two blank lines, exactly
-      // as Wrayth/Lich send — the bare "/FE:STORMFRONT" is only enough for Lich,
-      // which re-does this handshake itself. Sending the short form to the game
-      // server makes it accept the socket then drop it.
-      this.socket!.write(key + '\n', 'latin1')
-      this.socket!.write('/FE:STORMFRONT /VERSION:1.0.1.26 /P:WIN_XP /XML\n', 'latin1')
-      this.socket!.write('\n', 'latin1')
-      this.socket!.write('\n', 'latin1')
+      // Full game-server login. Talking straight to the game (no Lich), the server
+      // needs the complete FE identification line, then two empty commands. The
+      // bare "/FE:STORMFRONT" is only enough for Lich, which redoes this handshake
+      // itself; the short form makes the game server accept the socket, then drop it.
+      //
+      // This is Lich's handshake to the byte (CLIENT_STRING + two "<c>" 300ms
+      // apart). Lich always identifies as Wrayth, so every Lich session we parse
+      // already gets Wrayth-mode output. Matching it means a direct login gets the
+      // same server behavior instead of the older StormFront mode, which is also
+      // what makes ECHOCOLUMN and FLAG DESCRIPTION OFF work. Commands still go out
+      // bare (no "<c>" prefix), as they do through Lich.
+      s.write(key + '\n', 'latin1')
+      s.write('/FE:WRAYTH /VERSION:1.0.1.28 /P:WIN_UNKNOWN /XML\n', 'latin1')
+      for (const delay of [300, 600]) {
+        setTimeout(() => { if (this.socket === s && !s.destroyed) s.write('<c>\n', 'latin1') }, delay)
+      }
       this.emit('connected')
     })
     this.socket.on('data',  (c: string) => this.onData(c))

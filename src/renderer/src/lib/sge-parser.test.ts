@@ -272,6 +272,62 @@ eq('whitespace-only component clears', expEvent('exp Athletics', '   ')?.type, '
   eq('and is not an expClear', events.some(x => x.type === 'expClear'), false)
 }
 
+// ── Artwork ──────────────────────────────────────────────────────────────────
+// Both shapes verbatim from a logged session: an NPC portrait ahead of a LOOK,
+// and the "no art" marker that leads every room title.
+{
+  resetParser()
+  const events = parseLine('<resource picture="10033"/>')
+  const e = events.find(x => x.type === 'artwork') as Extract<GameEvent, { type: 'artwork' }>
+  eq('a picture becomes artwork', e?.picture, '10033')
+  eq('on the main stream', e?.stream, 'main')
+}
+{
+  resetParser()
+  const events = parseLine('<resource picture="0"/><style id="roomName" />[Wilds, Pine Needle Path] (**)')
+  eq('picture 0 is not artwork', events.some(x => x.type === 'artwork'), false)
+  const title = events.find(x => x.type === 'text') as Extract<GameEvent, { type: 'text' }>
+  eq('and the room title line is untouched', title?.text, '[Wilds, Pine Needle Path] (**)')
+  eq('keeping its roomName style', title?.styles[0]?.preset, 'roomName')
+}
+{
+  resetParser()
+  eq('a garbled id is ignored', parseLine('<resource picture="12a"/>').some(x => x.type === 'artwork'), false)
+  eq('an absurd id is ignored', parseLine('<resource picture="123456789012"/>').some(x => x.type === 'artwork'), false)
+}
+
+// ── Server weather snapshot ──────────────────────────────────────────────────
+// Not yet seen in our own logs; shapes follow the attributes as documented in
+// lib/sge-parser.ts. The text attribute arrives entity-encoded like any other.
+{
+  resetParser()
+  const e = parseLine('<drWeather room="0" status="known" text="A light rain patters silently down from dark skies above."/>')
+    .find(x => x.type === 'drWeather') as Extract<GameEvent, { type: 'drWeather' }>
+  eq('known weather is reported', e?.status, 'known')
+  eq('for the current room', e?.room, '0')
+  eq('with its sentence', e?.text, 'A light rain patters silently down from dark skies above.')
+}
+{
+  resetParser()
+  const e = parseLine('<drWeather room="1234" status="known" text="The sky&apos;s clear &amp; blue."/>')
+    .find(x => x.type === 'drWeather') as Extract<GameEvent, { type: 'drWeather' }>
+  eq('a numbered room is kept', e?.room, '1234')
+  eq('entities in the text are decoded', e?.text, "The sky's clear & blue.")
+}
+{
+  resetParser()
+  const e = parseLine('<drWeather room="0" status="unavailable"/>')
+    .find(x => x.type === 'drWeather') as Extract<GameEvent, { type: 'drWeather' }>
+  eq('unavailable is reported without text', e?.status === 'unavailable' && e.text === '', true)
+}
+{
+  resetParser()
+  const bad = (raw: string): boolean => parseLine(raw).some(x => x.type === 'drWeather')
+  eq('known with no text is dropped', bad('<drWeather room="0" status="known" text=""/>'), false)
+  eq('an unknown status is dropped',  bad('<drWeather room="0" status="maybe" text="Clear."/>'), false)
+  eq('a garbled room is dropped',     bad('<drWeather room="x1" status="known" text="Clear."/>'), false)
+}
+
 // ── Report ───────────────────────────────────────────────────────────────────
 if (failures.length) {
   console.error(`\n✗ sge-parser: ${failures.length} failed, ${passed} passed`)

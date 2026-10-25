@@ -11,6 +11,7 @@
  */
 
 import { parseRestedExp } from './exp-parser'
+import { isArtworkId } from './artwork'
 
 export type StreamId = 'main' | 'exp' | 'combat' | 'atmo' | 'inv' | 'familiar' | 'speech' | 'thoughts' | 'lich'
 
@@ -89,6 +90,14 @@ export type GameEvent =
   // ("injuries<Name>"); `title` carries that window's caption.
   | { type: 'injuries';  images: InjuryImage[]; dialogId: string; title: string }
   | { type: 'inventoryTree'; envelope: InvEnvelope }  // <inventoryManager> — reply to `_inventory manager <id>`
+  // <resource picture='N'/> — official artwork for what's about to be described
+  // (an NPC portrait on LOOK, an event scene). Never emitted for picture 0, which
+  // DR sends on every room change as "no art here". See lib/artwork.ts.
+  | { type: 'artwork';   picture: string; stream: StreamId }
+  // <drWeather room status text/> — the server's own weather snapshot for a room
+  // ("0" = the current one). `known` carries the same sentence WEATHER prints;
+  // `unavailable` means there's no sky to read from here.
+  | { type: 'drWeather'; room: string; status: 'known' | 'unavailable'; text: string }
   | { type: 'prompt';    time: number }
 
 export type VitalField = 'health' | 'mana' | 'stamina' | 'spirit'
@@ -1034,6 +1043,30 @@ export function parseLine(raw: string): GameEvent[] {
           if (attrs['cmd'])  img.cmd  = attrs['cmd']
           _injuryImages.push(img)
         }
+        break
+      }
+
+      // ── Official artwork: <resource picture="10033"/> ─────────────────────
+      // Rides just ahead of the text it illustrates. "0" is DR's "nothing here"
+      // and leads every room title, so it's the overwhelmingly common case.
+      case 'resource': {
+        const pic = (attrs['picture'] ?? '').trim()
+        if (isArtworkId(pic)) { flush(); events.push({ type: 'artwork', picture: pic, stream: _stream }) }
+        break
+      }
+
+      // ── Server weather snapshot: <drWeather room="0" status="known" text="…"/> ──
+      // Newer than any of our logged sessions (none through 2026-08 carry it), so
+      // the shape is as another client reads it: main stream only, a numeric room,
+      // and a sane-length sentence. Anything off-shape is dropped, not guessed at.
+      case 'drweather': {
+        if (_stream !== 'main') break
+        const room   = (attrs['room'] ?? '0').trim()
+        const status = attrs['status']
+        const text   = decodeEntities(attrs['text'] ?? '').trim()
+        if (!/^(0|[1-9]\d{0,9})$/.test(room)) break
+        if (status === 'unavailable') { flush(); events.push({ type: 'drWeather', room, status, text: '' }); break }
+        if (status === 'known' && text && text.length <= 4096) { flush(); events.push({ type: 'drWeather', room, status, text }) }
         break
       }
 
