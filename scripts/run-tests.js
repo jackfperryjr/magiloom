@@ -28,6 +28,7 @@ const TESTS = [
   'src/tools/lib/tdp.test.ts',
   'src/renderer/src/lib/mapper.test.ts',
   'src/renderer/src/lib/sge-parser.test.ts',
+  'src/renderer/src/lib/skyArt.test.ts',
   'src/renderer/src/lib/exp-parser.test.ts',
   'src/renderer/src/lib/loginProgress.test.ts',
   'src/renderer/src/lib/inventory.test.ts',
