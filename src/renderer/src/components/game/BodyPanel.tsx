@@ -1,6 +1,5 @@
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
 import {
   bodyInjuriesAtom, patientBodyAtom, bodySubjectAtom, selfNameAtom, indicatorsAtom,
   beginTouchCaptureAtom, injuryModeAtom, setInjuryModeAtom, injuryPendingAtom,
@@ -15,7 +14,6 @@ import {
 } from '../../lib/injuries'
 import { BodyFigure } from './BodyFigure'
 import { Tooltip } from '../ui/Tooltip'
-import { PopoutButton } from '../ui/PopoutButton'
 
 // Character names are capitalized (first letter up), as the game expects.
 const capitalize = (s: string) => s ? s[0].toUpperCase() + s.slice(1) : s
@@ -294,16 +292,13 @@ function ViewModeButton() {
 }
 
 // ── The panel (sidebar) ───────────────────────────────────────────────────────
-export function BodyPanel({ onExpand }: { onExpand?: () => void }) {
+export function BodyPanel() {
   const [subject, setSubject] = useAtom(bodySubjectAtom)
   return (
     <div className="body-panel">
       <div className="body-panel-head">
         <SubjectToggle subject={subject} onChange={setSubject} />
         <ViewModeButton />
-        {onExpand && (
-          <PopoutButton className="body-expand-btn" label="Enlarge" onClick={onExpand} />
-        )}
       </div>
       {subject === 'character' && <InjuryModeToggle />}
       <BodyView />
@@ -350,25 +345,21 @@ function PatientEmpty() {
   )
 }
 
-// ── The pop-out overlay (enlarged, like the Map) ──────────────────────────────
-export function BodyOverlay({ onClose }: { onClose: () => void }) {
+// ── The pop-out (enlarged, like the Map) ─────────────────────────────────────
+// The Body panel's pop-out window — see PanelSidebar's PanelWindow.
+export function BodyFull() {
   const [subject, setSubject] = useAtom(bodySubjectAtom)
-  return createPortal(
-    <div className="body-overlay-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="body-overlay">
-        <div className="body-overlay-head">
-          <span className="body-overlay-title">Body</span>
-          <SubjectToggle subject={subject} onChange={setSubject} />
-          <ViewModeButton />
-          <div className="body-overlay-spacer" />
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
-        <div className="body-overlay-body">
-          {subject === 'character' && <InjuryModeToggle />}
-          <BodyView large />
-        </div>
+  return (
+    <div className="body-overlay">
+      <div className="body-overlay-head">
+        <span className="body-overlay-title">Body</span>
+        <SubjectToggle subject={subject} onChange={setSubject} />
+        <ViewModeButton />
       </div>
-    </div>,
-    document.body,
+      <div className="body-overlay-body">
+        {subject === 'character' && <InjuryModeToggle />}
+        <BodyView large />
+      </div>
+    </div>
   )
 }

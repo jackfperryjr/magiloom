@@ -60,7 +60,7 @@ export interface MapViewProps {
  * is pointer-based: drag the background to pan, wheel to zoom (unless wheelZoom is
  * off — the sidebar panel wants the wheel for scrolling), drag a node to reposition
  * it (when onNodeDrag is set), click a node to walk. Auto-centers on the current
- * room as the character moves. Reused by MapPanel and MapOverlay.
+ * room as the character moves. Reused by MapPanel and MapFull (its pop-out).
  */
 export function MapView({
   zone, exits, labels, currentNodeId, selectedId, focusId,

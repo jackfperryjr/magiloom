@@ -431,6 +431,21 @@
 
 .panel-content { padding: 8px 10px; }
 
+/* The pop-out icon is an inline-flex SVG button; keep it on the text buttons' line. */
+.panel-header-actions { display: flex; align-items: center; gap: 2px; }
+
+/* What's left in the sidebar while a panel is in its own window (PanelSidebar). */
+.panel-popped-stub {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: 12px; color: var(--text-dim); font-style: italic;
+}
+
+/* A popped-out panel fills its window; the body is the scroller, like the card's. */
+.panel-window { height: 100vh; display: flex; flex-direction: column; background: var(--bg-panel); }
+.panel-window-body { flex: 1; min-height: 0; max-height: none; }
+/* A pop-out that's its own view (full map, large figure) lays itself out. */
+.panel-window-full { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
 /* ── Messages panel (character-to-character) ─────────────────────────────────
    Two modes: contact list ⇄ thread. The head/composer bars are NOT sticky — they
    are fixed chrome, and only the list between them scrolls (.msg-list-body /
