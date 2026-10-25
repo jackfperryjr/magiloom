@@ -1,8 +1,15 @@
+import { useState } from 'react'
 import { useAtomValue } from 'jotai'
-import { skyAtom, moonsAtom, weatherAtom } from '../../store/game'
+import { skyAtom, moonsAtom, weatherAtom, roomLocaleAtom } from '../../store/game'
 import { formatDate, type SkyPhase, type Season } from '../../lib/elanthianTime'
 import { MOON_BY_NAME, litPath } from '../../lib/moons'
 import { weatherLabel, trendLabel } from '../../lib/weather'
+import { skyArtLayers, skyArtSet, type ArtLight, type ArtSet } from '../../lib/skyArt'
+
+// Painted backdrops, `<set>-<light>.jpg` (see lib/skyArt.ts). Any painting that's
+// missing falls back to the drawn gradient, so the set can grow a file at a time.
+const ART = import.meta.glob('../../assets/calendar-art/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
+const artUrl = (set: ArtSet, light: ArtLight): string | undefined => ART[`../../assets/calendar-art/${set}-${light}.jpg`]
 
 // Calendar panel: the Elanthian date and time of day, the sun on its arc, and the
 // three moons with their real phases and rise/set countdowns. Everything is
@@ -72,32 +79,59 @@ const CRATERS: [number, number, number][] = [
   [-2.2, -1.4, 1.3], [1.8, -0.4, 0.9], [0.2, 2.4, 1.1], [-1.1, 1.6, 0.7], [2.6, 1.8, 0.6],
 ]
 
-// Dome geometry (viewBox 0 0 200 104): near-full-width semicircle, horizon at y=98.
-const DOME = 'M 10,98 A 90,90 0 0 1 190,98 Z'
-const ARC  = 'M 10,98 A 90,90 0 0 1 190,98'   // the sun's path (east horizon → zenith → west)
+// Dome geometry (viewBox 0 0 200 104): a near-full-width arc from the east horizon
+// over the zenith to the west. Over the plain gradient the horizon is the bottom
+// edge (y=98) and the arc a semicircle. The paintings put their land in the lower
+// ~40%, so over them the horizon rises to where the hills are and the arc flattens
+// into an ellipse that still peaks near the top; anything below that line is
+// clipped, so the sun and moons rise and set behind the land.
+const ART_HORIZON = 62
+interface Dome { horizon: number; ry: number; dome: string; arc: string }
+function domeAt(horizon: number, zenith: number): Dome {
+  const ry  = horizon - zenith
+  const arc = `M 10,${horizon} A 90,${ry} 0 0 1 190,${horizon}`
+  return { horizon, ry, arc, dome: arc + ' Z' }
+}
+const DOME_PLAIN = domeAt(98, 8)                // the original semicircle
+const DOME_ART   = domeAt(ART_HORIZON, 14)      // peak low enough that the noon sun and its glow clear the top
 
 export function CalendarPanel() {
   const sky = useAtomValue(skyAtom)
   const moons = useAtomValue(moonsAtom)
   const weather = useAtomValue(weatherAtom)
+  const locale  = useAtomValue(roomLocaleAtom)
 
-  const [top, horizon] = skyStops(sky.daylight, sky.dayProgress < 0.5)
-  // The corner labels sit over the gradient, so their colour flips with the sky:
-  // near-white ink at night, dark ink by day, crossfading through twilight. Driven by
-  // daylight, like everything else here (so it's theme-independent — the sky is always
-  // this same gradient regardless of UI theme). No shadow — it hurt readability.
+  const morning = sky.dayProgress < 0.5
+  const [top, horizon] = skyStops(sky.daylight, morning)
+
+  // Which painting set, remembered across rooms that can't say (a shop in town
+  // stays the city). Derived state kept in sync during render, React's pattern for
+  // "depends on the previous value".
+  const [prevSet, setPrevSet] = useState<ArtSet | null>(null)
+  const artSet = skyArtSet(locale, sky.season, prevSet)
+  if (artSet !== prevSet) setPrevSet(artSet)
+  const layers = skyArtLayers(sky.daylight, morning)
+  const urls   = layers.map(l => artUrl(artSet, l.light))
+  const art    = urls.every(Boolean)
+  const g      = art ? DOME_ART : DOME_PLAIN
+
+  // The corner labels sit over the sky. Over the gradient their colour flips with it:
+  // near-white ink at night, dark ink by day, crossfading through twilight (no
+  // shadow: it hurt readability there). The paintings' skies stay deep blue even at
+  // noon, where dark ink fails, so over them the labels stay light, with a soft
+  // shadow that only matters by day.
   const dl = sky.daylight
-  const labelColor  = lerpHex('#ecebff', '#141a2e', dl)
-  const labelStyle  = { color: labelColor }
+  const labelColor  = art ? '#ecebff' : lerpHex('#ecebff', '#141a2e', dl)
+  const labelStyle  = art ? { color: labelColor, textShadow: `0 1px 3px rgba(0,0,0,${(0.55 * dl).toFixed(2)})` } : { color: labelColor }
   const starOpacity = Math.max(0, Math.min(1, 1 - sky.daylight * 1.3))
   // Nudge the moons' colour saturation up a touch — more so by day — so their tint
   // still reads against the bright daytime dome instead of washing out to grey.
   const moonSat = (1.15 + 0.55 * sky.daylight).toFixed(2)
-  // Sun on its arc: t=0 east horizon, t=0.5 zenith, t=1 west horizon.
+  // A body's position on the arc: 0 = east horizon, 0.5 = zenith, 1 = west horizon.
+  const onArc = (p: number): [number, number] => [100 - 90 * Math.cos(Math.PI * p), g.horizon - g.ry * Math.sin(Math.PI * p)]
   const t = sky.dayProgress
   const sunUp = sky.isDay && t >= 0 && t <= 1
-  const sunX = 100 - 90 * Math.cos(Math.PI * t)
-  const sunY = 98 - 90 * Math.sin(Math.PI * t)
+  const [sunX, sunY] = onArc(t)
 
   const trend = trendLabel(weather)
 
@@ -127,15 +161,26 @@ export function CalendarPanel() {
             <stop offset="55%" stopColor="#000" stopOpacity=".14" />
             <stop offset="100%" stopColor="#000" stopOpacity="0" />
           </radialGradient>
-          <clipPath id="dome-clip"><path d={DOME} /></clipPath>
+          <clipPath id="dome-clip"><path d={g.dome} /></clipPath>
+          {/* Everything above the horizon: a body below it is behind the land. */}
+          <clipPath id="sky-above"><rect x="0" y="0" width="200" height={g.horizon} /></clipPath>
         </defs>
 
-        {/* The sky gradient fills the whole box; the arc is left as just a dashed
-            guide line (below) rather than a filled dome. */}
-        <rect x="0" y="0" width="200" height="104" fill="url(#sky-grad)" />
+        {/* The backdrop fills the whole box: the painting(s) for this place, season
+            and light, or else the gradient. The arc is just a dashed guide line. */}
+        {art ? layers.map((l, i) => l.opacity > 0.005 && (
+          <image
+            key={l.light} href={urls[i]} x="0" y="0" width="200" height="104"
+            preserveAspectRatio="xMidYMid slice" opacity={l.opacity}
+            transform={l.flip ? 'translate(200,0) scale(-1,1)' : undefined}
+          />
+        )) : (
+          <rect x="0" y="0" width="200" height="104" fill="url(#sky-grad)" />
+        )}
 
-        {/* stars (visible at night / twilight), clipped to the dome */}
-        {starOpacity > 0.02 && (
+        {/* stars (visible at night / twilight), clipped to the dome. The night
+            paintings carry their own, so only the gradient needs these. */}
+        {!art && starOpacity > 0.02 && (
           <g clipPath="url(#dome-clip)">
             {STARS.map(([x, y], i) => (
               <circle key={i} cx={x} cy={y} r={i % 3 === 0 ? 1.1 : 0.7} fill="#fff" opacity={starOpacity * (0.5 + (i % 4) * 0.16)} />
@@ -144,9 +189,10 @@ export function CalendarPanel() {
         )}
 
         {/* sun path + horizon */}
-        <path d={ARC} fill="none" stroke="rgba(255,255,255,.18)" strokeWidth="0.8" strokeDasharray="2 3" />
-        <line x1="4" y1="98" x2="196" y2="98" stroke="rgba(255,255,255,.35)" strokeWidth="1" />
+        <path d={g.arc} fill="none" stroke="rgba(255,255,255,.18)" strokeWidth="0.8" strokeDasharray="2 3" />
+        {!art && <line x1="4" y1="98" x2="196" y2="98" stroke="rgba(255,255,255,.35)" strokeWidth="1" />}
 
+        <g clipPath="url(#sky-above)">
         {/* the sun (only while above the horizon) */}
         {sunUp && (
           <g>
@@ -161,8 +207,7 @@ export function CalendarPanel() {
             the illuminated limb painted over it, then craters and spherical shading. */}
         {moons.filter(m => m.visible).map(m => {
           const meta = MOON_BY_NAME[m.name]
-          const mx = 100 - 90 * Math.cos(Math.PI * m.arc)
-          const my = 98 - 90 * Math.sin(Math.PI * m.arc)
+          const [mx, my] = onArc(m.arc)
           return (
             <g key={m.name} opacity={0.6 + 0.4 * starOpacity}
                data-tooltip={`${m.name} — ${m.phase.label}, ${arcWord(m.arc)}; sets in ${inWhen(m.msToEvent)}`}
@@ -182,6 +227,7 @@ export function CalendarPanel() {
             </g>
           )
         })}
+        </g>
       </svg>
 
       {/* The date, and the weather with its trend when there is one to report. */}
