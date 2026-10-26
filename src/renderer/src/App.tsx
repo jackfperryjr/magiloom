@@ -7,6 +7,7 @@ import { useAmbientAudio }     from './hooks/useAmbientAudio'
 import { GameOutput, setHighlights, setSendFn, setOutputBuffer, setPlayerName, setDisabledClasses } from './components/game/GameOutput'
 import { CommandInput, StatusBar, WindowControls, HudBar, CharacterBar } from './components/game'
 import { AmbientOverlay } from './components/game/AmbientOverlay'
+import { DeathCard } from './components/game/DeathCard'
 import { LoginFlow }          from './components/ui/LoginFlow'
 import { SettingsModal }      from './components/ui/SettingsModal'
 import { ScriptPopouts }      from './components/ui/ScriptPopouts'
@@ -593,6 +594,7 @@ function GameLayout({ charName, accountName, watching, resumed, loginOpen, onLea
           }}>
             <GameOutput />
             <AmbientOverlay />
+            <DeathCard />
           </main>
           <footer className="bottom-bar">
             <HudBar status={status} />

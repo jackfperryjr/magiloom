@@ -8,6 +8,7 @@ import { selfNameAtom, avatarsAtom, serverAvatarsAtom } from '../../store/game'
 import { resolveAvatarSrc } from '../../lib/avatar'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
 import { Tooltip } from '../ui/Tooltip'
+import { EmptyState } from '../ui/EmptyState'
 import { IconTrash, IconPlus, IconPaperAirplane } from '../ui/Icons'
 
 // Avatar (with a presence dot overlaid at its corner) — the same image source the
@@ -120,7 +121,7 @@ function ContactList({ onOpen }: { onOpen: (name: string) => void }) {
         )}
 
         {sorted.length === 0 && requests.length === 0 && (
-          <div className="panel-empty">No contacts yet — add someone by their character name.</div>
+          <EmptyState art="messages">No contacts yet — add someone by their character name.</EmptyState>
         )}
 
         {sorted.map((c: Contact) => {
@@ -236,7 +237,7 @@ function Thread({ peer, onBack }: { peer: string; onBack: () => void }) {
 
       <div className="msg-thread-body" ref={bodyRef}>
         {messages.length === 0
-          ? <div className="panel-empty">No messages yet — say hello.</div>
+          ? <EmptyState art="messages">No messages yet — say hello.</EmptyState>
           : groups.map(g => (
               <div key={g.msgs[0].id} className={'msg-group ' + (g.mine ? 'mine' : 'theirs')}>
                 {!g.mine && <ContactAvatar name={peer} size={28} />}

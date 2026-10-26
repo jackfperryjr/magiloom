@@ -477,3 +477,36 @@
     transform: translate(var(--drift, 0), calc(-1 * var(--rise-hold, 55vh)));
   }
 }
+
+/* ── Death card (components/game/DeathCard) ──────────────────────────────────
+   A painting over the whole game panel at the three turns of a death. The text
+   sits bottom-left, where the paintings are kept quiet for it. Fades in, holds,
+   fades out (the component unmounts it at 7s; the fade-out lands just before). */
+.death-card {
+  position: absolute; inset: 0; z-index: 6;
+  display: flex; align-items: flex-end;
+  background: #05040b;
+  cursor: pointer;
+  animation: death-card-in .9s ease both, death-card-out .9s ease 6.1s forwards;
+}
+.death-card-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.death-card::after {
+  /* A soft shade behind the words only, so they read on any painting. */
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 45% at 12% 92%, rgba(0,0,0,.55), transparent 70%);
+  pointer-events: none;
+}
+.death-card-text {
+  position: relative; z-index: 1;
+  max-width: min(520px, 46%);
+  padding: 0 0 7% 6%;
+  color: #f1edfb;
+  text-shadow: 0 2px 10px rgba(0,0,0,.75);
+}
+.death-card-title { font-family: var(--font-ui); font-weight: 600; letter-spacing: .01em; white-space: nowrap; font-size: clamp(20px, 2.8vw, 34px); line-height: 1.15; }
+.death-card-sub { margin-top: 6px; font-size: clamp(12px, 1.2vw, 15px); opacity: .88; line-height: 1.4; }
+@keyframes death-card-in  { from { opacity: 0 } to { opacity: 1 } }
+@keyframes death-card-out { from { opacity: 1 } to { opacity: 0 } }
+@media (prefers-reduced-motion: reduce) {
+  .death-card { animation: none; }
+}

@@ -3,6 +3,7 @@ import { useAtomValue, useAtom } from 'jotai'
 import {
   presenceModeAtom, autoIdleAtom, avatarsAtom, avatarCropsAtom, serverAvatarsAtom, linkModeAtom, broadcastReceiveAtom,
   appearanceAtom,
+  selfGuildAtom,
 } from '../../store/game'
 import { isDualTheme, type ThemeMode } from '../../lib/themes'
 import { saveCharAppearance, applyAppearance } from '../../lib/charSettings'
@@ -11,6 +12,7 @@ import type { AvatarCrop } from '../../lib/avatar'
 import { CircleAvatar } from '../ui/CircleAvatar'
 import { downscaleToFit } from '../../lib/image'
 import { useProfile } from '../../hooks/useProfile'
+import { GuildRow } from '../ui/GuildRow'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import {
@@ -200,6 +202,8 @@ function CharacterMenu({
   themeMode:     ThemeToggle
 }) {
   const run = (fn: () => void) => () => { onClose(); fn() }
+  // PROFILE may not name the guild for yourself; INFO always does.
+  const selfGuild = useAtomValue(selfGuildAtom)
   return (
     <>
       <div className="char-menu-backdrop" onClick={onClose} />
@@ -215,6 +219,7 @@ function CharacterMenu({
           </Tooltip>
           <div className="char-menu-profile">
             <div className="char-menu-name">{profile?.name || charName || 'Unknown'}</div>
+            <GuildRow guild={profile?.guild ?? selfGuild} />
             <div className="char-menu-field"><span className="char-menu-k">Spouse</span><span className="char-menu-v">{profile?.spouse ?? '—'}</span></div>
             <div className="char-menu-field"><span className="char-menu-k">Roleplay</span><span className="char-menu-v">{profile?.roleplay ?? '—'}</span></div>
             <div className="char-menu-field"><span className="char-menu-k">PvP</span><span className="char-menu-v">{profile?.pvp ?? '—'}</span></div>
