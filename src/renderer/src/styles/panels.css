@@ -661,16 +661,26 @@
    edges and fading into it, so it reads as part of the panel rather than a box.
    4:1 keeps it from eating the sidebar card's limited height. */
 .room-banner {
+  position: relative;
   margin: -8px -10px 2px;
   aspect-ratio: 4 / 1;
   overflow: hidden;
+}
+.room-banner-art {
+  position: relative; width: 100%; height: 100%;
+  animation: art-fade-in .6s ease;
 }
 .room-banner img {
   width: 100%; height: 100%; display: block;
   object-fit: cover; object-position: 50% 55%;
   -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent);
           mask-image: linear-gradient(to bottom, #000 62%, transparent);
-  animation: art-fade-in .6s ease;
+}
+/* The night painting sits exactly over the day one. Its opacity follows the game
+   clock (set inline); the transition smooths the minute-by-minute steps. */
+.room-banner img.room-banner-night {
+  position: absolute; inset: 0;
+  transition: opacity 2s linear;
 }
 @keyframes art-fade-in { from { opacity: 0 } to { opacity: 1 } }
 
@@ -695,5 +705,6 @@
 .guild-crest { width: 22px; height: 22px; object-fit: contain; flex: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .room-banner img { animation: none; }
+  .room-banner-art { animation: none; }
+  .room-banner img.room-banner-night { transition: none; }
 }

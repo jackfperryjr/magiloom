@@ -5,7 +5,7 @@ import {
   roomAtom, activeSpellAtom, activeSpellsAtom, inventoryLinesAtom, handsAtom,
   expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, thoughtLinesAtom, deathsAtom,
   avatarsAtom, selfNameAtom, serverAvatarsAtom, tickAtom, logonLinesAtom,
-  connectionStatusAtom, promptCountAtom, wealthAtom, beginSilentInfoAtom, roomLocaleAtom,
+  connectionStatusAtom, promptCountAtom, wealthAtom, beginSilentInfoAtom, roomLocaleAtom, skyAtom,
   type OutputLine,
 } from '../../store/game'
 import { ranksGained, sleepState, hasFieldExp } from '../../lib/exp-parser'
@@ -17,7 +17,7 @@ import { resolveAvatarSrc } from '../../lib/avatar'
 import { groupExpSkills } from '../../lib/expGroups'
 import { CURRENCIES, DENOMS, formatCoins, platLabel } from '../../lib/wealth'
 import { roomArt, coinArt } from '../../lib/artAssets'
-import { roomArtKey } from '../../lib/artKeys'
+import { roomArtKey, roomNightKey, roomNightOpacity } from '../../lib/artKeys'
 import { GuildRow } from '../ui/GuildRow'
 import { EmptyState } from '../ui/EmptyState'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
@@ -40,13 +40,30 @@ function ScrollPanel({ children, deps }: { children: React.ReactNode; deps: unkn
 export function RoomPanel() {
   const room   = useAtomValue(roomAtom)
   const locale = useAtomValue(roomLocaleAtom)
+  const daylight = useAtomValue(skyAtom).daylight
   // A painted header for the kind of place this is (lib/roomLocale), once there is a
-  // room to describe. Keyed by the picture so a change of scenery fades in.
+  // room to describe. Keyed by the picture so a change of scenery fades in. Outdoor
+  // types also have a night painting of the same scene, laid over the day one and
+  // faded in with the game clock; roofed types have none and keep the day painting.
   const banner = room.name ? roomArt(roomArtKey(locale)) : undefined
+  const night  = banner ? roomArt(roomNightKey(locale)) : undefined
+  const nightOpacity = night ? roomNightOpacity(daylight) : 0
 
   return (
     <div className="room-panel">
-      {banner && <div className="room-banner" aria-hidden><img key={banner} src={banner} alt="" draggable={false} /></div>}
+      {banner && (
+        <div className="room-banner" aria-hidden>
+          <div key={banner} className="room-banner-art">
+            <img src={banner} alt="" draggable={false} />
+            {night && (
+              <img
+                src={night} alt="" draggable={false}
+                className="room-banner-night" style={{ opacity: nightOpacity }}
+              />
+            )}
+          </div>
+        </div>
+      )}
       <div className="room-name">{room.name || '—'}</div>
       {room.description && <div className="room-desc">{room.description}</div>}
       {room.playerNames.length > 0 && (

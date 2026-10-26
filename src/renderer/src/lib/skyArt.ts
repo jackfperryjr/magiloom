@@ -84,14 +84,15 @@ export function paintingBox(view: Box): Box {
 }
 
 /**
- * The set for this room. Streets and squares are the city; woods, shores and
- * named open country are the valley for the season. Anywhere the classifier
+ * The set for this room. Streets and squares are the city; woods, shores, villages,
+ * mountains, desert and named open country are the valley for the season. Anywhere the classifier
  * can't place, or where there's no sky to see (indoors, underground), keeps the
  * previous set: stepping into a shop shouldn't swap the city for open country.
  */
 export function skyArtSet(locale: RoomLocale, season: Season, previous: ArtSet | null): ArtSet {
   if (locale === 'urban') return 'city'
-  if (locale === 'forest' || locale === 'water') return season
+  if (locale === 'forest' || locale === 'water' || locale === 'village' ||
+      locale === 'mountain' || locale === 'desert') return season
   if (previous === 'city') return 'city'
   return season
 }
