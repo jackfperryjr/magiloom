@@ -29,6 +29,7 @@ const TESTS = [
   'src/renderer/src/lib/mapper.test.ts',
   'src/renderer/src/lib/sge-parser.test.ts',
   'src/renderer/src/lib/skyArt.test.ts',
+  'src/renderer/src/lib/roomLocale.test.ts',
   'src/renderer/src/lib/artKeys.test.ts',
   'src/renderer/src/lib/exp-parser.test.ts',
   'src/renderer/src/lib/loginProgress.test.ts',
