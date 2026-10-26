@@ -9,7 +9,7 @@
  * Run: npm run test:tools
  */
 
-import { pickScene, holidayFor, isNight, seasonOf, nthWeekday, dailyRoll, SCENES, SCENE, WILDCARD } from './loginScene'
+import { pickScene, holidayFor, isNight, seasonOf, nthWeekday, dailyRoll, SCENES, SCENE, WILDCARD, TALES, TALE_BAND, talesFor } from './loginScene'
 
 let passed = 0
 const failures: string[] = []
@@ -187,7 +187,32 @@ const nameOf = (i: number): string => SCENES[i].name
 {
   SCENES.forEach((s, i) => eq(`SCENES[${i}] index matches position`, s.index, i))
   eq('every scene has a unique key', new Set(SCENES.map(s => s.key)).size, SCENES.length)
-  eq('clearNight is the last scene', SCENES[SCENES.length - 1].index, SCENE.clearNight)
+  eq('the original thirteen end at clearNight', SCENE.clearNight, 12)
+  eq('every tale comes after them', TALES.every(i => i > SCENE.clearNight), true)
+}
+
+// ── Loomy's tales ──────────────────────────────────────────────────────────────
+// The band just above the wildcard. Holidays still win, the season still owns most
+// days, and a tale is only ever one that suits the hour.
+{
+  const nameOf = (i: number): string => SCENES[i].name
+  const mid = WILDCARD + TALE_BAND / 2
+  const ordinary = (hr: number): Date => at(2026, 7, 10, hr)          // no holiday near
+  eq('a roll in the band is a tale', pickScene(ordinary(13), mid).why, 'Loomy tale')
+  eq('just below the band is still the wildcard', pickScene(ordinary(13), WILDCARD - 0.001).why === 'Loomy tale', false)
+  eq('just above the band is the season', pickScene(ordinary(13), WILDCARD + TALE_BAND).rule, 'season')
+  eq('a holiday still beats a tale', pickScene(at(2026, 11, 25, 13), mid).rule, 'holiday')
+
+  eq('no day-only tale at night', talesFor(true).every(i => SCENES[i].light !== 'day'), true)
+  eq('no night-only tale by day', talesFor(false).every(i => SCENES[i].light !== 'night'), true)
+
+  // Every tale is reachable at some hour, so none of the paintings is dead weight.
+  const seen = new Set<string>()
+  for (const hr of [13, 23]) for (let k = 0; k < 200; k++) {
+    const r = pickScene(ordinary(hr), WILDCARD + (k + 0.5) / 200 * TALE_BAND)
+    seen.add(nameOf(r.scene))
+  }
+  eq('every tale can be shown', TALES.every(i => seen.has(nameOf(i))), true)
 }
 
 if (failures.length) {

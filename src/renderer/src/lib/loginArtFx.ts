@@ -617,4 +617,8 @@ export const SCENE_FX: Record<string, FxFactory> = {
   yule:       () => snow({ per: 11000, warm: true }),
   fireworks:  fireworks,
   clearNight: () => twinkle({ skyTop: 0.03, skyBottom: 0.5, shooting: true }),
+  // Tales: only the two with open sky across the top. The rest have ceilings, a
+  // dome or a painted fire that a generic overlay would sit badly against.
+  road:       birds,
+  fishing:    birds,
 }

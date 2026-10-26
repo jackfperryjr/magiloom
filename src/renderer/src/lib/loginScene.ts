@@ -9,7 +9,10 @@
  *   1. Holidays win outright, and the random pick can never override one.
  *   2. Otherwise a 1-in-4 wildcard from the two seasonless scenes that suit this
  *      season, so a season doesn't become monotonous over the three months it owns.
- *   3. Otherwise the season's own scene.
+ *   3. Otherwise, on about three days in ten, one of Loomy's tales: scenes of him
+ *      out in the world (a tavern, a ferry, a sleeping dragon) that belong to no
+ *      season, chosen among the ones that suit the hour.
+ *   4. Otherwise the season's own scene.
  * Finally, anything that can only be daylight is swapped for the plain night sky
  * after dark (and vice versa) — holidays excepted, since Yule at noon is still Yule.
  *
@@ -26,11 +29,14 @@ import type { HatKind } from './loginScenes'
 export const SCENE = {
   downpour: 0, snowfall: 1, clearDay: 2, moons: 3, grove: 4, forge: 5, deep: 6,
   blossom: 7, harvest: 8, hallows: 9, yule: 10, fireworks: 11, clearNight: 12,
+  // Loomy's tales. Appended, never interleaved: SCENES is indexed by these numbers.
+  tavern: 13, library: 14, market: 15, fishing: 16, ferry: 17, road: 18,
+  observatory: 19, dragon: 20, campfire: 21, ship: 22,
 } as const
 
 export type SceneIndex = (typeof SCENE)[keyof typeof SCENE]
 
-export type SceneTag = 'anytime' | 'winter' | 'spring' | 'summer' | 'autumn' | 'holiday' | 'night'
+export type SceneTag = 'anytime' | 'winter' | 'spring' | 'summer' | 'autumn' | 'holiday' | 'night' | 'tale'
 export type SceneLight = 'day' | 'night' | 'any'
 
 export interface SceneMeta {
@@ -57,6 +63,16 @@ export const SCENES: SceneMeta[] = [
   { index: SCENE.yule,       key: 'yule',       name: 'Yule',        tag: 'holiday', light: 'night' },
   { index: SCENE.fireworks,  key: 'fireworks',  name: 'Fireworks',   tag: 'holiday', light: 'night' },
   { index: SCENE.clearNight, key: 'clearNight', name: 'Clear Night', tag: 'night',   light: 'night' },
+  { index: SCENE.tavern,      key: 'tavern',      name: 'Tavern',      tag: 'tale', light: 'any'   },
+  { index: SCENE.library,     key: 'library',     name: 'Library',     tag: 'tale', light: 'any'   },
+  { index: SCENE.market,      key: 'market',      name: 'Market',      tag: 'tale', light: 'day'   },
+  { index: SCENE.fishing,     key: 'fishing',     name: 'Fishing',     tag: 'tale', light: 'day'   },
+  { index: SCENE.ferry,       key: 'ferry',       name: 'Ferry',       tag: 'tale', light: 'day'   },
+  { index: SCENE.road,        key: 'road',        name: 'The Road',    tag: 'tale', light: 'day'   },
+  { index: SCENE.observatory, key: 'observatory', name: 'Observatory', tag: 'tale', light: 'night' },
+  { index: SCENE.dragon,      key: 'dragon',      name: 'Dragon',      tag: 'tale', light: 'any'   },
+  { index: SCENE.campfire,    key: 'campfire',    name: 'Campfire',    tag: 'tale', light: 'night' },
+  { index: SCENE.ship,        key: 'ship',        name: 'At Sea',      tag: 'tale', light: 'day'   },
 ]
 
 /** Loomy's hat when a holiday scene is shown outside its own occasion. */
@@ -151,6 +167,21 @@ const SEASON_WILDCARDS = {
 /** Chance of showing the season's wildcard instead of the season's own scene. */
 export const WILDCARD = 0.25
 
+/** Loomy's tales, in the order a roll walks them. */
+export const TALES: SceneIndex[] = SCENES.filter(s => s.tag === 'tale').map(s => s.index)
+
+/**
+ * Share of days given to a tale, the band of the roll just above the wildcard's.
+ * Big enough that a tale turns up a couple of times a week, small enough that the
+ * season still owns most days.
+ */
+export const TALE_BAND = 0.3
+
+/** The tales that can be on screen at this hour: day-only ones never at night. */
+export function talesFor(night: boolean): SceneIndex[] {
+  return TALES.filter(i => { const l = SCENES[i].light; return l === 'any' || (l === 'night') === night })
+}
+
 /**
  * A roll that is fixed for a whole calendar day.
  *
@@ -210,6 +241,13 @@ export function pickScene(date: Date, roll: number, opts: PickOptions = {}): Sce
     return swapped === pick
       ? { scene: swapped, why: `${season} wildcard`, rule: 'random' }
       : { scene: swapped, why: night ? 'night' : 'day', rule: 'clock' }
+  }
+
+  if (roll < WILDCARD + TALE_BAND) {
+    // Chosen among the tales that suit the hour, so there's nothing to swap after.
+    const pool = talesFor(night)
+    const pick = pool[Math.min(pool.length - 1, Math.floor(((roll - WILDCARD) / TALE_BAND) * pool.length))]
+    return { scene: pick, why: 'Loomy tale', rule: 'random' }
   }
 
   const seasonScene = SEASON_SCENE[season]

@@ -4,7 +4,7 @@
  * The blend has to be continuous: at every daylight value the picture must be
  * the same just below and just above, or the panel visibly jumps at the seams.
  */
-import { skyArtLayers, skyArtSet, type ArtLayer } from './skyArt'
+import { skyArtLayers, skyArtSet, fillViewBox, paintingBox, CORE, ART_HORIZON, type ArtLayer, type Box } from './skyArt'
 
 let passed = 0
 const failures: string[] = []
@@ -54,6 +54,29 @@ eq('a shop in town keeps the city',     skyArtSet('indoor', 'summer', 'city'), '
 eq('a cave out of town keeps the season', skyArtSet('underground', 'autumn', 'autumn'), 'autumn')
 eq('unknown out of town is the season', skyArtSet('default', 'autumn', null), 'autumn')
 eq('the season follows the calendar',   skyArtSet('default', 'spring', 'winter'), 'spring')
+
+// ── Geometry: the sidebar is unchanged, a pop-out fills ──────────────────────
+{
+  const near = (a: number, b: number): boolean => Math.abs(a - b) < 0.01
+  const coreView = fillViewBox(400, 208)
+  eq('the sidebar aspect is just the core', coreView, CORE)
+  // The covering painting in the core: 200 wide, centred, as the old slice drew it.
+  const p = paintingBox(CORE)
+  eq('core painting spans the width', near(p.w, 200) && near(p.x, 0), true)
+  eq('core painting is centred vertically', near(p.y, (104 - p.h) / 2), true)
+
+  const covers = (v: Box, q: Box): boolean => q.x <= v.x + 1e-6 && q.y <= v.y + 1e-6 && q.x + q.w >= v.x + v.w - 1e-6 && q.y + q.h >= v.y + v.h - 1e-6
+  const horizonAt = (q: Box): number => q.y + q.h * ((ART_HORIZON - p.y) / p.h)
+  for (const [w, h] of [[1200, 300], [600, 900], [800, 416], [300, 1200]]) {
+    const v = fillViewBox(w, h), q = paintingBox(v)
+    eq(`${w}x${h}: view matches the box aspect`, near(v.w / v.h, w / h), true)
+    eq(`${w}x${h}: view keeps the whole core`, v.x <= 0 && v.y <= 0 && v.x + v.w >= 200 && v.y + v.h >= 104, true)
+    eq(`${w}x${h}: painting covers the view`, covers(v, q), true)
+    eq(`${w}x${h}: painted horizon stays on the line`, near(horizonAt(q), ART_HORIZON), true)
+  }
+  eq('a tall window grows sky upward, not land downward', fillViewBox(600, 900).y + fillViewBox(600, 900).h, 104)
+  eq('nonsense sizes fall back to the core', fillViewBox(0, 0), CORE)
+}
 
 if (failures.length) {
   console.error(`\n✗ skyArt: ${failures.length} failed, ${passed} passed`)
