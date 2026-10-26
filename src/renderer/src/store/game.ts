@@ -660,6 +660,15 @@ export const strikeFlashAtom = atom<{ level: number; seq: number }>({ level: 0, 
 // never null. skyCorrectionAtom carries the offset a TIME report taught us, if any.
 // Both feed AmbientOverlay and the Calendar panel.
 export const weatherAtom = atom<WeatherState>(CLEAR)
+// Whether the server has sent a <drWeather> snapshot this session. Once it has, it
+// keeps the sky current itself and the once-a-minute silent WEATHER poll (App.tsx)
+// stands down. Reset with the session, so a session without the tag keeps polling.
+export const serverWeatherSeenAtom = atom(false)
+// When WEATHER was last asked for (silently or typed). A snapshot that lands soon
+// after may be the reply rather than a push, and must not switch the poll off: if
+// the tag only ever came back in reply, the first poll would silence all the rest.
+let _weatherAskedAt = 0
+const WEATHER_REPLY_MS = 5000
 // Which weather message set the current room uses — latched off desert-only prose so
 // a Muspar'i reading isn't graded against the temperate table.
 export const weatherRegionAtom = atom<WeatherRegion>('standard')
@@ -710,6 +719,7 @@ function skyReplyClaimed(): void { if (_skyPending > 0) _skyPending-- }
 
 /** Arm the silent window before sending sky commands — one count per expected reply. */
 export const beginSilentSkySeedAtom = atom(null, (_get, _set, replies: number = 1) => {
+  _weatherAskedAt = Date.now()
   // Capped: replies that never arrive in a form we recognize would otherwise pile
   // up, and each new poll pushes the deadline out, so an unbounded count could
   // silence weather for the rest of the session. Three covers every real overlap.
@@ -828,6 +838,7 @@ export const echoCommandAtom = atom(
       _silentExp.cancel()   // manual send wins over any pending background poll
     }
     if (DEPART_RE.test(command)) set(departTypedAtAtom, Date.now())
+    if (/^\s*wea(?:t(?:h(?:e(?:r)?)?)?)?\s*$/i.test(command)) _weatherAskedAt = Date.now()
     // A typed VAULT FAMILY says which vault the next vault sheet is.
     _holdings.command(command)
     // Same for INFO / WEALTH: the player asked to see it. ("wea" alone is WEATHER.)
@@ -944,6 +955,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   set(combatHeatRawAtom, { level: 0, at: 0 })
   set(strikeFlashAtom, { level: 0, seq: 0 })
   set(weatherAtom, CLEAR)
+  set(serverWeatherSeenAtom, false)
   set(weatherRegionAtom, 'standard')
   // The clock and moon corrections are learned per world, not per character, and the
   // model is right without them — but a fresh session re-derives them from scratch.
@@ -1563,6 +1575,7 @@ export const dispatchGameEventAtom = atom(
         // The server telling us the weather outright, instead of us grading prose
         // as it scrolls past. A snapshot for some other room (stale, or a remote
         // view) must not repaint this one's sky; "0" always means here.
+        if (!get(serverWeatherSeenAtom) && Date.now() - _weatherAskedAt > WEATHER_REPLY_MS) set(serverWeatherSeenAtom, true)
         const here = get(roomAtom).uid
         if (event.room !== '0' && here && event.room !== here) break
         if (event.status === 'unavailable') { set(weatherAtom, CLEAR); break }

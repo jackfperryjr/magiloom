@@ -33,7 +33,7 @@ import { useHoldingsSync }       from './hooks/useHoldingsSync'
 import { MapFull } from './components/map/MapOverlay'
 import {
   echoCommandAtom, beginSilentExpAtom, appendSystemLineAtom, tickAtom,
-  beginSilentSkySeedAtom, endSilentSkySeedAtom,
+  beginSilentSkySeedAtom, endSilentSkySeedAtom, serverWeatherSeenAtom,
   combatLinesAtom, atmoLinesAtom, convLinesAtom, thoughtLinesAtom, deathsAtom, inventoryLinesAtom,
   verbRawAtom, beginVerbCapture, endVerbCapture,
   avatarsAtom, avatarCropsAtom, appearanceAtom, selfNameAtom, resetSessionAtom,
@@ -434,11 +434,14 @@ function GameLayout({ charName, accountName, watching, resumed, loginOpen, onLea
   // Poll `weather` every minute so the overlay self-heals if an ambient transition
   // message was missed (e.g. it was already snowing when you stepped outdoors). RT-
   // free; the report is fetched silently and suppressed from the main output.
+  // Stands down for the rest of the session once the server sends its own weather
+  // snapshot (<drWeather>), which keeps the sky current without being asked.
+  const serverWeather = useAtomValue(serverWeatherSeenAtom)
   useEffect(() => {
-    if (status !== 'connected') return
+    if (status !== 'connected' || serverWeather) return
     const id = window.setInterval(() => { beginSilentSkySeed(1); send('weather') }, 60_000)
     return () => window.clearInterval(id)
-  }, [status, send, beginSilentSkySeed])
+  }, [status, serverWeather, send, beginSilentSkySeed])
 
 
   const [showHighlights, setShowHighlights] = useState(false)
