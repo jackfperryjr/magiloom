@@ -1,7 +1,7 @@
 /**
  * Art-key mapping tests. Run: npm run test:tools
  */
-import { roomArtKey, crestKey, guildFromInfoLine, deathCardFor, DEPART_RE } from './artKeys'
+import { roomArtKey, roomNightKey, roomNightOpacity, crestKey, guildFromInfoLine, deathCardFor, DEPART_RE } from './artKeys'
 
 let passed = 0
 const failures: string[] = []
@@ -14,6 +14,13 @@ function eq<T>(name: string, got: T, want: T): void {
 eq('forest is forest', roomArtKey('forest'), 'forest')
 eq('urban is urban', roomArtKey('urban'), 'urban')
 eq('unclassified is open country', roomArtKey('default'), 'wilds')
+eq('new types use their own name', roomArtKey('village'), 'village')
+eq('night key', roomNightKey('desert'), 'desert-night')
+eq('open country at night', roomNightKey('default'), 'wilds-night')
+eq('full day shows no night', roomNightOpacity(1), 0)
+eq('deep night is all night', roomNightOpacity(0), 1)
+eq('dusk is part way', roomNightOpacity(0.4) > 0 && roomNightOpacity(0.4) < 1, true)
+eq('darker is more night', roomNightOpacity(0.3) > roomNightOpacity(0.5), true)
 
 // ── Crests ───────────────────────────────────────────────────────────────────
 eq('one-word guild', crestKey('Bard'), 'bard')

@@ -9,6 +9,24 @@ export function roomArtKey(locale: RoomLocale): string {
   return locale === 'default' ? 'wilds' : locale
 }
 
+/**
+ * The night painting for a room type. Only outdoor types have one (forest-night.jpg
+ * and so on); for the rest the lookup simply misses and the day painting stands.
+ */
+export function roomNightKey(locale: RoomLocale): string {
+  return `${roomArtKey(locale)}-night`
+}
+
+/**
+ * How opaque the night painting is over the day one, from the sky's daylight
+ * (0 = deep night, 1 = full day). Fully night below 0.15 and fully day above 0.65,
+ * eased between, so dawn and dusk blend instead of snapping.
+ */
+export function roomNightOpacity(daylight: number): number {
+  const t = Math.max(0, Math.min(1, (0.65 - daylight) / 0.5))
+  return t * t * (3 - 2 * t)
+}
+
 const GUILDS = ['barbarian', 'bard', 'cleric', 'empath', 'moonmage', 'necromancer',
   'paladin', 'ranger', 'thief', 'trader', 'warriormage'] as const
 export type GuildKey = (typeof GUILDS)[number]

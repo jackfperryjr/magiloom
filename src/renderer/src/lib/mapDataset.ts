@@ -48,7 +48,7 @@ export interface DatasetRoom {
   // See lib/roomLocale (LOCALE_CODE) and lib/roomAmbient (AMBIENCE_CODE) — the bake
   // exists because the live classifiers see one room at a time and flickered across
   // connected rooms that share a title.
-  lc?:  string                       // room locale, for the tint ('g' | 'w' | 'f' | 'n' | 'u')
+  lc?:  string                       // room locale code (LOCALE_CODE: g w f n u s t v m e b h)
   am?:  string                       // room ambience effect ('e' embers | 'w' underwater)
 }
 
