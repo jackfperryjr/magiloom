@@ -17,6 +17,17 @@ import yule       from '../../assets/login-art/yule.jpg'
 // the painting deliberately has none of its own.
 import fireworks  from '../../assets/login-art/fireworks2.jpg'
 import clearnight from '../../assets/login-art/clearnight.jpg'
+// Loomy's tales (see TALES in lib/loginScene.ts).
+import tavern      from '../../assets/login-art/tavern.jpg'
+import library     from '../../assets/login-art/library.jpg'
+import market      from '../../assets/login-art/market.jpg'
+import fishing     from '../../assets/login-art/fishing.jpg'
+import ferry       from '../../assets/login-art/ferry.jpg'
+import road        from '../../assets/login-art/road.jpg'
+import observatory from '../../assets/login-art/observatory.jpg'
+import dragon      from '../../assets/login-art/dragon.jpg'
+import campfire    from '../../assets/login-art/campfire.jpg'
+import ship        from '../../assets/login-art/ship.jpg'
 
 /**
  * The art behind the sign-in card.
@@ -55,6 +66,16 @@ const SCENE_ART: Record<number, string> = {
   [SCENE.yule]:       yule,
   [SCENE.fireworks]:  fireworks,
   [SCENE.clearNight]: clearnight,
+  [SCENE.tavern]:      tavern,
+  [SCENE.library]:     library,
+  [SCENE.market]:      market,
+  [SCENE.fishing]:     fishing,
+  [SCENE.ferry]:       ferry,
+  [SCENE.road]:        road,
+  [SCENE.observatory]: observatory,
+  [SCENE.dragon]:      dragon,
+  [SCENE.campfire]:    campfire,
+  [SCENE.ship]:        ship,
 }
 
 interface Prefs {

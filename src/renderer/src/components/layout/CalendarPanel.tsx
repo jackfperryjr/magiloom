@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useAtomValue } from 'jotai'
 import { skyAtom, moonsAtom, weatherAtom, roomLocaleAtom } from '../../store/game'
 import { formatDate, type SkyPhase, type Season } from '../../lib/elanthianTime'
 import { MOON_BY_NAME, litPath } from '../../lib/moons'
 import { weatherLabel, trendLabel } from '../../lib/weather'
-import { skyArtLayers, skyArtSet, type ArtLight, type ArtSet } from '../../lib/skyArt'
+import { skyArtLayers, skyArtSet, fillViewBox, paintingBox, CORE, ART_HORIZON, type ArtLight, type ArtSet, type Box } from '../../lib/skyArt'
 
 // Painted backdrops, `<set>-<light>.jpg` (see lib/skyArt.ts). Any painting that's
 // missing falls back to the drawn gradient, so the set can grow a file at a time.
@@ -85,15 +85,18 @@ const CRATERS: [number, number, number][] = [
 // ~40%, so over them the horizon rises to where the hills are and the arc flattens
 // into an ellipse that still peaks near the top; anything below that line is
 // clipped, so the sun and moons rise and set behind the land.
-const ART_HORIZON = 62
 interface Dome { horizon: number; ry: number; dome: string; arc: string }
 function domeAt(horizon: number, zenith: number): Dome {
   const ry  = horizon - zenith
   const arc = `M 10,${horizon} A 90,${ry} 0 0 1 190,${horizon}`
   return { horizon, ry, arc, dome: arc + ' Z' }
 }
-const DOME_PLAIN = domeAt(98, 8)                // the original semicircle
-const DOME_ART   = domeAt(ART_HORIZON, 14)      // peak low enough that the noon sun and its glow clear the top
+// Zenith offsets from the top of the view: the gradient keeps its original
+// semicircle; over a painting the peak sits low enough that the noon sun and its
+// glow clear the top. In a tall pop-out the view grows upward, and the arc rises
+// with it (the zenith is measured from the view's top, not the core's).
+const ZENITH_PLAIN = 8
+const ZENITH_ART   = 14
 
 export function CalendarPanel() {
   const sky = useAtomValue(skyAtom)
@@ -113,7 +116,27 @@ export function CalendarPanel() {
   const layers = skyArtLayers(sky.daylight, morning)
   const urls   = layers.map(l => artUrl(artSet, l.light))
   const art    = urls.every(Boolean)
-  const g      = art ? DOME_ART : DOME_PLAIN
+
+  // In a pop-out window the box size comes from the window, not from the width, so
+  // the view grows around the core to fill it (fillViewBox) rather than leaving the
+  // painting a strip at the top. In the sidebar the height follows the viewBox, so
+  // this stays off there: changing the viewBox would change the height and loop.
+  const stageRef = useRef<HTMLDivElement>(null)
+  const [view, setView] = useState<Box>(CORE)
+  useLayoutEffect(() => {
+    const el = stageRef.current
+    if (!el || !el.closest('.panel-window')) return
+    // The window the panel is portalled into, so its own ResizeObserver sees it.
+    const RO = (el.ownerDocument.defaultView as (Window & typeof globalThis) | null)?.ResizeObserver ?? ResizeObserver
+    const ro = new RO(() => {
+      const r = el.getBoundingClientRect()
+      setView(fillViewBox(r.width, r.height))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const pic = paintingBox(view)
+  const g   = art ? domeAt(ART_HORIZON, view.y + ZENITH_ART) : domeAt(98, view.y + ZENITH_PLAIN)
 
   // The corner labels sit over the sky. Over the gradient their colour flips with it:
   // near-white ink at night, dark ink by day, crossfading through twilight (no
@@ -135,9 +158,11 @@ export function CalendarPanel() {
 
   const trend = trendLabel(weather)
 
+
   return (
     <div className="sky-panel">
-      <svg className="sky-scene" viewBox="0 0 200 104" preserveAspectRatio="xMidYMid meet" aria-hidden>
+      <div ref={stageRef} className="sky-stage">
+      <svg className="sky-scene" viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`} preserveAspectRatio="xMidYMid meet" aria-hidden>
         <defs>
           <linearGradient id="sky-grad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={top} />
@@ -163,19 +188,19 @@ export function CalendarPanel() {
           </radialGradient>
           <clipPath id="dome-clip"><path d={g.dome} /></clipPath>
           {/* Everything above the horizon: a body below it is behind the land. */}
-          <clipPath id="sky-above"><rect x="0" y="0" width="200" height={g.horizon} /></clipPath>
+          <clipPath id="sky-above"><rect x={view.x} y={view.y} width={view.w} height={g.horizon - view.y} /></clipPath>
         </defs>
 
         {/* The backdrop fills the whole box: the painting(s) for this place, season
             and light, or else the gradient. The arc is just a dashed guide line. */}
         {art ? layers.map((l, i) => l.opacity > 0.005 && (
           <image
-            key={l.light} href={urls[i]} x="0" y="0" width="200" height="104"
+            key={l.light} href={urls[i]} x={pic.x} y={pic.y} width={pic.w} height={pic.h}
             preserveAspectRatio="xMidYMid slice" opacity={l.opacity}
             transform={l.flip ? 'translate(200,0) scale(-1,1)' : undefined}
           />
         )) : (
-          <rect x="0" y="0" width="200" height="104" fill="url(#sky-grad)" />
+          <rect x={view.x} y={view.y} width={view.w} height={view.h} fill="url(#sky-grad)" />
         )}
 
         {/* stars (visible at night / twilight), clipped to the dome. The night
@@ -229,6 +254,7 @@ export function CalendarPanel() {
         })}
         </g>
       </svg>
+      </div>
 
       {/* The date, and the weather with its trend when there is one to report. */}
       <div className="sky-date">

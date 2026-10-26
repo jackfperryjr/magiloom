@@ -183,7 +183,7 @@ for (const [key, make] of Object.entries(SCENE_FX)) {
 // in LoginArt silently finds nothing and the canvas stays empty.
 {
   const keys = ['downpour', 'snowfall', 'clearDay', 'moons', 'forge', 'blossom',
-                'hallows', 'yule', 'fireworks', 'clearNight']
+                'hallows', 'yule', 'fireworks', 'clearNight', 'road', 'fishing']
   for (const k of keys) check(`${k} has an effect`, typeof SCENE_FX[k] === 'function')
   eq('no unexpected effects', Object.keys(SCENE_FX).sort().join(','), [...keys].sort().join(','))
 }

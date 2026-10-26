@@ -442,7 +442,17 @@
 
 /* A popped-out panel fills its window; the body is the scroller, like the card's. */
 .panel-window { height: 100vh; display: flex; flex-direction: column; background: var(--bg-panel); }
-.panel-window-body { flex: 1; min-height: 0; max-height: none; }
+/* Two classes deep on purpose: .panel-content-scroll (panels.css, imported AFTER this
+   file) caps the sidebar card at 220px, and a single-class override here lost to it,
+   so every popped-out panel stayed a 220px strip at the top of its window. */
+.panel-window .panel-window-body { flex: 1; min-height: 0; max-height: none; }
+/* The Calendar in its own window: the sky takes all the height the window gives
+   it, and its painting widens or deepens to fill (CalendarPanel's fill mode). */
+.panel-window .sky-panel { height: 100%; display: flex; flex-direction: column; }
+/* A plain box takes the flex space and the SVG is pinned inside it: an <svg> sized
+   by flexbox falls back to its own aspect ratio and overflows the window. */
+.panel-window .sky-stage { flex: 1 1 0; min-height: 120px; position: relative; }
+.panel-window .sky-scene { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* A pop-out that's its own view (full map, large figure) lays itself out. */
 .panel-window-full { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
