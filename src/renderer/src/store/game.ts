@@ -10,6 +10,7 @@ import {
 import { isAtmospheric } from '../lib/atmospherics'
 import { strikeIntensity } from '../lib/combatStrike'
 import { correctionFromTimeLine, computeSky, isTimeReportLine, resetTimeCalibration, type SkyState } from '../lib/elanthianTime'
+import { guildFromInfoLine, DEPART_RE } from '../lib/artKeys'
 import { weatherFromLine, weatherFromReportLine, isWeatherHeaderLine, regionFromLine, CLEAR, type WeatherState, type WeatherRegion } from '../lib/weather'
 import { computeMoonPositions, correctionFromMoonLine, type MoonCorrections, type MoonPosition } from '../lib/moons'
 import { applyGagSub as applyGagSubRules, type TextRule } from '../lib/rules'
@@ -422,6 +423,7 @@ export function endVerbCapture()   { _verbCapture = false; _verbBuf = [] }
 // ── Profile (PROFILE <name> summary shown in the character menu) ────────────────
 export interface ProfileInfo {
   name?:     string
+  guild?:    string   // PROFILE's Guild (or Profession) line, when it has one
   spouse?:   string
   roleplay?: string
   pvp?:      string
@@ -429,6 +431,15 @@ export interface ProfileInfo {
 // Parsed PROFILE summaries, keyed by lowercased character name (self + others
 // viewed from the conversation panel).
 export const profilesAtom = atom<Record<string, ProfileInfo>>({})
+
+// The logged-in character's guild, read off the INFO header line ("Name: …  Race: …
+// Guild: Bard"). The Wealth panel's silent INFO refresh fills it every session. Drives
+// the crest in the character menu.
+export const selfGuildAtom = atom<string | null>(null)
+
+// When the player last typed DEPART (ms), so the card shown on coming back to life
+// can tell a depart from a resurrection. See components/game/DeathCard.
+export const departTypedAtAtom = atom<number>(0)
 
 // Recognized "Key: Value" labels in a PROFILE block. During the fetch window
 // these are captured (and suppressed from the main output), then parsed for the
@@ -446,6 +457,7 @@ function parseProfile(lines: string[]): ProfileInfo {
     const val = m[2].trim()
     if      (key === 'name')            info.name = val
     else if (key === 'spouse')          info.spouse = val
+    else if (key === 'guild' || key === 'profession') info.guild = val
     else if (key === 'roleplay stance') info.roleplay = val
     else if (key === 'pvp stance')      info.pvp = val
   }
@@ -815,6 +827,7 @@ export const echoCommandAtom = atom(
       _expBatchNames  = new Set()
       _silentExp.cancel()   // manual send wins over any pending background poll
     }
+    if (DEPART_RE.test(command)) set(departTypedAtAtom, Date.now())
     // A typed VAULT FAMILY says which vault the next vault sheet is.
     _holdings.command(command)
     // Same for INFO / WEALTH: the player asked to see it. ("wea" alone is WEATHER.)
@@ -1245,6 +1258,9 @@ export const dispatchGameEventAtom = atom(
           if (circle !== null) set(expAtom, { ...get(expAtom), circle })
           const overallMind = parseOverallMind(event.text)
           if (overallMind !== null) set(expAtom, { ...get(expAtom), overallMind })
+          // INFO's header line carries the guild, which picks the menu crest.
+          const guild = guildFromInfoLine(event.text)
+          if (guild && guild !== get(selfGuildAtom)) set(selfGuildAtom, guild)
         }
 
         // Route to stream-specific atoms

@@ -653,3 +653,47 @@
 .wealth-panel .panel-row-name { min-width: 4.5em; }
 .wealth-panel .panel-row-num { flex: 0 1 auto; text-align: right; }
 .wealth-updated { margin-top: 4px; font-size: 10px; color: var(--text-dim); text-align: right; }
+
+/* ── Painted art (lib/artAssets) ─────────────────────────────────────────────
+   Room headers, empty-panel vignettes, coin icons and guild crests. */
+
+/* Room header: a short strip across the top of the Room panel, bled to the card's
+   edges and fading into it, so it reads as part of the panel rather than a box.
+   4:1 keeps it from eating the sidebar card's limited height. */
+.room-banner {
+  margin: -8px -10px 2px;
+  aspect-ratio: 4 / 1;
+  overflow: hidden;
+}
+.room-banner img {
+  width: 100%; height: 100%; display: block;
+  object-fit: cover; object-position: 50% 55%;
+  -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent);
+          mask-image: linear-gradient(to bottom, #000 62%, transparent);
+  animation: art-fade-in .6s ease;
+}
+@keyframes art-fade-in { from { opacity: 0 } to { opacity: 1 } }
+
+/* Empty panels: Loomy acting out the message, the message under him. */
+.panel-empty-art {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 0 8px; text-align: center;
+}
+.empty-art-img { width: min(170px, 72%); height: auto; display: block; }
+.panel-empty-art.is-compact .empty-art-img { width: min(110px, 48%); }
+
+/* Coins: the currency's gold coin heads each wealth tile; each held metal is a
+   coin and its count. */
+.coin-icon { width: 16px; height: 16px; display: inline-block; vertical-align: -3px; flex: none; }
+.coin-icon-lead { width: 22px; height: 22px; display: block; margin-bottom: 1px; }
+.coin-chips { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 8px; }
+.coin-chip { display: inline-flex; align-items: center; gap: 3px; }
+.coin-chip-k { font-size: 10px; color: var(--text-dim); }
+
+/* Guild crest beside the guild name (character menu, conversation profile card). */
+.guild-row-v { display: inline-flex; align-items: center; gap: 5px; }
+.guild-crest { width: 22px; height: 22px; object-fit: contain; flex: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .room-banner img { animation: none; }
+}

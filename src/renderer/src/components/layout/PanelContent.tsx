@@ -5,7 +5,7 @@ import {
   roomAtom, activeSpellAtom, activeSpellsAtom, inventoryLinesAtom, handsAtom,
   expAtom, combatLinesAtom, atmoLinesAtom, convLinesAtom, thoughtLinesAtom, deathsAtom,
   avatarsAtom, selfNameAtom, serverAvatarsAtom, tickAtom, logonLinesAtom,
-  connectionStatusAtom, promptCountAtom, wealthAtom, beginSilentInfoAtom,
+  connectionStatusAtom, promptCountAtom, wealthAtom, beginSilentInfoAtom, roomLocaleAtom,
   type OutputLine,
 } from '../../store/game'
 import { ranksGained, sleepState, hasFieldExp } from '../../lib/exp-parser'
@@ -15,7 +15,11 @@ import {
 import { isClosed, summarizeCarried } from '../../lib/inventory'
 import { resolveAvatarSrc } from '../../lib/avatar'
 import { groupExpSkills } from '../../lib/expGroups'
-import { CURRENCIES, formatCoins, platLabel } from '../../lib/wealth'
+import { CURRENCIES, DENOMS, formatCoins, platLabel } from '../../lib/wealth'
+import { roomArt, coinArt } from '../../lib/artAssets'
+import { roomArtKey } from '../../lib/artKeys'
+import { GuildRow } from '../ui/GuildRow'
+import { EmptyState } from '../ui/EmptyState'
 import { useEnsureAvatars } from '../../hooks/useAvatars'
 import { useProfile } from '../../hooks/useProfile'
 import { Tooltip } from '../ui/Tooltip'
@@ -34,10 +38,15 @@ function ScrollPanel({ children, deps }: { children: React.ReactNode; deps: unkn
 }
 
 export function RoomPanel() {
-  const room = useAtomValue(roomAtom)
+  const room   = useAtomValue(roomAtom)
+  const locale = useAtomValue(roomLocaleAtom)
+  // A painted header for the kind of place this is (lib/roomLocale), once there is a
+  // room to describe. Keyed by the picture so a change of scenery fades in.
+  const banner = room.name ? roomArt(roomArtKey(locale)) : undefined
 
   return (
     <div className="room-panel">
+      {banner && <div className="room-banner" aria-hidden><img key={banner} src={banner} alt="" draggable={false} /></div>}
       <div className="room-name">{room.name || '—'}</div>
       {room.description && <div className="room-desc">{room.description}</div>}
       {room.playerNames.length > 0 && (
@@ -166,7 +175,7 @@ export function ExperiencePanel() {
   const reported = exp.skills.length > 0 || exp.circle > 0 || exp.tdps > 0
     || exp.favors > 0 || Boolean(exp.overallMind)
   if (!reported) {
-    return <div className="panel-empty">Waiting for experience data — or type EXP</div>
+    return <EmptyState art="waiting">Waiting for experience data — or type EXP</EmptyState>
   }
 
   return (
@@ -237,7 +246,7 @@ export function ExperiencePanel() {
       {/* The totals above are worth showing on their own, so the "no field exp"
           case replaces the table rather than the whole panel. */}
       {activeSkills.length === 0 && (
-        <div className="panel-empty">No skills have field experience</div>
+        <EmptyState art="experience">No skills have field experience</EmptyState>
       )}
       <table className="exp-table">
         <tbody>
@@ -303,7 +312,7 @@ export function SpellsPanel() {
   const preparing = prepared && prepared !== 'None'
     ? <div className="active-spell">Preparing: {prepared}</div>
     : null
-  if (spells.length === 0) return preparing ?? <div className="panel-empty">No active spells</div>
+  if (spells.length === 0) return preparing ?? <EmptyState art="spells">No active spells</EmptyState>
 
   const now = Date.now()
   const secLeft = (s: { expires: number }) => Math.max(0, Math.ceil((s.expires - now) / 1000))
@@ -342,7 +351,7 @@ export function SpellsPanel() {
 // ── Combat Panel ───────────────────────────────────────────────────────────────
 export function CombatPanel() {
   const lines = useAtomValue(combatLinesAtom)
-  if (lines.length === 0) return <div className="panel-empty">No combat yet</div>
+  if (lines.length === 0) return <EmptyState art="combat">No combat yet</EmptyState>
   return (
     <ScrollPanel deps={[lines.length]}>
       {lines.map((l: OutputLine) => (
@@ -358,7 +367,7 @@ export function CombatPanel() {
 // ── Atmo Panel ─────────────────────────────────────────────────────────────────
 export function AtmoPanel() {
   const lines = useAtomValue(atmoLinesAtom)
-  if (lines.length === 0) return <div className="panel-empty">No atmospheric messages yet</div>
+  if (lines.length === 0) return <EmptyState art="atmo">No atmospheric messages yet</EmptyState>
   return (
     <ScrollPanel deps={[lines.length]}>
       {lines.map((l: OutputLine) => (
@@ -447,6 +456,7 @@ function ProfileCard({ name, src, x, y, doc, onClose }: {
         <img className="profile-card-avatar" src={src} alt="" />
         <div className="profile-card-body">
           <div className="char-menu-name">{profile?.name || name}</div>
+          <GuildRow guild={profile?.guild} />
           <div className="char-menu-field"><span className="char-menu-k">Spouse</span><span className="char-menu-v">{profile?.spouse ?? '—'}</span></div>
           <div className="char-menu-field"><span className="char-menu-k">Roleplay</span><span className="char-menu-v">{profile?.roleplay ?? '—'}</span></div>
           <div className="char-menu-field"><span className="char-menu-k">PvP</span><span className="char-menu-v">{profile?.pvp ?? '—'}</span></div>
@@ -481,7 +491,7 @@ export function ConversationPanel() {
     setCard({ name, src, x, y, doc })
   }
 
-  if (lines.length === 0) return <div className="panel-empty">No conversation yet</div>
+  if (lines.length === 0) return <EmptyState art="conversation">No conversation yet</EmptyState>
   return (
     <ScrollPanel deps={[lines.length]}>
       {groups.map(group => {
@@ -545,7 +555,7 @@ function parseThought(l: OutputLine): ParsedThought {
 
 export function ThoughtsPanel() {
   const lines = useAtomValue(thoughtLinesAtom)
-  if (lines.length === 0) return <div className="panel-empty">No thoughts yet</div>
+  if (lines.length === 0) return <EmptyState art="thoughts">No thoughts yet</EmptyState>
   return (
     <ScrollPanel deps={[lines.length]}>
       {lines.map((l: OutputLine) => {
@@ -672,7 +682,7 @@ export function InventoryPanel({ onManage, onAccount }: { onManage?: () => void;
               figures are on different raw scales (see weightOf/capacityOf), so any
               "7/12" here would be invented. */}
           {carried.containers.length === 0
-            ? <div className="panel-empty">Your containers are empty.</div>
+            ? <EmptyState art="inventory">Your containers are empty.</EmptyState>
             : carried.containers.map(({ item, count }) => (
                 <div key={item.id} className="panel-row panel-row-click" onClick={onManage}>
                   <span className="panel-row-name">{item.name}</span>
@@ -682,7 +692,7 @@ export function InventoryPanel({ onManage, onAccount }: { onManage?: () => void;
               ))}
         </>
       ) : status === 'loading' ? (
-        <div className="panel-empty">Reading your inventory…</div>
+        <EmptyState art="waiting">Reading your inventory…</EmptyState>
       ) : status === 'error' ? (
         /* Nothing under the message. A failed walk used to fall through to the raw
            INV text, which read as the panel having quietly reverted — and that text
@@ -692,7 +702,7 @@ export function InventoryPanel({ onManage, onAccount }: { onManage?: () => void;
       ) : lines.length > 0 ? (
         lines.map((line, i) => <div key={i} className="inv-line">{line}</div>)
       ) : (
-        <div className="panel-empty">Refresh to read your inventory.</div>
+        <EmptyState art="inventory">Refresh to read your inventory.</EmptyState>
       )}
     </div>
   )
@@ -734,7 +744,7 @@ export function WealthPanel() {
   }, [ready])
 
   if (!wealth) {
-    return <div className="panel-empty">{ready ? 'Reading your wealth…' : 'Waiting for wealth — or type WEALTH'}</div>
+    return <EmptyState art={ready ? 'waiting' : 'wealth'}>{ready ? 'Reading your wealth…' : 'Waiting for wealth — or type WEALTH'}</EmptyState>
   }
 
   const held = CURRENCIES.filter(c => (wealth.currencies[c]?.copper ?? 0) > 0)
@@ -753,6 +763,7 @@ export function WealthPanel() {
           return (
             <div key={c} className="panel-stat"
                  data-tooltip={h ? `${h.copper.toLocaleString()} copper ${c} — value in platinum.` : `No ${c} reported.`}>
+              {coinArt(c, 'gold') && <img className="coin-icon coin-icon-lead" src={coinArt(c, 'gold')} alt="" draggable={false} />}
               <span className="panel-stat-n">{platLabel(h?.copper ?? 0)}</span>
               <span className="panel-stat-k">{c.toLowerCase()}</span>
             </div>
@@ -762,11 +773,18 @@ export function WealthPanel() {
 
       <div className="panel-section">Coins</div>
       {held.length === 0
-        ? <div className="panel-empty">No coins on you.</div>
+        ? <EmptyState art="wealth" compact>No coins on you.</EmptyState>
         : held.map(c => (
             <div key={c} className="panel-row">
               <span className="panel-row-name">{c}</span>
-              <span className="panel-row-num">{formatCoins(wealth.currencies[c]!.coins)}</span>
+              <span className="panel-row-num coin-chips" data-tooltip={formatCoins(wealth.currencies[c]!.coins)}>
+                {DENOMS.filter(m => (wealth.currencies[c]!.coins[m] ?? 0) > 0).map(m => (
+                  <span key={m} className="coin-chip">
+                    {coinArt(c, m) ? <img className="coin-icon" src={coinArt(c, m)} alt={m} draggable={false} /> : <span className="coin-chip-k">{m}</span>}
+                    {(wealth.currencies[c]!.coins[m] ?? 0).toLocaleString()}
+                  </span>
+                ))}
+              </span>
             </div>
           ))}
 
@@ -812,7 +830,7 @@ export function WealthPanel() {
 // ── Deaths Panel ───────────────────────────────────────────────────────────────
 export function DeathsPanel() {
   const lines = useAtomValue(deathsAtom)
-  if (lines.length === 0) return <div className="panel-empty">No deaths recorded</div>
+  if (lines.length === 0) return <EmptyState art="deaths">No deaths recorded</EmptyState>
   return (
     <ScrollPanel deps={[lines.length]}>
       {lines.map((l: OutputLine) => (
@@ -828,7 +846,7 @@ export function DeathsPanel() {
 // ── Connections Panel (logons / logoffs / disconnects) ──────────────────────────
 export function ConnectionsPanel() {
   const lines = useAtomValue(logonLinesAtom)
-  if (lines.length === 0) return <div className="panel-empty">No logons or logoffs yet</div>
+  if (lines.length === 0) return <EmptyState art="logons">No logons or logoffs yet</EmptyState>
   return (
     <ScrollPanel deps={[lines.length]}>
       {lines.map(l => (
