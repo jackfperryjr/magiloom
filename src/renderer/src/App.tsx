@@ -436,12 +436,21 @@ function GameLayout({ charName, accountName, watching, resumed, loginOpen, onLea
   // free; the report is fetched silently and suppressed from the main output.
   // Stands down for the rest of the session once the server sends its own weather
   // snapshot (<drWeather>), which keeps the sky current without being asked.
+  // Settings → Ambient → Weather check turns the poll off (the connect seed above
+  // still runs once).
   const serverWeather = useAtomValue(serverWeatherSeenAtom)
+  const [weatherPoll, setWeatherPoll] = useState(true)
   useEffect(() => {
-    if (status !== 'connected' || serverWeather) return
+    const load = (): void => { window.dr.settings.getAll().then(s => setWeatherPoll(s.ambientWeatherPoll !== false)) }
+    load()
+    window.addEventListener('settings:saved', load)
+    return () => window.removeEventListener('settings:saved', load)
+  }, [])
+  useEffect(() => {
+    if (status !== 'connected' || serverWeather || !weatherPoll) return
     const id = window.setInterval(() => { beginSilentSkySeed(1); send('weather') }, 60_000)
     return () => window.clearInterval(id)
-  }, [status, serverWeather, send, beginSilentSkySeed])
+  }, [status, serverWeather, weatherPoll, send, beginSilentSkySeed])
 
 
   const [showHighlights, setShowHighlights] = useState(false)

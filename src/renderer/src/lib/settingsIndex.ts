@@ -63,6 +63,7 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { tab: 'ambient', section: 'Visuals', label: 'Strike flash',  keywords: 'hit attack amber pulse combat' },
   { tab: 'ambient', section: 'Visuals', label: 'Room effects',  keywords: 'embers bubbles forge lava underwater particles animation' },
   { tab: 'ambient', section: 'Visuals', label: 'Death',         keywords: 'dead grey gray desaturate' },
+  { tab: 'ambient', section: 'Visuals', label: 'Weather check', keywords: 'weather poll polling background command rain snow' },
   { tab: 'ambient', section: 'Sound',   label: 'Ambient sound', keywords: 'audio noise background mute' },
   { tab: 'ambient', section: 'Sound',   label: 'Volume',        keywords: 'audio loud quiet' },
   { tab: 'ambient', section: 'Sound',   label: 'Rain',          keywords: 'weather storm audio' },

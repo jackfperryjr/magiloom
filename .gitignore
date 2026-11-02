@@ -42,3 +42,6 @@ release/
 
 # Claude Code local settings
 .claude/
+
+# Scratch notes
+temp.txt
