@@ -84,6 +84,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [ambientStrike,   setAmbientStrike]   = useState(true)
   const [ambientRoomEffects, setAmbientRoomEffects] = useState(true)
   const [ambientDeath,       setAmbientDeath]       = useState(true)
+  const [ambientWeatherPoll, setAmbientWeatherPoll] = useState(true)
   const [sound,           setSound]           = useState<SoundPrefs>(DEFAULT_SOUND)
   const [loginArt,        setLoginArt]        = useState<LoginArtPrefs>(DEFAULT_LOGIN_ART)
   const [logging,         setLogging]         = useState(false)
@@ -263,6 +264,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setAmbientStrike(s.ambientStrike !== false)
       setAmbientRoomEffects(s.ambientRoomEffects !== false)
       setAmbientDeath(s.ambientDeath !== false)
+      setAmbientWeatherPoll(s.ambientWeatherPoll !== false)
       setSound({
         on:          s.ambientSound !== false,
         volume:      typeof s.ambientSoundVolume === 'number' ? s.ambientSoundVolume : DEFAULT_SOUND.volume,
@@ -312,7 +314,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
     saveCharAppearance(charName, { theme, themeMode, fontSize, fontFamily, density })
     await window.dr.settings.patch({
       lichPath, scriptDir, outputBufferSize, keepScreenOn, ambientRoomTint, ambientHeat,
-      ambientStrike, ambientRoomEffects, ambientDeath,
+      ambientStrike, ambientRoomEffects, ambientDeath, ambientWeatherPoll,
       ambientSound: sound.on, ambientSoundVolume: sound.volume,
       ambientSoundLayers: sound.layers, ambientSoundPauseHidden: sound.pauseHidden,
       loginArt: loginArt.on, loginArtScene: loginArt.scene, loginArtHolidays: loginArt.holidays,
@@ -418,6 +420,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                 ambientStrike={ambientStrike} setAmbientStrike={setAmbientStrike}
                 ambientRoomEffects={ambientRoomEffects} setAmbientRoomEffects={setAmbientRoomEffects}
                 ambientDeath={ambientDeath} setAmbientDeath={setAmbientDeath}
+                ambientWeatherPoll={ambientWeatherPoll} setAmbientWeatherPoll={setAmbientWeatherPoll}
                 sound={sound} setSound={setSound}
                 loginArt={loginArt} setLoginArt={setLoginArt}
               />

@@ -47,6 +47,7 @@ export function AmbientTab({
   ambientRoomTint, setAmbientRoomTint, ambientHeat, setAmbientHeat,
   ambientStrike, setAmbientStrike,
   ambientRoomEffects, setAmbientRoomEffects, ambientDeath, setAmbientDeath,
+  ambientWeatherPoll, setAmbientWeatherPoll,
   sound, setSound, loginArt, setLoginArt,
 }: {
   ambientRoomTint:        boolean
@@ -59,6 +60,8 @@ export function AmbientTab({
   setAmbientRoomEffects:  Dispatch<SetStateAction<boolean>>
   ambientDeath:           boolean
   setAmbientDeath:        Dispatch<SetStateAction<boolean>>
+  ambientWeatherPoll:     boolean
+  setAmbientWeatherPoll:  Dispatch<SetStateAction<boolean>>
   sound:                  SoundPrefs
   setSound:               Dispatch<SetStateAction<SoundPrefs>>
   loginArt:               LoginArtPrefs
@@ -105,6 +108,15 @@ export function AmbientTab({
                 when you're raised."
         >
           <Toggle checked={ambientDeath} onChange={setAmbientDeath} label="Death" />
+        </SettingRow>
+        <SettingRow
+          label="Weather check"
+          hint="Quietly sends WEATHER once a minute so the rain or snow on the panel stays
+                in step with the sky. It stops by itself once the game starts reporting
+                weather on its own. Off means the weather only changes when the game
+                announces a shift or you type WEATHER."
+        >
+          <Toggle checked={ambientWeatherPoll} onChange={setAmbientWeatherPoll} label="Weather check" />
         </SettingRow>
       </div>
 

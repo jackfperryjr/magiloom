@@ -113,6 +113,9 @@ interface AppSettings {
   ambientStrike?:      boolean
   ambientRoomEffects?: boolean
   ambientDeath?:       boolean
+  // The once-a-minute silent WEATHER poll (App.tsx) that keeps the weather field
+  // honest until the server starts sending <drWeather> itself. Undefined = on.
+  ambientWeatherPoll?: boolean
   // Procedural ambient sound (see lib/ambientAudio.ts) — rain while it rains, a
   // fire in a forge, bubbles underwater. Synthesized, so there are no audio assets
   // and intensity tracks weather severity directly. Undefined = on, matching the
