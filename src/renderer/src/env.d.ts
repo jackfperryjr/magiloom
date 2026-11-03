@@ -64,6 +64,8 @@ interface AppSettings {
   // clamps this to its own ceiling and also enforces a per-user byte cap, so a
   // heavy account can be trimmed sooner than the day count implies.
   lichLogRetentionDays?: number
+  /** Sign back in after a drop nobody here asked for. Default on. */
+  autoReconnect?: boolean
   notifications?:   {
     sound:      boolean
     desktop:    boolean

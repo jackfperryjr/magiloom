@@ -104,6 +104,7 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { tab: 'scripts', section: 'Native Scripts', label: 'Script files',  keywords: '.cmd genie wizard editor edit' },
 
   // ── Lich ──
+  { tab: 'lich', section: 'Connection', label: 'Reconnect automatically', keywords: 'auto reconnect disconnect drop sign in again login retry' },
   { tab: 'lich', section: 'Lich', label: 'Lich path', keywords: 'lich.rbw ruby install location', only: 'desktop' },
   { tab: 'lich', section: 'Lich', label: 'Keep Lich session logs for', keywords: 'retention days storage delete', only: 'web' },
   { tab: 'lich', section: 'Lich', label: 'Export your Lich data', keywords: 'download zip backup', only: 'web' },
