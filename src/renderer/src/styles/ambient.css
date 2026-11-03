@@ -485,9 +485,12 @@
 .death-card {
   position: absolute; inset: 0; z-index: 6;
   display: flex; align-items: flex-end;
-  background: #05040b;
+  /* Translucent, so the game text stays readable through it. Brief: the
+     fade-out ends with DeathCard's CARD_MS (3s). */
+  background: rgba(5, 4, 11, .35);
   cursor: pointer;
-  animation: death-card-in .9s ease both, death-card-out .9s ease 6.1s forwards;
+  opacity: .72;
+  animation: death-card-in .4s ease both, death-card-out .6s ease 2.4s forwards;
 }
 .death-card-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .death-card::after {
@@ -505,8 +508,8 @@
 }
 .death-card-title { font-family: var(--font-ui); font-weight: 600; letter-spacing: .01em; white-space: nowrap; font-size: clamp(20px, 2.8vw, 34px); line-height: 1.15; }
 .death-card-sub { margin-top: 6px; font-size: clamp(12px, 1.2vw, 15px); opacity: .88; line-height: 1.4; }
-@keyframes death-card-in  { from { opacity: 0 } to { opacity: 1 } }
-@keyframes death-card-out { from { opacity: 1 } to { opacity: 0 } }
+@keyframes death-card-in  { from { opacity: 0 } to { opacity: .72 } }
+@keyframes death-card-out { from { opacity: .72 } to { opacity: 0 } }
 @media (prefers-reduced-motion: reduce) {
   .death-card { animation: none; }
 }

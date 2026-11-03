@@ -63,6 +63,7 @@ async function signBackIn(charName: string, accountName: string): Promise<{ erro
  * Get a dropped session back without being asked: up to three attempts, ten seconds
  * apart, whenever the connection goes down and nobody here took it down (see
  * lib/disconnect for how that is decided, and ReconnectBudget for what bounds it).
+ * The player can turn it off entirely (settings.autoReconnect).
  *
  * `blocked` stops it: while watching someone else's session (not ours to log in),
  * and while the connect overlay is open (the player is signing in by hand, and both
@@ -94,6 +95,15 @@ export function useAutoReconnect(charName: string, accountName: string, blocked:
     if (!shouldReconnect(drop.cause) || !charName || !live()) return
 
     void (async () => {
+      // Read at the drop, not at mount, so flipping the setting takes effect at once.
+      // A script may have disconnected on purpose to escape danger; putting the
+      // character back in the room is what gets it killed.
+      const s = await window.dr.settings.getAll().catch(() => null)
+      if (!live()) return
+      if (s?.autoReconnect === false) {
+        say('[reconnect] Not reconnecting: automatic reconnect is off (Settings › Lich › Connection). Use Connect in the character menu.')
+        return
+      }
       if (reconnectBudget.remaining === 0) {
         say(`[reconnect] Not reconnecting: the connection has dropped ${RECONNECT_ATTEMPTS} times with no command sent in between. Use Connect in the character menu.`)
         return

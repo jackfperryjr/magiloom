@@ -20,7 +20,7 @@ import { NotificationsTab } from './settings/NotificationsTab'
 import { HotkeysTab } from './settings/HotkeysTab'
 import { AliasesTab } from './settings/AliasesTab'
 import { TriggersTab } from './settings/TriggersTab'
-import { SettingRow } from './settings/Field'
+import { SettingRow, Toggle } from './settings/Field'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import {
   TABS, searchSettings, entryTitle, entryPath, type TabId, type SettingEntry,
@@ -92,6 +92,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   // there's no per-character disk to bound) and web-only — on desktop the logs sit
   // on the user's own machine, where the server's pruner has no say.
   const [lichLogDays,     setLichLogDays]     = useState(7)
+  const [autoReconnect,   setAutoReconnect]   = useState(true)
   // Plan limits, so the retention control can't offer what the account can't have.
   const tierLimits = useTierLimits()
   const [exporting,       setExporting]       = useState(false)
@@ -285,6 +286,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       setPush({ ...DEFAULT_PUSH, ...(s.push ?? {}) })
       setNotifRules(s.notifRules ?? [])
       setLichLogDays(s.lichLogRetentionDays ?? 7)
+      setAutoReconnect(s.autoReconnect !== false)
     })
     // Hotkeys / quick actions / aliases / triggers are per-character (fall back to globals).
     window.dr.settings.getChar(charName).then(c => {
@@ -318,7 +320,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
       ambientSound: sound.on, ambientSoundVolume: sound.volume,
       ambientSoundLayers: sound.layers, ambientSoundPauseHidden: sound.pauseHidden,
       loginArt: loginArt.on, loginArtScene: loginArt.scene, loginArtHolidays: loginArt.holidays,
-      notifications: notif, push, notifRules,
+      notifications: notif, push, notifRules, autoReconnect,
       ...(isWeb ? { lichLogRetentionDays: lichLogDays } : {}),
     })
     const varsRecord = Object.fromEntries(
@@ -503,6 +505,18 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
             )}
 
             {tab === 'lich' && (
+              <>
+              <div className="settings-section">
+                <div className="settings-section-label">Connection</div>
+                <SettingRow
+                  label="Reconnect automatically"
+                  hint="When the connection drops unexpectedly, sign the character back in
+                        (up to three tries). Turn this off if a script disconnects you on
+                        purpose to get out of danger."
+                >
+                  <Toggle checked={autoReconnect} onChange={setAutoReconnect} label="Reconnect automatically" />
+                </SettingRow>
+              </div>
               <div className="settings-section settings-section-wide">
                 <div className="settings-section-label">Lich</div>
                 {/* The Lich path points at a LOCAL Lich install, which only the
@@ -600,6 +614,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                 <LichFilesEditor charName={charName} />
                 <LichLogsViewer />
               </div>
+              </>
             )}
 
             {tab === 'logs' && (

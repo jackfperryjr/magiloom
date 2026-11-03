@@ -14,7 +14,8 @@ import { deathArt } from '../../lib/artAssets'
  * Shown briefly, then it fades; a click or Escape dismisses it sooner. The colour
  * drain while dead is a separate, lasting effect (AmbientOverlay's DeathWash).
  */
-const CARD_MS   = 7000
+// Keep in step with the .death-card fade-out delay in ambient.css.
+const CARD_MS   = 3000
 const ARM_MS    = 8000    // ignore the indicator settling right after login
 const DEPART_MS = 60_000
 
