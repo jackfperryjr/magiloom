@@ -1,5 +1,4 @@
 import type { Dispatch, SetStateAction } from 'react'
-import { SCENES } from '../../../lib/loginScene'
 import { SettingRow, Toggle } from './Field'
 
 /**
@@ -26,16 +25,6 @@ export const DEFAULT_SOUND: SoundPrefs = {
   layers: { rain: true, wind: true, fire: true, water: true },
 }
 
-/** Animated art behind the sign-in card. See components/ui/LoginArt.tsx. */
-export interface LoginArtPrefs {
-  on:       boolean
-  /** A scene key from lib/loginScene.ts, or 'calendar' to follow the date. */
-  scene:    string
-  holidays: boolean
-}
-
-export const DEFAULT_LOGIN_ART: LoginArtPrefs = { on: true, scene: 'calendar', holidays: true }
-
 const SOUND_LAYERS: { id: keyof SoundPrefs['layers']; label: string; hint: string }[] = [
   { id: 'rain',  label: 'Rain',  hint: 'Rainfall, getting heavier as the storm does.' },
   { id: 'wind',  label: 'Wind',  hint: 'Gusts during snow, and the sandstorms out in the Muspar’i desert.' },
@@ -48,7 +37,7 @@ export function AmbientTab({
   ambientStrike, setAmbientStrike,
   ambientRoomEffects, setAmbientRoomEffects, ambientDeath, setAmbientDeath,
   ambientWeatherPoll, setAmbientWeatherPoll,
-  sound, setSound, loginArt, setLoginArt,
+  sound, setSound,
 }: {
   ambientRoomTint:        boolean
   setAmbientRoomTint:     Dispatch<SetStateAction<boolean>>
@@ -64,8 +53,6 @@ export function AmbientTab({
   setAmbientWeatherPoll:  Dispatch<SetStateAction<boolean>>
   sound:                  SoundPrefs
   setSound:               Dispatch<SetStateAction<SoundPrefs>>
-  loginArt:               LoginArtPrefs
-  setLoginArt:            Dispatch<SetStateAction<LoginArtPrefs>>
 }) {
   return (
     <>
@@ -168,52 +155,6 @@ export function AmbientTab({
             disabled={!sound.on}
             label="Silence in the background"
             onChange={v => setSound(s => ({ ...s, pauseHidden: v }))}
-          />
-        </SettingRow>
-      </div>
-
-      {/* Login art (components/ui/LoginArt.tsx). Painted scenes, picked from the
-          real-world calendar — the login screen has no game session, so it can't
-          know Elanthia's season. */}
-      <div className="settings-section">
-        <div className="settings-section-label">Login screen</div>
-        <SettingRow
-          label="Login art"
-          hint="A painted scene behind the sign-in card — one a day, picked by the season,
-                the holiday and whether it's dark out. It won't change while you're
-                looking at it, and it ships with the app rather than being fetched."
-        >
-          <Toggle checked={loginArt.on} onChange={v => setLoginArt(s => ({ ...s, on: v }))} label="Login art" />
-        </SettingRow>
-
-        <SettingRow
-          label="Scene"
-          hint="Pin one you like, or let the season, the holiday and the hour decide."
-          disabled={!loginArt.on}
-        >
-          <select
-            className="settings-input"
-            value={loginArt.scene}
-            aria-label="Login scene"
-            disabled={!loginArt.on}
-            onChange={e => setLoginArt(s => ({ ...s, scene: e.target.value }))}
-          >
-            <option value="calendar">Follow the calendar</option>
-            {SCENES.map(s => <option key={s.key} value={s.key}>{s.name}</option>)}
-          </select>
-        </SettingRow>
-
-        <SettingRow
-          label="Holiday scenes"
-          hint="Show Yule, Hallows, Harvest and the fireworks on the days they fall. Off
-                means seasons only."
-          disabled={!loginArt.on || loginArt.scene !== 'calendar'}
-        >
-          <Toggle
-            checked={loginArt.holidays}
-            disabled={!loginArt.on || loginArt.scene !== 'calendar'}
-            label="Holiday scenes"
-            onChange={v => setLoginArt(s => ({ ...s, holidays: v }))}
           />
         </SettingRow>
       </div>

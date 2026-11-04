@@ -16,10 +16,12 @@
 
 import { THEMES } from './themes'
 
-export type TabId = 'appearance' | 'ambient' | 'notifications' | 'hotkeys' | 'aliases' | 'triggers' | 'scripts' | 'lich' | 'logs'
+export type TabId = 'general' | 'appearance' | 'ambient' | 'notifications' | 'hotkeys' | 'aliases' | 'triggers' | 'scripts' | 'lich' | 'logs'
 
 export const TABS: { id: TabId; label: string }[] = [
-  { id: 'appearance',    label: 'Appearance' },
+  // Anything without an obvious home of its own.
+  { id: 'general',       label: 'General' },
+  { id: 'appearance',   label: 'Appearance' },
   { id: 'ambient',       label: 'Ambient' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'hotkeys',       label: 'Hotkeys' },
@@ -48,14 +50,20 @@ export interface SettingEntry {
 }
 
 export const SETTINGS_INDEX: SettingEntry[] = [
+  // ── General ──
+  { tab: 'general', section: 'Connection', label: 'Reconnect automatically', keywords: 'auto reconnect disconnect drop sign in again login retry' },
+  { tab: 'general', section: 'Game window', label: 'Output buffer', keywords: 'scrollback history lines memory' },
+  { tab: 'general', section: 'Mobile',     label: 'Keep screen awake', keywords: 'wake lock dim sleep phone tablet', only: 'web' },
+  { tab: 'general', section: 'Login screen', label: 'Login art',      keywords: 'background picture painting sign-in' },
+  { tab: 'general', section: 'Login screen', label: 'Scene',          keywords: 'background picture season pin' },
+  { tab: 'general', section: 'Login screen', label: 'Holiday scenes', keywords: 'yule hallows harvest fireworks' },
+
   // ── Appearance ──
   { tab: 'appearance', section: 'Theme',
     keywords: 'color colour palette skin dark light mode ' + THEMES.map(t => t.name).join(' ') },
   { tab: 'appearance', section: 'Layout',  label: 'Density',       keywords: 'cozy compact spacing padding size' },
   { tab: 'appearance', section: 'Display', label: 'Font family',   keywords: 'typeface monospace text cascadia fira consolas courier' },
   { tab: 'appearance', section: 'Display', label: 'Font size',     keywords: 'text bigger smaller zoom px' },
-  { tab: 'appearance', section: 'Display', label: 'Output buffer', keywords: 'scrollback history lines memory' },
-  { tab: 'appearance', section: 'Mobile',  label: 'Keep screen awake', keywords: 'wake lock dim sleep phone tablet', only: 'web' },
 
   // ── Ambient ──
   { tab: 'ambient', section: 'Visuals', label: 'Room tint',     keywords: 'locale color colour cave forest edge glow' },
@@ -71,9 +79,6 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { tab: 'ambient', section: 'Sound',   label: 'Fire',          keywords: 'forge lava crackle audio' },
   { tab: 'ambient', section: 'Sound',   label: 'Water',         keywords: 'underwater bubbles audio' },
   { tab: 'ambient', section: 'Sound',   label: 'Silence in the background', keywords: 'pause hidden tab mute audio' },
-  { tab: 'ambient', section: 'Login screen', label: 'Login art',      keywords: 'background picture painting sign-in' },
-  { tab: 'ambient', section: 'Login screen', label: 'Scene',          keywords: 'background picture season pin' },
-  { tab: 'ambient', section: 'Login screen', label: 'Holiday scenes', keywords: 'yule hallows harvest fireworks' },
 
   // ── Notifications ──
   { tab: 'notifications', section: 'Alerts', label: 'Play sound',     keywords: 'audio chime beep' },
@@ -104,7 +109,6 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { tab: 'scripts', section: 'Native Scripts', label: 'Script files',  keywords: '.cmd genie wizard editor edit' },
 
   // ── Lich ──
-  { tab: 'lich', section: 'Connection', label: 'Reconnect automatically', keywords: 'auto reconnect disconnect drop sign in again login retry' },
   { tab: 'lich', section: 'Lich', label: 'Lich path', keywords: 'lich.rbw ruby install location', only: 'desktop' },
   { tab: 'lich', section: 'Lich', label: 'Keep Lich session logs for', keywords: 'retention days storage delete', only: 'web' },
   { tab: 'lich', section: 'Lich', label: 'Export your Lich data', keywords: 'download zip backup', only: 'web' },

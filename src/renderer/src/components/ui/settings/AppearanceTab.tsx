@@ -1,14 +1,13 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { THEMES } from '../../../lib/themes'
-import { SettingRow, Toggle } from './Field'
+import { SettingRow } from './Field'
 
-// Settings → Appearance: theme picker, layout density, display (font/buffer).
+// Settings → Appearance: theme picker, layout density, display (font).
 // Game-output logging used to live here as a global toggle; it's per character now
 // and moved to Settings → Lich → Logs, next to the log files themselves.
 export function AppearanceTab({
   theme, previewTheme, density, setDensity, fontFamily, setFontFamily,
-  fontSize, setFontSize, outputBufferSize, setOutputBufferSize,
-  isWeb, keepScreenOn, setKeepScreenOn,
+  fontSize, setFontSize,
 }: {
   theme:               string
   previewTheme:        (id: string) => void
@@ -18,11 +17,6 @@ export function AppearanceTab({
   setFontFamily:       Dispatch<SetStateAction<string>>
   fontSize:            number
   setFontSize:         Dispatch<SetStateAction<number>>
-  outputBufferSize:    number
-  setOutputBufferSize: Dispatch<SetStateAction<number>>
-  isWeb:               boolean
-  keepScreenOn:        boolean
-  setKeepScreenOn:     Dispatch<SetStateAction<boolean>>
 }) {
   return (
     <>
@@ -98,37 +92,7 @@ export function AppearanceTab({
           />
           <span className="setting-readout">{fontSize}px</span>
         </SettingRow>
-        <SettingRow
-          label="Output buffer"
-          hint="How many lines of scrollback to keep. Larger uses more memory."
-        >
-          <select
-            className="settings-input"
-            value={outputBufferSize}
-            onChange={e => setOutputBufferSize(Number(e.target.value))}
-          >
-            <option value={1000}>1,000 lines</option>
-            <option value={2500}>2,500 lines</option>
-            <option value={5000}>5,000 lines</option>
-            <option value={10000}>10,000 lines</option>
-          </select>
-        </SettingRow>
       </div>
-
-      {/* Keep-awake only applies to the PWA/browser; the desktop app manages power
-          differently, so the toggle is web-only. See src/web/wakeLock.ts. */}
-      {isWeb && (
-        <div className="settings-section">
-          <div className="settings-section-label">Mobile</div>
-          <SettingRow
-            label="Keep screen awake"
-            hint="Holds the display on while connected to the game, so your phone or tablet
-                  won't dim or lock mid-session. Only active while a character is connected."
-          >
-            <Toggle checked={keepScreenOn} onChange={setKeepScreenOn} label="Keep screen awake" />
-          </SettingRow>
-        </div>
-      )}
     </>
   )
 }

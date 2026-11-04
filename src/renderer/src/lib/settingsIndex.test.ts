@@ -35,6 +35,7 @@ const eq = (name: string, got: unknown, want: unknown): void =>
   // SettingsModal around an embedded file browser, so both files count.
   const UI = 'src/renderer/src/components/ui'
   const SOURCES: Record<TabId, string[]> = {
+    general:       ['settings/GeneralTab.tsx'],
     appearance:    ['settings/AppearanceTab.tsx'],
     ambient:       ['settings/AmbientTab.tsx'],
     notifications: ['settings/NotificationsTab.tsx'],
