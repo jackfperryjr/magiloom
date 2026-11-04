@@ -101,7 +101,7 @@ export function useAutoReconnect(charName: string, accountName: string, blocked:
       const s = await window.dr.settings.getAll().catch(() => null)
       if (!live()) return
       if (s?.autoReconnect === false) {
-        say('[reconnect] Not reconnecting: automatic reconnect is off (Settings › Lich › Connection). Use Connect in the character menu.')
+        say('[reconnect] Not reconnecting: automatic reconnect is off (Settings › General). Use Connect in the character menu.')
         return
       }
       if (reconnectBudget.remaining === 0) {

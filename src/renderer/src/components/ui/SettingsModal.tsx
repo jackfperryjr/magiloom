@@ -15,12 +15,13 @@ import type { QuickAction } from '../../lib/quickActions'
 import { parseGenieConfig, mergeAliases, mergeTriggers, mergeVars } from '../../lib/genieImport'
 import { toggleClassState } from './ClassToggleStrip'
 import { AppearanceTab } from './settings/AppearanceTab'
-import { AmbientTab, DEFAULT_SOUND, DEFAULT_LOGIN_ART, type SoundPrefs, type LoginArtPrefs } from './settings/AmbientTab'
+import { AmbientTab, DEFAULT_SOUND, type SoundPrefs } from './settings/AmbientTab'
 import { NotificationsTab } from './settings/NotificationsTab'
 import { HotkeysTab } from './settings/HotkeysTab'
 import { AliasesTab } from './settings/AliasesTab'
 import { TriggersTab } from './settings/TriggersTab'
-import { SettingRow, Toggle } from './settings/Field'
+import { SettingRow } from './settings/Field'
+import { GeneralTab, DEFAULT_LOGIN_ART, type LoginArtPrefs } from './settings/GeneralTab'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import {
   TABS, searchSettings, entryTitle, entryPath, type TabId, type SettingEntry,
@@ -109,7 +110,7 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
   const [notifRules,      setNotifRules]      = useState<NotifRule[]>([])
   const [watchName,       setWatchName]       = useState('')
   const [version,         setVersion]         = useState('')
-  const [tab,             setTab]             = useState<TabId>('appearance')
+  const [tab,             setTab]             = useState<TabId>('general')
   // A phone can't carry a nav rail and a settings panel at once. Rather than squeeze
   // nine tabs into a horizontally-scrolling strip — where most of them are off-screen
   // and the one you're in is easy to lose — the modal becomes two screens: the tab
@@ -403,15 +404,22 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
 
           {!showMenu && !searching && (
           <div className="modal-body settings-content" ref={contentRef}>
+            {tab === 'general' && (
+              <GeneralTab
+                isWeb={isWeb}
+                autoReconnect={autoReconnect} setAutoReconnect={setAutoReconnect}
+                outputBufferSize={outputBufferSize} setOutputBufferSize={setOutputBufferSize}
+                keepScreenOn={keepScreenOn} setKeepScreenOn={setKeepScreenOn}
+                loginArt={loginArt} setLoginArt={setLoginArt}
+              />
+            )}
+
             {tab === 'appearance' && (
               <AppearanceTab
                 theme={theme} previewTheme={previewTheme}
                 density={density} setDensity={setDensity}
                 fontFamily={fontFamily} setFontFamily={setFontFamily}
                 fontSize={fontSize} setFontSize={setFontSize}
-                outputBufferSize={outputBufferSize} setOutputBufferSize={setOutputBufferSize}
-                isWeb={isWeb}
-                keepScreenOn={keepScreenOn} setKeepScreenOn={setKeepScreenOn}
               />
             )}
 
@@ -424,7 +432,6 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                 ambientDeath={ambientDeath} setAmbientDeath={setAmbientDeath}
                 ambientWeatherPoll={ambientWeatherPoll} setAmbientWeatherPoll={setAmbientWeatherPoll}
                 sound={sound} setSound={setSound}
-                loginArt={loginArt} setLoginArt={setLoginArt}
               />
             )}
 
@@ -505,18 +512,6 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
             )}
 
             {tab === 'lich' && (
-              <>
-              <div className="settings-section">
-                <div className="settings-section-label">Connection</div>
-                <SettingRow
-                  label="Reconnect automatically"
-                  hint="When the connection drops unexpectedly, sign the character back in
-                        (up to three tries). Turn this off if a script disconnects you on
-                        purpose to get out of danger."
-                >
-                  <Toggle checked={autoReconnect} onChange={setAutoReconnect} label="Reconnect automatically" />
-                </SettingRow>
-              </div>
               <div className="settings-section settings-section-wide">
                 <div className="settings-section-label">Lich</div>
                 {/* The Lich path points at a LOCAL Lich install, which only the
@@ -614,7 +609,6 @@ export function SettingsModal({ charName = '', onClose }: SettingsModalProps) {
                 <LichFilesEditor charName={charName} />
                 <LichLogsViewer />
               </div>
-              </>
             )}
 
             {tab === 'logs' && (
