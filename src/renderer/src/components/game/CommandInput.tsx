@@ -68,7 +68,9 @@ export function CommandInput({ onSend, onEcho, functionKeys = {}, status, leadin
   const histIdxRef = useRef(-1)
   const [value, setValue] = useState('')
   const [open,  setOpen]  = useState(false)
-  const [sel,   setSel]   = useState(0)
+  // Highlighted suggestion; -1 = none. Nothing is highlighted until you arrow or
+  // hover, so a plain Enter still sends exactly what you typed.
+  const [sel,   setSel]   = useState(-1)
   // Click-to-toggle dictation. recRef holds the live recognizer; onRef is the
   // intended on/off state (so we can auto-restart when the recognizer times out on
   // silence, keeping it "on" until the user clicks off).
@@ -95,13 +97,14 @@ export function CommandInput({ onSend, onEcho, functionKeys = {}, status, leadin
   )
   const showSug = open && suggestions.length > 0
 
-  useEffect(() => { if (sel >= suggestions.length) setSel(0) }, [suggestions.length, sel])
+  useEffect(() => { if (sel >= suggestions.length) setSel(-1) }, [suggestions.length, sel])
 
   // Fetch VERB INFO (debounced) for the highlighted suggestion when it's a known
-  // single-word verb we haven't fetched yet — used for the detail popover.
+  // single-word verb we haven't fetched yet — used for the detail popover. With
+  // nothing highlighted, the top suggestion's info is shown.
   const verbSet   = useMemo(() => new Set(allVerbs.map(v => v.toLowerCase())), [allVerbs])
   const infoKnown = useMemo(() => Object.keys(verbsWithInfo).length > 0, [verbsWithInfo])
-  const activeName = showSug ? suggestions[sel]?.text.toLowerCase() : undefined
+  const activeName = showSug ? suggestions[Math.max(sel, 0)]?.text.toLowerCase() : undefined
   const activeInfo = activeName ? verbInfo[activeName] : undefined
   useEffect(() => {
     if (!activeName || activeName.includes(' ') || !verbSet.has(activeName)) return
@@ -111,8 +114,8 @@ export function CommandInput({ onSend, onEcho, functionKeys = {}, status, leadin
     return () => window.clearTimeout(t)
   }, [activeName, verbSet, infoKnown, verbsWithInfo, verbInfo, onSend])
 
-  const submit = () => {
-    const val = value.trim()
+  const submit = (text = value) => {
+    const val = text.trim()
     if (!val) return
     onEcho(val)
     onSend(val)
@@ -120,6 +123,7 @@ export function CommandInput({ onSend, onEcho, functionKeys = {}, status, leadin
     histIdxRef.current = -1
     setValue('')
     setOpen(false)
+    setSel(-1)
   }
 
   const accept = (text: string) => {
@@ -131,10 +135,10 @@ export function CommandInput({ onSend, onEcho, functionKeys = {}, status, leadin
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (showSug) {
       if (e.key === 'ArrowDown') { e.preventDefault(); setSel(s => (s + 1) % suggestions.length); return }
-      if (e.key === 'ArrowUp')   { e.preventDefault(); setSel(s => (s - 1 + suggestions.length) % suggestions.length); return }
-      if (e.key === 'Tab')       { e.preventDefault(); accept(suggestions[sel]?.text ?? value); return }
-      if (e.key === 'Escape')    { e.preventDefault(); setOpen(false); return }
-      if (e.key === 'Enter')     { submit(); return }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); setSel(s => (s <= 0 ? suggestions.length : s) - 1); return }
+      if (e.key === 'Tab')       { e.preventDefault(); accept(suggestions[Math.max(sel, 0)]?.text ?? value); return }
+      if (e.key === 'Escape')    { e.preventDefault(); setOpen(false); setSel(-1); return }
+      if (e.key === 'Enter')     { submit(suggestions[sel]?.text ?? value); return }
       return
     }
     if (e.key === 'Enter') { submit(); return }
@@ -201,8 +205,11 @@ export function CommandInput({ onSend, onEcho, functionKeys = {}, status, leadin
               <div
                 key={s.text}
                 className={'cmd-suggest-item' + (i === sel ? ' active' : '')}
-                onMouseDown={e => { e.preventDefault(); accept(s.text) }}
-                onMouseEnter={() => setSel(i)}
+                onMouseDown={e => { e.preventDefault(); submit(s.text); inputRef.current?.focus() }}
+                // mousemove (not mouseenter) so a popup opening under a resting
+                // cursor doesn't silently highlight — and then Enter-send — an item.
+                onMouseMove={() => { if (sel !== i) setSel(i) }}
+                onMouseLeave={() => setSel(-1)}
               >
                 <span className="cmd-suggest-text">{s.text}</span>
                 <span className="cmd-suggest-tag">{s.tag}</span>
@@ -219,7 +226,7 @@ export function CommandInput({ onSend, onEcho, functionKeys = {}, status, leadin
         autoComplete="off"
         spellCheck={false}
         value={value}
-        onChange={e => { setValue(e.target.value); setOpen(true); histIdxRef.current = -1 }}
+        onChange={e => { setValue(e.target.value); setOpen(true); setSel(-1); histIdxRef.current = -1 }}
         onKeyDown={onKeyDown}
         onBlur={() => setOpen(false)}
         placeholder="Send Commands"
