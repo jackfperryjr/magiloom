@@ -191,14 +191,17 @@ function LookCard({ name, lines }: { name: string; lines: string[] }) {
   }, [zoomed])
 
   // Generate a portrait from the LOOK text when the character has no real avatar.
-  // Cached server-side, so this fires at most once per character.
+  // Cached server-side, so this fires at most once per character. Never from our
+  // own LOOK: the cache is shared, and the second-person text ("You have …") has no
+  // pronouns to read gender from, so the first portrait others see would be worse.
+  const isSelf = !!self && key === self.trim().toLowerCase()
   useEffect(() => {
-    if (status !== 'connected' || custom || aiAvatars[key] !== undefined) return
+    if (status !== 'connected' || isSelf || custom || aiAvatars[key] !== undefined) return
     let cancelled = false
     window.dr.portrait.generate(name, promptFromLook(lines))
       .then(url => { if (!cancelled) setAiAvatars(prev => ({ ...prev, [key]: url })) })
     return () => { cancelled = true }
-  }, [key, name, lines, custom, aiAvatars, status, setAiAvatars])
+  }, [key, name, lines, isSelf, custom, aiAvatars, status, setAiAvatars])
 
   return (
     <div className="game-line look-card" data-copy-text={lines.join('\n')} data-copy-atomic="">

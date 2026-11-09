@@ -29,6 +29,7 @@ import {
 import { receiveInvEnvelopeAtom, clearInventoryAtom } from './inventory'
 import { DEFAULT_APPEARANCE, type CharAppearance } from '../lib/charSettings'
 import type { DropCause } from '../lib/disconnect'
+import { lookCharacterName } from '../lib/lookName'
 
 export type { StreamId }
 
@@ -1707,18 +1708,9 @@ export const dispatchGameEventAtom = atom(
             rawName = _lookBuf.find(l => /\bseems to be\b/i.test(l))?.match(/^([A-Z][\w'-]+)/)?.[1]
                    ?? _pendingLookTarget
           } else {
-            // Key the portrait to the character's FIRST name. The description body
-            // always leads with it ("Catheroine has a soft-featured face …"), so the
-            // second line is the authoritative source — it isolates the given name
-            // from BOTH prefix titles AND a trailing surname ("You see Paintress
-            // Catheroine Rotschreck, …" → Catheroine, not Rotschreck), and resolves
-            // an abbreviated look ("l mits" → "Mitsuri has …" → Mitsuri). Fall back
-            // to the "You see" line's word-before-comma (correct for single-name
-            // characters) only when there's no description line to read.
-            rawName = _lookBuf[1]?.match(/^([A-Z][\w'-]+)/)?.[1]
-                   || _lookBuf[0].match(/^You see .*?([A-Z][\w'-]+),/)?.[1]
-                   || _pendingLookTarget
-                   || _lookBuf[0].match(/^You see ([A-Z][\w'-]+)/)?.[1] || ''
+            // Key the portrait to the character's FIRST name, never a title or
+            // surname — see lib/lookName.ts.
+            rawName = lookCharacterName(_lookBuf, _pendingLookTarget)
           }
           // A description line can lead with a possessive ("Refia's …"); strip the
           // trailing 's so the key matches the avatar/portrait ("refia", not "refia's").

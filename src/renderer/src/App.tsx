@@ -689,10 +689,6 @@ function AppInner() {
   const [inGame,        setInGame]        = useState(false)
   const [watching,      setWatching]      = useState(false)   // viewing another device's session
   const [showReconnect, setShowReconnect] = useState(false)
-  // When set, the reconnect overlay opens straight onto this DR account's character
-  // list (a "Switch character" shortcut) instead of the account picker. null = the
-  // normal full login flow.
-  const [switchAccount, setSwitchAccount] = useState<string | null>(null)
   const [charName,      setCharName]      = useState('')
   const [accountName,   setAccountName]   = useState('')
   const [showSettings,  setShowSettings]  = useState(false)
@@ -743,12 +739,13 @@ function AppInner() {
   // path below), which is the one case where the game will never re-announce the
   // room/exp/hands it pushed before we reloaded. Gates the snapshot restore.
   const [resumedSession, setResumedSession] = useState(false)
-  const enterGame = (name: string, account: string, watch = false, resumed = false) => { setCharName(name); setAccountName(account); setWatching(watch); setResumedSession(resumed); setInGame(true); setShowReconnect(false); setSwitchAccount(null) }
-  const closeReconnect = () => { setShowReconnect(false); setSwitchAccount(null) }
-  // Open the reconnect overlay: "connect" starts the full login flow; "switch"
-  // jumps straight to the current account's character list.
-  const openConnect = () => { setSwitchAccount(null); setShowReconnect(true) }
-  const openSwitchCharacter = () => { setSwitchAccount(accountName || ''); setShowReconnect(true) }
+  const enterGame = (name: string, account: string, watch = false, resumed = false) => { setCharName(name); setAccountName(account); setWatching(watch); setResumedSession(resumed); setInGame(true); setShowReconnect(false) }
+  const closeReconnect = () => setShowReconnect(false)
+  // Open the reconnect overlay on the first sign-in screen. "Switch character" uses
+  // it too, so you can change DR accounts or take a Beacon, not just pick another
+  // character on the same account. The game keeps running behind it until a new
+  // character is chosen, and ✕ backs out.
+  const openConnect = () => setShowReconnect(true)
   // Leave a watched session: detach (reconnect to our own bucket) and return to the
   // login screen WITHOUT disconnecting DR — the session keeps running for its owner.
   const leaveWatch = () => { window.dr.account?.unwatch(); setWatching(false); setInGame(false) }
@@ -816,12 +813,12 @@ function AppInner() {
       {!inGame && <div className="app-titlebar-shell">{updateSlot}<WindowControls /></div>}
       {!inGame
         ? <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} />
-        : <GameLayout charName={charName} accountName={accountName} watching={watching} resumed={resumedSession} loginOpen={showReconnect} onLeaveWatch={leaveWatch} onOpenSettings={() => setShowSettings(true)} onRequestConnect={openConnect} onSwitchCharacter={openSwitchCharacter} updateSlot={updateSlot} />
+        : <GameLayout charName={charName} accountName={accountName} watching={watching} resumed={resumedSession} loginOpen={showReconnect} onLeaveWatch={leaveWatch} onOpenSettings={() => setShowSettings(true)} onRequestConnect={openConnect} onSwitchCharacter={openConnect} updateSlot={updateSlot} />
       }
       {inGame && showReconnect && (
         <div className="reconnect-overlay">
           <button className="reconnect-close" onClick={closeReconnect} aria-label="Cancel">✕</button>
-          <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} switchAccount={switchAccount} />
+          <LoginFlow onEnterGame={enterGame} onOpenSettings={() => setShowSettings(true)} />
         </div>
       )}
       {showSettings && (
