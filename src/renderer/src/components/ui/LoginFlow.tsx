@@ -7,11 +7,6 @@ import { loginProgress, STALL_MS } from '../../lib/loginProgress'
 interface LoginFlowProps {
   onEnterGame: (characterName: string, accountName: string, watching?: boolean) => void
   onOpenSettings: () => void
-  // "Switch character" shortcut: when a DR account name is given, skip the account
-  // picker and go straight to that account's character list (re-authenticating with
-  // the saved password behind the scenes). Falls back to the credentials screen if
-  // no password is saved. undefined/null = the normal full login flow.
-  switchAccount?: string | null
 }
 
 type Screen =
@@ -807,7 +802,7 @@ function WatchSelectScreen({ onWatch, onBack }: {
 }
 
 // ─── Root controller ──────────────────────────────────────────────────────────
-export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginFlowProps) {
+export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
   // Mandatory sign-in gate (web only; desktop has no `account` API). When the server
   // requires an account and we're not signed in, open straight on the Magiloom
   // account screen with no way to skip it — every other screen needs a live WS the
@@ -850,9 +845,8 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
         setSavedAccounts(s.accounts ?? [])
         setBeacons(sortBeacons(s.loginPaths ?? []))
         // Land on the last-used account, prefilled (its saved password fills in
-        // behind it). Other saved accounts are one click away. A "switch character"
-        // launch already named its account — don't overwrite it when this resolves.
-        if (s.lastAccount && !switchAccount) setActiveAccount(s.lastAccount)
+        // behind it). Other saved accounts are one click away.
+        if (s.lastAccount) setActiveAccount(s.lastAccount)
         // Remember the last-played identity for the cold-resume fallback below.
         lastAccountRef.current  = s.lastAccount ?? ''
         lastCharNameRef.current = s.accounts?.find(a => a.name === s.lastAccount)?.lastCharacter ?? ''
@@ -864,7 +858,6 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
         const initial = s.connectWithLich ?? available
         setUseLich(initial); useLichRef.current = initial
       })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Reflect an existing Magiloom sign-in (web only) in the sync badge. Also validates
@@ -1104,23 +1097,6 @@ export function LoginFlow({ onEnterGame, onOpenSettings, switchAccount }: LoginF
     const inst = selectedInstRef.current
     if (inst) await lightBeacon(inst, char, activeAccount, useLichRef.current)
   }
-
-  // "Switch character" shortcut: re-authenticate the current account with its saved
-  // password and land on the character list, skipping the account picker. Runs once.
-  const switchStarted = useRef(false)
-  useEffect(() => {
-    if (!switchAccount || switchStarted.current) return
-    switchStarted.current = true
-    setActiveAccount(switchAccount)
-    activeAccountRef.current = switchAccount
-    setScreen('credentials')   // shows the account + a spinner while we re-auth
-    window.dr.auth.getPassword(switchAccount).then(pw => {
-      // With a saved password we sign in silently and advance to character-select;
-      // without one the credentials screen is already up for manual entry.
-      if (pw) handleCredentials(switchAccount, pw)
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [switchAccount])
 
   return (
     <Shell wide={screen === 'chargen'} tabs={TABBED.includes(screen)
