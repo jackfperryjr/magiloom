@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { stripLeadingTitle, lookCharacterName } from './lookName'
+import { stripLeadingTitle, lookCharacterName, selfLookName } from './lookName'
 
 // Titles come off the front.
 assert.equal(stripLeadingTitle('Paintress Catheroine Rotschreck, a Human.'), 'Catheroine Rotschreck, a Human.')
@@ -27,5 +27,10 @@ assert.equal(lookCharacterName(['You see Paintress Catheroine, a Human.', 'She i
 
 // Nothing parseable: fall back to what was typed.
 assert.equal(lookCharacterName(['You see someone.'], 'Mits'), 'Mits')
+
+// Our own LOOK: a worn title must not become the name.
+assert.equal(selfLookName('You are Visionary Refia Highwind, Woodland Princess of Ilithi, a Human.'), 'Refia')
+assert.equal(selfLookName('You are Refia Highwind, Woodland Princess of Ilithi, a Human.'), 'Refia')
+assert.equal(selfLookName('You are Penello Highwind, a Human.'), 'Penello')
 
 console.log('lookName: ok')
