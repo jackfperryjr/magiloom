@@ -29,7 +29,7 @@ import {
 import { receiveInvEnvelopeAtom, clearInventoryAtom } from './inventory'
 import { DEFAULT_APPEARANCE, type CharAppearance } from '../lib/charSettings'
 import type { DropCause } from '../lib/disconnect'
-import { lookCharacterName } from '../lib/lookName'
+import { lookCharacterName, selfLookName } from '../lib/lookName'
 
 export type { StreamId }
 
@@ -84,7 +84,7 @@ export interface OutputLine {
   divider?:   string   // labeled separator line (e.g. "Disconnected")
   dividerNote?: string // why, shown beside the divider's time (e.g. "Closed by the game server")
   speaker?:   string   // for conversation lines: who is talking (for the avatar)
-  look?:      { name: string; lines: string[] }  // LOOK-at-player block: portrait card
+  look?:      { name: string; lines: string[]; self?: boolean }  // LOOK-at-player block: portrait card (self = our own LOOK)
   artwork?:   string   // official picture id from <resource picture>: an artwork card
 }
 
@@ -1696,7 +1696,7 @@ export const dispatchGameEventAtom = atom(
           const blob = _lookBuf.join(' ')
           let rawName: string
           if (_lookSelf) {
-            rawName = _lookBuf[0].match(/^You are ([A-Z][\w'-]+)/)?.[1] ?? ''
+            rawName = selfLookName(_lookBuf[0])
           } else if (LOOK_HAZE_RE.test(blob)) {
             // Haze cosmetic: the LOOK carries no character name and the portrait
             // depicts a generic hazed figure, not a person — so key it to the LOOK
@@ -1717,7 +1717,7 @@ export const dispatchGameEventAtom = atom(
           const name = rawName.replace(/'s$/i, '').replace(/'$/, '')
           set(outputLinesAtom, appendMain(get(outputLinesAtom), {
             id: lineId++, text: _lookBuf.join('\n'), styles: [], stream: 'main' as StreamId,
-            timestamp: Date.now(), look: { name, lines: _lookBuf },
+            timestamp: Date.now(), look: { name, lines: _lookBuf, self: _lookSelf },
           }))
           _outputDirty = true
           _lookCapturing = false; _lookSelf = false; _lookBuf = []; _pendingLookTarget = ''

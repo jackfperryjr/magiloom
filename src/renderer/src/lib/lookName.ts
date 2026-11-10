@@ -38,3 +38,10 @@ export function lookCharacterName(lines: string[], typedTarget = ''): string {
       || typedTarget
       || ''
 }
+
+// Name from our own LOOK. A worn title leads here too ("You are Visionary Refia
+// Highwind, …"), so strip it before taking the first word.
+export function selfLookName(firstLine: string): string {
+  const rest = firstLine.match(/^You are\s+(.*)$/)?.[1]
+  return rest ? stripLeadingTitle(rest).match(/^([A-Z][\w'-]+)/)?.[1] ?? '' : ''
+}

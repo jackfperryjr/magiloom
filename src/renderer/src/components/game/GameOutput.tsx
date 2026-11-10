@@ -167,7 +167,7 @@ function buildSpans(text: string, links: LinkSpan[], bolds: string[], hlColor?: 
 // LOOK-at-player portrait card: avatar on the left, description text on the right.
 // Uses hooks (so only this rare card re-renders when avatars load); ensures the
 // server-backed avatar for the name is fetched, then resolves custom → letter.
-function LookCard({ name, lines }: { name: string; lines: string[] }) {
+function LookCard({ name, lines, self: ownLook }: { name: string; lines: string[]; self?: boolean }) {
   const avatars       = useAtomValue(avatarsAtom)
   const serverAvatars = useAtomValue(serverAvatarsAtom)
   const aiAvatars     = useAtomValue(aiAvatarsAtom)
@@ -194,7 +194,9 @@ function LookCard({ name, lines }: { name: string; lines: string[] }) {
   // Cached server-side, so this fires at most once per character. Never from our
   // own LOOK: the cache is shared, and the second-person text ("You have …") has no
   // pronouns to read gender from, so the first portrait others see would be worse.
-  const isSelf = !!self && key === self.trim().toLowerCase()
+  // Flagged at capture ("You are …"), so a title can't break it; the name match
+  // is a backstop.
+  const isSelf = !!ownLook || (!!self && key === self.trim().toLowerCase())
   useEffect(() => {
     if (status !== 'connected' || isSelf || custom || aiAvatars[key] !== undefined) return
     let cancelled = false
@@ -264,7 +266,7 @@ function ArtworkCard({ picture }: { picture: string }) {
 // it participates correctly in the default shallow comparison.
 const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine; highlights: Highlight[] }) {
   // LOOK-at-player block: portrait (avatar) beside the description text
-  if (line.look) return <LookCard name={line.look.name} lines={line.look.lines} />
+  if (line.look) return <LookCard name={line.look.name} lines={line.look.lines} self={line.look.self} />
   if (line.artwork) return <ArtworkCard picture={line.artwork} />
 
   // Chunk separator — a blank line's worth of space between command responses
