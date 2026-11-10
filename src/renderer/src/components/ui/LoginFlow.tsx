@@ -51,9 +51,9 @@ const sortBeacons = (b: LoginPath[]): LoginPath[] =>
 // mascot slides from top-centre to the top-left corner, and the wordmark gives
 // its place to the screen's own heading. All of it is CSS on .login-card-wide,
 // so the same elements animate between the two states.
-function Shell({ children, tabs, wide }: { children: React.ReactNode; tabs?: React.ReactNode; wide?: boolean }) {
+function Shell({ children, tabs, wide, notice }: { children: React.ReactNode; tabs?: React.ReactNode; wide?: boolean; notice?: React.ReactNode }) {
   return (
-    <div className="login-screen">
+    <div className={'login-screen' + (notice ? ' has-notice' : '')}>
       <LoginArt />
       <div className={'login-card' + (wide ? ' login-card-wide' : '')}>
         <img src="./icon.png" className="login-hero" alt="Lantern" />
@@ -64,6 +64,7 @@ function Shell({ children, tabs, wide }: { children: React.ReactNode; tabs?: Rea
         <div className="login-body">{children}</div>
       </div>
       <LoginUpdate />
+      {notice}
     </div>
   )
 }
@@ -83,6 +84,38 @@ function LoginUpdate() {
           aria-label="Update available — click to apply">
           <IconArrowDownTray size={20} />
         </button>
+      </Tooltip>
+    </div>
+  )
+}
+
+// ─── Lich update banner ───────────────────────────────────────────────────────
+// A newer lich-5 release than the install in use. Desktop: the user's own Lich, so
+// it names the in-game update command. Web: only admins get one (the server decides),
+// and it points at the pending Dockerfile-bump PR, since players can't update the
+// server's shared Lich. Dismissing hides it until the next release.
+type LichUpdate = NonNullable<Awaited<ReturnType<typeof window.dr.lich.updateInfo>>>
+const LICH_DISMISS_KEY = 'lantern-lich-update-dismissed'
+
+function readDismissed(): string {
+  try { return localStorage.getItem(LICH_DISMISS_KEY) ?? '' } catch { return '' }
+}
+
+function LichUpdateBanner({ info, onDismiss }: { info: LichUpdate; onDismiss: () => void }) {
+  const open = (url: string) => { void window.dr.app.openExternal(url) }
+  return (
+    <div className="login-lich-update" role="status">
+      <div className="login-lich-update-text">
+        <span>{info.managed
+          ? <>Lich <b>{info.latest}</b> is out. The server runs {info.installed}.</>
+          : <>Lich <b>{info.latest}</b> is out. You have {info.installed}. In game, run <code>;lich5-update --update</code>.</>}</span>
+        <span className="login-lich-update-links">
+          {info.managed && <button className="login-link" onClick={() => open(info.managed!.prsUrl)}>Review the update PR</button>}
+          {info.url && <button className="login-link" onClick={() => open(info.url)}>Release notes</button>}
+        </span>
+      </div>
+      <Tooltip text="Hide until the next Lich release">
+        <button className="login-lich-update-close" onClick={onDismiss} aria-label="Dismiss">✕</button>
       </Tooltip>
     </div>
   )
@@ -831,6 +864,7 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
   const [lichAvailable, setLichAvailable] = useState(false)
   const useLichRef = useRef(false)
   const [magiAccount,   setMagiAccount]   = useState<MagiloomAccount | null>(null)
+  const [lichUpdate,    setLichUpdate]    = useState<LichUpdate | null>(null)
   // Which Simutronics game to sign in to. Drives which instances the server screen
   // lists; seeded from what the account actually has once SGE answers.
   const [game,          setGame]          = useState<GameCode>('DR')
@@ -1098,8 +1132,28 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
     if (inst) await lightBeacon(inst, char, activeAccount, useLichRef.current)
   }
 
+  // Ask again when the Magiloom sign-in changes: on web the server only answers
+  // admins, so signing in on this screen can reveal it. Older servers lack the
+  // channel and reject, which just means no banner.
+  useEffect(() => {
+    let cancelled = false
+    window.dr.lich.updateInfo()
+      .then(info => { if (!cancelled) setLichUpdate(info && info.latest !== readDismissed() ? info : null) })
+      .catch(() => { if (!cancelled) setLichUpdate(null) })
+    return () => { cancelled = true }
+  }, [magiAccount?.email])
+  const dismissLichUpdate = () => {
+    if (lichUpdate) { try { localStorage.setItem(LICH_DISMISS_KEY, lichUpdate.latest) } catch { /* private mode */ } }
+    setLichUpdate(null)
+  }
+
   return (
-    <Shell wide={screen === 'chargen'} tabs={TABBED.includes(screen)
+    <Shell wide={screen === 'chargen'}
+      // Not over the character creator: its card is wide enough to fill the scene.
+      notice={lichUpdate && screen !== 'chargen'
+        ? <LichUpdateBanner info={lichUpdate} onDismiss={dismissLichUpdate} />
+        : undefined}
+      tabs={TABBED.includes(screen)
       ? <TabBar tab={screen} onTab={s => { setError(''); setScreen(s) }} onSettings={onOpenSettings} />
       : undefined}>
       {screen === 'account-list' && (

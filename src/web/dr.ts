@@ -181,6 +181,7 @@ export function installDr(): void {
     },
     lich: {
       detectPath:    () => t.invoke('lich:detect-path'),
+      updateInfo:    () => t.invoke('lich:update-info'),
       getLog:        () => t.invoke('lich:get-log'),
       stop:          () => t.invoke('lich:stop'),
       launchSidecar: (charName: string) => t.invoke('lich:launch-sidecar', charName),

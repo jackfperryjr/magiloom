@@ -174,7 +174,7 @@
    specificity but further down the file — would otherwise win and drop it back
    into the flex row beside the card. */
 .login-card,
-.login-screen > *:not(.login-art):not(.login-art-dev):not(.login-update) { position: relative; z-index: 1; }
+.login-screen > *:not(.login-art):not(.login-art-dev):not(.login-update):not(.login-lich-update) { position: relative; z-index: 1; }
 .login-card {
   width: 440px;
   max-width: 100%;
@@ -299,6 +299,82 @@
 }
 .login-update-btn:hover { background: var(--color-bonus); color: #fff; animation: none; }
 .login-update-btn > svg { display: block; pointer-events: none; }
+
+/* ── Lich update banner: top of the scene, never on the card ─────────────────
+   Narrow windows: top-centre, and the card moves down (and gives up a little
+   height, which .login-body absorbs) so the two never overlap. */
+.login-screen > .login-lich-update {
+  position: absolute;
+  top: 44px;              /* clears the 34px title bar */
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  z-index: 2;
+}
+.login-screen.has-notice { padding-top: 124px; padding-bottom: 16px; }
+.login-screen.has-notice .login-card { max-height: calc(100vh - 140px); }
+/* Wide windows: the card sits left, so centre the banner over the open scene to its
+   right (the card's left offset + 440px width) and leave the card where it was. */
+@media (min-width: 1000px) {
+  .login-screen.has-notice { padding-top: 32px; padding-bottom: 32px; }
+  .login-screen.has-notice .login-card { max-height: calc(100vh - 64px); }
+  .login-screen > .login-lich-update {
+    --card-edge: calc(clamp(18px, 6vw, 96px) + 440px);
+    left: calc(var(--card-edge) + (100% - var(--card-edge)) / 2);
+    max-width: calc(100% - var(--card-edge) - 48px);
+  }
+}
+.reconnect-overlay .login-lich-update { display: none; }
+.login-lich-update {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px 8px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-bonus) 14%, rgba(0, 0, 0, 0.62));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  border: 1px solid color-mix(in srgb, var(--color-bonus) 40%, transparent);
+  color: var(--text-bright);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+}
+.login-lich-update-text { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+.login-lich-update code {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+}
+.login-lich-update-links { display: inline-flex; flex-wrap: wrap; gap: 12px; }
+.login-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-bonus);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.login-link:hover { color: var(--text-bright); }
+.login-lich-update-close {
+  flex: none;
+  width: 22px; height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+}
+.login-lich-update-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text-bright); }
 
 /* ── Landing tabs (Sign in / Beacons) ─────────────────────────────────────── */
 .login-tabs {

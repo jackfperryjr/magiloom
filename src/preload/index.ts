@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('dr', {
   },
   lich: {
     detectPath: ()                  => ipcRenderer.invoke('lich:detect-path'),
+    updateInfo: ()                  => ipcRenderer.invoke('lich:update-info'),
     getLog:     ()                  => ipcRenderer.invoke('lich:get-log'),
     stop:         ()                  => ipcRenderer.invoke('lich:stop'),
     launchSidecar: (charName: string) => ipcRenderer.invoke('lich:launch-sidecar', charName),
