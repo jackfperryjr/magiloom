@@ -39,6 +39,7 @@ const TESTS = [
   'src/renderer/src/lib/mapSeed.test.ts',
   'src/renderer/src/lib/elanthianSky.test.ts',
   'src/renderer/src/lib/lookName.test.ts',
+  'src/main/lich-version.test.ts',
   'src/renderer/src/lib/weather.test.ts',
   'src/renderer/src/lib/rules.test.ts',
   'src/renderer/src/lib/quickActions.test.ts',

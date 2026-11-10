@@ -3,6 +3,7 @@ import { join, dirname } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import * as lichFiles from './lich-files'
 import * as lichLogStore from './lich-log-store'
+import { checkLichUpdate } from './lich-version'
 import { autoUpdater } from 'electron-updater'
 import { LichManager, LichConnection } from './lich-manager'
 import { GameConnection } from './game-connection'
@@ -460,6 +461,8 @@ function setupIpcHandlers(): void {
 
   ipcMain.handle('lich:get-log',     () => lichLogBuffer.slice())
   ipcMain.handle('lich:detect-path', () => lichManager.getLichPath(settings.get('lichPath') || undefined))
+  // The user's own install, so anyone on desktop can act on it (;lich5-update).
+  ipcMain.handle('lich:update-info', () => checkLichUpdate(lichManager.getLichPath(settings.get('lichPath') || undefined)))
   ipcMain.handle('lich:stop',        () => { lichManager.stop(); lichConn.disconnect() })
   ipcMain.handle('lich:launch-sidecar', (_e, _charName: string) => {
     return { ok: false, error: 'Use the Lich path in Settings to enable Lich at login.' }

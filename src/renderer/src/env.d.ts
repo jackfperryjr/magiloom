@@ -194,6 +194,8 @@ interface DrAPI {
   }
   lich: {
     detectPath: () => Promise<string>
+    // Newer lich-5 release than the install in use, else null. Web: admins only.
+    updateInfo: () => Promise<{ installed: string; latest: string; url: string; managed?: { prsUrl: string } } | null>
     stop:          () => Promise<void>
     launchSidecar: (charName: string) => Promise<{ ok: boolean; error?: string }>
     listFiles:  () => Promise<{ dir: 'profiles' | 'custom'; name: string; size: number; mtime: number }[]>
