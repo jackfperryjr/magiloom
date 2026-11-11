@@ -451,24 +451,41 @@
 .exp-data-mind { color: var(--text-dim); white-space: nowrap; }
 
 /* ── Info attribute lines in main output ─────────────────────────────────── */
+/* Every row is its own element, so the columns can only line up from row to row if
+   their widths are FIXED. They used to be `flex: 1` halves with an `auto` label column:
+   each row divided the panel among however many pairs it had, so the value column
+   started at a different x on every row, the separators wandered, and a long Name
+   ("Jackreous Highwind, Gentleman Rogue") ran straight over the Race column. Now an
+   attribute row is label 13ch ("Concentration") + value, and the Name/Gender header
+   rows get their own set: a wide first column for the name and title, then two narrow
+   ones. A name longer than the first column pushes its own row over and nothing else. */
 .info-data-line {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;           /* only so .exp-copy-wrap can take a line of its own */
   padding: 1px 8px;
   font-family: var(--font-game);
   font-size: var(--font-size-game);
   line-height: var(--line-height-game);
 }
 .info-data-half {
-  flex: 1;
+  flex: 0 0 auto;
+  width: 24ch;
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 13ch max-content;
   gap: 0 10px;
   min-width: 0;
 }
+.info-data-head .info-data-half { width: 17ch; grid-template-columns: 7ch max-content; }
+.info-data-head .info-data-half:first-child { width: auto; min-width: 44ch; }
 .info-data-sep   { width: 1px; background: var(--border-soft); margin: 0 16px; align-self: stretch; }
 .info-data-label { color: var(--text-dim); white-space: nowrap; }
 .info-data-value { color: var(--text-main); white-space: nowrap; }
+.info-run:not(:has(+ .info-run)) .exp-copy-wrap { display: block; text-align: left; }
+/* Breathing room around the eight attributes (Strength … Stamina), setting them off
+   from the birthday prose above and Concentration/Favors/TDPs below. */
+.info-data-attr:not(.info-data-attr + *) { margin-top: 0.6rem; }
+.info-data-attr:not(:has(+ .info-data-attr)) { margin-bottom: 0.6rem; }
 
 /* Two skills (or two attributes) per row only fit while the game panel is wide.
    Measured against the OUTPUT PANEL, not the viewport (see container-type on
@@ -488,7 +505,12 @@
     align-items: baseline;
   }
   .exp-data-name  { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
-  .info-data-half { grid-template-columns: max-content minmax(0, 1fr); }
+  .info-data-half,
+  .info-data-head .info-data-half,
+  .info-data-head .info-data-half:first-child {
+    width: auto; min-width: 0;
+    grid-template-columns: 13ch minmax(0, 1fr);
+  }
   .info-data-value { white-space: normal; overflow-wrap: anywhere; }
 }
 /* A buffed attribute's "+13" — coloured so the boosted value reads as boosted
