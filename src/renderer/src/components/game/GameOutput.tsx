@@ -154,7 +154,7 @@ function buildSpans(text: string, links: LinkSpan[], bolds: string[], hlColor?: 
     if (m.kind === 'link') {
       const link = m.link
       parts.push(
-        <span key={key++} className="game-link" onClick={() => _sendFn?.(expandCmd(link.cmd))} data-tooltip={link.cmd}>
+        <span key={key++} className="game-link" onClick={() => _sendFn?.(expandCmd(link.cmd))} data-tooltip={link.cmd} data-cmd={link.cmd}>
           {text.slice(m.start, m.end)}
         </span>
       )
@@ -397,7 +397,7 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
           <span style={{ color: 'var(--text-dim)' }}>Obvious paths: </span>
           {dirs.map((dir, i) => (
             <span key={dir}>
-              <span className="game-link" onClick={() => _sendFn?.(dir)}>{dir}</span>
+              <span className="game-link" onClick={() => _sendFn?.(dir)} data-cmd={dir}>{dir}</span>
               {i < dirs.length - 1 && <span style={{ color: 'var(--text-dim)' }}>, </span>}
             </span>
           ))}
@@ -419,6 +419,7 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
           className="game-link"
           onClick={() => _sendFn?.(expandCmd(link.cmd))}
           data-tooltip={link.cmd}
+          data-cmd={link.cmd}
         >
           {link.text}
         </span>
@@ -652,9 +653,31 @@ export function GameOutput() {
     e.preventDefault()
   }, [])
 
+  // Right-click a game link → small menu to copy the raw command it sends
+  // (e.g. "buy #12903261 from #12903260"), so it can be pasted into a script.
+  // Delegated here rather than per-span so memoized GameLines stay untouched.
+  const [linkMenu, setLinkMenu] = useState<{ x: number; y: number; cmd: string } | null>(null)
+  const handleContextMenu = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>('.game-link[data-cmd]')
+    if (!el?.dataset.cmd) return
+    e.preventDefault()
+    setLinkMenu({ x: e.clientX, y: e.clientY, cmd: el.dataset.cmd })
+  }, [])
+  useEffect(() => {
+    if (!linkMenu) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLinkMenu(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [linkMenu])
+  const copyLinkCmd = async () => {
+    if (!linkMenu) return
+    try { await navigator.clipboard.writeText(linkMenu.cmd) } catch { /* clipboard blocked */ }
+    setLinkMenu(null)
+  }
+
   return (
     <>
-      <div ref={containerRef} className="game-output" onScroll={handleScroll} onWheel={cancelJump} onTouchStart={cancelJump} onCopy={handleCopy}>
+      <div ref={containerRef} className="game-output" onScroll={handleScroll} onWheel={cancelJump} onTouchStart={cancelJump} onCopy={handleCopy} onContextMenu={handleContextMenu}>
         {lines.map(line => (
           <GameLine key={line.id} line={line} highlights={_highlights} />
         ))}
@@ -664,6 +687,16 @@ export function GameOutput() {
         <button className="jump-present" onClick={jumpToPresent}>
           Jump to present ↓
         </button>
+      )}
+      {linkMenu && createPortal(
+        <>
+          <div className="panel-ctx-backdrop" onClick={() => setLinkMenu(null)}
+            onContextMenu={e => { e.preventDefault(); setLinkMenu(null) }} />
+          <div className="panel-ctx-menu" style={{ top: linkMenu.y, left: linkMenu.x }}>
+            <div className="panel-ctx-item" onClick={copyLinkCmd}>Copy command</div>
+          </div>
+        </>,
+        document.body,
       )}
     </>
   )
