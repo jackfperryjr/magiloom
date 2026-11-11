@@ -35,6 +35,9 @@ const INFO_FIELDS =
   'Intelligence|Stamina|Concentration|Favors|TDPs|Encumbrance|Luck|Wealth|Debt|Max'
 const INFO_START_RE   = new RegExp(`^(?:${INFO_FIELDS})\\s*:`, 'i')
 const INFO_FIELD_RE   = new RegExp(`^(?:${INFO_FIELDS})$`, 'i')
+const INFO_HEAD_ROW_RE = /^(?:Name|Gender)$/i
+// The eight attribute rows (Strength … Stamina) — spaced off as their own block.
+const INFO_ATTR_ROW_RE = /^(?:Strength|Agility|Discipline|Intelligence|Stamina|Reflex|Charisma|Wisdom)$/i
 // The gap is `\s*`, not `\s+`: a field name can end up butted straight against the
 // previous value once the padding is gone, and a known field name is head enough.
 const INFO_HEAD_RE    = /(\s*)([A-Za-z]+)\s*:\s*/g
@@ -306,8 +309,11 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
   const isExpHeader = /Circle:|Showing all skills|SKILL:.*Rank|Total Ranks|Time Development|Overall state|EXP HELP/i.test(line.text)
   const isExpMeta = /Favors:|TDPs:|Deaths:|Departs:|Rested EXP|Cycle Refreshes/i.test(line.text)
 
-  const isInfoLine = INFO_START_RE.test(line.text.trim()) ||
-                    /^You (were born|have \d+ active)/i.test(line.text.trim()) ||
+  // INFO's prose rows that sit INSIDE the stat block (between the Name/Gender header
+  // and the attributes). They join the copy run so one click takes the whole screen.
+  const isInfoProse = /^You were born|^Your birthday/i.test(line.text.trim())
+  const isInfoLine = INFO_START_RE.test(line.text.trim()) || isInfoProse ||
+                    /^You have \d+ active/i.test(line.text.trim()) ||
                     /^\[You can pay/i.test(line.text.trim())
 
   // A row of INVENTORY LIST or a vault report: tagged so the run of them can be
@@ -328,6 +334,7 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
     isExpHeader ? 'exp-header' : '',
     isExpMeta ? 'exp-meta' : '',
     isInfoLine ? 'info-line' : '',
+    isInfoProse ? 'info-run' : '',
     isMention ? 'mention' : ''
   ].filter(Boolean)
 
@@ -349,14 +356,21 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
   if (isInfoLine) {
     const pairs = parseInfoPairs(line.text)
     if (pairs.length > 0) {
+      // The Name/Gender header rows carry three short-labelled columns (one with a
+      // long title in it); the attribute rows carry two with long labels. They get
+      // different fixed column sets so each kind lines up with its own kind.
+      const head = INFO_HEAD_ROW_RE.test(pairs[0].label)
+      const attr = INFO_ATTR_ROW_RE.test(pairs[0].label)
       return (
-        <div className="game-line info-data-line" data-copy-text={infoCopyText(pairs)} data-copy-atomic="">
+        <div className={'game-line info-data-line info-run' + (head ? ' info-data-head' : '') + (attr ? ' info-data-attr' : '')}
+          data-copy-text={infoCopyText(pairs)} data-copy-atomic="">
           {pairs.map((p, i) => (
             <Fragment key={p.label + i}>
               {i > 0 && <div className="info-data-sep" />}
               <InfoPairHalf pair={p} />
             </Fragment>
           ))}
+          <InfoCopyButton />
         </div>
       )
     }
@@ -507,6 +521,9 @@ function RunCopyButton({ rowClass, label, join = rows => rows.join('\n') }: {
 }
 
 const ExpCopyButton = () => <RunCopyButton rowClass="exp-data-line" label="Copy skills" />
+// INFO from the Name row down to Luck. The Wealth/Debt section after it is not part of
+// the run, so the button lands under the attributes.
+const InfoCopyButton = () => <RunCopyButton rowClass="info-run" label="Copy info" />
 
 // INVENTORY LIST and the vault reports (VAULT STANDARD / VAULT FAMILY). The rows are
 // pulled back to the margin as a block, so what is pasted keeps the nesting and
