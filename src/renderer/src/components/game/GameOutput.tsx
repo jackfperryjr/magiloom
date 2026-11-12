@@ -181,7 +181,7 @@ function buildSpans(text: string, links: LinkSpan[], bolds: string[], hlColor?: 
 // LOOK-at-player portrait card: avatar on the left, description text on the right.
 // Uses hooks (so only this rare card re-renders when avatars load); ensures the
 // server-backed avatar for the name is fetched, then resolves custom → letter.
-function LookCard({ name, lines, self: ownLook }: { name: string; lines: string[]; self?: boolean }) {
+function LookCard({ name, lines, self: ownLook, profile }: { name: string; lines: string[]; self?: boolean; profile?: boolean }) {
   const avatars       = useAtomValue(avatarsAtom)
   const serverAvatars = useAtomValue(serverAvatarsAtom)
   const aiAvatars     = useAtomValue(aiAvatarsAtom)
@@ -212,12 +212,14 @@ function LookCard({ name, lines, self: ownLook }: { name: string; lines: string[
   // is a backstop.
   const isSelf = !!ownLook || (!!self && key === self.trim().toLowerCase())
   useEffect(() => {
-    if (status !== 'connected' || isSelf || custom || aiAvatars[key] !== undefined) return
+    // PROFILE cards show only the image already set for the character: its text isn't
+    // a physical description, so it never asks for a portrait.
+    if (profile || status !== 'connected' || isSelf || custom || aiAvatars[key] !== undefined) return
     let cancelled = false
     window.dr.portrait.generate(name, promptFromLook(lines))
       .then(url => { if (!cancelled) setAiAvatars(prev => ({ ...prev, [key]: url })) })
     return () => { cancelled = true }
-  }, [key, name, lines, isSelf, custom, aiAvatars, status, setAiAvatars])
+  }, [key, name, lines, isSelf, custom, aiAvatars, status, setAiAvatars, profile])
 
   return (
     <div className="game-line look-card" data-copy-text={lines.join('\n')} data-copy-atomic="">
@@ -280,7 +282,7 @@ function ArtworkCard({ picture }: { picture: string }) {
 // it participates correctly in the default shallow comparison.
 const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine; highlights: Highlight[] }) {
   // LOOK-at-player block: portrait (avatar) beside the description text
-  if (line.look) return <LookCard name={line.look.name} lines={line.look.lines} self={line.look.self} />
+  if (line.look) return <LookCard name={line.look.name} lines={line.look.lines} self={line.look.self} profile={line.look.profile} />
   if (line.artwork) return <ArtworkCard picture={line.artwork} />
 
   // Chunk separator — a blank line's worth of space between command responses
