@@ -481,7 +481,7 @@
 .info-data-sep   { width: 1px; background: var(--border-soft); margin: 0 16px; align-self: stretch; }
 .info-data-label { color: var(--text-dim); white-space: nowrap; }
 .info-data-value { color: var(--text-main); white-space: nowrap; }
-.info-run:not(:has(+ .info-run)) .exp-copy-wrap { display: block; text-align: left; }
+.info-run:not(:has(+ .info-run)) .exp-copy-wrap { display: block; }
 /* Breathing room around the eight attributes (Strength … Stamina), setting them off
    from the birthday prose above and Concentration/Favors/TDPs below. */
 .info-data-attr:not(.info-data-attr + *) { margin-top: 0.6rem; }
