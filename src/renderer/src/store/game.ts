@@ -28,6 +28,7 @@ import {
 } from '../lib/injuries'
 import { receiveInvEnvelopeAtom, clearInventoryAtom } from './inventory'
 import { DEFAULT_APPEARANCE, type CharAppearance } from '../lib/charSettings'
+import { CardTracker, type CardKind } from '../lib/outputCards'
 import type { DropCause } from '../lib/disconnect'
 import { lookCharacterName, selfLookName } from '../lib/lookName'
 
@@ -86,6 +87,8 @@ export interface OutputLine {
   speaker?:   string   // for conversation lines: who is talking (for the avatar)
   look?:      { name: string; lines: string[]; self?: boolean; profile?: boolean }  // LOOK-at-player block: portrait card (self = our own LOOK; profile = a PROFILE reply, never generates a portrait)
   artwork?:   string   // official picture id from <resource picture>: an artwork card
+  card?:      CardKind // inside a report card (EXP / INFO / SPELLS / KHRI) — lib/outputCards
+  cardStart?: boolean  // the card's first line
 }
 
 // Pull the speaker out of a speech/whisper/thought line so the conversation
@@ -120,8 +123,19 @@ export function setOutputBufferSize(n: number): void {
 }
 // Append `line` to the main output, trimming to the current buffer cap. Kept as
 // a helper so the cap lives in one place.
+// Report cards are tagged here, on the way in — every main-output line passes
+// through appendMain, and a separator (end of a command's response) closes a card.
+// Script echoes and system notes are left out of the card without closing it.
+const _cards = new CardTracker()
+function tagCard(line: OutputLine): OutputLine {
+  if (line.separator || line.divider || line.look || line.artwork) { _cards.end(); return line }
+  const preset = line.styles[0]?.preset
+  if (preset === 'echo-script' || preset === 'system') return line
+  const tag = _cards.line(line.text)
+  return tag ? { ...line, ...tag } : line
+}
 const appendMain = (lines: OutputLine[], line: OutputLine): OutputLine[] =>
-  [...lines.slice(-(_outputBufferSize - 1)), line]
+  [...lines.slice(-(_outputBufferSize - 1)), tagCard(line)]
 
 // Skip appending if the last line in the array is identical and was added within
 // 300 ms — catches protocol-level duplicates (e.g. double-fired IPC listeners).
@@ -1012,6 +1026,7 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   // Module-level capture/batch flags — clear any in-flight silent fetch so it
   // can't bleed into or suppress the new character's output.
   _outputDirty       = false
+  _cards.end()
   _verbCapture       = false
   _verbBuf           = []
   _profileCaptureName = null

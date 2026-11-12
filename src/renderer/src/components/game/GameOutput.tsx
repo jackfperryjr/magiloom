@@ -222,7 +222,7 @@ function LookCard({ name, lines, self: ownLook, profile }: { name: string; lines
   }, [key, name, lines, isSelf, custom, aiAvatars, status, setAiAvatars, profile])
 
   return (
-    <div className="game-line look-card" data-copy-text={lines.join('\n')} data-copy-atomic="">
+    <div className={'game-line look-card' + (profile ? ' out-card out-card-start out-card-profile' : '')} data-copy-text={lines.join('\n')} data-copy-atomic="">
       <img
         className={'look-avatar' + (realImage ? ' look-avatar-zoomable' : '')}
         src={src} alt={name}
@@ -334,7 +334,10 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
   const listKind = listLineKind(line)
   const copyText = listKind ? listRowText(listKind, line) : line.text
 
-  const classList = ['game-line',
+  // Report card (EXP / INFO / SPELLS / KHRI) — tagged on append, see lib/outputCards.
+  const cardCls = line.card ? ` out-card out-card-${line.card}` + (line.cardStart ? ' out-card-start' : '') : ''
+
+  const classList = ['game-line' + cardCls,
     ...line.styles.map(s => s.preset ? (PRESET_CLASS[s.preset] ?? '') : s.bold ? 'text-bold' : ''),
     listKind ? `list-row list-row-${listKind}` : '',
     isShopLine ? 'shop-line' : '',
@@ -375,7 +378,7 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
       const head = INFO_HEAD_ROW_RE.test(pairs[0].label)
       const attr = INFO_ATTR_ROW_RE.test(pairs[0].label)
       return (
-        <div className={'game-line info-data-line info-run' + (head ? ' info-data-head' : '') + (attr ? ' info-data-attr' : '')}
+        <div className={'game-line info-data-line info-run' + cardCls + (head ? ' info-data-head' : '') + (attr ? ' info-data-attr' : '')}
           data-copy-text={infoCopyText(pairs)} data-copy-atomic="">
           {pairs.map((p, i) => (
             <Fragment key={p.label + i}>
@@ -453,7 +456,7 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
     const skills = parseExpSkills(line.text)
     if (skills.length > 0) {
       return (
-        <div className="game-line exp-data-line" data-copy-text={line.text} data-copy-atomic="">
+        <div className={'game-line exp-data-line' + cardCls} data-copy-text={line.text} data-copy-atomic="">
             <ExpSkillHalf s={skills[0]} />
           {skills[1] && (
             <>

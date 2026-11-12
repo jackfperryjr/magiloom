@@ -47,6 +47,42 @@
   height: 0.85em;
 }
 
+/* Report cards — EXP / INFO / SPELLS / KHRI readouts and PROFILE (lib/outputCards).
+   A card is a run of ordinary sibling lines, so its frame is drawn per line: every
+   row carries the faint fill and the side edges, the opening row adds the top edge
+   (tagged .out-card-start on append), and the last row — the one not followed by a
+   row of the same card — adds the bottom. Edges are inset shadows, not borders, so
+   no row's box changes size; --card-t / --card-b let one row be both ends. */
+.game-line.out-card {
+  --card-edge: color-mix(in srgb, var(--text-main) 11%, transparent);
+  --card-t: 0 0 transparent;
+  --card-b: 0 0 transparent;
+  background: color-mix(in srgb, var(--text-main) 3.5%, transparent);
+  box-shadow:
+    inset 1px 0 0 var(--card-edge),
+    inset -1px 0 0 var(--card-edge),
+    var(--card-t), var(--card-b);
+  padding-inline: 12px;
+  margin-inline: 2px;
+}
+.game-line.out-card:hover { background: color-mix(in srgb, var(--text-main) 6%, transparent); }
+.game-line.out-card-start {
+  --card-t: inset 0 1px 0 var(--card-edge);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  padding-top: 8px;
+  margin-top: 4px;
+}
+.game-line.out-card:not(:has(+ .out-card:not(.out-card-start))) {
+  --card-b: inset 0 -1px 0 var(--card-edge);
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+}
+/* PROFILE is a single element (the portrait card), so it is both ends at once. */
+.game-line.look-card.out-card-profile { padding-block: 10px; }
+
 /* LOOK-at-player portrait card — avatar on the left of the description text */
 .look-card {
   display: flex;
