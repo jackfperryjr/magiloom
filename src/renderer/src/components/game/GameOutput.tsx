@@ -32,15 +32,26 @@ function mindColorOutput(word: string): string {
 // find where its second column starts — see parseInfoPairs.
 const INFO_FIELDS =
   'Name|Race|Guild|Gender|Age|Circle|Strength|Reflex|Agility|Charisma|Discipline|Wisdom|' +
-  'Intelligence|Stamina|Concentration|Favors|TDPs|Encumbrance|Luck|Wealth|Debt|Max'
+  'Intelligence|Stamina|Concentration|Favors|TDPs|PIRP Points|Encumbrance|Luck|Wealth|Debt|Max'
 const INFO_START_RE   = new RegExp(`^(?:${INFO_FIELDS})\\s*:`, 'i')
+// Lines that open with an INFO field name but belong to other commands: EXP's lone
+// "Circle: 200" header and PROFILE's "Name: Refia Highwind". INFO never starts a line
+// with Circle (it rides the Gender row), and its Name row always carries Race too.
+// Without this each became a one-row INFO run with its own Copy info button.
+function isInfoStart(t: string): boolean {
+  if (!INFO_START_RE.test(t)) return false
+  if (/^Circle\s*:/i.test(t)) return false
+  if (/^Name\s*:/i.test(t) && !/\bRace\s*:/i.test(t)) return false
+  return true
+}
 const INFO_FIELD_RE   = new RegExp(`^(?:${INFO_FIELDS})$`, 'i')
 const INFO_HEAD_ROW_RE = /^(?:Name|Gender)$/i
 // The eight attribute rows (Strength … Stamina) — spaced off as their own block.
 const INFO_ATTR_ROW_RE = /^(?:Strength|Agility|Discipline|Intelligence|Stamina|Reflex|Charisma|Wisdom)$/i
 // The gap is `\s*`, not `\s+`: a field name can end up butted straight against the
 // previous value once the padding is gone, and a known field name is head enough.
-const INFO_HEAD_RE    = /(\s*)([A-Za-z]+)\s*:\s*/g
+// "PIRP Points" is INFO's one two-word label; spelled out so it isn't read as "Points".
+const INFO_HEAD_RE    = /(\s*)(PIRP Points|[A-Za-z]+)\s*:\s*/g
 // A stat that's being buffed reads "136 +13". Only split a bare number followed by a
 // signed number — anything looser would carve up values like "3 gold Kronars".
 const INFO_BONUS_RE   = /^(\d+)\s+([+-]\d+)$/
@@ -312,7 +323,7 @@ const GameLine = memo(function GameLine({ line, highlights }: { line: OutputLine
   // INFO's prose rows that sit INSIDE the stat block (between the Name/Gender header
   // and the attributes). They join the copy run so one click takes the whole screen.
   const isInfoProse = /^You were born|^Your birthday/i.test(line.text.trim())
-  const isInfoLine = INFO_START_RE.test(line.text.trim()) || isInfoProse ||
+  const isInfoLine = isInfoStart(line.text.trim()) || isInfoProse ||
                     /^You have \d+ active/i.test(line.text.trim()) ||
                     /^\[You can pay/i.test(line.text.trim())
 
