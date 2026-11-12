@@ -84,7 +84,7 @@ export interface OutputLine {
   divider?:   string   // labeled separator line (e.g. "Disconnected")
   dividerNote?: string // why, shown beside the divider's time (e.g. "Closed by the game server")
   speaker?:   string   // for conversation lines: who is talking (for the avatar)
-  look?:      { name: string; lines: string[]; self?: boolean }  // LOOK-at-player block: portrait card (self = our own LOOK)
+  look?:      { name: string; lines: string[]; self?: boolean; profile?: boolean }  // LOOK-at-player block: portrait card (self = our own LOOK; profile = a PROFILE reply, never generates a portrait)
   artwork?:   string   // official picture id from <resource picture>: an artwork card
 }
 
@@ -510,6 +510,38 @@ const LOOK_START_RE = /^You (?:see|are) [A-Z][^,]*?,.*\ban?\s+[A-Z][A-Za-z' -]*\
 // prompts for these; here we just need to capture the block.
 const LOOK_CONCEAL_RE = /^[A-Z][\w'-]+ seems to be (?:wrapped in dark shadows|enveloped in a dark cloak), concealing all but (?:his|her|their|its)\s+empty hands\b/
 const LOOK_HAZE_RE    = /^Through an?\s+.+?\s+haze,\s+you see an?\s+.+?\s+with\s+.+/i
+
+// ── PROFILE capture ───────────────────────────────────────────────────────────
+// "profile <name>" replies with a right-aligned label block:
+//                 Name: Penello Highwind
+//                 Race: Human                 Spouse: Uninterested
+//             Features: Penello has a soft-featured face …
+//      Roleplay Stance: Light
+//           PvP Stance: Closed
+// It renders as the LOOK portrait card, keyed to the first name — but with only
+// the image already set for that character (PROFILE text isn't a physical
+// description, so it never generates a portrait). The opening Name line carries
+// nothing after the name, which is what tells it from INFO's "Name: … Race: …".
+// The block ends at the prompt or at the first line that isn't "Label: value",
+// so script chatter landing mid-reply isn't swallowed into the card.
+const PROFILE_START_RE = /^\s*Name:\s+([A-Z][\w'-]*)(?:\s+[A-Z][\w'-]*)*\s*$/
+const PROFILE_ROW_RE   = /^\s*[A-Z][A-Za-z ]*:\s/
+let _profileCardName = ''
+let _profileCardBuf: string[] = []
+// PROFILE packs two fields on some rows ("Race: Human      Spouse: Uninterested");
+// the card is HTML, which would collapse the gap, so each field gets its own line.
+function splitProfileRow(text: string): string[] {
+  return text.trim().split(/\s{2,}(?=[A-Z][A-Za-z ]*:\s)/)
+}
+// Emit the buffered PROFILE block as one card and disarm the capture.
+function flushProfile(get: Getter, set: Setter) {
+  set(outputLinesAtom, appendMain(get(outputLinesAtom), {
+    id: lineId++, text: _profileCardBuf.join('\n'), styles: [], stream: 'main' as StreamId,
+    timestamp: Date.now(), look: { name: _profileCardName, lines: _profileCardBuf, profile: true },
+  }))
+  _outputDirty = true
+  _profileCardName = ''; _profileCardBuf = []
+}
 
 // Stable short key derived from a LOOK's text (FNV-1a). Used to file a nameless
 // haze-cosmetic portrait under the LOOK itself, so identical hazes share one
@@ -995,6 +1027,8 @@ export const resetSessionAtom = atom(null, (_get, set) => {
   _lookSelf          = false
   _lookBuf           = []
   _pendingLookTarget = ''
+  _profileCardName       = ''
+  _profileCardBuf        = []
   _expBatchNames     = null
   _silentExp.cancel()
   _holdings.reset()
@@ -1233,6 +1267,16 @@ export const dispatchGameEventAtom = atom(
         }
         // LOOK at a player: buffer the description block (suppressing the raw
         // lines) so the prompt handler can emit it as a single portrait card.
+        // PROFILE: buffer the label block for a portrait card (see PROFILE_START_RE).
+        if (event.stream === 'main') {
+          if (_profileCardName) {
+            if (PROFILE_ROW_RE.test(event.text)) { _profileCardBuf.push(...splitProfileRow(event.text)); return }
+            flushProfile(get, set)   // a non-row line ends the block; it renders as usual below
+          } else if (!_lookCapturing) {
+            const m = PROFILE_START_RE.exec(event.text)
+            if (m) { _profileCardName = m[1]; _profileCardBuf = [event.text.trim()]; return }
+          }
+        }
         if (event.stream === 'main') {
           if (_lookCapturing) { _lookBuf.push(event.text); return }
           if (LOOK_START_RE.test(event.text)) {
@@ -1692,6 +1736,7 @@ export const dispatchGameEventAtom = atom(
         // the character's FIRST name: for yourself it follows "You are"; for others
         // the first line may carry a prefix title, so take it from the second line,
         // which always leads with the name ("Elanarie has …").
+        if (_profileCardName) flushProfile(get, set)
         if (_lookCapturing && _lookBuf.length) {
           const blob = _lookBuf.join(' ')
           let rawName: string
