@@ -146,6 +146,15 @@ function appendDedup(lines: OutputLine[], line: OutputLine, max: number = _outpu
   return [...lines.slice(-(max - 1)), line]
 }
 
+// appendDedup for the main output: the same duplicate guard, but the line goes in
+// through appendMain so it is tagged for a report card. Ordinary game text arrives
+// this way — calling appendDedup directly here left EXP/INFO/SPELLS/KHRI untagged.
+function appendMainDedup(lines: OutputLine[], line: OutputLine): OutputLine[] {
+  const last = lines[lines.length - 1]
+  if (last && last.text === line.text && line.timestamp - last.timestamp < 300) return lines
+  return appendMain(lines, line)
+}
+
 // Main game output (stream = 'main' + echoes)
 export const outputLinesAtom  = atom<OutputLine[]>([])
 
@@ -1383,7 +1392,7 @@ export const dispatchGameEventAtom = atom(
             if (/"/.test(line.text) && !isScript) {
               set(convLinesAtom, appendDedup(get(convLinesAtom), { ...line, speaker: extractSpeaker(line.text) }, 200))
             } else {
-              set(outputLinesAtom, appendDedup(get(outputLinesAtom), line))
+              set(outputLinesAtom, appendMainDedup(get(outputLinesAtom), line))
               _outputDirty = true
             }
             break
@@ -1424,7 +1433,7 @@ export const dispatchGameEventAtom = atom(
                 const text = event.text.replace(/^\*\s+/, '')   // drop the "* " broadcast prefix
                 set(logonLinesAtom, [...get(logonLinesAtom).slice(-199), { id: lineId++, text, timestamp: Date.now(), kind }])
               } else {
-                set(outputLinesAtom, appendDedup(get(outputLinesAtom), line))
+                set(outputLinesAtom, appendMainDedup(get(outputLinesAtom), line))
                 _outputDirty = true
               }
             }
