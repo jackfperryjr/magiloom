@@ -57,7 +57,8 @@
   --card-edge: color-mix(in srgb, var(--text-main) 11%, transparent);
   --card-t: 0 0 transparent;
   --card-b: 0 0 transparent;
-  background: color-mix(in srgb, var(--text-main) 3.5%, transparent);
+  --card-fill: color-mix(in srgb, var(--text-main) 3.5%, transparent);
+  background: var(--card-fill);
   box-shadow:
     inset 1px 0 0 var(--card-edge),
     inset -1px 0 0 var(--card-edge),
@@ -65,8 +66,29 @@
   padding-inline: 12px;
   margin-inline: 2px;
 }
-.game-line.out-card:hover { background: color-mix(in srgb, var(--text-main) 6%, transparent); }
-.game-line.out-card-start {
+.game-line.out-card:hover { --card-fill: color-mix(in srgb, var(--text-main) 6%, transparent); }
+/* Rows inside a card must TOUCH. Each row paints its own slice of the frame, so a
+   vertical margin between two rows is a hole in the card that the backdrop (rain,
+   weather) shows through. The EXP/INFO line styles in panels.css space their rows
+   with margins and give them their own faint tint and small radius, and they used
+   to beat the card rule on load order: gaps between rows, and Total Ranks / TDPs /
+   Wealth drawn as whiter strips with their own left edge. Inside a card that spacing
+   becomes padding instead, and the row takes the card's fill and inset. The start
+   and end rules below come later at equal or higher specificity, so the card's own
+   outer margin, padding and corner radius still win on its first and last rows. */
+.game-line.out-card:is(.exp-line, .exp-header, .exp-meta, .info-line, .info-data-attr) {
+  background: var(--card-fill);
+  border-radius: 0;
+  margin-block: 0;
+  padding-inline: 12px;
+}
+.game-line.out-card.exp-line    { padding-block: 0.25rem 0.15rem; }
+.game-line.out-card.exp-header  { padding-block: 0.4rem 0.3rem; }
+.game-line.out-card.exp-meta    { padding-block: 0.25rem; }
+.game-line.out-card.info-line   { padding-block: 0.2rem 0.1rem; }
+.game-line.out-card.info-data-attr:not(.info-data-attr + *)     { padding-top: 0.6rem; }
+.game-line.out-card.info-data-attr:not(:has(+ .info-data-attr)) { padding-bottom: 0.6rem; }
+.game-line.out-card.out-card-start {
   --card-t: inset 0 1px 0 var(--card-edge);
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
