@@ -339,7 +339,6 @@ function BeaconsScreen({ beacons, onRun, onForget, error, loading }: {
               >×</span>
             </Tooltip>
           </div>
-          <span className="login-account-arrow">›</span>
         </button>
       ))}
     </div>
