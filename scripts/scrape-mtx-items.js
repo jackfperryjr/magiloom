@@ -385,7 +385,8 @@ ${rows.map(r => JSON.stringify(r)).join(',\n')}
 ]
 `
   // ── Compare with what's committed ──
-  const old = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : ''
+  // CRLF stripped: a Windows checkout may have converted the committed file.
+  const old = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8').replace(/\r/g, '') : ''
   const oldRows = (old.match(/^\["/gm) ?? []).length
   const oldEvents = new Set([...old.matchAll(/^\s*"name": "(.+?)",$/gm)].map(m => JSON.parse(`"${m[1]}"`)))
   const newEvents = events.map(e => e.name).filter(n => !oldEvents.has(n))
