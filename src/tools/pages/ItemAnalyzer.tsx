@@ -6,7 +6,7 @@ import {
 } from '../lib/itemAnalyzer'
 
 /**
- * Item analyzer.
+ * Item Cost Analyzer.
  *
  * Paste an INV LIST, HOME RECALL or vault book (or all three) and get back every item
  * that came out of a SimuCoin event, with what it cost to earn there. Runs entirely in
@@ -87,11 +87,11 @@ export function ItemAnalyzer(): JSX.Element {
 
   return (
     <>
-      <h1>Item Analyzer</h1>
+      <h1>Item Cost Analyzer</h1>
       <p className="lede">
-        Paste an inventory and see which items came from SimuCoin events — end loot,
-        auctions, raffles and drops — with what each cost to earn at the event. Nothing is
-        uploaded or stored; it all runs in your browser.
+        Paste an inventory and it scans for items that originated at microtrans (SimuCoin)
+        events — end loot, auctions, raffles and drops — with what each cost to earn at the
+        event. Nothing is uploaded or stored; it all runs in your browser.
       </p>
 
       <div className="card">
