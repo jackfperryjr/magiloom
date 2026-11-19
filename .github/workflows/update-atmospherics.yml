@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write        # to dispatch checks.yml on the refresh branch (see below)
 
 jobs:
   scrape:
@@ -26,6 +27,7 @@ jobs:
 
       # Only opens a PR when the generated file actually changed.
       - name: Open PR on changes
+        id: pr
         uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "Refresh atmospheric-item messages from Elanthipedia"
@@ -36,7 +38,20 @@ jobs:
             https://elanthipedia.play.net/Category:Atmospheric_items via
             `scripts/scrape-atmospherics.js`.
 
-            Review the diff before merging — new/changed messages feed the Atmo panel.
+            Auto-merges once `checks` passes — new/changed messages feed the Atmo panel.
           branch: chore/atmospherics-refresh
           delete-branch: true
           add-paths: src/renderer/src/lib/atmospherics.generated.ts
+
+      # A PR opened with GITHUB_TOKEN doesn't trigger pull_request workflows, so the
+      # required `checks` status would never arrive and auto-merge would wait forever.
+      # workflow_dispatch is exempt from that rule: run checks.yml on the branch, which
+      # reports `checks` on the PR's head commit, and let auto-merge take it from there.
+      - name: Run checks and auto-merge
+        if: steps.pr.outputs.pull-request-number
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run checks.yml --ref chore/atmospherics-refresh
+          gh pr merge ${{ steps.pr.outputs.pull-request-number }} --squash --auto \
+            --subject "Refresh atmospheric-item messages (#${{ steps.pr.outputs.pull-request-number }})"
