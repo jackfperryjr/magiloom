@@ -1,0 +1,69 @@
+name: Update event items
+
+# Refreshes the Item Analyzer's data (src/tools/lib/mtxItems.generated.ts) from
+# Elanthipedia's microtrans event pages. Events run every few months and their wiki
+# pages fill in over the weeks after, so monthly catches new items without much lag.
+# Run it by hand (workflow_dispatch) right after an event if you don't want to wait.
+
+on:
+  schedule:
+    # Monthly — 06:00 UTC on the 15th (atmospherics has the 1st of the quarter)
+    - cron: "0 6 15 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write        # to dispatch checks.yml on the refresh branch (see below)
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+
+      # Pure Node built-ins (fetch/fs/path) — no dependencies to install. Fails the run
+      # without writing anything if the scrape shrinks sharply (a wiki format change),
+      # rather than opening a PR that would delete good data.
+      - name: Refresh event items from Elanthipedia
+        env:
+          MTX_SUMMARY: ${{ runner.temp }}/mtx-summary.md
+        run: |
+          node scripts/scrape-mtx-items.js
+          {
+            echo "Automated monthly refresh of \`src/tools/lib/mtxItems.generated.ts\` from"
+            echo "https://elanthipedia.play.net/Category:Microtrans_events via \`scripts/scrape-mtx-items.js\`."
+            echo
+            cat "$MTX_SUMMARY"
+            echo
+            echo "Auto-merges once \`checks\` passes. A scrape that shrank sharply never gets this far — the run fails instead."
+          } > "${{ runner.temp }}/pr-body.md"
+
+      # Only opens a PR when the generated file actually changed.
+      - name: Open PR on changes
+        id: pr
+        uses: peter-evans/create-pull-request@v8
+        with:
+          commit-message: "Refresh event items from Elanthipedia"
+          title: "Refresh Item Analyzer event items"
+          body-path: ${{ runner.temp }}/pr-body.md
+          branch: chore/mtx-items-refresh
+          delete-branch: true
+          add-paths: src/tools/lib/mtxItems.generated.ts
+
+      # A PR opened with GITHUB_TOKEN doesn't trigger pull_request workflows, so the
+      # required `checks` status would never arrive and auto-merge would wait forever.
+      # workflow_dispatch is exempt from that rule: run checks.yml on the branch, which
+      # reports `checks` on the PR's head commit, and let auto-merge take it from there.
+      - name: Run checks and auto-merge
+        if: steps.pr.outputs.pull-request-number
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run checks.yml --ref chore/mtx-items-refresh
+          gh pr merge ${{ steps.pr.outputs.pull-request-number }} --squash --auto \
+            --subject "Refresh Item Analyzer event items (#${{ steps.pr.outputs.pull-request-number }})"

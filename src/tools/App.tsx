@@ -6,13 +6,16 @@ import { Planner } from './pages/Planner'
 // guild, which is most of the site's weight and useless to someone reading their logs.
 // Lazily loaded so it's fetched only when that tab is opened.
 const Circles = lazy(() => import('./pages/Circles').then(m => ({ default: m.Circles })))
+// Same for the item analyzer: every microtrans event item ever listed, a couple of MB.
+const ItemAnalyzer = lazy(() => import('./pages/ItemAnalyzer').then(m => ({ default: m.ItemAnalyzer })))
 
 // Hash routing — GitHub Pages has no rewrite rules, so a real path would 404 on
-// refresh or on a shared link. Three pages doesn't justify a router dependency.
+// refresh or on a shared link. A handful of pages doesn't justify a router dependency.
 const PAGES = [
   { id: 'analyzer', label: 'Log Analyzer', el: () => <Analyzer /> },
   { id: 'planner',  label: 'TDP Planner',  el: () => <Planner  /> },
   { id: 'circles',  label: 'Circles',      el: () => <Circles  /> },
+  { id: 'items',    label: 'Item Analyzer', el: () => <ItemAnalyzer /> },
 ] as const
 
 type PageId = typeof PAGES[number]['id']
