@@ -56,6 +56,30 @@ assert.equal(lines[8].container, 'a branch-framed canvas backpack')
 assert.equal(lines[9].count, 2)
 assert.ok(!lines.some(l => /platinum|Name:/.test(l.text)), 'stats and wealth lines are not items')
 
+// Hand-written lists: bullets without articles, trailing "(note)" dropped
+const LIST = `My stuff
+- pale kirmiko pocket with reinforced seams (spare)
+* origami lightning bolt
+• agonite dragon's talon clutching a chakrel globe
+1. onyx chunk
+2) some sleek leathers
+-
+not a bullet so not an item
+- 42
+`
+const listed = parseInventory(LIST)
+assert.deepEqual(listed.map(l => l.text), [
+  'pale kirmiko pocket with reinforced seams',
+  'origami lightning bolt',
+  "agonite dragon's talon clutching a chakrel globe",
+  'onyx chunk',
+  'some sleek leathers',
+])
+assert.ok(listed.every(l => l.container === null), 'a flat list has no nesting')
+assert.equal(appraise(listed, index).length, 4, 'article-less list lines still match')
+// Game output is read exactly as before: same lines from the PASTE above
+assert.equal(parseInventory(PASTE).length, 10)
+
 // appraise: tiers, grouping across places, estimate from the most recent event
 const result = appraise(lines, index)
 const by = (t: string) => result.find(r => r.text.includes(t))!

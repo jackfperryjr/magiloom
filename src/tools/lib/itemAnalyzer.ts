@@ -31,12 +31,20 @@ const NUMBER_WORDS: Record<string, number> = {
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
 }
 const ITEM_START = /^(a|an|some|the|one|two|three|four|five|six|seven|eight|nine|ten)\s/i
+/** A hand-written list item: "- item", "* item", "• item", "1. item", "1) item". */
+const BULLET = /^\s*(?:[-*•]|\d+[.)])\s+/
 
 /**
  * Pull item lines out of a paste. Understands INV LIST (nesting by indent and "-"),
  * HOME RECALL ("Armor Stand: …" / "Attached: …") and READ VAULT BOOK. Anything that
  * doesn't start with an article is ignored, so stats, EXP and bank-book lines in the
  * same paste fall away on their own.
+ *
+ * Hand-written lists are the exception: people drop the article ("- matte indurium
+ * sphere"), so a bulleted line counts as an item with or without one. The game never
+ * puts a space after INV LIST's nesting "-" ("-an origami bolt"), so this doesn't
+ * loosen what's read from game output. A trailing "(forge wand)"-style note is
+ * dropped too; no event item's name ends in one.
  */
 export function parseInventory(text: string): InvLine[] {
   const out: InvLine[] = []
@@ -51,14 +59,15 @@ export function parseInventory(text: string): InvLine[] {
     if (/^\s*>/.test(raw)) continue
 
     const indent = raw.match(/^[\s-]*/)![0].length
-    let s = raw.trim()
+    const bulleted = BULLET.test(raw)
+    let s = raw.replace(BULLET, '').trim()
       .replace(/^-+\s*/, '')
       .replace(/^Attached:\s*/i, '')
       .replace(/^[A-Z][\w #()'/-]*?:\s+/, '')      // home furniture slot: "Armor Stand: …"
-      .replace(/\s*\((open|closed)\)\s*$/i, '')
+      .replace(/\s*\([^()]*\)\s*$/, '')             // "(closed)", "(forge wand)"
       .replace(/\.$/, '')
       .trim()
-    if (!ITEM_START.test(s)) continue
+    if (!ITEM_START.test(s) && !(bulleted && /[a-z]/i.test(s))) continue
 
     let count = 1
     const n = s.match(/^(\w+)\s/)
