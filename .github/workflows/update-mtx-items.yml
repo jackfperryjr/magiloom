@@ -1,6 +1,6 @@
 name: Update event items
 
-# Refreshes the Item Analyzer's data (src/tools/lib/mtxItems.generated.ts) from
+# Refreshes the Item Cost Analyzer's data (src/tools/lib/mtxItems.generated.ts) from
 # Elanthipedia's microtrans event pages. Events run every few months and their wiki
 # pages fill in over the weeks after, so monthly catches new items without much lag.
 # Run it by hand (workflow_dispatch) right after an event if you don't want to wait.
@@ -43,17 +43,31 @@ jobs:
             echo "Auto-merges once \`checks\` passes. A scrape that shrank sharply never gets this far — the run fails instead."
           } > "${{ runner.temp }}/pr-body.md"
 
+      # docs/tools is tracked build output that Pages serves as-is and no other workflow
+      # builds — refreshing only the .ts would never reach the live site. Rebuild it here
+      # so the refresh PR carries the new bundle. Skipped when the scrape changed nothing.
+      - name: Rebuild tools site
+        run: |
+          if git diff --quiet -- src/tools/lib/mtxItems.generated.ts; then
+            echo "No data change; skipping build."
+          else
+            npm ci
+            npm run tools:build
+          fi
+
       # Only opens a PR when the generated file actually changed.
       - name: Open PR on changes
         id: pr
         uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "Refresh event items from Elanthipedia"
-          title: "Refresh Item Analyzer event items"
+          title: "Refresh Item Cost Analyzer event items"
           body-path: ${{ runner.temp }}/pr-body.md
           branch: chore/mtx-items-refresh
           delete-branch: true
-          add-paths: src/tools/lib/mtxItems.generated.ts
+          add-paths: |
+            src/tools/lib/mtxItems.generated.ts
+            docs/tools
 
       # A PR opened with GITHUB_TOKEN doesn't trigger pull_request workflows, so the
       # required `checks` status would never arrive and auto-merge would wait forever.
@@ -66,4 +80,4 @@ jobs:
         run: |
           gh workflow run checks.yml --ref chore/mtx-items-refresh
           gh pr merge ${{ steps.pr.outputs.pull-request-number }} --squash --auto \
-            --subject "Refresh Item Analyzer event items (#${{ steps.pr.outputs.pull-request-number }})"
+            --subject "Refresh Item Cost Analyzer event items (#${{ steps.pr.outputs.pull-request-number }})"

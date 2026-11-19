@@ -1,7 +1,7 @@
 // Scrape every microtransaction-event item off Elanthipedia into a generated data file.
 // Run: node scripts/scrape-mtx-items.js [--refresh]  →  src/tools/lib/mtxItems.generated.ts
 //
-// WHAT IT'S FOR. The Item Analyzer (#/items) matches a pasted inventory against
+// WHAT IT'S FOR. The Item Cost Analyzer (#/items) matches a pasted inventory against
 // everything ever sold, auctioned, raffled or dropped at a SimuCoin event, so someone
 // can tell the paid-for items in a pile of gear from the ones that merely look fancy
 // (in DR, rare materials aren't the tell — event origin is).
