@@ -99,7 +99,9 @@ export function ItemAnalyzer(): JSX.Element {
         <p className="lede" style={{ fontSize: '.9rem' }}>
           Any mix of <span className="mono">INV LIST</span>, <span className="mono">HOME RECALL</span>{' '}
           and <span className="mono">READ VAULT BOOK</span> works — paste the whole session if
-          that's easier, the rest is ignored. Or load a <span className="mono">.txt</span> log.
+          that's easier, the rest is ignored. A bulleted list of item names works too
+          (<span className="mono">- matte indurium sphere</span>). Or load a{' '}
+          <span className="mono">.txt</span> log.
         </p>
         <textarea
           rows={12} value={text} onChange={e => setText(e.target.value)}
@@ -126,7 +128,8 @@ export function ItemAnalyzer(): JSX.Element {
         {text.trim() && lines.length === 0 && (
           <p className="err">
             No items found. Item lines start with an article —{' '}
-            <span className="mono">a steel tachi</span>, <span className="mono">some leathers</span>.
+            <span className="mono">a steel tachi</span>, <span className="mono">some leathers</span> —
+            or a list bullet: <span className="mono">- steel tachi</span>.
           </p>
         )}
       </div>
