@@ -42,7 +42,7 @@ export function Analyzer(): JSX.Element {
     currentAccount().then(a => setAccount(a)).catch(() => setAccount(null))
   }, [])
 
-  // #/analyzer?sample loads the demo straight away, so the page can be linked to as
+  // #/log?sample loads the demo straight away, so the page can be linked to as
   // a worked example ("here's what it tells you") rather than an empty form.
   useEffect(() => {
     if (!location.hash.includes('sample')) return

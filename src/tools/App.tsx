@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect, useState } from 'react'
 import { Analyzer } from './pages/Analyzer'
 import { Planner } from './pages/Planner'
 
-// The circle checker carries the per-guild requirement tables — every circle for every
+// The exp analyzer (circle checker) carries the per-guild requirement tables — every circle for every
 // guild, which is most of the site's weight and useless to someone reading their logs.
 // Lazily loaded so it's fetched only when that tab is opened.
 const Circles = lazy(() => import('./pages/Circles').then(m => ({ default: m.Circles })))
@@ -12,17 +12,30 @@ const ItemAnalyzer = lazy(() => import('./pages/ItemAnalyzer').then(m => ({ defa
 // Hash routing — GitHub Pages has no rewrite rules, so a real path would 404 on
 // refresh or on a shared link. A handful of pages doesn't justify a router dependency.
 const PAGES = [
-  { id: 'analyzer', label: 'Log Analyzer', el: () => <Analyzer /> },
-  { id: 'planner',  label: 'TDP Planner',  el: () => <Planner  /> },
-  { id: 'circles',  label: 'Circles',      el: () => <Circles  /> },
-  { id: 'items',    label: 'Item Cost Analyzer', el: () => <ItemAnalyzer /> },
+  { id: 'log',       label: 'Log Analyzer',       el: () => <Analyzer /> },
+  { id: 'tdp',       label: 'TDP Analyzer',       el: () => <Planner  /> },
+  { id: 'exp',       label: 'Exp Analyzer',       el: () => <Circles  /> },
+  { id: 'items',     label: 'Item Cost Analyzer', el: () => <ItemAnalyzer /> },
 ] as const
 
 type PageId = typeof PAGES[number]['id']
 
+// Addresses from before the tabs were renamed (set 285). Bookmarks and shared links
+// still use these, so they're rewritten in place to the new address, query included
+// (#/analyzer?sample -> #/log?sample).
+const LEGACY: Record<string, PageId> = {
+  analyzer: 'log', planner: 'tdp', circles: 'exp',
+}
+
 function currentPage(): PageId {
-  const id = location.hash.replace(/^#\/?/, '').split('?')[0]
-  return PAGES.some(p => p.id === id) ? id as PageId : 'analyzer'
+  const [id, ...query] = location.hash.replace(/^#\/?/, '').split('?')
+  const moved = LEGACY[id]
+  if (moved) {
+    // replaceState doesn't fire hashchange and doesn't add a history entry.
+    history.replaceState(null, '', `#/${[moved, ...query].join('?')}`)
+    return moved
+  }
+  return PAGES.some(p => p.id === id) ? id as PageId : 'log'
 }
 
 export function App(): JSX.Element {

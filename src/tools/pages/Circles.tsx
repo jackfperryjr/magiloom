@@ -80,7 +80,7 @@ export function Circles(): JSX.Element {
 
   return (
     <>
-      <h1>Circles</h1>
+      <h1>Exp Analyzer</h1>
       <p className="lede">
         Paste your <span className="mono">EXP ALL</span> to see what circle each of your
         skills supports, and what you'd need for any circle you pick. No account, nothing
