@@ -8,7 +8,7 @@ import {
 } from '../lib/tdp'
 
 /**
- * TDP planner — "what will these attribute goals cost me, and will I have earned
+ * TDP Analyzer — "what will these attribute goals cost me, and will I have earned
  * enough by then?"
  *
  * Open to everyone with no sign-in and nothing stored: the whole point is that a
@@ -64,7 +64,7 @@ export function Planner(): JSX.Element {
 
   return (
     <>
-      <h1>TDP Planner</h1>
+      <h1>TDP Analyzer</h1>
       <p className="lede">
         Work out what your attribute goals will cost, and whether circling will pay for
         them. Nothing is stored and no account is needed — paste your <span className="mono">INFO</span>{' '}

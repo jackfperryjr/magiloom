@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 
 // Build for magiloom.com/tools — the companion tools that aren't the game client:
-// the log analyzer (account-gated), the TDP planner and the circle calculator
-// (both open to anyone, no sign-in, nothing stored).
+// the Log Analyzer (account-gated), TDP Analyzer, Exp Analyzer and Item Cost Analyzer
+// (those three open to anyone, no sign-in, nothing stored).
 //
 // Deliberately a THIRD bundle rather than routes inside the web app: the planner and
 // calculator should load for someone who has never signed in and may not even play
@@ -13,7 +13,7 @@ import { resolve } from 'path'
 // Deploys into docs/tools so the existing GitHub Pages workflow serves it alongside
 // docs/app, and a relative base keeps assets working under that subpath.
 //
-// Routing is hash-based (#/analyzer, #/planner, #/circles) because Pages has no
+// Routing is hash-based (#/log, #/tdp, #/exp, #/items) because Pages has no
 // rewrite rules — a real path would 404 on refresh.
 
 export default defineConfig({
