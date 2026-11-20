@@ -368,3 +368,58 @@
 .theme-swatch[data-theme-id="dialup"]::before {
   box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf;
 }
+
+/* ── Scheduled-restart banner (web; MaintenanceBanner.tsx) ───────────────────
+   The in-game strip is the first child of .app-shell's flex column, so it pushes
+   the status bar down instead of covering it. Quiet until the last 15 minutes,
+   then it turns to the warning colour. */
+.maint-strip {
+  flex: none;
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 10px 5px 14px;
+  background: color-mix(in srgb, var(--amber, #d07400) 16%, var(--bg-panel));
+  border-bottom: 1px solid color-mix(in srgb, var(--amber, #d07400) 40%, transparent);
+  color: var(--text-bright);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.maint-strip.maint-soon {
+  background: color-mix(in srgb, var(--color-warning) 24%, var(--bg-panel));
+  border-bottom-color: color-mix(in srgb, var(--color-warning) 60%, transparent);
+}
+.maint-text { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.maint-countdown { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.maint-error { color: var(--color-error, #e5484d); }
+.maint-action {
+  flex: none;
+  padding: 2px 10px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--text-bright) 30%, transparent);
+  background: transparent;
+  color: var(--text-bright);
+  font: inherit; font-size: 12px;
+  cursor: pointer;
+}
+.maint-action:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); }
+.maint-action:disabled { opacity: .55; cursor: default; }
+.maint-close {
+  flex: none;
+  width: 22px; height: 22px;
+  border: none; border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+}
+.maint-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text-bright); }
+/* Login scene: rides the .login-lich-update pill's placement, in amber rather than
+   its "new release" green — this one is a warning. */
+.login-lich-update.maint-pill {
+  align-items: center;
+  background: color-mix(in srgb, var(--amber, #d07400) 18%, rgba(0, 0, 0, 0.62));
+  border-color: color-mix(in srgb, var(--amber, #d07400) 50%, transparent);
+}
+@media (max-width: 600px) {
+  .maint-strip { font-size: 12px; padding: 5px 8px 5px 12px; }
+}

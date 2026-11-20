@@ -5,6 +5,7 @@ import { useIsMobile }         from './hooks/useIsMobile'
 import { useAutomapper }       from './hooks/useAutomapper'
 import { useAmbientAudio }     from './hooks/useAmbientAudio'
 import { GameOutput, setHighlights, setSendFn, setOutputBuffer, setPlayerName, setDisabledClasses } from './components/game/GameOutput'
+import { MaintenanceStrip }    from './components/ui/MaintenanceBanner'
 import { CommandInput, StatusBar, WindowControls, HudBar, CharacterBar } from './components/game'
 import { AmbientOverlay } from './components/game/AmbientOverlay'
 import { DeathCard } from './components/game/DeathCard'
@@ -597,6 +598,9 @@ function GameLayout({ charName, accountName, watching, resumed, loginOpen, onLea
     // one that stopped talking. It fades back in as the connection comes up,
     // which also covers the connecting state on the way in.
     <div className={status === 'connected' ? 'app-shell' : 'app-shell app-shell-idle'}>
+      {/* Web: a scheduled server restart (Lich bump), with a countdown. Inside the
+          shell's flex column so it takes space instead of covering the status bar. */}
+      <MaintenanceStrip />
       <StatusBar updateSlot={updateSlot} charName={charName} />
       <div className="main-area" ref={mainAreaRef}>
         <div className="game-col">
