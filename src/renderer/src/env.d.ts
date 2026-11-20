@@ -318,6 +318,13 @@ interface DrAPI {
     markRead: (peer: string) => Promise<void>
     onReceived: (cb: (m: MagiloomMessage) => void) => () => void
   }
+  // Scheduled server maintenance — WEB CLIENT ONLY. A Lich bump on magiserver
+  // merges (= redeploys = restarts) at an announced slot; this reads it, and lets an
+  // admin hold it. See components/ui/MaintenanceBanner.tsx.
+  maintenance?: {
+    get:     () => Promise<MaintenanceState | null>
+    setHold: (hold: boolean) => Promise<{ ok: boolean; error?: string; notice?: MaintenanceNotice | null }>
+  }
   // Magiloom account — WEB CLIENT ONLY (the Electron preload omits it). Gate any
   // usage on `window.dr.account` being present. Signing in syncs a user's settings,
   // Lich profiles/custom scripts and avatars across their devices.
@@ -346,6 +353,20 @@ interface DrAPI {
 
 declare global {
   interface Window { dr: DrAPI }
+  /** GET /maintenance on magiserver. `held` is only ever sent to admins. */
+  interface MaintenanceNotice {
+    kind:  'lich-update'
+    phase: 'scheduled' | 'held' | 'merging'
+    /** Epoch ms of the merge; the restart follows within minutes. */
+    at:    number
+    from:  string | null
+    to:    string | null
+  }
+  interface MaintenanceState {
+    notice:  MaintenanceNotice | null
+    /** The caller is a signed-in admin and may Hold / Resume. */
+    canHold: boolean
+  }
   // One game-output log file on disk, e.g. refia-2026-07-09.log (see main/log-store.ts).
   /** The signed-in account's storage plan. Null on desktop (nothing prunes local
    *  logs). `maxBytes` is the real bound — `maxDays` can be cut short by it. */

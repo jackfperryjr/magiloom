@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Tooltip } from './Tooltip'
 import { LoginArt } from './LoginArt'
 import { IconArrowDownTray } from './Icons'
+import { MaintenanceBanner, useMaintenance } from './MaintenanceBanner'
 import { loginProgress, STALL_MS } from '../../lib/loginProgress'
 
 interface LoginFlowProps {
@@ -1141,6 +1142,12 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
       .catch(() => { if (!cancelled) setLichUpdate(null) })
     return () => { cancelled = true }
   }, [magiAccount?.email])
+  // The scheduled-restart notice outranks the "Lich is out" one: when both exist they
+  // are about the same update, and the restart time is the part that matters.
+  const maint = useMaintenance()
+  const refreshMaint = maint.refresh
+  useEffect(() => { refreshMaint() }, [magiAccount?.email, refreshMaint])
+
   const dismissLichUpdate = () => {
     if (lichUpdate) { try { localStorage.setItem(LICH_DISMISS_KEY, lichUpdate.latest) } catch { /* private mode */ } }
     setLichUpdate(null)
@@ -1149,8 +1156,9 @@ export function LoginFlow({ onEnterGame, onOpenSettings }: LoginFlowProps) {
   return (
     <Shell wide={screen === 'chargen'}
       // Not over the character creator: its card is wide enough to fill the scene.
-      notice={lichUpdate && screen !== 'chargen'
-        ? <LichUpdateBanner info={lichUpdate} onDismiss={dismissLichUpdate} />
+      notice={screen === 'chargen' ? undefined
+        : maint.state?.notice ? <MaintenanceBanner variant="pill" m={maint} />
+        : lichUpdate ? <LichUpdateBanner info={lichUpdate} onDismiss={dismissLichUpdate} />
         : undefined}
       tabs={TABBED.includes(screen)
       ? <TabBar tab={screen} onTab={s => { setError(''); setScreen(s) }} onSettings={onOpenSettings} />

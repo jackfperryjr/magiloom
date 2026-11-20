@@ -291,6 +291,30 @@ export function installDr(): void {
       markRead: (peer: string) => t.invoke('msg:mark-read', peer),
       onReceived: (cb: (m: unknown) => void) => t.on('msg:received', cb),
     },
+    // Scheduled restart (Lich bump) — plain HTTP, not the gateway: it must answer
+    // before any session exists (the login screen shows it) and to every viewer
+    // alike. The auth token, when present, only adds admin extras (held + Hold).
+    maintenance: {
+      get: async () => {
+        const tok = authToken()
+        const res = await fetch(`${httpBase()}/maintenance`, tok ? { headers: { Authorization: 'Bearer ' + tok } } : {})
+        if (!res.ok) return null   // older server: no endpoint, no banner
+        const d = await res.json() as { notice?: unknown; canHold?: boolean }
+        return { notice: (d.notice ?? null) as never, canHold: !!d.canHold }
+      },
+      setHold: async (hold: boolean) => {
+        try {
+          const res = await fetch(`${httpBase()}/maintenance/hold`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + authToken() },
+            body: JSON.stringify({ hold }),
+          })
+          return await res.json() as { ok: boolean; error?: string }
+        } catch {
+          return { ok: false, error: 'Could not reach the server.' }
+        }
+      },
+    },
     // Magiloom account (web only — desktop's preload has no `account`, so the UI
     // gates on its presence). Signing in/out re-buckets the connection on the server,
     // so we reconnect the socket and re-point the push subscription afterward.
