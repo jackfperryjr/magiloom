@@ -33,4 +33,11 @@ assert.equal(selfLookName('You are Visionary Refia Highwind, Woodland Princess o
 assert.equal(selfLookName('You are Refia Highwind, Woodland Princess of Ilithi, a Human.'), 'Refia')
 assert.equal(selfLookName('You are Penello Highwind, a Human.'), 'Penello')
 
+// Custom titles (not on the wiki) via the hand-kept list…
+assert.equal(selfLookName('You are Lantern Keeper Jackreous, a Human.'), 'Jackreous')
+assert.equal(lookCharacterName(['You see Lantern Keeper Jackreous, a Human.']), 'Jackreous')
+// …and any unknown title once we know our own name.
+assert.equal(selfLookName('You are Starlit Wanderer Jackreous Perry, a Human.', 'Jackreous'), 'Jackreous')
+assert.equal(selfLookName('You are Jackreous, a Human.', 'jackreous'), 'Jackreous')
+
 console.log('lookName: ok')
