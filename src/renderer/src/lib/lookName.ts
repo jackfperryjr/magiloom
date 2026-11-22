@@ -3,9 +3,11 @@
 // must give "Catheroine", not "Paintress" (title) or "Rotschreck" (surname).
 
 import { DR_TITLES } from './drTitles.generated'
+import { CUSTOM_DR_TITLES } from './drTitles.custom'
 
-const TITLE_SET = new Set(DR_TITLES.map(t => t.toLowerCase()))
-const MAX_TITLE_WORDS = Math.max(...DR_TITLES.map(t => t.split(/\s+/).length))
+const ALL_TITLES = [...DR_TITLES, ...CUSTOM_DR_TITLES]
+const TITLE_SET = new Set(ALL_TITLES.map(t => t.toLowerCase()))
+const MAX_TITLE_WORDS = Math.max(...ALL_TITLES.map(t => t.split(/\s+/).length))
 
 // Remove a leading title ("Paintress", "Adviser to the Twelve") from `s`. Only strips
 // when a capitalised word follows it: many titles are also plausible names ("Abra",
@@ -40,8 +42,17 @@ export function lookCharacterName(lines: string[], typedTarget = ''): string {
 }
 
 // Name from our own LOOK. A worn title leads here too ("You are Visionary Refia
-// Highwind, …"), so strip it before taking the first word.
-export function selfLookName(firstLine: string): string {
+// Highwind, …"). We already know who we are, so when the logged-in name appears in
+// the line it wins outright — that covers custom titles no list knows about
+// ("You are Lantern Keeper Jackreous, …"). Otherwise strip a known title and take
+// the first word.
+export function selfLookName(firstLine: string, selfName = ''): string {
   const rest = firstLine.match(/^You are\s+(.*)$/)?.[1]
-  return rest ? stripLeadingTitle(rest).match(/^([A-Z][\w'-]+)/)?.[1] ?? '' : ''
+  if (!rest) return ''
+  const self = selfName.trim()
+  if (self) {
+    const hit = rest.match(/[A-Z][\w'-]+/g)?.find(w => w.toLowerCase() === self.toLowerCase())
+    if (hit) return hit
+  }
+  return stripLeadingTitle(rest).match(/^([A-Z][\w'-]+)/)?.[1] ?? ''
 }

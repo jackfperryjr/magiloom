@@ -1765,7 +1765,7 @@ export const dispatchGameEventAtom = atom(
           const blob = _lookBuf.join(' ')
           let rawName: string
           if (_lookSelf) {
-            rawName = selfLookName(_lookBuf[0])
+            rawName = selfLookName(_lookBuf[0], get(selfNameAtom))
           } else if (LOOK_HAZE_RE.test(blob)) {
             // Haze cosmetic: the LOOK carries no character name and the portrait
             // depicts a generic hazed figure, not a person — so key it to the LOOK
