@@ -747,6 +747,16 @@
   transition: color .1s, border-color .1s;
 }
 .hl-add-btn:hover { border-color: var(--border-accent); color: var(--accent); }
+/* Shared-highlights opt-in (reuses the broadcast switch) + "adopt own list" link. */
+.hl-share-toggle { flex-shrink: 0; margin-bottom: 6px; }
+.hl-share-toggle code { font-size: 0.95em; }
+.hl-adopt-btn {
+  align-self: flex-start; flex-shrink: 0; margin: -2px 0 6px;
+  background: none; border: none; padding: 2px 0; cursor: pointer;
+  color: var(--text-dim); font-size: 13px; font-family: var(--font-ui);
+  text-decoration: underline dotted; text-underline-offset: 3px;
+}
+.hl-adopt-btn:hover { color: var(--text-main); }
 
 .exp-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
 .exp-skill { font-size: 14px; color: var(--text-dim); flex: 1; font-family: var(--font-game); }
