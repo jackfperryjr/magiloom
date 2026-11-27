@@ -144,6 +144,12 @@ interface CharSettings {
   triggers:     NonNullable<AppSettings['triggers']>
   highlights:   unknown[]
   classes:      Record<string, boolean>
+  // Using the account-wide shared highlights (+ class states). While true,
+  // `highlights`/`classes` above are the shared ones and saving them updates the
+  // shared set; own* are this character's own, kept for when it opts back out.
+  shareHighlights: boolean
+  ownHighlights?:  unknown[]
+  ownClasses?:     Record<string, boolean>
   vars:         Record<string, string>
   logging:      boolean
   appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact' }

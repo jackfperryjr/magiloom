@@ -221,30 +221,72 @@ function HighlightPreview({ highlights, line }: { highlights: Highlight[]; line:
   )
 }
 
+// One editable highlight set: the account-wide shared one, or this character's own.
+interface HlSet { highlights: Highlight[]; classes: Record<string, boolean>; dirty: boolean }
+const EMPTY_SET: HlSet = { highlights: [], classes: {}, dirty: false }
+
 export function HighlightsModal({ onClose, charName = '' }: { onClose: () => void; charName?: string }) {
-  const [highlights, setHighlights] = useState<Highlight[]>([])
-  const [classes, setClasses] = useState<Record<string, boolean>>({})
+  // Both sets are loaded so flipping the share switch just swaps which one the
+  // editor shows; edits stay local until Save — that's what lets Cancel discard them.
+  const [share,  setShare]  = useState(true)
+  const [shared, setShared] = useState<HlSet>(EMPTY_SET)
+  const [own,    setOwn]    = useState<HlSet>(EMPTY_SET)
+  const [hasOwn, setHasOwn] = useState(false)
 
   useEffect(() => {
-    window.dr.settings.getChar(charName).then(c => {
-      setHighlights((c.highlights as Highlight[]) ?? [])
-      setClasses(c.classes || {})
+    Promise.all([window.dr.settings.getChar(charName), window.dr.settings.getAll()]).then(([c, s]) => {
+      const sharedHl  = (s.highlights ?? []) as Highlight[]
+      const sharedCls = s.classes ?? {}
+      setShare(charName ? c.shareHighlights : true)
+      setShared({ highlights: sharedHl, classes: sharedCls, dirty: false })
+      // No list of its own yet → opting out starts from a copy of the shared set.
+      setOwn({
+        highlights: ((c.ownHighlights as Highlight[] | undefined) ?? sharedHl).map(h => ({ ...h })),
+        classes:    { ...(c.ownClasses ?? sharedCls) },
+        dirty:      false,
+      })
+      setHasOwn(c.ownHighlights !== undefined)
     })
   }, [charName])
 
-  // Edits stay local until Save — that's what lets Cancel discard them.
-  const add = () => setHighlights(hls => [...hls, { ...BLANK, id: uid() }])
+  const cur = share ? shared : own
+  const edit = (fn: (s: HlSet) => Partial<HlSet>) =>
+    (share ? setShared : setOwn)(s => ({ ...s, ...fn(s), dirty: true }))
 
+  const highlights = cur.highlights
+  const add    = () => edit(s => ({ highlights: [...s.highlights, { ...BLANK, id: uid() }] }))
   const update = (id: string, hl: Highlight) =>
-    setHighlights(hls => hls.map(h => h.id === id ? hl : h))
-
+    edit(s => ({ highlights: s.highlights.map(h => h.id === id ? hl : h) }))
   const remove = (id: string) =>
-    setHighlights(hls => hls.filter(h => h.id !== id))
-
-  const toggleClass = (name: string) => setClasses(m => toggleClassState(m, name))
+    edit(s => ({ highlights: s.highlights.filter(h => h.id !== id) }))
+  const toggleClass = (name: string) => edit(s => ({ classes: toggleClassState(s.classes, name) }))
+  // Seed the shared set from this character's own list (e.g. the character you
+  // customised before sharing existed).
+  const adoptOwn = () => edit(() => ({
+    highlights: own.highlights.map(h => ({ ...h, id: uid() })),
+    classes:    { ...own.classes },
+  }))
 
   const handleSave = async () => {
-    await window.dr.settings.patchChar(charName, { highlights, classes })
+    // Write only the sets that were actually edited, so an untouched one can't
+    // overwrite changes another character saved in the meantime.
+    if (!charName) {
+      if (shared.dirty) await window.dr.settings.patch({ highlights: shared.highlights, classes: shared.classes })
+    } else {
+      if (share && shared.dirty) {
+        await window.dr.settings.patchChar(charName, { shareHighlights: true, highlights: shared.highlights, classes: shared.classes })
+      } else if (!share && own.dirty) {
+        await window.dr.settings.patchChar(charName, { shareHighlights: false, highlights: own.highlights, classes: own.classes })
+      } else {
+        await window.dr.settings.patchChar(charName, { shareHighlights: share })
+      }
+      // Edits made to the set that isn't selected still count.
+      if (!share && shared.dirty) await window.dr.settings.patch({ highlights: shared.highlights, classes: shared.classes })
+      if (share && own.dirty) {
+        await window.dr.settings.patchChar(charName, { shareHighlights: false, highlights: own.highlights, classes: own.classes })
+        await window.dr.settings.patchChar(charName, { shareHighlights: true })
+      }
+    }
     onClose()
   }
 
@@ -256,7 +298,26 @@ export function HighlightsModal({ onClose, charName = '' }: { onClose: () => voi
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="hl-body">
-          <ClassToggleStrip names={distinctClasses(highlights)} states={classes} onToggle={toggleClass} />
+          {charName && (
+            <label className="broadcast-toggle hl-share-toggle">
+              <div className="broadcast-toggle-text">
+                <span className="broadcast-toggle-label">Use shared highlights</span>
+                <span className="broadcast-toggle-hint">
+                  {share
+                    ? <>Changes here, and <code>#class</code> toggles, apply to every character using the shared set.</>
+                    : <>{charName} keeps its own highlights and class states.</>}
+                </span>
+              </div>
+              <input type="checkbox" className="broadcast-switch" checked={share}
+                     onChange={e => setShare(e.target.checked)} />
+            </label>
+          )}
+          {charName && share && hasOwn && (
+            <button className="hl-adopt-btn" onClick={adoptOwn}>
+              Replace the shared set with {charName}'s own highlights
+            </button>
+          )}
+          <ClassToggleStrip names={distinctClasses(highlights)} states={cur.classes} onToggle={toggleClass} />
           {highlights.length === 0 && (
             <p className="hl-empty-msg">No highlights yet. Add one below.</p>
           )}

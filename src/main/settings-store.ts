@@ -69,6 +69,11 @@ export interface CharScopedSettings {
   triggers?:     AppSettings['triggers']
   highlights?:   unknown[]
   classes?:      Record<string, boolean>  // Genie-style class on/off, per character
+  // Opt in/out of the account-wide shared highlight set (see isSharingHighlights).
+  // While sharing, this character's highlights AND class on/off states resolve to
+  // the globals and edits are written there; its own `highlights`/`classes` stay
+  // stored untouched, so opting back out restores them.
+  shareHighlights?: boolean
   vars?:         Record<string, string>   // Genie-style #var named variables, per character
   logging?:      boolean                  // write this character's output to a log file
   // Appearance + panel layout — previously kept per-character in the renderer's
@@ -76,6 +81,13 @@ export interface CharScopedSettings {
   appearance?:   { theme: string; fontSize: number; fontFamily: string; density: 'cozy' | 'compact' }
   panels?:       { id: string; label: string; visible: boolean }[]
   panelHeights?: Record<string, number>
+}
+
+// Sharing is on by default — but a character that already customised its own
+// highlights before the option existed keeps them until it opts in, so nobody's
+// setup silently swaps to the shared list on upgrade.
+export function isSharingHighlights(c: CharScopedSettings): boolean {
+  return c.shareHighlights ?? c.highlights === undefined
 }
 
 // A fully-resolved per-character view: the four gameplay keys resolve to
@@ -88,6 +100,9 @@ export interface ResolvedCharSettings {
   triggers:     NonNullable<AppSettings['triggers']>
   highlights:   unknown[]
   classes:      Record<string, boolean>
+  shareHighlights: boolean
+  ownHighlights?:  unknown[]                // this character's own set, even while sharing
+  ownClasses?:     Record<string, boolean>
   vars:         Record<string, string>
   logging:      boolean
   appearance?:   CharScopedSettings['appearance']
@@ -139,13 +154,17 @@ export class SettingsStore {
   // character) yields the globals.
   getCharSettings(name: string): ResolvedCharSettings {
     const c = (name ? this.data.characters?.[this.charKey(name)] : undefined) ?? {}
+    const shared = isSharingHighlights(c)
     return {
       functionKeys: c.functionKeys ?? this.data.functionKeys ?? {},
       quickActions: c.quickActions ?? this.data.quickActions ?? [],
       aliases:      c.aliases      ?? this.data.aliases      ?? [],
       triggers:     c.triggers     ?? this.data.triggers     ?? [],
-      highlights:   c.highlights   ?? this.data.highlights   ?? [],
-      classes:      c.classes      ?? this.data.classes      ?? {},
+      highlights:   (shared ? undefined : c.highlights) ?? this.data.highlights ?? [],
+      classes:      (shared ? undefined : c.classes)    ?? this.data.classes    ?? {},
+      shareHighlights: shared,
+      ownHighlights:   c.highlights,
+      ownClasses:      c.classes,
       vars:         c.vars         ?? this.data.vars         ?? {},
       logging:      c.logging      ?? !!this.data.logging,
       appearance:   c.appearance,
@@ -157,8 +176,20 @@ export class SettingsStore {
   patchCharSettings(name: string, partial: CharScopedSettings): void {
     if (!name.trim()) return
     const k = this.charKey(name)
-    const cur = this.data.characters?.[k] ?? {}
-    this.data.characters = { ...(this.data.characters ?? {}), [k]: { ...cur, ...partial } }
+    const { highlights, classes, ...rest } = partial
+    const next: CharScopedSettings = { ...(this.data.characters?.[k] ?? {}), ...rest }
+    // Opting out with no list of its own yet: start from a copy of the shared set
+    // rather than an empty one.
+    if (partial.shareHighlights === false) {
+      next.highlights ??= this.data.highlights ? [...this.data.highlights] : undefined
+      next.classes    ??= this.data.classes    ? { ...this.data.classes }  : undefined
+    }
+    // Highlight + class edits from a sharing character (the Highlights dialog, the
+    // Settings modal, `#class`) go to the shared set, so every sharer follows.
+    const shared = isSharingHighlights(next)
+    if (highlights !== undefined) { if (shared) this.data.highlights = highlights; else next.highlights = highlights }
+    if (classes    !== undefined) { if (shared) this.data.classes    = classes;    else next.classes    = classes }
+    this.data.characters = { ...(this.data.characters ?? {}), [k]: next }
     this.save()
   }
 
